@@ -1,10 +1,26 @@
 # syntax=docker/dockerfile:1.7
-FROM golang:1.26.5-alpine AS caddy-build
+FROM --platform=$BUILDPLATFORM golang:1.26.5-alpine AS caddy-build
 
-ENV CGO_ENABLED=0
-RUN go install github.com/caddyserver/caddy/v2/cmd/caddy@v2.11.4
+ARG TARGETOS
+ARG TARGETARCH
+ARG CADDY_VERSION=v2.11.4
+RUN --mount=type=cache,id=caddy-go-mod,target=/go/pkg/mod,sharing=shared \
+    --mount=type=cache,id=caddy-go-build-${TARGETOS}-${TARGETARCH},target=/root/.cache/go-build,sharing=shared \
+    set -eux; \
+    CGO_ENABLED=0 GOOS="$TARGETOS" GOARCH="$TARGETARCH" \
+      go install -trimpath \
+        -ldflags="-X github.com/caddyserver/caddy/v2.CustomVersion=${CADDY_VERSION}" \
+        "github.com/caddyserver/caddy/v2/cmd/caddy@${CADDY_VERSION}"; \
+    if [ "$TARGETOS/$TARGETARCH" = "$(go env GOHOSTOS)/$(go env GOHOSTARCH)" ]; then \
+      src=/go/bin/caddy; \
+    else \
+      src="/go/bin/${TARGETOS}_${TARGETARCH}/caddy"; \
+    fi; \
+    mkdir -p /out; \
+    cp "$src" /out/caddy; \
+    test -s /out/caddy
 
-FROM node:24.12.0-bookworm-slim AS build
+FROM --platform=$BUILDPLATFORM node:24.12.0-bookworm-slim AS build
 
 ENV PNPM_HOME=/pnpm \
     PATH=/pnpm:$PATH
@@ -38,7 +54,7 @@ RUN apk upgrade --no-cache && \
     addgroup -S -g 10001 fiatlux && \
     adduser -S -D -H -u 10001 -G fiatlux fiatlux
 
-COPY --from=caddy-build /go/bin/caddy /usr/bin/caddy
+COPY --from=caddy-build /out/caddy /usr/bin/caddy
 COPY --chown=10001:10001 infra/caddy/Caddyfile.web /etc/caddy/Caddyfile
 COPY --from=build --chown=10001:10001 /app/apps/web/dist /srv
 

@@ -70,6 +70,7 @@
 | 数据库包无测试文件 | 独立脚本失败 | 已纳入当前单元/聚合脚本语义 |
 | 端口冲突 | 默认 4173 命中无关应用 | 固定使用 4174，Playwright 19 passed/1 expected skip |
 | 自编译 Caddy 首次重建 | internal CA 尝试写只读 `/home/fiatlux`，网关重启 | 设置 `HOME=/tmp`、`XDG_DATA_HOME=/data`、`XDG_CONFIG_HOME=/config`；重建后 HTTPS/健康检查通过 |
+| GitHub 双架构 Caddy 冷构建 | web/gateway 在 QEMU 下约 32 分钟完成，距离 35 分钟 job 超时过近 | Caddy 改为在 `BUILDPLATFORM` 上显式交叉编译，amd64/arm64 静态 ELF 均实际运行并报告 v2.11.4；跟踪中的双架构镜像本地构建通过，最终 GitHub SHA 仍须复跑 |
 | 升级前配置备份 | 直接 tar 活跃 bind mount 出现 `file changed as we read it` | 先复制到容器内稳定暂存目录再加密；包含发布状态的两次升级和一次回滚连续通过 |
 | 严格镜像扫描 | `ignore-unfixed=false` 暴露 Debian 与 MinIO 无公开修复版本项 | 发布保存完整 JSON，只自动阻断可修复项；MinIO 风险保持目标生产闸门 |
 
@@ -100,8 +101,8 @@
 | --- | --- | --- | --- |
 | API | `sha256:f03154fe7747b9642a99d99156616c28cd586ab8b262b4ae84cff951495f60eb` | 0 | 21 |
 | worker | `sha256:d471195e0e4bd523143c7376fb4e6b11475367126295d6db5ecb766d9c0a471e` | 0 | 22 |
-| web | `sha256:7d3a7d681d991ad14aadacf07a0c4d901023dac3d1b08ec5ba05fcf6bba0064d` | 0 | 0 |
-| gateway | `sha256:6197a9d8011c38a528f8f0d7f785c3db0cca54a466771bc416d9c98a55afe0d1` | 0 | 0 |
+| web | `sha256:a859ebc31583d3f313afc23f964087b135054f9f33a9e42bb95412a6f4da6a1c` | 0 | 0 |
+| gateway | `sha256:502ddce9e7e4fdf61e9b0011a1db1a2713bdf8775d49cfbd5bfa89c990b7d2a8` | 0 | 0 |
 | MinIO | `sha256:54c577c546ea5433bf1d02ef842d09b2687cc36bb1348c8691b44ab98e1cc405` | 0 | 6 |
 | backup | `sha256:81768ce039305f533dedeef1b01907fa939b3758566b4733b06dbda1b5b69d12` | 0 | 0 |
 
