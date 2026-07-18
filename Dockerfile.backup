@@ -1,0 +1,40 @@
+# syntax=docker/dockerfile:1.7
+FROM --platform=$BUILDPLATFORM golang:1.26.5-alpine AS mc-build
+
+ARG TARGETOS
+ARG TARGETARCH
+ARG MC_RELEASE=RELEASE.2025-08-13T08-35-41Z
+
+RUN apk add --no-cache git
+WORKDIR /src
+RUN git clone --depth 1 --branch "$MC_RELEASE" https://github.com/minio/mc.git .
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    go get \
+      github.com/prometheus/prometheus@v0.311.3 \
+      golang.org/x/crypto@v0.52.0 \
+      golang.org/x/net@v0.55.0 \
+      google.golang.org/grpc@v1.81.0
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    mkdir -p /out && \
+    LDFLAGS="$(go run buildscripts/gen-ldflags.go)" && \
+    CGO_ENABLED=0 GOOS="$TARGETOS" GOARCH="$TARGETARCH" \
+      go build -mod=mod -tags kqueue -trimpath -ldflags "$LDFLAGS" -o /out/mc .
+
+FROM postgres:17.5-alpine
+
+RUN apk upgrade --no-cache && \
+    apk add --no-cache age bash coreutils findutils gzip jq openssl tar && \
+    rm -f /usr/local/bin/gosu
+
+COPY --from=mc-build /out/mc /usr/local/bin/mc
+COPY --chmod=0555 infra/backup/backup-container.sh /usr/local/bin/backup-container
+COPY --chmod=0555 infra/backup/restore-container.sh /usr/local/bin/restore-container
+
+ENV HOME=/tmp \
+    MC_CONFIG_DIR=/tmp/.mc
+
+USER 65532:65532
+ENTRYPOINT []
+CMD ["backup-container"]

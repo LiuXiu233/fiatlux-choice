@@ -1,0 +1,14 @@
+packages:
+  - apps/*
+  - packages/*
+
+onlyBuiltDependencies:
+  - argon2
+  - esbuild
+
+minimumReleaseAge: 1440
+minimumReleaseAgeExclude:
+  - "@fiatlux/*"
+allowBuilds:
+  argon2: true
+  esbuild: true

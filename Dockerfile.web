@@ -1,0 +1,47 @@
+# syntax=docker/dockerfile:1.7
+FROM golang:1.26.5-alpine AS caddy-build
+
+ENV CGO_ENABLED=0
+RUN go install github.com/caddyserver/caddy/v2/cmd/caddy@v2.11.4
+
+FROM node:24.12.0-bookworm-slim AS build
+
+ENV PNPM_HOME=/pnpm \
+    PATH=/pnpm:$PATH
+WORKDIR /app
+
+RUN corepack enable && corepack prepare pnpm@11.13.0 --activate
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc tsconfig.base.json ./
+COPY apps/api/package.json ./apps/api/package.json
+COPY apps/web/package.json ./apps/web/package.json
+COPY apps/worker/package.json ./apps/worker/package.json
+COPY packages/contracts/package.json ./packages/contracts/package.json
+COPY packages/db/package.json ./packages/db/package.json
+COPY packages/domain/package.json ./packages/domain/package.json
+COPY packages/integrations/package.json ./packages/integrations/package.json
+RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
+    pnpm install --frozen-lockfile
+
+COPY apps ./apps
+COPY packages ./packages
+RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
+    pnpm --filter @fiatlux/web... build
+
+FROM alpine:3.23 AS runtime
+
+ENV XDG_DATA_HOME=/tmp/caddy-data \
+    XDG_CONFIG_HOME=/tmp/caddy-config
+
+RUN apk upgrade --no-cache && \
+    apk add --no-cache ca-certificates && \
+    addgroup -S -g 10001 fiatlux && \
+    adduser -S -D -H -u 10001 -G fiatlux fiatlux
+
+COPY --from=caddy-build /go/bin/caddy /usr/bin/caddy
+COPY --chown=10001:10001 infra/caddy/Caddyfile.web /etc/caddy/Caddyfile
+COPY --from=build --chown=10001:10001 /app/apps/web/dist /srv
+
+USER 10001:10001
+EXPOSE 8080
+CMD ["caddy", "run", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile"]

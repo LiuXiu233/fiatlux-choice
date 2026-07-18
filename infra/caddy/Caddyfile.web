@@ -1,0 +1,21 @@
+{
+	admin off
+	persist_config off
+}
+
+:8080 {
+	root * /srv
+	encode zstd gzip
+
+	@immutable path /assets/* /icons/*
+	header @immutable Cache-Control "public, max-age=31536000, immutable"
+
+	@serviceWorker path /sw.js /service-worker.js /manifest.webmanifest
+	header @serviceWorker Cache-Control "no-cache, no-store, must-revalidate"
+
+	route {
+		respond /health/live 200
+		try_files {path} /index.html
+		file_server
+	}
+}

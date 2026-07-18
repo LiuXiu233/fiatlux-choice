@@ -1,0 +1,26 @@
+services:
+  api:
+    pull_policy: build
+    environment:
+      APP_ORIGIN: http://localhost:${HTTP_PORT:-8080}
+      PUBLIC_APP_URL: http://localhost:${HTTP_PORT:-8080}
+      WEB_ORIGIN: http://localhost:${HTTP_PORT:-8080}
+      COOKIE_SECURE: "false"
+
+  worker:
+    pull_policy: build
+
+  web:
+    pull_policy: build
+
+  minio:
+    pull_policy: build
+
+  caddy:
+    pull_policy: build
+    command: ["caddy", "run", "--config", "/etc/caddy/Caddyfile.dev", "--adapter", "caddyfile"]
+    ports:
+      - ${BIND_ADDRESS:-127.0.0.1}:${HTTP_PORT:-8080}:8080
+
+  backup-tools:
+    pull_policy: build

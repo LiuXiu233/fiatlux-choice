@@ -1,0 +1,19 @@
+title = "FIAT LUX CHOICE Gitleaks configuration"
+
+[extend]
+useDefault = true
+
+# These exact strings are public dummy values used only by integration tests and
+# the API guide. Keep the default generic-api-key rule enabled and allow only the
+# literal placeholders—not their files, directories, or the rule as a whole.
+[[rules]]
+id = "generic-api-key"
+
+[[rules.allowlists]]
+description = "Public integration-test and documentation password placeholders"
+regexTarget = "match"
+regexes = [
+  '''REPLACE_WITH_14_PLUS_CHARACTERS''',
+  '''correct-horse-battery-staple-1''',
+  '''correct-horse-battery-staple-2''',
+]
