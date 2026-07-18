@@ -44,7 +44,7 @@ COPY packages ./packages
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
     pnpm --filter @fiatlux/web... build
 
-FROM alpine:3.23 AS runtime
+FROM alpine:3.24 AS runtime
 
 ENV XDG_DATA_HOME=/tmp/caddy-data \
     XDG_CONFIG_HOME=/tmp/caddy-config
