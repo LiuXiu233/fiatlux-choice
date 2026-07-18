@@ -22,7 +22,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     CGO_ENABLED=0 GOOS="$TARGETOS" GOARCH="$TARGETARCH" \
       go build -mod=mod -tags kqueue -trimpath -ldflags "$LDFLAGS" -o /out/mc .
 
-FROM postgres:17.5-alpine
+FROM postgres:18.4-alpine
 
 RUN apk upgrade --no-cache && \
     apk add --no-cache age bash coreutils findutils gzip jq openssl tar && \

@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.7
-FROM postgres:17.5-bookworm AS postgres-client
+FROM postgres:18.4-bookworm AS postgres-client
 
 FROM node:24.12.0-bookworm-slim AS build
 
