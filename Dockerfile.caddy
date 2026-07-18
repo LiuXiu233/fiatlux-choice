@@ -20,7 +20,7 @@ RUN --mount=type=cache,id=caddy-go-mod,target=/go/pkg/mod,sharing=shared \
     cp "$src" /out/caddy; \
     test -s /out/caddy
 
-FROM alpine:3.23
+FROM alpine:3.24
 
 ENV HOME=/tmp \
     XDG_CONFIG_HOME=/config \
