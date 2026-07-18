@@ -14,8 +14,6 @@ on:
 permissions:
   contents: read
   packages: write
-  id-token: write
-  attestations: write
 
 # GHCR does not provide an atomic create-if-absent operation for tags. Serializing every release
 # run, checking all target tags before any promotion, and restricting package writes to this
@@ -302,6 +300,82 @@ jobs:
             exit 3
           fi
           docker buildx imagetools inspect "$REGISTRY_IMAGE@$IMAGE_DIGEST" >/dev/null
+      - name: Verify multi-platform BuildKit provenance
+        env:
+          IMAGE_DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          set -euo pipefail
+          index_json=$(mktemp)
+          trap 'rm -f "${index_json:-}" "${attestation_json:-}"' EXIT
+          docker buildx imagetools inspect --raw \
+            "$REGISTRY_IMAGE@$IMAGE_DIGEST" >"$index_json"
+
+          for architecture in amd64 arm64; do
+            platform_count=$(jq --arg architecture "$architecture" \
+              '[.manifests[]? | select(.platform.os == "linux" and .platform.architecture == $architecture)] | length' \
+              "$index_json")
+            if [[ "$platform_count" != 1 ]]; then
+              printf '期望恰好一个 linux/%s manifest，实际为 %s。\n' \
+                "$architecture" "$platform_count" >&2
+              exit 3
+            fi
+          done
+          total_platform_count=$(jq \
+            '[.manifests[]? | select((.annotations["vnd.docker.reference.type"] // "") != "attestation-manifest")] | length' \
+            "$index_json")
+          if [[ "$total_platform_count" != 2 ]]; then
+            printf '期望恰好两个可运行平台 manifest，实际为 %s。\n' \
+              "$total_platform_count" >&2
+            exit 3
+          fi
+
+          mapfile -t platform_digests < <(jq -r \
+            '.manifests[]? | select(.platform.os == "linux" and (.platform.architecture == "amd64" or .platform.architecture == "arm64")) | .digest' \
+            "$index_json")
+          for platform_digest in "${platform_digests[@]}"; do
+            if [[ ! "$platform_digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+              printf '无效平台 digest：%s。\n' "$platform_digest" >&2
+              exit 3
+            fi
+            mapfile -t attestation_digests < <(jq -r --arg platform_digest "$platform_digest" \
+              '.manifests[]? | select(
+                .annotations["vnd.docker.reference.type"] == "attestation-manifest" and
+                .annotations["vnd.docker.reference.digest"] == $platform_digest
+              ) | .digest' "$index_json")
+            if ((${#attestation_digests[@]} < 1)); then
+              printf '平台 manifest %s 缺少 BuildKit attestation。\n' \
+                "$platform_digest" >&2
+              exit 3
+            fi
+            valid_provenance=0
+            for attestation_digest in "${attestation_digests[@]}"; do
+              if [[ ! "$attestation_digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+                printf '无效 attestation digest：%s。\n' \
+                  "$attestation_digest" >&2
+                exit 3
+              fi
+              attestation_json=$(mktemp)
+              docker buildx imagetools inspect --raw \
+                "$REGISTRY_IMAGE@$attestation_digest" >"$attestation_json"
+              if jq -e --arg subject "$platform_digest" '
+                .mediaType == "application/vnd.oci.image.manifest.v1+json" and
+                .subject.digest == $subject and
+                any(.layers[]?;
+                  .mediaType == "application/vnd.in-toto+json" and
+                  ((.annotations["in-toto.io/predicate-type"] // "") |
+                    startswith("https://slsa.dev/provenance/"))
+                )' "$attestation_json" >/dev/null; then
+                valid_provenance=1
+              fi
+              rm -f "$attestation_json"
+            done
+            if ((valid_provenance != 1)); then
+              printf '平台 manifest %s 缺少 SLSA provenance predicate。\n' \
+                "$platform_digest" >&2
+              exit 3
+            fi
+          done
+          rm -f "$index_json"
       - name: Scan amd64 digest and preserve all high-severity findings
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         env:
@@ -354,12 +428,6 @@ jobs:
           if-no-files-found: error
           retention-days: 90
           overwrite: true
-      - name: Attest verified image provenance
-        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2
-        with:
-          subject-name: ${{ env.REGISTRY_IMAGE }}
-          subject-digest: ${{ steps.build.outputs.digest }}
-          push-to-registry: true
       - name: Generate SPDX SBOM for the verified digest
         uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0
         with:
