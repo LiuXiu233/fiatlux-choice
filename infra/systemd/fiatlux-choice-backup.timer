@@ -1,0 +1,11 @@
+[Unit]
+Description=Run FIAT LUX CHOICE backup every day
+
+[Timer]
+OnCalendar=*-*-* 02:15:00 Asia/Shanghai
+Persistent=true
+RandomizedDelaySec=15m
+Unit=fiatlux-choice-backup.service
+
+[Install]
+WantedBy=timers.target

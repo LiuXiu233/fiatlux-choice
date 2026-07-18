@@ -1,0 +1,29 @@
+[Unit]
+Description=FIAT LUX CHOICE internal application stack
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+User=fiatlux
+Group=fiatlux
+SupplementaryGroups=docker
+WorkingDirectory=/opt/fiatlux-choice
+Environment=FIATLUX_ENV=production
+Environment=FIATLUX_ENV_FILE=/etc/fiatlux-choice/production.env
+EnvironmentFile=/etc/fiatlux-choice/production.env
+ExecStart=/opt/fiatlux-choice/scripts/compose.sh up -d --wait --remove-orphans
+ExecReload=/opt/fiatlux-choice/scripts/compose.sh up -d --wait --remove-orphans
+ExecStop=/opt/fiatlux-choice/scripts/compose.sh stop
+TimeoutStartSec=900
+TimeoutStopSec=180
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=-/opt/fiatlux-choice/data -/var/backups/fiatlux-choice
+
+[Install]
+WantedBy=multi-user.target

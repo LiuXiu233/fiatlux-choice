@@ -1,0 +1,318 @@
+name: fiatlux-choice
+
+x-json-logging: &json-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+    compress: "true"
+
+x-app-environment: &app-environment
+  NODE_ENV: production
+  API_HOST: 0.0.0.0
+  API_PORT: "3000"
+  APP_ORIGIN: ${APP_ORIGIN:-http://localhost:8080}
+  PUBLIC_APP_URL: ${PUBLIC_APP_URL:-http://localhost:8080}
+  WEB_ORIGIN: ${APP_ORIGIN:-http://localhost:8080}
+  DATABASE_URL: postgresql://${POSTGRES_USER:-fiatlux}:${POSTGRES_PASSWORD:-fiatlux-dev-db-password}@postgres:5432/${POSTGRES_DB:-fiatlux_choice}
+  SESSION_SECRET: ${SESSION_SECRET:-development-only-session-secret-change-me}
+  SESSION_TTL_HOURS: ${SESSION_TTL_HOURS:-12}
+  JWT_SECRET: ${SESSION_SECRET:-development-only-session-secret-change-me}
+  JWT_TTL_SECONDS: ${JWT_TTL_SECONDS:-43200}
+  COOKIE_SECURE: ${COOKIE_SECURE:-false}
+  INITIAL_ADMIN_EMAIL: ${INITIAL_ADMIN_EMAIL:-admin@fiatlux.local}
+  INITIAL_ADMIN_PASSWORD: ${INITIAL_ADMIN_PASSWORD:-development-only-admin-password}
+  BOOTSTRAP_ORG_NAME: ${BOOTSTRAP_ORG_NAME:-FIAT LUX}
+  BOOTSTRAP_ORG_SLUG: ${BOOTSTRAP_ORG_SLUG:-fiat-lux}
+  BOOTSTRAP_ADMIN_EMAIL: ${INITIAL_ADMIN_EMAIL:-admin@fiatlux.local}
+  BOOTSTRAP_ADMIN_NAME: ${BOOTSTRAP_ADMIN_NAME:-Administrator}
+  BOOTSTRAP_ADMIN_PASSWORD: ${INITIAL_ADMIN_PASSWORD:-development-only-admin-password}
+  COMPLIANCE_SOURCES_REQUIRED: ${COMPLIANCE_SOURCES_REQUIRED:-true}
+  STORAGE_DRIVER: s3
+  S3_ENDPOINT: http://minio:9000
+  S3_REGION: ${S3_REGION:-cn-south-1}
+  S3_BUCKET: ${S3_BUCKET:-fiatlux-choice}
+  S3_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-fiatlux}
+  S3_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-fiatlux-dev-minio-password}
+  S3_FORCE_PATH_STYLE: "true"
+  LLM_DRIVER: ${LLM_DRIVER:-mock}
+  LLM_BASE_URL: ${LLM_BASE_URL:-}
+  LLM_API_KEY: ${LLM_API_KEY:-}
+  LLM_MODEL: ${LLM_MODEL:-}
+  GITHUB_INTEGRATION_MODE: ${GITHUB_INTEGRATION_MODE:-manual}
+  GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+  LOG_LEVEL: ${LOG_LEVEL:-info}
+  TRUST_PROXY: "true"
+
+x-api-image: &api-image
+  image: ${IMAGE_PREFIX:-ghcr.io/liuxiu233/fiatlux-choice}-api:${APP_IMAGE_TAG:-local}
+  build:
+    context: .
+    dockerfile: Dockerfile.api
+
+x-hardened-app: &hardened-app
+  init: true
+  read_only: true
+  cap_drop:
+    - ALL
+  security_opt:
+    - no-new-privileges:true
+  tmpfs:
+    - /tmp:rw,noexec,nosuid,nodev,size=128m
+  logging: *json-logging
+  stop_grace_period: 30s
+
+services:
+  postgres:
+    image: postgres:17.5-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-fiatlux_choice}
+      POSTGRES_USER: ${POSTGRES_USER:-fiatlux}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fiatlux-dev-db-password}
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256 --auth-local=scram-sha-256
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    restart: unless-stopped
+    shm_size: 256mb
+    read_only: true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETGID
+      - SETUID
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=64m
+      - /run/postgresql:rw,nosuid,nodev,size=16m
+    logging: *json-logging
+
+  minio:
+    image: ${IMAGE_PREFIX:-ghcr.io/liuxiu233/fiatlux-choice}-minio:${APP_IMAGE_TAG:-local}
+    build:
+      context: .
+      dockerfile: Dockerfile.minio
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-fiatlux}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-fiatlux-dev-minio-password}
+      MC_HOST_local: http://${MINIO_ROOT_USER:-fiatlux}:${MINIO_ROOT_PASSWORD:-fiatlux-dev-minio-password}@127.0.0.1:9000
+    volumes:
+      - minio-data:/data
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    restart: unless-stopped
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=64m
+    logging: *json-logging
+
+  minio-bootstrap:
+    image: ${IMAGE_PREFIX:-ghcr.io/liuxiu233/fiatlux-choice}-minio:${APP_IMAGE_TAG:-local}
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        mc alias set local http://minio:9000 "$${MINIO_ROOT_USER}" "$${MINIO_ROOT_PASSWORD}" --api S3v4 >/dev/null
+        mc mb --ignore-existing "local/$${S3_BUCKET}"
+        mc anonymous set none "local/$${S3_BUCKET}"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-fiatlux}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-fiatlux-dev-minio-password}
+      S3_BUCKET: ${S3_BUCKET:-fiatlux-choice}
+      MC_CONFIG_DIR: /tmp/.mc
+    depends_on:
+      minio:
+        condition: service_healthy
+    networks:
+      - backend
+    restart: "no"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=32m
+    logging: *json-logging
+
+  migrate:
+    <<: [*api-image, *hardened-app]
+    command: ["node", "packages/db/dist/migrate.js"]
+    environment: *app-environment
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - backend
+    restart: "no"
+
+  api:
+    <<: [*api-image, *hardened-app]
+    environment: *app-environment
+    expose:
+      - "3000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      minio-bootstrap:
+        condition: service_completed_successfully
+    networks:
+      - edge
+      - backend
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - fetch('http://127.0.0.1:3000/health/live').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    restart: unless-stopped
+
+  worker:
+    image: ${IMAGE_PREFIX:-ghcr.io/liuxiu233/fiatlux-choice}-worker:${APP_IMAGE_TAG:-local}
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    <<: *hardened-app
+    environment:
+      <<: *app-environment
+      BACKUP_COMMAND: /usr/local/bin/worker-database-backup
+      BACKUP_DIR: /backups
+      PGHOST: postgres
+      PGPORT: "5432"
+      PGDATABASE: ${POSTGRES_DB:-fiatlux_choice}
+      PGUSER: ${POSTGRES_USER:-fiatlux}
+      PGPASSWORD: ${POSTGRES_PASSWORD:-fiatlux-dev-db-password}
+      BACKUP_AGE_RECIPIENT: ${BACKUP_AGE_RECIPIENT:-}
+      BACKUP_REQUIRE_ENCRYPTION: ${BACKUP_REQUIRE_ENCRYPTION:-false}
+    volumes:
+      - ${BACKUP_DIR:-./backups}:/backups
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      minio-bootstrap:
+        condition: service_completed_successfully
+    networks:
+      - edge
+      - backend
+    restart: unless-stopped
+
+  web:
+    image: ${IMAGE_PREFIX:-ghcr.io/liuxiu233/fiatlux-choice}-web:${APP_IMAGE_TAG:-local}
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    <<: *hardened-app
+    expose:
+      - "8080"
+    networks:
+      - edge
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    restart: unless-stopped
+
+  caddy:
+    image: ${IMAGE_PREFIX:-ghcr.io/liuxiu233/fiatlux-choice}-gateway:${APP_IMAGE_TAG:-local}
+    build:
+      context: .
+      dockerfile: Dockerfile.caddy
+    <<: *hardened-app
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:-localhost}
+    volumes:
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      api:
+        condition: service_healthy
+      web:
+        condition: service_healthy
+    networks:
+      - edge
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    restart: unless-stopped
+
+  backup-tools:
+    image: ${IMAGE_PREFIX:-ghcr.io/liuxiu233/fiatlux-choice}-backup:${APP_IMAGE_TAG:-local}
+    build:
+      context: .
+      dockerfile: Dockerfile.backup
+    profiles:
+      - operations
+    user: ${HOST_UID:-1000}:${HOST_GID:-1000}
+    environment:
+      PGHOST: postgres
+      PGPORT: "5432"
+      PGDATABASE: ${POSTGRES_DB:-fiatlux_choice}
+      PGUSER: ${POSTGRES_USER:-fiatlux}
+      PGPASSWORD: ${POSTGRES_PASSWORD:-fiatlux-dev-db-password}
+      S3_ENDPOINT: http://minio:9000
+      S3_BUCKET: ${S3_BUCKET:-fiatlux-choice}
+      S3_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-fiatlux}
+      S3_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-fiatlux-dev-minio-password}
+      BACKUP_AGE_RECIPIENT: ${BACKUP_AGE_RECIPIENT:-}
+      BACKUP_REQUIRE_ENCRYPTION: ${BACKUP_REQUIRE_ENCRYPTION:-false}
+    volumes:
+      - ${BACKUP_DIR:-./backups}:/backups
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    networks:
+      - backend
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=256m
+    logging: *json-logging
+    restart: "no"
+
+volumes:
+  postgres-data:
+  minio-data:
+  caddy-data:
+  caddy-config:
+
+networks:
+  edge:
+    driver: bridge
+  backend:
+    driver: bridge
+    internal: true

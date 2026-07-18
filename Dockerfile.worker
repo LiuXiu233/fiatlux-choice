@@ -1,0 +1,50 @@
+# syntax=docker/dockerfile:1.7
+FROM postgres:17.5-bookworm AS postgres-client
+
+FROM node:24.12.0-bookworm-slim AS build
+
+ENV PNPM_HOME=/pnpm \
+    PATH=/pnpm:$PATH
+WORKDIR /app
+
+RUN corepack enable && corepack prepare pnpm@11.13.0 --activate
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc tsconfig.base.json ./
+COPY apps/api/package.json ./apps/api/package.json
+COPY apps/web/package.json ./apps/web/package.json
+COPY apps/worker/package.json ./apps/worker/package.json
+COPY packages/contracts/package.json ./packages/contracts/package.json
+COPY packages/db/package.json ./packages/db/package.json
+COPY packages/domain/package.json ./packages/domain/package.json
+COPY packages/integrations/package.json ./packages/integrations/package.json
+RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
+    pnpm install --frozen-lockfile
+
+COPY apps ./apps
+COPY packages ./packages
+RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
+    pnpm --workspace-concurrency=1 --filter @fiatlux/worker... build
+RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
+    rm -rf node_modules apps/*/node_modules packages/*/node_modules && \
+    CI=true pnpm install --prod --offline --frozen-lockfile
+
+FROM node:24.12.0-bookworm-slim AS runtime
+
+ENV NODE_ENV=production
+WORKDIR /app
+
+RUN apt-get update && \
+    apt-get upgrade --yes --no-install-recommends && \
+    apt-get install --yes --no-install-recommends age ca-certificates libpq5 && \
+    rm -rf /var/lib/apt/lists/* /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack && \
+    rm -f /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack /usr/local/bin/pnpm /usr/local/bin/pnpx
+
+COPY --from=build --chown=node:node /app/package.json /app/pnpm-lock.yaml /app/pnpm-workspace.yaml /app/.npmrc ./
+COPY --from=build --chown=node:node /app/node_modules ./node_modules
+COPY --from=build --chown=node:node /app/apps/worker ./apps/worker
+COPY --from=build --chown=node:node /app/packages ./packages
+COPY --from=postgres-client /usr/lib/postgresql/17/bin/pg_dump /usr/local/bin/pg_dump
+COPY --chmod=0555 infra/backup/worker-database-backup.sh /usr/local/bin/worker-database-backup
+
+USER node
+CMD ["node", "apps/worker/dist/worker.js"]

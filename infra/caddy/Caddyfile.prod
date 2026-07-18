@@ -1,0 +1,41 @@
+{
+	admin off
+	persist_config off
+}
+
+https://{$APP_DOMAIN:localhost}:8443 {
+	tls internal
+
+	log {
+		output stdout
+		format json
+	}
+
+	encode zstd gzip
+	request_body {
+		max_size 50MB
+	}
+
+	header {
+		-Server
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+		Content-Security-Policy "default-src 'self'; base-uri 'self'; connect-src 'self'; font-src 'self'; form-action 'self'; frame-ancestors 'none'; img-src 'self' data: blob:; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; worker-src 'self' blob:"
+	}
+
+	handle /api/* {
+		reverse_proxy api:3000
+	}
+	handle /health/* {
+		reverse_proxy api:3000
+	}
+	handle /openapi* {
+		reverse_proxy api:3000
+	}
+	handle {
+		reverse_proxy web:8080
+	}
+}

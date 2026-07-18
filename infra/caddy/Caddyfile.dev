@@ -1,0 +1,37 @@
+{
+	admin off
+	persist_config off
+}
+
+:8080 {
+	log {
+		output stdout
+		format json
+	}
+
+	encode zstd gzip
+	request_body {
+		max_size 50MB
+	}
+
+	header {
+		-Server
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+	}
+
+	handle /api/* {
+		reverse_proxy api:3000
+	}
+	handle /health/* {
+		reverse_proxy api:3000
+	}
+	handle /openapi* {
+		reverse_proxy api:3000
+	}
+	handle {
+		reverse_proxy web:8080
+	}
+}

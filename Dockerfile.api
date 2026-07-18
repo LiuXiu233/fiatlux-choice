@@ -1,0 +1,47 @@
+# syntax=docker/dockerfile:1.7
+FROM node:24.12.0-bookworm-slim AS build
+
+ENV PNPM_HOME=/pnpm \
+    PATH=/pnpm:$PATH
+WORKDIR /app
+
+RUN corepack enable && corepack prepare pnpm@11.13.0 --activate
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc tsconfig.base.json ./
+COPY apps/api/package.json ./apps/api/package.json
+COPY apps/web/package.json ./apps/web/package.json
+COPY apps/worker/package.json ./apps/worker/package.json
+COPY packages/contracts/package.json ./packages/contracts/package.json
+COPY packages/db/package.json ./packages/db/package.json
+COPY packages/domain/package.json ./packages/domain/package.json
+COPY packages/integrations/package.json ./packages/integrations/package.json
+RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
+    pnpm install --frozen-lockfile
+
+COPY apps ./apps
+COPY packages ./packages
+RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
+    pnpm --workspace-concurrency=1 --filter @fiatlux/api... build
+RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
+    rm -rf node_modules apps/*/node_modules packages/*/node_modules && \
+    CI=true pnpm install --prod --offline --frozen-lockfile
+
+FROM node:24.12.0-bookworm-slim AS runtime
+
+ENV NODE_ENV=production
+WORKDIR /app
+
+RUN apt-get update && \
+    apt-get upgrade --yes --no-install-recommends && \
+    rm -rf /var/lib/apt/lists/* /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack && \
+    rm -f /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack /usr/local/bin/pnpm /usr/local/bin/pnpx
+
+COPY --from=build --chown=node:node /app/package.json /app/pnpm-lock.yaml /app/pnpm-workspace.yaml /app/.npmrc ./
+COPY --from=build --chown=node:node /app/node_modules ./node_modules
+COPY --from=build --chown=node:node /app/apps/api ./apps/api
+COPY --from=build --chown=node:node /app/packages ./packages
+COPY --chown=node:node content ./content
+
+USER node
+EXPOSE 3000
+CMD ["node", "apps/api/dist/server.js"]

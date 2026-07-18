@@ -1,0 +1,212 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CI: "true"
+  NODE_ENV: test
+  DATABASE_URL: postgresql://fiatlux:fiatlux_ci_password@127.0.0.1:5432/fiatlux_choice
+  TEST_DATABASE_URL: postgresql://fiatlux:fiatlux_ci_password@127.0.0.1:5432/fiatlux_choice
+  POSTGRES_DB: fiatlux_choice
+  POSTGRES_USER: fiatlux
+  POSTGRES_PASSWORD: fiatlux_ci_password
+  SESSION_SECRET: ci-only-session-secret-with-more-than-32-characters
+  JWT_SECRET: ci-only-session-secret-with-more-than-32-characters
+  JWT_TTL_SECONDS: "43200"
+  COOKIE_SECURE: "false"
+  WEB_ORIGIN: http://127.0.0.1:4173
+  INITIAL_ADMIN_EMAIL: ci-admin@fiatlux.local
+  INITIAL_ADMIN_PASSWORD: ci-only-admin-password
+  STORAGE_DRIVER: s3
+  S3_ENDPOINT: http://127.0.0.1:9000
+  S3_REGION: cn-south-1
+  S3_BUCKET: fiatlux-choice
+  S3_ACCESS_KEY_ID: fiatlux
+  S3_SECRET_ACCESS_KEY: fiatlux_ci_minio_password
+  S3_FORCE_PATH_STYLE: "true"
+  TEST_S3_ENDPOINT: http://127.0.0.1:9000
+  TEST_S3_REGION: cn-south-1
+  TEST_S3_BUCKET: fiatlux-choice
+  TEST_S3_ACCESS_KEY_ID: fiatlux
+  TEST_S3_SECRET_ACCESS_KEY: fiatlux_ci_minio_password
+  LLM_DRIVER: mock
+  GITHUB_INTEGRATION_MODE: manual
+
+jobs:
+  quality:
+    name: Static checks and unit tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+        with:
+          version: 11.13.0
+          run_install: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24.12.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test:unit
+      - run: pnpm build
+
+  integration:
+    name: Migrations and integration tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    services:
+      postgres:
+        image: postgres:17.5-alpine
+        env:
+          POSTGRES_DB: fiatlux_choice
+          POSTGRES_USER: fiatlux
+          POSTGRES_PASSWORD: fiatlux_ci_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U fiatlux -d fiatlux_choice"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+        with:
+          version: 11.13.0
+          run_install: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24.12.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+      - name: Build the repository MinIO test image
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        with:
+          context: .
+          file: Dockerfile.minio
+          load: true
+          tags: fiatlux-ci-minio:local
+          cache-from: type=gha,scope=minio-integration
+          cache-to: type=gha,mode=max,scope=minio-integration
+      - name: Start MinIO
+        run: |
+          docker run --detach --name fiatlux-ci-minio \
+            --pull never \
+            --publish 9000:9000 \
+            --env MINIO_ROOT_USER="$S3_ACCESS_KEY_ID" \
+            --env MINIO_ROOT_PASSWORD="$S3_SECRET_ACCESS_KEY" \
+            fiatlux-ci-minio:local server /data
+          for _ in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:9000/minio/health/ready >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs fiatlux-ci-minio
+          exit 1
+      - name: Create private object bucket
+        run: |
+          docker run --rm --pull never --network host \
+            --entrypoint /bin/sh \
+            --env S3_ACCESS_KEY_ID \
+            --env S3_SECRET_ACCESS_KEY \
+            --env S3_BUCKET \
+            fiatlux-ci-minio:local -ec '
+              mc alias set ci http://127.0.0.1:9000 "$S3_ACCESS_KEY_ID" "$S3_SECRET_ACCESS_KEY" --api S3v4 >/dev/null
+              mc mb --ignore-existing "ci/$S3_BUCKET"
+              mc anonymous set none "ci/$S3_BUCKET"
+            '
+      - run: pnpm db:migrate
+      - run: pnpm test:integration
+
+  e2e:
+    name: Browser and mobile E2E
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    needs:
+      - quality
+      - integration
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+        with:
+          version: 11.13.0
+          run_install: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24.12.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @fiatlux/web exec playwright install --with-deps chromium
+      - run: pnpm test:e2e
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: playwright-report
+          path: |
+            playwright-report
+            test-results
+          if-no-files-found: ignore
+          retention-days: 14
+
+  compose-and-images:
+    name: Production image (${{ matrix.image }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    needs:
+      - quality
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: api
+            dockerfile: Dockerfile.api
+          - image: worker
+            dockerfile: Dockerfile.worker
+          - image: web
+            dockerfile: Dockerfile.web
+          - image: gateway
+            dockerfile: Dockerfile.caddy
+          - image: minio
+            dockerfile: Dockerfile.minio
+          - image: backup
+            dockerfile: Dockerfile.backup
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+      - name: Validate production Compose
+        if: matrix.image == 'api'
+        env:
+          APP_DOMAIN: choice.internal.example
+          BACKUP_AGE_RECIPIENT: ci-compose-age-recipient-placeholder
+          BACKUP_DIR: /tmp/fiatlux-backups
+          INITIAL_ADMIN_PASSWORD: ci-compose-admin-password
+          MINIO_ROOT_PASSWORD: ci_compose_minio_password
+          MINIO_ROOT_USER: fiatlux
+          POSTGRES_PASSWORD: ci_compose_db_password
+          SESSION_SECRET: ci-compose-session-secret-with-more-than-32-characters
+        run: docker compose -f compose.yml -f compose.prod.yml config --quiet
+      - uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          platforms: linux/amd64,linux/arm64
+          push: false
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
