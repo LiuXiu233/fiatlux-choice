@@ -345,7 +345,7 @@ jobs:
             exit 1
           fi
       - name: Upload complete Trivy reports
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: trivy-${{ matrix.image }}-${{ needs.prepare.outputs.version }}
           path: |
@@ -371,7 +371,7 @@ jobs:
           upload-artifact: false
           upload-release-assets: false
       - name: Upload SPDX SBOM
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: sbom-${{ matrix.image }}-${{ needs.prepare.outputs.version }}
           path: sbom-${{ matrix.image }}.spdx.json
@@ -385,7 +385,7 @@ jobs:
           mkdir -p release-digests
           printf '%s\n' "$IMAGE_DIGEST" >"release-digests/${{ matrix.image }}.txt"
       - name: Upload verified digest
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: release-digest-${{ matrix.image }}
           path: release-digests/${{ matrix.image }}.txt
@@ -486,7 +486,7 @@ jobs:
           } >>"$GITHUB_STEP_SUMMARY"
       - name: Upload release manifest
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: release-manifest-${{ needs.prepare.outputs.version }}
           path: release-output/release-manifest.tsv
