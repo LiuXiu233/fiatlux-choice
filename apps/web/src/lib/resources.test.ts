@@ -72,16 +72,36 @@ describe("resource registry", () => {
       );
 
     expect(relationFields("decisions")).toMatchObject({
-      objectiveId: { referenceEndpoint: "/objectives", referenceLabelKey: "title" },
-      projectId: { referenceEndpoint: "/projects", referenceLabelKey: "name" },
-      taskId: { referenceEndpoint: "/tasks", referenceLabelKey: "title" },
+      objectiveId: {
+        label: expect.stringContaining("同链"),
+        referenceEndpoint: "/objectives",
+        referenceLabelKey: "title",
+      },
+      projectId: {
+        label: expect.stringContaining("同链"),
+        referenceEndpoint: "/projects",
+        referenceLabelKey: "name",
+      },
+      taskId: {
+        label: expect.stringContaining("同链"),
+        referenceEndpoint: "/tasks",
+        referenceLabelKey: "title",
+      },
     });
     expect(relationFields("products")).toMatchObject({
       projectId: { referenceEndpoint: "/projects", referenceLabelKey: "name" },
     });
     expect(relationFields("opportunities")).toMatchObject({
-      productId: { referenceEndpoint: "/products", referenceLabelKey: "name" },
-      projectId: { referenceEndpoint: "/projects", referenceLabelKey: "name" },
+      productId: {
+        label: expect.stringContaining("项目"),
+        referenceEndpoint: "/products",
+        referenceLabelKey: "name",
+      },
+      projectId: {
+        label: expect.stringContaining("产品所属项目"),
+        referenceEndpoint: "/projects",
+        referenceLabelKey: "name",
+      },
     });
     expect(relationFields("obligations")).toMatchObject({
       sourceId: { referenceEndpoint: "/compliance-items", referenceLabelKey: "title" },

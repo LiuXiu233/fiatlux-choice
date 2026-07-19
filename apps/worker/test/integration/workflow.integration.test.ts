@@ -4,7 +4,10 @@ import {
   approvals,
   auditEvents,
   createDatabase,
+  lockReferenceChain,
   notifications,
+  organizations,
+  projects,
   promptVersions,
   tasks,
   workflowDefinitions,
@@ -205,6 +208,193 @@ describe.skipIf(!databaseUrl)("workflow worker child audit PostgreSQL integratio
         expect.objectContaining({ name: "advisor.run" }),
       ]),
     );
+  });
+
+  it("accepts only an active same-organization project for workflow-created tasks", async () => {
+    const suffix = randomUUID().slice(0, 8);
+    const [activeProject] = await dbHandle.db
+      .insert(projects)
+      .values({ orgId, name: `Workflow active project ${suffix}`, status: "active" })
+      .returning();
+    const [archivedProject] = await dbHandle.db
+      .insert(projects)
+      .values({
+        orgId,
+        name: `Workflow archived project ${suffix}`,
+        status: "active",
+        archivedAt: new Date(),
+      })
+      .returning();
+    const [otherOrganization] = await dbHandle.db
+      .insert(organizations)
+      .values({
+        name: `Workflow foreign organization ${suffix}`,
+        slug: `workflow-foreign-${suffix}`,
+      })
+      .returning();
+    if (!activeProject || !archivedProject || !otherOrganization) {
+      throw new Error("Failed to create workflow project validation fixtures");
+    }
+    const [foreignProject] = await dbHandle.db
+      .insert(projects)
+      .values({
+        orgId: otherOrganization.id,
+        name: `Workflow foreign project ${suffix}`,
+        status: "active",
+      })
+      .returning();
+    if (!foreignProject) throw new Error("Failed to create foreign project fixture");
+
+    const runTaskWorkflow = async (label: string, projectId: string) => {
+      const title = `Workflow project ${label} ${suffix}`;
+      const [definition] = await dbHandle.db
+        .insert(workflowDefinitions)
+        .values({
+          orgId,
+          name: `Workflow project validation ${label} ${suffix}`,
+          trigger: "integration.project-validation",
+          enabled: true,
+          steps: [{ type: "create_task", config: { projectId, title } }],
+        })
+        .returning();
+      if (!definition) throw new Error("Failed to create project validation workflow");
+      const [run] = await dbHandle.db
+        .insert(workflowRuns)
+        .values({
+          definitionId: definition.id,
+          orgId,
+          requestedBy: userId,
+          input: {},
+          definitionVersion: definition.version,
+          stepsSnapshot: definition.steps,
+        })
+        .returning();
+      if (!run) throw new Error("Failed to create project validation workflow run");
+
+      await handleWorkflowRun(
+        {
+          db: dbHandle.db,
+          queue: { send: async () => randomUUID() } as unknown as JobQueue,
+          llmProvider,
+          github,
+          config: workerConfigSchema.parse({ DATABASE_URL: databaseUrl, LLM_DRIVER: "mock" }),
+        },
+        { orgId, runId: run.id },
+      );
+      const [settled] = await dbHandle.db
+        .select({ status: workflowRuns.status, error: workflowRuns.error })
+        .from(workflowRuns)
+        .where(eq(workflowRuns.id, run.id));
+      const created = await dbHandle.db
+        .select({ projectId: tasks.projectId })
+        .from(tasks)
+        .where(and(eq(tasks.orgId, orgId), eq(tasks.title, title)));
+      return { settled, created };
+    };
+
+    const valid = await runTaskWorkflow("active", activeProject.id);
+    expect(valid.settled).toEqual({ status: "completed", error: null });
+    expect(valid.created).toEqual([{ projectId: activeProject.id }]);
+
+    for (const [label, projectId] of [
+      ["archived", archivedProject.id],
+      ["foreign", foreignProject.id],
+    ] as const) {
+      const invalid = await runTaskWorkflow(label, projectId);
+      expect(invalid.settled).toMatchObject({
+        status: "failed",
+        error: "Workflow task project is outside the organization",
+      });
+      expect(invalid.created).toHaveLength(0);
+    }
+  });
+
+  it("waits for the reference-chain lock before validating a workflow task project", async () => {
+    const suffix = randomUUID().slice(0, 8);
+    const title = `Workflow serialized project task ${suffix}`;
+    const [project] = await dbHandle.db
+      .insert(projects)
+      .values({ orgId, name: `Workflow serialized project ${suffix}`, status: "active" })
+      .returning();
+    if (!project) throw new Error("Failed to create serialized project fixture");
+    const [definition] = await dbHandle.db
+      .insert(workflowDefinitions)
+      .values({
+        orgId,
+        name: `Workflow serialized validation ${suffix}`,
+        trigger: "integration.serialized-project-validation",
+        enabled: true,
+        steps: [{ type: "create_task", config: { projectId: project.id, title } }],
+      })
+      .returning();
+    if (!definition) throw new Error("Failed to create serialized validation workflow");
+    const [run] = await dbHandle.db
+      .insert(workflowRuns)
+      .values({
+        definitionId: definition.id,
+        orgId,
+        requestedBy: userId,
+        input: {},
+        definitionVersion: definition.version,
+        stepsSnapshot: definition.steps,
+      })
+      .returning();
+    if (!run) throw new Error("Failed to create serialized validation run");
+
+    let signalLocked: (() => void) | undefined;
+    const locked = new Promise<void>((resolve) => {
+      signalLocked = resolve;
+    });
+    let releaseLock: (() => void) | undefined;
+    const release = new Promise<void>((resolve) => {
+      releaseLock = resolve;
+    });
+    const archive = dbHandle.db.transaction(async (tx) => {
+      await lockReferenceChain(tx, orgId);
+      signalLocked?.();
+      await release;
+      await tx
+        .update(projects)
+        .set({ archivedAt: new Date(), updatedAt: new Date() })
+        .where(and(eq(projects.orgId, orgId), eq(projects.id, project.id)));
+    });
+    await locked;
+
+    let workflowSettled = false;
+    const workflow = handleWorkflowRun(
+      {
+        db: dbHandle.db,
+        queue: { send: async () => randomUUID() } as unknown as JobQueue,
+        llmProvider,
+        github,
+        config: workerConfigSchema.parse({ DATABASE_URL: databaseUrl, LLM_DRIVER: "mock" }),
+      },
+      { orgId, runId: run.id },
+    ).then(() => {
+      workflowSettled = true;
+    });
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      expect(workflowSettled).toBe(false);
+    } finally {
+      releaseLock?.();
+    }
+    await archive;
+    await workflow;
+
+    const [failed] = await dbHandle.db
+      .select({ status: workflowRuns.status, error: workflowRuns.error })
+      .from(workflowRuns)
+      .where(eq(workflowRuns.id, run.id));
+    const created = await dbHandle.db
+      .select({ id: tasks.id })
+      .from(tasks)
+      .where(and(eq(tasks.orgId, orgId), eq(tasks.title, title)));
+    expect(failed).toMatchObject({
+      status: "failed",
+      error: "Workflow task project is outside the organization",
+    });
+    expect(created).toHaveLength(0);
   });
 
   it("fails closed when a workflow tries to forge an internal approval type", async () => {

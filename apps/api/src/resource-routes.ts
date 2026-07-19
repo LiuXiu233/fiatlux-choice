@@ -21,7 +21,11 @@ import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 
 import { type AuthenticateHook, requirePermission } from "./auth.js";
-import { assertResourceReferences } from "./reference-validation.js";
+import {
+  assertNoActiveResourceDependents,
+  assertReferenceChainMutationSafe,
+  assertResourceReferences,
+} from "./reference-validation.js";
 import { ResourceRepository, requestAuditContext } from "./resource-repository.js";
 import type { AppDependencies } from "./types.js";
 
@@ -413,7 +417,15 @@ export function registerResourceRoutes(
           expectedVersion,
           requestAuditContext(request),
           async (tx) => {
-            await assertResourceReferences(tx, request.auth.orgId, resource, patch);
+            await assertResourceReferences(tx, request.auth.orgId, resource, patch, current);
+            await assertReferenceChainMutationSafe(
+              tx,
+              request.auth.orgId,
+              resource,
+              id,
+              patch,
+              current,
+            );
             if (
               (resource === "contracts" || resource === "invoices") &&
               "status" in patch &&
@@ -458,15 +470,17 @@ export function registerResourceRoutes(
           id,
           expectedVersion,
           requestAuditContext(request),
-          resource === "contracts" || resource === "invoices"
-            ? (tx) =>
-                assertNoLiveControlledAction(tx, {
-                  orgId: request.auth.orgId,
-                  resource,
-                  resourceId: id,
-                  operation: "archive",
-                })
-            : undefined,
+          async (tx) => {
+            await assertNoActiveResourceDependents(tx, request.auth.orgId, resource, id);
+            if (resource === "contracts" || resource === "invoices") {
+              await assertNoLiveControlledAction(tx, {
+                orgId: request.auth.orgId,
+                resource,
+                resourceId: id,
+                operation: "archive",
+              });
+            }
+          },
         );
         return { data: archived };
       },

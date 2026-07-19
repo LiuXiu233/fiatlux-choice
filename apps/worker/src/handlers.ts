@@ -24,6 +24,7 @@ import {
   complianceSourceSnapshots,
   type Database,
   githubInsights,
+  lockReferenceChain,
   memberships,
   notifications,
   obligations,
@@ -513,36 +514,39 @@ export async function handleWorkflowRun(
       }
       if (step.type === "create_task") {
         const task = taskCreateSchema.parse(step.config);
-        if (task.projectId) {
-          const [project] = await dependencies.db
-            .select({ id: projects.id })
-            .from(projects)
-            .where(
-              and(
-                eq(projects.id, task.projectId),
-                eq(projects.orgId, payload.orgId),
-                isNull(projects.archivedAt),
-              ),
-            )
-            .limit(1);
-          if (!project) throw new Error("Workflow task project is outside the organization");
-        }
-        if (task.assigneeId) {
-          const [assignee] = await dependencies.db
-            .select({ id: memberships.id })
-            .from(memberships)
-            .where(
-              and(
-                eq(memberships.orgId, payload.orgId),
-                eq(memberships.userId, task.assigneeId),
-                eq(memberships.status, "active"),
-                isNull(memberships.archivedAt),
-              ),
-            )
-            .limit(1);
-          if (!assignee) throw new Error("Workflow task assignee is outside the organization");
-        }
         const created = await dependencies.db.transaction(async (tx) => {
+          await lockReferenceChain(tx, payload.orgId);
+          if (task.projectId) {
+            const [project] = await tx
+              .select({ id: projects.id })
+              .from(projects)
+              .where(
+                and(
+                  eq(projects.id, task.projectId),
+                  eq(projects.orgId, payload.orgId),
+                  isNull(projects.archivedAt),
+                ),
+              )
+              .limit(1)
+              .for("share");
+            if (!project) throw new Error("Workflow task project is outside the organization");
+          }
+          if (task.assigneeId) {
+            const [assignee] = await tx
+              .select({ id: memberships.id })
+              .from(memberships)
+              .where(
+                and(
+                  eq(memberships.orgId, payload.orgId),
+                  eq(memberships.userId, task.assigneeId),
+                  eq(memberships.status, "active"),
+                  isNull(memberships.archivedAt),
+                ),
+              )
+              .limit(1)
+              .for("share");
+            if (!assignee) throw new Error("Workflow task assignee is outside the organization");
+          }
           const [record] = await tx
             .insert(tasks)
             .values({

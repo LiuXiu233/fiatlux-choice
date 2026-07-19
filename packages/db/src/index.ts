@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 
@@ -85,3 +86,9 @@ export function createDatabase(
 }
 
 export type Database = ReturnType<typeof createDatabase>["db"];
+
+export async function lockReferenceChain(executor: Pick<Database, "execute">, orgId: string) {
+  await executor.execute(
+    sql`select pg_advisory_xact_lock(hashtext('fiatlux-reference-chain'), hashtext(${orgId}))`,
+  );
+}

@@ -1,12 +1,29 @@
 import { randomUUID } from "node:crypto";
 import type { ResourceName } from "@fiatlux/contracts";
-import { auditEvents, type Database } from "@fiatlux/db";
+import { auditEvents, type Database, lockReferenceChain } from "@fiatlux/db";
 import { DomainError } from "@fiatlux/domain";
 import { sql } from "drizzle-orm";
 
 import type { RequestAuditContext } from "./types.js";
 
 export type ResourceWriteGuard = (executor: Pick<Database, "execute">) => Promise<void>;
+
+const referenceChainResources = new Set<ResourceName>([
+  "objectives",
+  "projects",
+  "tasks",
+  "decisions",
+  "products",
+  "opportunities",
+]);
+
+async function lockChainResource(
+  executor: Pick<Database, "execute">,
+  resource: ResourceName,
+  orgId: string,
+) {
+  if (referenceChainResources.has(resource)) await lockReferenceChain(executor, orgId);
+}
 
 const resourceTableNames: Record<ResourceName, string> = {
   objectives: "objectives",
@@ -190,6 +207,7 @@ export class ResourceRepository {
     ];
 
     return this.#db.transaction(async (tx) => {
+      await lockChainResource(tx, resource, orgId);
       if (guard) await guard(tx);
       const result = await tx.execute(sql`
         INSERT INTO ${tableIdentifier(resource)} (${sql.join(columns, sql`, `)})
@@ -226,6 +244,7 @@ export class ResourceRepository {
     });
 
     return this.#db.transaction(async (tx) => {
+      await lockChainResource(tx, resource, orgId);
       const previousResult = await tx.execute(sql`
         SELECT * FROM ${tableIdentifier(resource)}
         WHERE org_id = ${orgId} AND id = ${id} AND archived_at IS NULL
@@ -278,6 +297,7 @@ export class ResourceRepository {
     guard?: ResourceWriteGuard,
   ) {
     return this.#db.transaction(async (tx) => {
+      await lockChainResource(tx, resource, orgId);
       const previousResult = await tx.execute(sql`
         SELECT * FROM ${tableIdentifier(resource)}
         WHERE org_id = ${orgId} AND id = ${id} AND archived_at IS NULL

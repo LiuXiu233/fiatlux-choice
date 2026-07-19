@@ -15,7 +15,7 @@
 
 ## 2. 工程验证状态
 
-2026-07-18 的旧测试、六镜像、v1 恢复和同内容标签升级数字只保留为历史背景。2026-07-19 冻结工作树已完成 lint/ShellCheck/Actionlint、7 项类型检查、162/162 单元与聚合、API 17 files/83 tests、worker 5 files/23 tests、PostgreSQL/pg-boss/MinIO 集成、mock 44+6 与 real 2 项 Playwright、PWA/构建、最新 production-like Compose、桌面/移动浏览器、七镜像扫描/SPDX/provenance fixture、一次底层 formatVersion 2 独立恢复，以及一次本地 synthetic bridge 真实 schema/镜像差异升级与应用回滚。
+2026-07-18 的旧测试、六镜像、v1 恢复和同内容标签升级数字只保留为历史背景。2026-07-19 最新工作树已完成 lint/ShellCheck/Actionlint、7 项类型检查、162/162 单元、API 17 files/85 tests、worker 5 files/25 tests、PostgreSQL/pg-boss/MinIO 集成、mock 44+6 与隔离 real 2 项 Playwright、PWA/构建、独立桌面/390 px 引用链表单检查，以及新建 Compose 的七镜像构建、六服务健康、Trivy 0 与七份 SPDX。此前冻结候选还完成六服务重启持久性、双平台 provenance fixture、一次底层 formatVersion 2 独立恢复，以及一次本地 synthetic bridge 真实 schema/镜像差异升级与应用回滚。
 
 当前 schema 为 38 张业务表和 10 个迁移（`0000`–`0009`）。上述结果仍是本地冻结候选而非 GitHub runner、GHCR 双平台、耀光办公内网、真实设备或生产批准证据。本地 synthetic bridge 已实跑真实差异升级/回滚，但历史生产 N−1、目标发布复演和经审批的破坏性 `restore.sh` 生产入口没有实跑。GitHub CI、目标内网、真实设备、MinIO 长期维护/支持风险处置和责任人批准仍是发布闸门，以[验收矩阵](./v1-acceptance-matrix.md)为准。
 
@@ -46,8 +46,9 @@
 ### 4.1 业务记录关联边界
 
 - `projects.objectiveId`、`tasks.projectId`、`decisions.objectiveId/projectId/taskId`、`products.projectId` 和 `opportunities.productId/projectId` 都是类型化引用；API 校验目标属于本组织且未归档。
-- 系统尚不强制一条 decision 同时填写的 objective/project/task 必须构成同一条链，用户仍须人工核对 task→project→objective 的链级一致性。
-- 系统也不强制 `opportunity.projectId` 等于所选 `product.projectId`；机会、产品与交付项目分别有效不等于组合关系已一致。
+- decision 同时填写 objective/project/task 中任意两项或三项时必须构成同一条活动链；opportunity 同时填写 product/project 时必须等于产品所属活动项目。PATCH 使用当前记录与 patch 的有效组合校验，显式 `null` 可解除关系。
+- project/task/product 改父关系若会破坏活动 decision/opportunity 会返回 409；objective/project/task/product 有活动下游引用时不能归档。API 通用写入与 workflow `create_task` 使用同一组织级 PostgreSQL 事务 advisory lock，防止并发检查后改写。
+- 这些是模块化单体的应用约束，不是不可绕过的数据库约束。Docker 主机、migrator 或数据库超级管理员可以直接写出不一致数据；紧急 SQL 必须走批准、维护窗口、备份、完整引用核对和审计补录。即使引用一致，仍不代表机会成交、合同成立、课程交付或合规适用性已被证明。
 
 ## 5. 通知与工作流
 

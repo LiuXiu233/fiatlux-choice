@@ -26,12 +26,12 @@
 
 ### 2026-07-19 工程基线
 
-- 当前 schema 有 38 张业务表和 10 个业务迁移 `0000`–`0009`。首次强制改密、成员 pending/active/inactive/offboarded 生命周期、最后 owner 保护、归档角色即时失权、同组织 typed refs 和八类高风险人工批准已经实现。
+- 当前 schema 有 38 张业务表和 10 个业务迁移 `0000`–`0009`。首次强制改密、成员 pending/active/inactive/offboarded 生命周期、最后 owner 保护、归档角色即时失权、同组织 typed refs、decision/opportunity 跨字段一致性与八类高风险人工批准已经实现。
 - seed 已拆为显式 `bootstrap`、`metadata-only`、`system-role-maintenance` 三种模式；常规 metadata seed 不会修改身份、membership、role assignment 或权限。离线 owner 恢复要求 exact org/email、active owner、生产确认、原因、批准引用和 requestId，密码只从 stdin 读取，成功后撤销全部会话、强制下次改密并审计。
 - 通知创建为 queued-only；GitHub 刷新保存 `expectedVersion` 并以 CAS 防止陈旧写回；workflow 保存不可变定义版本/步骤快照和 partial checkpoint；advisor/workflow/backup 使用原子 claim、CAS 与 `lease_expired` 人工复核边界。
 - 银行付款取消或审批驳回会原子解除草稿支出关联；顾问运行默认 requester-only，管理员的 `advisor-runs:read-all` 仍受顾问入口和上下文读权限限制；角色分配审批保存 membership 版本快照并在批准时重验。
 - 义务/合规日历已分开 `sourceId` 与 `evidenceFileId`，凭证必须是同组织已上传文件；来源关联不自动等于适用性复核。
-- 2026-07-19 冻结工作树已通过 Biome 190 files、ShellCheck/Actionlint、7 项类型检查、162/162 单元与聚合、API 17 files/83 tests、worker 5 files/23 tests、PostgreSQL/pg-boss/MinIO 集成、mock 44+6 与 real 2 项 Playwright、PWA/生产构建、最新 Compose、独立桌面/移动浏览器和六服务重启持久性。
+- 2026-07-19 最新工作树已通过 Biome 190 files、ShellCheck/Actionlint、7 项类型检查、162/162 单元、API 17 files/85 tests、worker 5 files/25 tests、PostgreSQL/pg-boss/MinIO 集成、mock 44+6 与隔离 real 2 项 Playwright、针对引用链表单的 Python Playwright 桌面/390 px 验证、PWA/生产构建和新建 Compose 六服务部署验证；既有六服务重启持久性证据仍通过。
 - 七个最终本地 arm64 镜像、Trivy 0.70.0 四口径零 HIGH/CRITICAL、七份 SPDX、真实 BuildKit 0.31.2 双平台 provenance fixture，以及 API/worker amd64 原生件补偿验证均通过；GHCR 双平台 root digest 仍待最终提交后的 release workflow。
 - 底层 formatVersion 2 只执行一次最终隔离恢复：归档 SHA-256 `bcfd6c59d9e66f7319ab2b55e6e711e2adfe2732f2c3a928b02eb82a3768b6ba`、`sourceId=fiatlux-finalqa-isolated`，恢复并核对 38 表、10 migrations、pg-boss 24 和 1 个 56-byte 对象，实测 RPO 2 秒、drill RTO 75 秒，临时资源和密钥已清理。该演练没有执行破坏性的生产 `restore.sh` 审批入口。
 - 2026-07-18 的旧测试总数、镜像 digest、v1 归档、37 表/4 对象/16 秒恢复和同内容标签升级回滚均为历史证据，不能作为当前通过或发布门禁。
@@ -50,7 +50,7 @@
 - 在耀光目标办公内网从空环境完成 10 个业务迁移 `0000`–`0009`、pg-boss 迁移和权限收敛；显式运行一次 `SEED_MODE=bootstrap`，验证 owner 首登改密、登录、MinIO、ready、CA 分发和重启持久性。
 - 在 legacy 副本验证 `metadata-only` 不改变组织、用户、membership、assignment 或权限；通过人工批准的 `system-role-maintenance` 演练角色基线升级，并完成一次受控离线 owner 恢复/回滚演练。
 - 对归档角色即时失权、成员停用、最后 owner、两人审批和单人补偿控制完成最终 Web/API E2E 与运维手册演练。
-- 为 decision 的 objective/project/task 增加同链一致性校验，并为 opportunity.project 与 product.project 定义一致性规则；若 V1 不补，必须在界面、文档和批准记录中明确人工核对边界。
+- 在最终 SHA 复现已实现的 decision objective/project/task 同链校验、opportunity product/project 一致性、父关系/归档保护、API/worker 共用 advisory lock 和 runtime 数据库权限探测；保留特权管理员直接写表的批准与修复边界。
 - 对 notification queued-only、GitHub refresh expectedVersion/CAS、workflow 不可变快照与 partial checkpoint、付款取消/驳回解链、advisor requester-only/read-all、合规 source/evidence、角色版本审批，以及 advisor/workflow/backup 并发 claim/lease-expired 建立最终测试与操作演练证据；禁止把旧运行静默重放。
 - 在最终 SHA 发布并校验 OpenAPI，冻结高频端点请求/响应 schema 和兼容性规则。
 - 在目标内网和异介质上生成新的 formatVersion 2 age 归档并独立恢复；使用最终 GHCR 制品与经批准 N−1 复演真实 schema/镜像变化，不能用本地 synthetic bridge、旧 v1 或同内容标签证据替代。

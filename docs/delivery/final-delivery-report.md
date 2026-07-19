@@ -34,32 +34,34 @@
 | 身份与权限 | 用户、组织、数据库会话、owner/admin/member/viewer、成员 pending/active/inactive/offboarded 生命周期、首次强制改密、最后 owner 保护和关键角色审批 | 首次改密前路由受限；改密撤销其他会话；归档角色后已有会话即时失权，唯一授权角色被归档时新登录不创建会话 |
 | 初始化与紧急恢复 | 显式 `bootstrap`、`metadata-only`、`system-role-maintenance` 三种 seed mode；离线 owner 密码恢复 CLI | 常规 metadata seed 不修改身份、成员、角色分配或权限；角色维护需 active owner、原因、批准引用和 requestId；恢复密钥仅从 stdin 读取并强制撤销会话、下次改密和审计 |
 | 审计与文件 | 追加审计、请求 ID、前后值、拒绝事件、私有 S3/MinIO 文件和并发完成锁 | 跨组织拒绝、不可经 API 篡改审计、拒绝请求体最小化、真实文件往返和并发冲突已本地验证；目标内网仍需复跑 |
-| 执行与治理 | 目标、项目、任务、决策、义务、合规日历、风险、合同及 typed refs | decision 可引用 objective/project/task，product 可引用 project，opportunity 可引用 product/project；义务/合规日历分开关联来源 `sourceId` 与完成凭证 `evidenceFileId`。所有引用校验同组织活动记录，但来源关联不等于已判定适用，且尚不强制 decision 或 opportunity 的跨字段链级一致 |
+| 执行与治理 | 目标、项目、任务、决策、义务、合规日历、风险、合同及 typed refs | decision 可引用 objective/project/task 并强制已填写项属于同一活动链；product 可引用 project，opportunity 同时引用 product/project 时必须匹配产品所属活动项目。父关系变更和归档不能破坏活动下游引用；义务/合规日历分开关联来源 `sourceId` 与完成凭证 `evidenceFileId`，来源关联仍不等于已判定适用 |
 | 财务 | 简易收支、发票、现金流、外部动作引用 | 金额使用整数分；正式外部状态仍依赖人工回执，不由内部批准伪造成功 |
 | 产品、市场与电竞教育 | 产品组合、市场机会、电竞教育筹备页、官网公开业务/内容审计、成人试点课程草案 | 教育页面是内部筹备工作台；不是招生、支付、直播、考试、证书或未成年人平台 |
 | GitHub 情报 | manual/read-only 集成边界与刷新队列 | 刷新任务在排队时保存当前 `expectedVersion`，worker 只在版本未变时以 CAS 写回，不用陈旧网络快照覆盖并发人工修改；真实 GitHub 凭据和最小权限读取验收未执行 |
 | 审批与外部动作 | 八类高风险人工批准、manual/mock 状态机、幂等与合同/发票/付款台账原子联动 | 没有外部回执时不报成功；已关联草稿支出的银行付款在取消或审批驳回时于同一事务解除台账关联并增加版本，避免草稿被废弃动作永久占用 |
 | 通知、顾问与工作流 | in-app 通知、失败可见的 email/webhook 边界、七类顾问、四类工作流步骤 | 通知 queued-only、工作流不可变快照/partial checkpoint、advisor/workflow/backup 原子 claim 和 lease 边界均已在冻结候选回归覆盖 |
 | AI 可追溯 | 总经理、财务、法务合规、产品研发、市场机会、人力行政、信息安全；提示词/模型/工具/引用/人工编辑审计 | 运行默认只对发起人可见；`advisor-runs:read-all`/全局权限只扩大候选可见集，读者仍必须拥有顾问入口及全部上下文资源读权限；mock 不代表真实模型质量 |
-| PWA | 响应式导航、manifest、service worker、离线壳和恢复会话 | 冻结构建生成 9 个 precache 条目（560.08 KiB）；真实栈 desktop/mobile、离线壳、SW active 和 390 px 无溢出通过；真机安装/升级仍待执行 |
+| PWA | 响应式导航、manifest、service worker、离线壳和恢复会话 | 最新构建生成 9 个 precache 条目（560.36 KiB）；mock/隔离真实栈 desktop/mobile、离线壳、SW active 和 390 px 无溢出通过；真机安装/升级仍待执行 |
 | 部署与灾备 | Compose、Caddy、迁移、健康检查、日志、最小权限数据库/MinIO、备份恢复、升级回滚工具 | 最新 Compose、六常驻服务重启持久性、部署验证、一次底层 formatVersion 2 隔离恢复，以及一次本地 synthetic bridge 真实 schema/镜像差异升级与应用回滚均通过；历史生产 N−1、GHCR 和目标内网仍待执行 |
 
 ## 3. 最终冻结测试状态
 
-以下结果绑定 2026-07-19 冻结工作树；最终提交只允许交付文档和发布元数据变化，否则必须重跑受影响门禁。原始日志、备份、私钥、Cookie 和运行数据保存在被忽略的本地证据目录，不进入 Git。
+以下最新质量结果绑定 2026-07-19 当前引用链加固工作树，尚未绑定不可变 Git SHA；底层恢复和 synthetic bridge 证据仍按各自明确的旧基线分列。实现提交后只允许回写交付元数据，否则必须重跑受影响门禁。原始日志、备份、私钥、Cookie 和运行数据保存在被忽略的本地证据目录，不进入 Git。
 
 | 层级 | 当前发布口径 | 最终要求 |
 | --- | --- | --- |
 | Biome / ShellCheck / Actionlint / 类型 | **本地通过** | Biome 190 个文件；全 `scripts/`/`infra/` shell；3 个 workflow；7 个 TypeScript 项目 |
 | 单元/聚合测试 | **本地通过** | 162/162 单元测试；完整 workspace 聚合通过；最终精确集成计数见同次测试日志 |
-| API/worker/PostgreSQL/pg-boss/MinIO 集成 | **本地通过** | API 17 files/83 tests、worker 5 files/23 tests、fresh/legacy PostgreSQL、pg-boss 24、权限/事务/并发/CAS/审计、连接恢复以及 2 项真实 MinIO/S3 集成通过 |
+| API/worker/PostgreSQL/pg-boss/MinIO 集成 | **本地通过** | 最新 API 17 files/85 tests、worker 5 files/25 tests；fresh/legacy PostgreSQL、pg-boss 24、权限/事务/并发/CAS/审计、连接恢复以及 2 项真实 MinIO/S3 集成通过 |
 | Playwright / 视觉 / PWA | **本地通过，有外部边界** | mock 全套 44 passed、6 个设计内条件 skip；真实栈 desktop/mobile 2 项通过；独立浏览器抽查、PWA 离线壳和 390 px 移动布局通过；受管真机另行验收 |
 | 全 workspace 与七镜像构建 | **本地通过，有发布边界** | production build 通过；七个本地 arm64 镜像、六常驻服务健康/重启持久性和按需 backup 通过；GHCR 双平台 root digest 待 GitHub release workflow |
 | 安全/供应链 | **本地通过，有外部边界** | Gitleaks、Semgrep 1.170.0+canary、生产依赖审计、IaC、七镜像 Trivy 0.70.0、七份 SPDX 和真实 BuildKit 0.31.2 provenance fixture 通过；GitHub CodeQL/安全 workflow 待运行 |
 
 生产依赖 `pnpm audit --prod` 为 0。全依赖扫描只剩 `drizzle-kit -> esbuild` 的 1 个 moderate，属于不进入生产镜像、CI 不启动其 dev server 的开发期依赖；列为非阻断升级项，不应表述为“全依赖零漏洞”。未运行、设计内 skip 和目标环境缺失继续分列。
 
-失败历史没有删除：API 集成首次按文件并行运行时，在本机 2 CPU/4 GB 的 seed/Argon2 峰值出现 PostgreSQL `CONNECT_TIMEOUT`，得到 13 passed、4 failed、63 skipped；数据库全程 healthy、RestartCount 0、连接数未耗尽，且无业务断言失败。将 root/API/worker 的 `test` 与 `test:integration` 标准入口固定为 unit→workspace 串行、API/worker `--no-file-parallelism --maxWorkers=1` 后，旧基线 API 80/80、worker 23/23 和根级集成均通过。连接恢复修复后的最新复跑为 162/162 单元、API 83/83、worker 23/23；其中 malformed-JSON 单测曾在宿主 load 83 时唯一超时，在正常负载下同一测试 140 ms 通过，未删除该环境事件。未配置 S3 时 integrations 2 项按设计 skip；真实 S3 两项由单独带凭据的 MinIO 门禁 2/2 通过，不能把 skip 记作通过。
+失败历史没有删除：API 集成首次按文件并行运行时，在本机 2 CPU/4 GB 的 seed/Argon2 峰值出现 PostgreSQL `CONNECT_TIMEOUT`，得到 13 passed、4 failed、63 skipped；数据库全程 healthy、RestartCount 0、连接数未耗尽，且无业务断言失败。将 root/API/worker 的 `test` 与 `test:integration` 标准入口固定为 unit→workspace 串行、API/worker `--no-file-parallelism --maxWorkers=1` 后，旧基线 API 80/80、worker 23/23 和根级集成均通过。连接恢复修复后曾复跑 162/162 单元、API 83/83、worker 23/23；其中 malformed-JSON 单测曾在宿主 load 83 时唯一超时，在正常负载下同一测试 140 ms 通过，未删除该环境事件。引用链一致性加固后的最新复跑为 162/162 单元、API 85/85、worker 25/25。未配置 S3 时 integrations 2 项按设计 skip；真实 S3 两项由单独带凭据的 MinIO 门禁 2/2 通过，不能把 skip 记作通过。
+
+引用链增量候选另在全新随机命名的 Compose 项目中重建 PostgreSQL、API、worker、Web、gateway、MinIO、backup 七镜像，完成空库五职责引导、10 个业务迁移、pg-boss 24、72 条来源 bootstrap、六服务健康和 `verify-deployment.sh` 最小权限检查；随后显式删除该项目全部容器、网络和卷。七镜像以 Trivy 0.70.0 扫描 HIGH/CRITICAL 均为 0，并生成、校验七份 Syft 1.42.3 SPDX。该本地增量证据仍不是最终 Git SHA 的 GHCR 双平台 digest、签名或目标内网证据。
 
 ## 4. 权限、后台任务与数据一致性证据
 
@@ -67,7 +69,7 @@
 - 成员从 pending 到批准、停用及角色变更有事务、版本冲突和审计边界；最后一个 active owner 不允许被静默移除。
 - 角色分配/移除请求保存 membership `expectedVersion` 和幂等键。批准时重新锁定成员并核对版本、当前角色关系与最后 owner 不变式；版本已变或旧审批缺少版本快照时返回冲突，必须重新申请。
 - 权限计算排除已归档角色。已有 Cookie 在角色归档后访问受保护路由返回 403；没有其他活动角色时，新登录返回 403 且不会增加 session；恢复角色后再按正常权限计算。
-- typed refs 验证目标记录属于同一组织且未归档；义务/合规日历的 `evidenceFileId` 还要求文件状态为 `uploaded`。`sourceId` 是来源链，`evidenceFileId` 是履行或完成凭证，两者不应混同；引用存在也不代表跨字段业务链一致或来源已判定适用。
+- typed refs 验证目标记录属于同一组织且未归档。decision 的有效 objective/project/task 组合必须同链，opportunity 同时填写 product/project 时必须与产品所属活动项目一致；PATCH 使用当前值与 patch 的合并结果校验，相关父关系变更和归档也受下游保护。应用 API 与 workflow `create_task` 共用组织级事务 advisory lock，特权数据库管理员直接写表仍属于可绕过的运维边界。义务/合规日历的 `evidenceFileId` 还要求文件状态为 `uploaded`；`sourceId` 是来源链，`evidenceFileId` 是履行或完成凭证，两者不应混同，来源引用也不代表已判定适用。
 - 通知申请只能创建 `queued` 记录；通用 PATCH 不能改通知内容或投递状态，投递 worker 以真实结果转为 sent/failed。
 - GitHub 刷新队列负载包含排队时的 `expectedVersion`；worker 在读取前和写回时都校验版本，CAS 失败时丢弃陈旧结果且不写“刷新成功”审计。
 - advisor、workflow 和 backup 都以 `UPDATE ... WHERE status=queued RETURNING` 等条件更新原子领取，并以状态/版本 compare-and-set 完成或失败。并发重复投递只允许一个执行者取得 claim。
@@ -145,8 +147,8 @@
 
 ## 9. 已知结构与运行边界
 
-- decision 的 `objectiveId`、`projectId`、`taskId` 均为 typed refs，但服务端尚不校验三者属于同一 objective→project→task 链；用户仍需人工核对。
-- product 与 opportunity 已有 project/product typed refs，但尚不强制 `opportunity.projectId` 等于其 `product.projectId`；不应宣称数据库已验证完整产品→机会→交付闭环。
+- decision 的 `objectiveId`、`projectId`、`taskId` 均为 typed refs；服务端已校验所有同时存在的字段属于同一 objective→project→task 活动链，并保护相关父关系变更与归档。
+- product 与 opportunity 的 project/product typed refs 已强制同时填写时项目一致；这只证明应用写入时的关系一致，不证明机会成交、合同成立或项目已交付，也不能抵御特权数据库管理员直接写表。
 - 离线 owner 恢复是有审计的紧急运维工具，不是自助忘记密码；它仍依赖线下身份核验、批准引用、生产确认和受控 stdin secret。系统尚无 SSO、MFA 或恢复码。
 - seed 不是日常启动步骤。`bootstrap` 只允许空组织；`metadata-only` 不修复成员/角色；`system-role-maintenance` 只在批准后补缺失系统角色/权限，不删除额外权限或恢复 owner assignment。
 - lease-expired 代表可能存在部分副作用，必须人工查看审计与 partial output 后新建明确运行；不得自动重放原记录。

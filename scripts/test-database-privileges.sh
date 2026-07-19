@@ -181,6 +181,17 @@ expect_value "既有应用对象所有权已转移" \
 
 qa_org=00000000-0000-4000-8000-000000000901
 qa_audit=00000000-0000-4000-8000-000000000902
+expect_value "runtime 业务引用链事务锁" \
+  'lock-ok' \
+  "$(psql_as fiatlux_runtime "$POSTGRES_RUNTIME_PASSWORD" "
+    SELECT 'lock-ok'
+    FROM (
+      SELECT pg_advisory_xact_lock(
+        hashtext('fiatlux-reference-chain'),
+        hashtext('$qa_org')
+      )
+    ) locked
+  ")"
 psql_as fiatlux_runtime "$POSTGRES_RUNTIME_PASSWORD" "
   INSERT INTO organizations (id,name,slug) VALUES ('$qa_org','DB privilege QA','db-privilege-qa');
   UPDATE organizations SET name='DB privilege QA updated' WHERE id='$qa_org';

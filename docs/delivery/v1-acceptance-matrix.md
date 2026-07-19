@@ -22,14 +22,14 @@
 | 验收项 | 当前实现与证据 | 状态 | 最终 V1 闸门 |
 | --- | --- | --- | --- |
 | 响应式 Web 与导航 | mock 44 passed/6 设计内 skip；真实栈 desktop/mobile 2 项和独立浏览器抽查通过；390/390 无横向溢出 | 冻结候选本地通过 | GitHub CI 复现；至少一台真实受管手机 |
-| PWA 与离线边界 | 9 个 precache（560.08 KiB）、manifest、active service worker、离线壳和会话恢复通过 | 冻结候选本地通过 | 目标受管设备安装、升级和缓存清理验证 |
+| PWA 与离线边界 | 最新构建 9 个 precache（560.36 KiB）、manifest、active service worker、离线壳和会话恢复通过 | 冻结候选本地通过 | 目标受管设备安装、升级和缓存清理验证 |
 | 身份、首次改密与会话 | Argon2id、数据库会话、安全 Cookie、限流、`mustChangePassword` 路由门禁、改密后撤销其他会话 | 冻结候选本地通过 | 目标 HTTPS 复跑 owner/member 首登和并发 |
 | 成员生命周期 | pending 登录拒绝、批准/停用/角色变更、乐观并发、最后 owner 保护和审计 | 冻结候选本地通过 | 两人审批和单人补偿控制由真实责任人演练 |
 | 四级 RBAC 与归档角色 | owner/admin/member/viewer、组织作用域；已有 Cookie 即时 403、新登录不建 session、恢复后重新授权 | 冻结候选本地通过 | 目标内网抽查跨组织拒绝和会话撤销 |
 | 追加审计 | 请求 ID、人工/系统 actor、before/after、拒绝、模型、工具、worker 和恢复事件 | 冻结候选本地通过 | 目标环境验证数据库与主机运维分权 |
 | 文件 | 三步上传、真实 MinIO 往返、大小/SHA-256、权限下载、篡改/并发/归档边界和恢复对象核对 | 冻结候选本地通过 | 目标内网和异介质复核 |
-| 目标、项目、任务、决策 typed refs | project→objective、task→project、decision→objective/project/task 均为同组织活动记录引用 | 冻结候选本地通过 / 有边界 | 服务端尚不强制 decision 三字段来自同一业务链；补一致性或批准人工核对边界 |
-| 产品、机会、项目 typed refs | product→project；opportunity→product/project，均校验同组织活动记录 | 冻结候选本地通过 / 有边界 | 尚不强制 opportunity.project 与 product.project 一致 |
+| 目标、项目、任务、决策 typed refs | 同组织活动引用；decision 任意有效组合强制同一 objective→project→task 链；PATCH 合并校验、父关系与归档保护及并发锁集成通过 | 冻结候选本地通过 | 最终 SHA/GitHub CI 与目标内网复现；特权数据库写入保持运维边界 |
+| 产品、机会、项目 typed refs | product→project；opportunity 同时填写 product/project 时强制匹配产品所属活动项目；改链、归档和并发保护通过 | 冻结候选本地通过 | 最终 SHA/GitHub CI 与目标内网复现；业务成交与交付仍需人工证据 |
 | 义务、合规、风险、合同 | API/UI、逾期 worker、状态规则、`sourceId`/`evidenceFileId` 分离及文件凭证校验 | 冻结候选本地通过 / 有业务边界 | 来源关联不等于适用性复核；合同正式状态仍需人工外部回执 |
 | 收支、发票、现金流 | 整数分、乐观版本、文件/外部动作引用和同事务联动 | 冻结候选本地通过 | 财税人员核对真实会计边界；manual/mock 不得写成平台成功 |
 | GitHub 技术情报 | manual/read-only；服务端固定 `expectedVersion`，worker 读取/写回 CAS，GitHub HTTPS adapter 绑定仓库身份且拒绝 redirect | 冻结候选本地通过 / 真实凭据未验收 | 用批准的最小权限凭据验证读取，否则保持 manual/disabled |
@@ -71,10 +71,10 @@ lease 到期不等于“安全重试”。操作员必须查看审计、partial 
 | --- | --- | --- |
 | Biome / ShellCheck / Actionlint / 类型 | **本地通过** | 190 个 Biome 文件、全 shell、3 个 workflow、7 个 TS 项目；GitHub CI 复现 |
 | 单元/聚合 | **本地通过** | 162/162 单元与完整 workspace 聚合通过；原始日志不进 Git |
-| API / worker / PostgreSQL / pg-boss | **本地通过** | API 17 files/83 tests、worker 5 files/23 tests；10 个 migration、fresh/legacy、权限、事务、连接恢复、并发/CAS、审计和失败边界通过 |
+| API / worker / PostgreSQL / pg-boss | **本地通过** | 最新 API 17 files/85 tests、worker 5 files/25 tests；10 个 migration、fresh/legacy、权限、引用链锁、连接恢复、并发/CAS、审计和失败边界通过 |
 | MinIO / S3 | **本地通过** | 2 项真实私有桶/字节/权限/校验和集成及恢复对象核对通过 |
 | Web / Playwright / PWA | **本地通过，有真机边界** | mock 44 passed/6 条件 skip；real 2 passed；独立浏览器、离线壳、SW active、390 px 通过；真机待验收 |
-| 全 workspace / 七镜像构建 | **本地通过，有 registry 边界** | production build、PWA 9 precache/560.08 KiB、七个 arm64 镜像、六常驻服务重启持久性通过；GHCR 双平台待发布 |
+| 全 workspace / 七镜像构建 | **本地通过，有 registry 边界** | production build、PWA 9 precache/560.36 KiB；引用链增量候选七个 arm64 镜像、六常驻服务健康、Trivy 0 和七份 SPDX 通过；既有重启持久性证据通过，GHCR 双平台待发布 |
 | 安全/供应链 | **本地通过，有 GitHub 边界** | Gitleaks、Semgrep+canary、`audit --prod` 0、IaC、七镜像 Trivy 0、7 SPDX、真实 BuildKit provenance fixture 通过；GitHub CodeQL/安全 workflow 待运行 |
 
 七镜像的本地 arm64 content ID、SPDX 和扫描证据不是 GHCR 双平台 root digest 或签名。全依赖只余 dev-only `drizzle-kit -> esbuild` 1 个 moderate，生产依赖为 0；CI 不启动其 dev server，作为非阻断升级项跟踪。
@@ -102,8 +102,8 @@ lease 到期不等于“安全重试”。操作员必须查看审计、partial 
 | owner 首登与成员生命周期 | 首次改密、pending/active/inactive/offboarded、会话撤销和最后 owner 保护回归通过 | 目标内网用真实身份 E2E |
 | 归档角色即时失权 | 已有会话 403、新登录拒绝、恢复与多角色组合通过 | 目标权限抽查 |
 | 版本化角色分配审批 | 版本快照、幂等重放、陈旧申请、并发分配/移除和最后 owner 竞态通过 | 两人/单人补偿流程操作验收 |
-| 目标—项目—任务—决策 | typed refs 已实现并限制同组织活动记录 | decision 三字段同链一致性仍未强制 |
-| 产品—机会—项目 | typed refs 已实现并限制同组织活动记录 | opportunity.project 与 product.project 一致性仍未强制 |
+| 目标—项目—任务—决策 | typed refs、同链组合、PATCH、父关系变更、归档及 advisory-lock 并发回归通过 | 最终 SHA/目标环境复现；管理员直写数据库不在应用保证内 |
+| 产品—机会—项目 | typed refs、产品所属项目一致性、父关系/归档及并发保护回归通过 | 引用一致不等于成交或交付，仍需合同与业务证据 |
 | GitHub 技术情报刷新 | expectedVersion/CAS、重复 job、并发编辑、失败审计和仓库身份绑定回归通过 | 真实最小权限只读凭据另行批准 |
 | 通知与工作流 | queued-only、投递失败、定义并发修改、snapshot、legacy failure 和 partial checkpoint 通过 | 操作员人工补偿演练 |
 | 高风险外部动作 | 八类人工批准、取消/驳回解链、幂等/CAS、manual/mock 外部回执边界通过 | 每类真实责任人批准和外部回执验收 |

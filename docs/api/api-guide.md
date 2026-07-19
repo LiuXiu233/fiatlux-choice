@@ -231,9 +231,14 @@ DELETE 通常设置 archivedAt，不物理删除。列表和单条读取默认�
 
 ### 业务关系
 
-除 `projects.objectiveId` 和 `tasks.projectId` 外，类型化引用还包括 `decisions.objectiveId/projectId/taskId`、`products.projectId` 以及 `opportunities.productId/projectId`。API 会分别校验引用属于当前组织且目标未归档。
+除 `projects.objectiveId` 和 `tasks.projectId` 外，类型化引用还包括 `decisions.objectiveId/projectId/taskId`、`products.projectId` 以及 `opportunities.productId/projectId`。API 会校验引用属于当前组织且目标未归档，并执行以下组合规则：
 
-当前边界是“单条引用有效”不等于“整条链一致”：同时填写决策的 objective/project/task 时，服务端尚不强制 task→project→objective 与这三项完全一致；机会同时填写 product 和 project 时，也不强制 `opportunity.projectId` 等于 `product.projectId`。客户端应读取目标记录并显式核对，不能把一次 POST/PATCH 成功解释为链级一致性已验证。
+- decision 同时填写 objective/project/task 中任意两项或三项时，已填写项必须来自同一条活动 objective→project→task 链；只填一项仍允许。
+- opportunity 同时填写 product 和 project 时，product 必须已归属该活动 project；只填一项仍允许。
+- PATCH 按“当前记录 + 本次 patch”的有效组合校验，不能用分次更新绕过；显式发送 `null` 可以解除可空关系。
+- 若 project 改 objective、task 改 project 或 product 改 project 会破坏活动 decision/opportunity，API 返回 409。objective/project/task/product 仍有活动下游引用时也不能归档。
+
+这些写入在组织级 PostgreSQL 事务 advisory lock 下串行化，工作流的 `create_task` 也使用同一锁并在事务内重新验证项目与负责人。该保证属于 API/worker 应用边界；拥有数据库写权限的特权管理员仍可直接绕过，任何紧急 SQL 修复都必须进入维护窗口、先备份、单独批准并补充一致性核对和审计证据。
 
 ## 8. 文件 API
 

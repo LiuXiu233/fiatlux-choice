@@ -12,6 +12,7 @@ import {
   files,
   financialEntries,
   invoices,
+  lockReferenceChain,
   objectives,
   obligations,
   opportunities,
@@ -1107,5 +1108,388 @@ describe.skipIf(!databaseUrl)("API PostgreSQL repeatable core business chain", (
         ),
       );
     expect(otherOrgApprovals).toHaveLength(0);
+  }, 60_000);
+
+  it("rejects decision and opportunity references that do not form one active business chain", async () => {
+    const createResource = async (resource: string, payload: JsonObject) => {
+      const response = await app.inject({
+        method: "POST",
+        url: `/api/v1/${resource}`,
+        headers: { cookie: ownerCookie },
+        payload,
+      });
+      expect(response.statusCode, `${resource}: ${response.body}`).toBe(201);
+      return body(response).data as JsonObject;
+    };
+    const expectValidationFailure = (
+      response: { statusCode: number; body: string },
+      message: string,
+    ) => {
+      expect(response.statusCode, response.body).toBe(400);
+      expect(body(response).error).toMatchObject({ code: "VALIDATION_FAILED", message });
+    };
+    const expectConflict = (response: { statusCode: number; body: string }, message: string) => {
+      expect(response.statusCode, response.body).toBe(409);
+      expect(body(response).error).toMatchObject({ code: "CONFLICT", message });
+    };
+
+    const objectiveA = await createResource("objectives", {
+      title: `Chain objective A ${suffix}`,
+      status: "active",
+    });
+    const objectiveB = await createResource("objectives", {
+      title: `Chain objective B ${suffix}`,
+      status: "active",
+    });
+    const projectA = await createResource("projects", {
+      objectiveId: objectiveA.id,
+      name: `Chain project A ${suffix}`,
+      status: "active",
+    });
+    const projectB = await createResource("projects", {
+      objectiveId: objectiveB.id,
+      name: `Chain project B ${suffix}`,
+      status: "active",
+    });
+    const taskA = await createResource("tasks", {
+      projectId: projectA.id,
+      title: `Chain task A ${suffix}`,
+    });
+    const taskB = await createResource("tasks", {
+      projectId: projectB.id,
+      title: `Chain task B ${suffix}`,
+    });
+    const productA = await createResource("products", {
+      projectId: projectA.id,
+      name: `Chain product A ${suffix}`,
+    });
+    const productB = await createResource("products", {
+      projectId: projectB.id,
+      name: `Chain product B ${suffix}`,
+    });
+    const productWithoutProject = await createResource("products", {
+      name: `Unassigned chain product ${suffix}`,
+    });
+
+    const decisionPairCases = [
+      {
+        payload: {
+          objectiveId: objectiveA.id,
+          projectId: projectB.id,
+          title: `Mismatched decision objective-project ${suffix}`,
+          context: "The project belongs to another objective.",
+        },
+        message: "projectId must reference a project in objectiveId",
+      },
+      {
+        payload: {
+          projectId: projectA.id,
+          taskId: taskB.id,
+          title: `Mismatched decision project-task ${suffix}`,
+          context: "The task belongs to another project.",
+        },
+        message: "taskId must reference a task in projectId",
+      },
+      {
+        payload: {
+          objectiveId: objectiveA.id,
+          taskId: taskB.id,
+          title: `Mismatched decision objective-task ${suffix}`,
+          context: "The task's project belongs to another objective.",
+        },
+        message: "taskId must reference a task whose project belongs to objectiveId",
+      },
+    ];
+    for (const testCase of decisionPairCases) {
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/v1/decisions",
+        headers: { cookie: ownerCookie },
+        payload: testCase.payload,
+      });
+      expectValidationFailure(response, testCase.message);
+    }
+
+    const validDecision = await createResource("decisions", {
+      objectiveId: objectiveA.id,
+      projectId: projectA.id,
+      taskId: taskA.id,
+      title: `Valid chain decision ${suffix}`,
+      context: "All references belong to one chain.",
+    });
+    const invalidDecisionPatch = await app.inject({
+      method: "PATCH",
+      url: `/api/v1/decisions/${String(validDecision.id)}`,
+      headers: { cookie: ownerCookie },
+      payload: { projectId: projectB.id, expectedVersion: validDecision.version },
+    });
+    expectValidationFailure(
+      invalidDecisionPatch,
+      "objectiveId, projectId, and taskId must form one active objective-project-task chain",
+    );
+    const unchangedDecision = await app.inject({
+      method: "GET",
+      url: `/api/v1/decisions/${String(validDecision.id)}`,
+      headers: { cookie: ownerCookie },
+    });
+    expect(unchangedDecision.statusCode, unchangedDecision.body).toBe(200);
+    expect(body(unchangedDecision).data).toMatchObject({
+      objectiveId: objectiveA.id,
+      projectId: projectA.id,
+      taskId: taskA.id,
+      version: validDecision.version,
+    });
+
+    const invalidOpportunity = await app.inject({
+      method: "POST",
+      url: "/api/v1/opportunities",
+      headers: { cookie: ownerCookie },
+      payload: {
+        productId: productA.id,
+        projectId: projectB.id,
+        title: `Mismatched product-project opportunity ${suffix}`,
+      },
+    });
+    expectValidationFailure(
+      invalidOpportunity,
+      "productId and projectId must reference the same active project chain",
+    );
+    const unassignedProductOpportunity = await app.inject({
+      method: "POST",
+      url: "/api/v1/opportunities",
+      headers: { cookie: ownerCookie },
+      payload: {
+        productId: productWithoutProject.id,
+        projectId: projectA.id,
+        title: `Unassigned product with explicit project ${suffix}`,
+      },
+    });
+    expectValidationFailure(
+      unassignedProductOpportunity,
+      "productId and projectId must reference the same active project chain",
+    );
+
+    const validOpportunity = await createResource("opportunities", {
+      productId: productA.id,
+      projectId: projectA.id,
+      title: `Valid chain opportunity ${suffix}`,
+    });
+    const invalidOpportunityPatch = await app.inject({
+      method: "PATCH",
+      url: `/api/v1/opportunities/${String(validOpportunity.id)}`,
+      headers: { cookie: ownerCookie },
+      payload: { productId: productB.id, expectedVersion: validOpportunity.version },
+    });
+    expectValidationFailure(
+      invalidOpportunityPatch,
+      "productId and projectId must reference the same active project chain",
+    );
+    const unchangedOpportunity = await app.inject({
+      method: "GET",
+      url: `/api/v1/opportunities/${String(validOpportunity.id)}`,
+      headers: { cookie: ownerCookie },
+    });
+    expect(unchangedOpportunity.statusCode, unchangedOpportunity.body).toBe(200);
+    expect(body(unchangedOpportunity).data).toMatchObject({
+      productId: productA.id,
+      projectId: projectA.id,
+      version: validOpportunity.version,
+    });
+
+    const parentMutationCases = [
+      {
+        resource: "projects",
+        id: projectA.id,
+        payload: { objectiveId: objectiveB.id, expectedVersion: projectA.version },
+        message:
+          "Project objective cannot change while active decisions depend on the existing chain",
+      },
+      {
+        resource: "tasks",
+        id: taskA.id,
+        payload: { projectId: projectB.id, expectedVersion: taskA.version },
+        message: "Task project cannot change while active decisions depend on the existing chain",
+      },
+      {
+        resource: "products",
+        id: productA.id,
+        payload: { projectId: projectB.id, expectedVersion: productA.version },
+        message:
+          "Product project cannot change while active opportunities depend on the existing chain",
+      },
+    ];
+    for (const testCase of parentMutationCases) {
+      const response = await app.inject({
+        method: "PATCH",
+        url: `/api/v1/${testCase.resource}/${String(testCase.id)}`,
+        headers: { cookie: ownerCookie },
+        payload: testCase.payload,
+      });
+      expectConflict(response, testCase.message);
+    }
+
+    const archiveDependencyCases = [
+      {
+        resource: "objectives",
+        id: objectiveA.id,
+        version: objectiveA.version,
+        message: "Cannot archive objectives while active projects reference it",
+      },
+      {
+        resource: "projects",
+        id: projectA.id,
+        version: projectA.version,
+        message: "Cannot archive projects while active tasks reference it",
+      },
+      {
+        resource: "tasks",
+        id: taskA.id,
+        version: taskA.version,
+        message: "Cannot archive tasks while active decisions reference it",
+      },
+      {
+        resource: "products",
+        id: productA.id,
+        version: productA.version,
+        message: "Cannot archive products while active opportunities reference it",
+      },
+    ];
+    for (const testCase of archiveDependencyCases) {
+      const response = await app.inject({
+        method: "DELETE",
+        url: `/api/v1/${testCase.resource}/${String(testCase.id)}?expectedVersion=${String(testCase.version)}`,
+        headers: { cookie: ownerCookie },
+      });
+      expectConflict(response, testCase.message);
+    }
+
+    const clearDecisionTask = await app.inject({
+      method: "PATCH",
+      url: `/api/v1/decisions/${String(validDecision.id)}`,
+      headers: { cookie: ownerCookie },
+      payload: { taskId: null, expectedVersion: validDecision.version },
+    });
+    expect(clearDecisionTask.statusCode, clearDecisionTask.body).toBe(200);
+    expect(body(clearDecisionTask).data).toMatchObject({
+      objectiveId: objectiveA.id,
+      projectId: projectA.id,
+      taskId: null,
+      version: Number(validDecision.version) + 1,
+    });
+
+    const assignPreviouslyUnassignedProduct = await app.inject({
+      method: "PATCH",
+      url: `/api/v1/products/${String(productWithoutProject.id)}`,
+      headers: { cookie: ownerCookie },
+      payload: { projectId: projectA.id, expectedVersion: productWithoutProject.version },
+    });
+    expect(
+      assignPreviouslyUnassignedProduct.statusCode,
+      assignPreviouslyUnassignedProduct.body,
+    ).toBe(200);
+    expect(body(assignPreviouslyUnassignedProduct).data).toMatchObject({
+      projectId: projectA.id,
+      version: Number(productWithoutProject.version) + 1,
+    });
+
+    const clearProduct = await app.inject({
+      method: "PATCH",
+      url: `/api/v1/opportunities/${String(validOpportunity.id)}`,
+      headers: { cookie: ownerCookie },
+      payload: { productId: null, expectedVersion: validOpportunity.version },
+    });
+    expect(clearProduct.statusCode, clearProduct.body).toBe(200);
+    expect(body(clearProduct).data).toMatchObject({
+      productId: null,
+      projectId: projectA.id,
+      version: Number(validOpportunity.version) + 1,
+    });
+  }, 60_000);
+
+  it("serializes a decision write against a concurrent task reparent", async () => {
+    const createResource = async (resource: string, payload: JsonObject) => {
+      const response = await app.inject({
+        method: "POST",
+        url: `/api/v1/${resource}`,
+        headers: { cookie: ownerCookie },
+        payload,
+      });
+      expect(response.statusCode, `${resource}: ${response.body}`).toBe(201);
+      return body(response).data as JsonObject;
+    };
+    const objectiveA = await createResource("objectives", {
+      title: `Concurrent chain objective A ${suffix}`,
+      status: "active",
+    });
+    const objectiveB = await createResource("objectives", {
+      title: `Concurrent chain objective B ${suffix}`,
+      status: "active",
+    });
+    const projectA = await createResource("projects", {
+      objectiveId: objectiveA.id,
+      name: `Concurrent chain project A ${suffix}`,
+      status: "active",
+    });
+    const projectB = await createResource("projects", {
+      objectiveId: objectiveB.id,
+      name: `Concurrent chain project B ${suffix}`,
+      status: "active",
+    });
+    const task = await createResource("tasks", {
+      projectId: projectA.id,
+      title: `Concurrent chain task ${suffix}`,
+    });
+
+    let signalLocked: (() => void) | undefined;
+    const locked = new Promise<void>((resolve) => {
+      signalLocked = resolve;
+    });
+    let releaseLock: (() => void) | undefined;
+    const release = new Promise<void>((resolve) => {
+      releaseLock = resolve;
+    });
+    const reparent = dbHandle.db.transaction(async (tx) => {
+      await lockReferenceChain(tx, orgId);
+      signalLocked?.();
+      await release;
+      await tx
+        .update(tasks)
+        .set({ projectId: String(projectB.id), updatedAt: new Date() })
+        .where(and(eq(tasks.orgId, orgId), eq(tasks.id, String(task.id))));
+    });
+    await locked;
+
+    let requestSettled = false;
+    const decisionRequest = app
+      .inject({
+        method: "POST",
+        url: "/api/v1/decisions",
+        headers: { cookie: ownerCookie },
+        payload: {
+          objectiveId: objectiveA.id,
+          projectId: projectA.id,
+          taskId: task.id,
+          title: `Concurrent chain decision ${suffix}`,
+          context: "The request must validate after the serialized reparent commits.",
+        },
+      })
+      .then((response) => {
+        requestSettled = true;
+        return response;
+      });
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      expect(requestSettled).toBe(false);
+    } finally {
+      releaseLock?.();
+    }
+    await reparent;
+    const decisionResponse = await decisionRequest;
+    expect(decisionResponse.statusCode, decisionResponse.body).toBe(400);
+    expect(body(decisionResponse).error).toMatchObject({
+      code: "VALIDATION_FAILED",
+      message:
+        "objectiveId, projectId, and taskId must form one active objective-project-task chain",
+    });
   }, 60_000);
 });

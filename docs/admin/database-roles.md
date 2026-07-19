@@ -106,4 +106,4 @@ unset POSTGRES_BOOTSTRAP_CURRENT_PASSWORD
 DB_PRIVILEGE_TEST_SIMULATE_LEGACY=1 ./scripts/test-database-privileges.sh
 ```
 
-脚本使用随机测试口令、独立 Compose 项目和自动销毁的卷，验证角色 flags、所有权转移、业务 DML、audit append、审计负向路径、pg-boss 无 DDL 入队、backup pg_dump 和 restore 受控建库。`verify-deployment.sh` 还会在实际部署中检查 API/worker 的连接用户名、数据库 flags、schema CREATE、审计权限、触发器模式与所有者；检查结果不输出连接串或口令。
+脚本使用随机测试口令、独立 Compose 项目和自动销毁的卷，验证角色 flags、所有权转移、业务 DML、组织级业务引用链 advisory transaction lock、audit append、审计负向路径、pg-boss 无 DDL 入队、backup pg_dump 和 restore 受控建库。`verify-deployment.sh` 还会在实际部署中检查 API/worker 的连接用户名、数据库 flags、schema CREATE、审计权限、触发器模式与所有者；检查结果不输出连接串或口令。
