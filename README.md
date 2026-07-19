@@ -2,7 +2,7 @@
 
 耀光（广州）电子竞技有限公司及类似中国境内 1–2 人团队的内部公司治理与运营 Web App。
 
-当前状态：**受控候选，尚未宣布或批准 V1 完成**。仓库已经包含实质业务实现、PWA、API、worker、38 张业务表与 10 个迁移（`0000`–`0009`）、内网部署和恢复资产。2026-07-19 最新实现基线 `a45db54…` 已通过静态/类型/单元/集成/E2E/生产构建、独立 Compose、桌面与移动浏览器、七个本地 arm64 镜像供应链检查；此前冻结基线还完成一次底层 formatVersion 2 独立恢复。连接恢复实现起点为 `859841f…`；候选分支对应 Draft PR #12。首轮本地相邻版本回滚在 idle 后暴露 `CONNECT_TIMEOUT` 并正确阻断，修复后使用七组件内容全部不同、schema 由 9 个迁移升级到 10 个迁移的 synthetic bridge 完成真实 push/pull、升级、双恢复点、应用回滚和 308 秒后 HTTPS CRUD 复验。该结果不是历史生产 N−1、GHCR 或广州办公内网证据。GitHub CI/Security 仍因账户付款失败或 Actions spending limit 不足在 runner 启动前被平台阻断，尚未执行 workflow step。其余未完成闸门包括 GHCR 双平台发布与绿色 CI、经批准的生产候选/N−1 和目标环境复演、经审批生产恢复入口、耀光目标办公内网与真实受管设备、真实 LLM/GitHub 适配器、MinIO 长期维护/支持风险决策和专业合规/业务批准。详情见[V1 验收矩阵](docs/delivery/v1-acceptance-matrix.md)和[受控候选交付报告](docs/delivery/final-delivery-report.md)。
+当前状态：**受控候选，尚未宣布或批准 V1 完成**。仓库已经包含实质业务实现、PWA、API、worker、38 张业务表与 10 个迁移（`0000`–`0009`）、内网部署和恢复资产。2026-07-19 最新实现基线 `f993ca6…` 已通过静态检查、7 项类型检查、167/167 单元、API 85/85、worker 25/25、生产构建及当前树/历史 secret scan、依赖审计和 Semgrep；其未修改的 Web/部署层在前一基线 `e582509…` 已通过 mock/real E2E、独立 Compose、桌面/移动浏览器和新 Web 镜像检查。更早冻结基线还完成七个本地 arm64 镜像供应链检查和一次底层 formatVersion 2 独立恢复。连接恢复实现起点为 `859841f…`；候选分支对应 Draft PR #12。首轮本地相邻版本回滚在 idle 后暴露 `CONNECT_TIMEOUT` 并正确阻断，修复后使用七组件内容全部不同、schema 由 9 个迁移升级到 10 个迁移的 synthetic bridge 完成真实 push/pull、升级、双恢复点、应用回滚和 308 秒后 HTTPS CRUD 复验。这些分层结果尚未绑定同一个最终 Git SHA，也不是历史生产 N−1、GHCR 或广州办公内网证据。GitHub CI/Security 仍因账户付款失败或 Actions spending limit 不足在 runner 启动前被平台阻断，尚未执行 workflow step。其余未完成闸门包括 GHCR 双平台发布与绿色 CI、经批准的生产候选/N−1 和目标环境复演、经审批生产恢复入口、耀光目标办公内网与真实受管设备、真实 LLM/GitHub 适配器、MinIO 长期维护/支持风险决策和专业合规/业务批准。详情见[V1 验收矩阵](docs/delivery/v1-acceptance-matrix.md)和[受控候选交付报告](docs/delivery/final-delivery-report.md)。
 
 ## 能力
 
@@ -14,7 +14,7 @@
 - React/Vite 响应式前端、移动导航和可安装 PWA。
 - Fastify API、PostgreSQL/Drizzle、MinIO/S3、pg-boss worker。
 - Docker Compose 内网拓扑、Caddy TLS、迁移、健康检查、CI、安全扫描、备份恢复和升级回滚资产。
-- 73 条中国、广东、广州官方合规来源及人工复核工作流。
+- 73 条中国、广东、广州官方合规来源、受控抓取/哈希、到期/变化/连续失败自动建人工任务及复核工作流。
 - 4 篇面向中国境内成年人的版本化电竞教育基础内容，包含 Schema、来源、权利、AI 披露、人工复核和 WordPress 手工发布边界。
 
 高风险动作不会被自动执行。银行付款、税务申报、发票红冲、合同正式签署、合同终止、人事处分、关键权限修改和对外法律承诺共八类动作必须人工批准；创建请求只接受 `manual` 或 `mock`，`real` 会被拒绝。`manual` 必须凭外部回执推进，`mock` 只能得到 simulated/cancelled，不能伪造外部成功；合同签署、合同终止和发票红冲只有在 confirmed 时才与目标合同/发票状态原子更新。
@@ -27,6 +27,7 @@
 - 已关联草稿支出的银行付款若在受支持状态取消，或人工审批驳回，系统在同一事务解除台账关联并增加版本，使修正后的新申请可重新关联。
 - 顾问运行默认只对发起人可见；只有具有 `advisor-runs:read-all` 或全局权限的用户才可读取他人运行，且仍必须拥有该顾问入口和所有上下文资源的读权限。
 - 义务和合规日历将法规来源 `sourceId` 与完成凭证 `evidenceFileId` 分开维护；凭证必须是本组织已完成上传的文件，关联来源本身不等于规则已经人工判定适用。
+- 合规来源人工复核到期、已有正文哈希变化或连续第三次抓取失败时，worker 在来源状态事务内创建未分配的高优先级任务并关联审计；任务只表示需要人工处理，不会自动认定法规有效、适用或已复核。
 - 角色分配/移除审批保存 membership 的 `expectedVersion` 与幂等键；等待审批期间成员或角色关系已变更时，旧审批冲突失败，不会在新版本上静默执行。
 
 ## 架构

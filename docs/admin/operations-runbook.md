@@ -41,7 +41,7 @@ df -h /var/lib/docker /var/backups/fiatlux-choice
 - live/ready、容器重启次数、worker 失败任务和磁盘使用率。
 - 上一次备份服务状态与加密文件大小；异常小的备份视为失败。
 - 登录失败、关键权限修改、人工审批与外部适配器失败事件。
-- 合规来源 `changed`/`failed`、已到期人工复核、连续失败次数、异常长租约及 `monitor_result_discarded` 审计；202 排队记录不能当作抓取成功。
+- 合规来源 `changed`/`failed`、已到期人工复核、连续失败次数、异常长租约及 `monitor_result_discarded` 审计；核对到期、正文变化和连续第三次失败对应的高优先级任务及 `escalationTaskId`，202 排队或自动建任务都不能当作抓取成功、法规已复核或问题已解决。
 
 每周：
 

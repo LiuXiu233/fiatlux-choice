@@ -59,7 +59,7 @@ lease 到期不等于“安全重试”。操作员必须查看审计、partial 
 | --- | --- | --- | --- |
 | 官方来源数据集 | `content/compliance/official-sources.json` 共 73 条，覆盖中国、广东、广州官方来源；隔离数据库 22 个完整组织和真实栈单组织均精确导入 73 条 | 已实现 | 最终 SHA 校验文件、URL、元数据与导入结果 |
 | 人工复核状态 | 73 条尚未完成可识别专业人员的适用性复核 | 正确保持未批准 | 按风险逐条复核正文、公司事实、适用条件、更新时间和下次复核日；不得批量伪造 reviewed/active |
-| 易变政策 | 来源元数据、机器哈希、人工状态和业务状态分离；变化可标 stale/uncertain | 已实现 / 待运营 | 目标环境完成首次抓取、变化监控、证据快照、负责人和纠错流程 |
+| 易变政策与人工升级 | 来源元数据、机器哈希、人工状态和业务状态分离；到期、正文变化和连续第三次失败会在状态事务内各建一条 `todo/high` 人工任务并关联双重审计，重复/第四次失败/陈旧并发不误建 | 冻结候选本地通过 / 待运营 | 目标环境完成首次抓取、任务处置、负责人分配和纠错流程；邮件/企业协作通知仍待批准适配器 |
 | 来源与履行凭证 | `sourceId`/`evidenceFileId` 分离、跨组织/未上传拒绝、被引用凭证归档拒绝和 linked-source withheld 已覆盖 | 冻结候选本地通过 | 人工核对凭证充分性 |
 | 顾问使用边界 | 未复核、过期或不活动来源不会进入法务顾问确定事实 | 定向候选已验证 | 真实模型启用后重新验证引用、权限、过期与越权边界 |
 
@@ -92,7 +92,7 @@ lease 到期不等于“安全重试”。操作员必须查看审计、partial 
 | synthetic bridge 相邻版本 | N `859841f…`/10 migrations 与本地 bridge `b44a8d1…`/9 migrations；七 digest 全异，真实 push/pull，升级 46s、回滚 43s、双 v2 恢复点；回滚后 308s 登录与 CRUD 通过 | 冻结候选本地通过 / 范围受限 | 不是历史生产 N−1、GHCR 或目标内网；经批准生产候选仍须复演 |
 | 归档与维护安全 | archive guard、资源上限、scratch、preflight、maintenance lock 及对应安全测试通过 | 冻结候选本地通过 | 经审批生产 `restore.sh` 破坏性入口仍待目标演练 |
 | 七镜像与供应链 | arm64 七镜像 Trivy 四口径均 0；7 SPDX；真实 BuildKit 双平台 fixture；API/worker amd64 原生件补偿验证 | 冻结候选本地通过 / GHCR 待发布 | 最终 SHA 的双平台 registry digest、GitHub workflow 和残余风险批准 |
-| GitHub 交付 | 引用链一致性实现基线 `a45db54…` 已提交，Draft PR #12 已创建；推送前最近 CI `29687727963` / Security `29687727964` 在 runner 前因账户付款失败或 spending limit 不足被 GitHub 阻断，未执行任何 step | 部分完成 / 外部计费阻断 | 推送文档 head 后复核远端；修复 Billing & plans 后重跑并取得绿色 CI/security、制品和批准；再合并 |
+| GitHub 交付 | 合规监测人工升级实现基线 `f993ca6…` 已推送，Draft PR #12 已更新；CI `29693227281` 两个失败 job 均为 `runner_id=0`/`steps=[]`，在 runner 前因账户付款失败或 spending limit 不足被 GitHub 阻断 | 部分完成 / 外部计费阻断 | 推送文档 head 后复核远端；修复 Billing & plans 后重跑并取得绿色 CI/security、制品和批准；再合并 |
 | 目标办公内网 | 尚未在耀光广州办公内网部署 | 待执行 / 阻断 | 主机基线、DNS、CA、设备、备份介质、运行观察和批准 |
 
 ## 7. 核心场景状态
@@ -109,7 +109,7 @@ lease 到期不等于“安全重试”。操作员必须查看审计、partial 
 | 高风险外部动作 | 八类人工批准、取消/驳回解链、幂等/CAS、manual/mock 外部回执边界通过 | 每类真实责任人批准和外部回执验收 |
 | 七类顾问 | requester-only/read-all、上下文二次权限、越权 404、工具/模型/人工编辑审计通过 | 真实 LLM 质量、隐私、成本、停用和供应商审批 |
 | advisor/workflow/backup 后台任务 | 原子 claim、CAS、lease-expired 审计和 partial checkpoint 通过 | 目标真实备份命令和人工补偿演练 |
-| 合规 | 未复核来源受限；source/evidence 跨组织/上传/归档/withheld 边界通过 | 73 条专业复核与目标环境首次抓取 |
+| 合规 | 未复核来源受限；source/evidence 跨组织/上传/归档/withheld 边界通过；到期/变化/第三次失败的事务内人工任务、脱敏、去重和并发丢弃由真实 PostgreSQL 集成覆盖 | 73 条专业复核、目标环境首次抓取及负责人处置演练 |
 | 官网与教育 | 官网审计、内部教育页、成人试点草案和四篇版本化基础内容已形成 | 四篇仍未获专业/权利/发布批准；继续内容清理、权利/事实核验及九项业务/专业闸门批准 |
 | 桌面、移动与 PWA | mock/real E2E、独立浏览器、SW active、offline shell 和 390 px 布局通过 | 真实受管手机安装/升级 |
 | 部署与恢复 | 最新 Compose、38 表/10 迁移、一次独立恢复 RPO 2s/RTO 75s，以及本地 synthetic bridge 真实差异升级/应用回滚通过 | 历史生产 N−1/目标发布复演、生产恢复入口、目标内网与 RPO/RTO 批准 |
@@ -124,8 +124,8 @@ lease 到期不等于“安全重试”。操作员必须查看审计、partial 
 
 | 字段 | 当前值 | 要求 |
 | --- | --- | --- |
-| 完整 Git SHA / tag | 引用链一致性实现基线 `a45db5489443fb240aa946561704228ccf1aaa61`；tag 未创建 | 推送文档 head 后记录完整 SHA；确定 commit/tag 签名政策，生产发布记录受保护 tag |
-| GitHub PR / CI / 安全 run | Draft PR #12；推送前最近 CI `29687727963`、Security `29687727964` 均被账户付款/spending limit 在 runner 前阻断 | 推送后记录新 run；修复 Billing & plans 后重跑，只有实际 step 执行且绿色才能关闭门禁 |
+| 完整 Git SHA / tag | 合规监测人工升级实现基线 `f993ca6a27ac4f38b90b1d5799b41da72b72f854`；tag 未创建 | 推送文档 head 后记录完整 SHA；确定 commit/tag 签名政策，生产发布记录受保护 tag |
+| GitHub PR / CI / 安全 run | Draft PR #12；实现基线 CI `29693227281` 和 Security `29693227315` 的六个首级失败 job 均在 runner 前被账户付款/spending limit 阻断，`runner_id=0`、`steps=[]` | 推送后记录新 run；修复 Billing & plans 后重跑，只有实际 step 执行且绿色才能关闭门禁 |
 | 38 表 / 10 migrations（`0000`–`0009`）证据 | **冻结工作树本地通过** | GitHub SHA 与目标环境复现 fresh/legacy、pg-boss 和权限 |
 | 七镜像 digest / SBOM / provenance | **本地 arm64/SPDX/fixture 通过** | 从最终 SHA 生成并记录 GHCR 双平台 registry digest |
 | 最终测试报告 | **冻结工作树本地通过** | 提交后记录不可变 SHA 与 GitHub run；源码漂移则重跑 |

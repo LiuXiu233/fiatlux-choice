@@ -12,8 +12,8 @@
 | --- | --- | --- |
 | 产品版本 | V1 受控候选 | 所有阻断闸门关闭并取得业务负责人批准后才能改为 V1 完成 |
 | 目标仓库 | 私有 `LiuXiu233/fiatlux-choice`；候选分支已推送；[Draft PR #12](https://github.com/LiuXiu233/fiatlux-choice/pull/12) | 解除 Actions 计费阻断，取得绿色 CI/security；批准后再合并 |
-| Git SHA / tag | 引用链一致性实现基线 `a45db5489443fb240aa946561704228ccf1aaa61`；未创建发布 tag | 本报告状态回写为后续纯文档提交；生产发布仍须确定 commit/tag 签名政策，并绑定受保护 tag、GHCR digest、测试和恢复点 |
-| GitHub PR / CI | 推送前最近可见的 [CI run 29687727963](https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29687727963) 与 [Security run 29687727964](https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29687727964) **均在 runner 启动前失败**，对应旧 head `70763d7…` | GitHub annotation 明确为近期账户付款失败或 Actions spending limit 不足；`runner_id=0`、`steps=[]`，没有任何 workflow step 实际运行。推送当前 head 后重新检查；修复 Billing & plans 后重跑，不得把本地通过或平台 failure 写成 GitHub CI 通过 |
+| Git SHA / tag | 合规监测人工升级实现基线 `f993ca6a27ac4f38b90b1d5799b41da72b72f854`；未创建发布 tag | 本报告状态回写为后续纯文档提交；生产发布仍须确定 commit/tag 签名政策，并绑定受保护 tag、GHCR digest、测试和恢复点 |
+| GitHub PR / CI | 实现基线的 [CI run 29693227281](https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29693227281) 与 [Security run 29693227315](https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29693227315) **均在 runner 启动前失败** | CI 两个、Security 四个首级失败 job 均为 `runner_id=0`、`steps=[]`，annotation 明确为近期账户付款失败或 Actions spending limit 不足，没有任何 workflow step 实际运行。推送文档 head 后继续只读检查；修复 Billing & plans 后重跑，不得把本地通过或平台 failure 写成 GitHub CI 通过 |
 | 数据库 | PostgreSQL 17.10；38 张业务表；10 个业务迁移 `0000`–`0009`；fresh 与 legacy 升级、pg-boss 24 和五职责权限均本地通过 | 最终提交后由 GitHub CI 复现；目标内网重新执行 |
 | 候选 QA 环境 | 最新冻结工作树的本机 production-like Compose：`https://choice-final.localhost:19443`，受信 TLS SAN `choice-final.localhost` | 不得改写成耀光广州办公内网生产环境 |
 | 目标办公内网 | **未部署** | 补主机、OS、架构、DNS、CA、防火墙、受管设备和运行观察 |
@@ -46,7 +46,7 @@
 
 ## 3. 最终冻结测试状态
 
-以下最新质量结果绑定 2026-07-19 当前引用链加固工作树，尚未绑定不可变 Git SHA；底层恢复和 synthetic bridge 证据仍按各自明确的旧基线分列。实现提交后只允许回写交付元数据，否则必须重跑受影响门禁。原始日志、备份、私钥、Cookie 和运行数据保存在被忽略的本地证据目录，不进入 Git。
+以下质量结果采用分层口径：最新合规监测实现 `f993ca6…` 已重跑静态、类型、单元、全部 API/worker 集成、生产构建和代码安全门禁；未修改的 Web/Compose 层沿用前一实现基线 `e582509…` 的 E2E、浏览器与新 Web 镜像证据；底层恢复和 synthetic bridge 仍按各自明确的更早基线分列。因此尚不存在把所有门禁绑定到同一个最终不可变 Git SHA 的证据。实现提交后只允许回写交付元数据，否则必须重跑受影响门禁。原始日志、备份、私钥、Cookie 和运行数据保存在被忽略的本地证据目录，不进入 Git。
 
 | 层级 | 当前发布口径 | 最终要求 |
 | --- | --- | --- |
@@ -64,6 +64,8 @@
 引用链增量候选另在全新随机命名的 Compose 项目中重建 PostgreSQL、API、worker、Web、gateway、MinIO、backup 七镜像，完成空库五职责引导、10 个业务迁移、pg-boss 24、72 条来源 bootstrap、六服务健康和 `verify-deployment.sh` 最小权限检查；随后显式删除该项目全部容器、网络和卷。七镜像以 Trivy 0.70.0 扫描 HIGH/CRITICAL 均为 0，并生成、校验七份 Syft 1.42.3 SPDX。该本地增量证据仍不是最终 Git SHA 的 GHCR 双平台 digest、签名或目标内网证据。
 
 电竞教育内容增量在同日完成 167/167 单元、API 85/85、worker 25/25、mock Playwright 44 passed/6 条件 skip 和真实栈 desktop/mobile 2/2；独立 Python Playwright 在 1440×1000 与 390×844 下均无横向溢出或控制台错误。隔离 PostgreSQL 的 22 个完整 bootstrap 组织均精确导入 73 条来源，隔离真实栈单组织同样为 73 条且新增健康来源精确 1 条。生产构建将教育内容拆为 128.19 kB 路由块，消除 500 kB 主块告警；独立 Web Compose 容器以 UID 10001、只读根、cap-drop ALL、no-new-privileges 健康运行，Trivy 0.70.0 对该新 Web 镜像扫描 HIGH/CRITICAL 为 0。Gitleaks 当前树/历史和 Semgrep 固定规则扫描均为 0 finding。隔离容器和网络验证后已删除；该证据仍不替代最终 SHA、七镜像重建、GHCR、目标内网或专业内容批准。
+
+合规监测人工升级增量在独立 PostgreSQL 17 容器迁移后完成目标文件 7/7 与完整 worker integration 5 files/25 tests。验证人工复核到期、正文变化和连续第三次失败都在来源状态事务内精确创建一条同组织 `todo/high` 任务及任务审计；重复扫描、同一哈希、第四次失败和陈旧并发结果不会重复或虚假建任务，失败错误在来源、任务和审计中均保持脱敏。专用数据库容器测试后已删除；负责人自动分配、邮件/企业协作通知和目标环境实际处置仍未验收。
 
 ## 4. 权限、后台任务与数据一致性证据
 
@@ -111,6 +113,7 @@
 - 合规结论保存在可维护记录中，包含来源、适用条件、更新时间、机器哈希状态和人工复核状态；政策变化不应永久硬编码。
 - 义务和合规日历可分别保存 `sourceId` 与 `evidenceFileId`：前者指向同组织未归档的合规来源，后者必须是同组织已 `uploaded` 的凭证文件。来源与凭证都可为空，因此记录成功不自动证明有法律依据或已完成履行；被引用凭证也不可在引用存续时归档。
 - 未复核或已过期来源不会作为法务顾问的确定事实；自动抓取、哈希一致或 pending 引用也不等于专业复核。
+- 人工复核到期、正文哈希变化和连续第三次监测失败会各创建一条立即到期、未分配的高优先级人工任务，并在来源事件与任务创建审计间保存关联；任务完成不会自动把来源写成已复核，邮件/企业协作通知仍未配置。
 - 当前真实 LLM 尚未完成供应商、数据处理、预算和质量验收。定向 mock 流程只证明权限、结构、审计、withheld 和后台运行边界。
 - 当前 GitHub 集成仍为 manual/read-only 边界，没有真实凭据验收。
 - 八类高风险动作必须人工批准；manual/mock 不构成银行、税务、发票、签章、人事或法律平台已经成功执行。
@@ -175,7 +178,7 @@
 - [x] 本地 synthetic bridge 使用真实 schema 与七镜像差异完成升级、双恢复点、应用回滚和 idle 后 HTTPS CRUD；历史生产 N−1、GHCR 和目标内网复演仍待执行，不得把本地结果升级为生产证明。
 - [x] 本地完成 Gitleaks、生产依赖审计、Semgrep+canary、Trivy、七镜像 SPDX/provenance fixture 和 arm64 content ID；GitHub/GHCR 双平台 digest、CodeQL/等效 SAST 与剩余风险批准待执行。
 - [ ] 在真实受管手机完成 PWA 安装/升级和移动浏览器验证。
-- [x] 引用链一致性实现基线 `a45db5489443fb240aa946561704228ccf1aaa61` 已在候选分支提交；文档提交和推送后仍须核对 Draft PR #12 远端 head 与新 run。
+- [x] 合规监测人工升级实现基线 `f993ca6a27ac4f38b90b1d5799b41da72b72f854` 已在候选分支提交并推送；文档提交和推送后仍须核对 Draft PR #12 远端 head 与新 run。
 - [ ] 修复 GitHub Actions 账户付款/spending limit 阻断，重跑 PR CI 与 Security；取得绿色 run、CodeQL 或经批准等效 SAST、制品证据，批准后再合并。
 - [ ] 在耀光广州办公内网验证主机、DNS、CA、防火墙、显式 seed、owner 首登改密、设备、备份介质和运行观察。
 - [ ] 完成真实 LLM/GitHub 最小权限验收，或明确保持 disabled/manual 且不宣称外部集成完成。

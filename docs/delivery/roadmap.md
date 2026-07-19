@@ -31,6 +31,7 @@
 - 通知创建为 queued-only；GitHub 刷新保存 `expectedVersion` 并以 CAS 防止陈旧写回；workflow 保存不可变定义版本/步骤快照和 partial checkpoint；advisor/workflow/backup 使用原子 claim、CAS 与 `lease_expired` 人工复核边界。
 - 银行付款取消或审批驳回会原子解除草稿支出关联；顾问运行默认 requester-only，管理员的 `advisor-runs:read-all` 仍受顾问入口和上下文读权限限制；角色分配审批保存 membership 版本快照并在批准时重验。
 - 义务/合规日历已分开 `sourceId` 与 `evidenceFileId`，凭证必须是同组织已上传文件；来源关联不自动等于适用性复核。
+- 合规来源人工复核到期、正文哈希变化和连续第三次失败已在状态事务内自动建立未分配的高优先级人工任务；同一事件去重、错误脱敏、组织隔离和陈旧并发丢弃由真实 PostgreSQL 集成覆盖，邮件/企业协作通知和负责人自动分配仍待批准适配器。
 - 2026-07-19 最新工作树已通过 Biome 196 files、ShellCheck/Actionlint、7 项类型检查、167/167 单元、API 17 files/85 tests、worker 5 files/25 tests、PostgreSQL/pg-boss/MinIO 集成、mock 44+6 与隔离 real 2 项 Playwright、针对引用链和教育内容的 Python Playwright 桌面/390 px 验证、PWA/生产构建和新建 Compose 六服务部署验证；既有六服务重启持久性证据仍通过。
 - 七个最终本地 arm64 镜像、Trivy 0.70.0 四口径零 HIGH/CRITICAL、七份 SPDX、真实 BuildKit 0.31.2 双平台 provenance fixture，以及 API/worker amd64 原生件补偿验证均通过；GHCR 双平台 root digest 仍待最终提交后的 release workflow。
 - 底层 formatVersion 2 只执行一次最终隔离恢复：归档 SHA-256 `bcfd6c59d9e66f7319ab2b55e6e711e2adfe2732f2c3a928b02eb82a3768b6ba`、`sourceId=fiatlux-finalqa-isolated`，恢复并核对 38 表、10 migrations、pg-boss 24 和 1 个 56-byte 对象，实测 RPO 2 秒、drill RTO 75 秒，临时资源和密钥已清理。该演练没有执行破坏性的生产 `restore.sh` 审批入口。
@@ -103,7 +104,7 @@
 
 - 每日/每周经营摘要、逾期分级和 13 周现金预警。
 - 经批准的邮件或企业协作通知适配器，保留站内为事实源。
-- 合规来源变更监控、哈希差异、复核任务和负责人通知。
+- 为现有合规来源变更监控、哈希差异和复核任务接入经批准的负责人规则及邮件/企业协作通知；站内任务与审计继续作为事实源。
 - 审计导出、管理层月报、风险接受到期提醒，以及 `lease_expired`/partial run 的人工处理看板。
 - 第一个成人团队赛训或竞技基础小班，从机会、合同、交付到退款/复盘闭环。
 - 课程内容版本、讲师授权、学员告知和删除期限台账。
