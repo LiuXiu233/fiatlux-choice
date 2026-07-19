@@ -19,7 +19,9 @@
                        |
                        +-- worker/pg-boss -- 外部 LLM/GitHub/人工适配器
 CI 运行器 -- GHCR/SBOM -- 内网生产主机
-备份主机 -- 加密归档 -- 离线 age 身份保管人
+备份主机 -- age 加密归档 + Ed25519 attestation -- 离线 age 身份保管人
+    |                         |
+在线签名私钥             独立批准的公钥指纹/SHA-256
 ```
 
 ## 主要威胁与控制
@@ -39,8 +41,8 @@ CI 运行器 -- GHCR/SBOM -- 内网生产主机
 | 数据库常驻高权 | API/worker 被攻陷后执行 DDL、建库、建角色或禁用触发器 | bootstrap/migrator/runtime/backup/restore 分离；常驻服务仅 runtime；pg-boss migrate=false；部署验证查询实际 role flags 与对象权限 | runtime 对多数业务表仍有模块化单体所需 DML，应用组织隔离依赖服务端 RBAC；研发与运维负责人 |
 | 服务暴露 | DB/MinIO 监听办公网 | 只有 Caddy 发布端口、backend internal 网络、主机防火墙、部署验证 | Docker 配置变更可重新暴露；运维负责人 |
 | 绕过安全网关 | 直接暴露 Web/API，缺失 CSP 或 TLS 边界 | 生产 Compose 只发布 Caddy；Caddy 注入 CSP/HSTS；浏览器验证响应头 | Fastify Helmet 单独关闭 CSP，绕过 Caddy 就没有同等保证；运维负责人 |
-| 恶意或伪造备份 | 路径穿越、symlink/hardlink/device/FIFO、展开炸弹，或攻击者用公开 age recipient 生成替换密文 | 独立受审归档 SHA-256；同一 Go parser 先全量检查再安全提取；仅目录/普通文件；成员数/展开大小/逐文件完整覆盖清单 | 尚无备份数字签名；审批渠道或 Docker 主机失陷仍可绕过；公司与安全负责人 |
-| 备份不可恢复 | 文件存在但损坏或无密钥 | manifest、age、每日备份、每月独立恢复演练、RPO/RTO 记录 | 同城灾害需异地介质；公司负责人 |
+| 恶意或伪造备份 | 路径穿越、symlink/hardlink/device/FIFO、展开炸弹，或攻击者用公开 age recipient 生成替换密文 | Ed25519 规范化 attestation 绑定密文 SHA/大小/来源/版本；独立批准公钥 DER 指纹与归档 SHA-256；任何 Compose/破坏操作前验证；同一 Go parser 先全量检查再安全提取；仅目录/普通文件；成员数/展开大小/逐文件完整覆盖清单 | 在线主机文件签名私钥不是 HSM；签名私钥、审批渠道或 Docker 主机失陷仍可伪造/绕过；公司与安全负责人 |
+| 备份不可恢复 | 文件存在但损坏、签名材料不全或无解密密钥 | manifest、age、Ed25519 attestation/signature、原子 sidecar、每日备份、每月独立恢复演练、签名字段和 RPO/RTO 记录 | 同城灾害需异地介质；旧公钥必须保留到旧归档过期；公司负责人 |
 | 供应链攻击 | 恶意依赖、mutable 源码 tag、Action/镜像 tag 被替换 | lockfile、第三方 Actions 完整 commit SHA、MinIO/mc commit+tarball SHA-256、依赖审计、CodeQL、Trivy、Gitleaks、SBOM、BuildKit provenance、七组件受审 digest 清单 | provenance 不是签名；尚无 cosign/Sigstore；固定 SHA 仍需 Dependabot/人工更新；研发负责人 |
 | PWA 缓存泄漏 | 共用设备离线看到旧公司数据 | service worker 不缓存 API/私有页面；所有 `/api/*` 响应统一 `Cache-Control: no-store`；退出清缓存、设备锁屏和磁盘加密 | 受管设备仍需限制浏览器配置、下载文件和截图；前端负责人 |
 | 日志泄密 | token、身份证号进入日志 | 字段白名单、日志脱敏、轮转、访问控制、外发前人工复核 | 异常堆栈可能含输入；运维负责人 |
@@ -51,7 +53,8 @@ CI 运行器 -- GHCR/SBOM -- 内网生产主机
 2. 成员修改请求中的 `companyId` 访问另一公司数据。预期：服务端从会话作用域确定公司，拒绝并写审计。
 3. 管理员误把 MinIO 控制台发布到 `0.0.0.0`。预期：生产 Compose 无 MinIO ports；部署验证发现非网关宿主端口。
 4. 升级迁移、PostgreSQL binary 或 MinIO 跨版本破坏兼容性。预期：升级前加密备份；expand/contract；七组件一致切换但不执行数据库 schema 降级；常规流程禁止 PostgreSQL major 变化，minor 回退要求独立人工兼容复核；应用 schema、数据库数据目录或 MinIO 数据格式不兼容时停止并完整恢复。
-5. 攻击者取得加密备份但没有 age 身份。预期：无法读取；身份独立离线保存。若生产主机与身份同时失陷，需按数据泄露事件处理。反向场景中，知道公开 age recipient 的攻击者能生成另一份有效密文，因此恢复仍必须匹配独立受审 SHA-256。
+5. 攻击者取得加密备份但没有 age 身份。预期：无法读取；身份独立离线保存。若生产主机与身份同时失陷，需按数据泄露事件处理。反向场景中，知道公开 age recipient 的攻击者能生成另一份有效密文，因此恢复仍必须同时匹配 Ed25519 签名、独立批准的公钥指纹和独立受审 SHA-256。
+6. 攻击者篡改归档、attestation、签名或替换公钥。预期：恢复入口在任何 Compose pull/stop、恢复前备份或数据库/对象操作前失败；安全测试还覆盖错误来源、错误 backup tool release、签名缺失和部分参数。若在线签名私钥本身泄露，转入事件处置并依赖泄露前的独立审批/异介质证据，不能把“签名有效”单独当作可信。
 
 ## 明确不覆盖
 

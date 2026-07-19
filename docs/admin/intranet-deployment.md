@@ -59,7 +59,7 @@ sudo install -d -o root -g fiatlux -m 0750 /etc/fiatlux-choice/approved-backups
 
 `BACKUP_DIR`/`RESTORE_SOURCE_DIR` 是可审计归档源；执行恢复时它会以只读方式挂载到 `backup-tools:/restore-source`。`RESTORE_PRE_BACKUP_DIR` 必须指向上面的独立可写目录，不能把恢复前备份写回只读 U 盘、审批介质或源归档目录。
 `RESTORE_DRILL_REPORT_DIR` 同样必须是独立可写目录；定期恢复演练的日志和容器报告写入此目录，不写回只读归档源。
-`BACKUP_APPROVED_MANIFEST_DIR` 及其父链必须保持 root 所有且不允许 group/other 写入；批准文件使用 `root:fiatlux 0640`。部署用户只能读取，不能拥有、改写、替换或通过可写父目录重定向该批准记录；批准目录也不能放在 `BACKUP_DIR` 子树中。
+`BACKUP_APPROVED_MANIFEST_DIR` 及其父链必须保持 root 所有且不允许 group/other 写入；批准文件使用 `root:fiatlux 0640`。部署用户只能读取，不能拥有、改写、替换或通过可写父目录重定向该批准记录；批准目录也不能放在 `BACKUP_DIR` 子树中。备份签名公钥可以放在 `/etc/fiatlux-choice`，但批准的公钥 DER SHA-256 必须由 root 控制的生产配置或等价独立审批渠道提供，不能从可写备份目录自动推导。
 
 Docker 组等价于主机 root 权限。只能把受信任的部署账户加入该组，不允许普通应用用户登录主机。
 
@@ -98,6 +98,24 @@ age-keygen -y age-identity.txt
 ```
 
 第二条输出是可公开的 `BACKUP_AGE_RECIPIENT`。私钥至少保留两份加密离线副本，并记录保管人；生产服务器上用于恢复演练的副本权限必须为 `0600`。私钥不能存入 Git、数据备份或密码明文笔记。
+
+另行生成 Ed25519 备份签名密钥；它与 age 密钥用途相反：age identity 用于解密，Ed25519 private key 用于证明备份创建者。两者不得复用或放在同一离线副本中。
+
+```sh
+umask 077
+openssl genpkey -algorithm ED25519 -out backup-signing-private.pem
+openssl pkey -in backup-signing-private.pem -passin pass: \
+  -pubout -out backup-signing-public.pem
+openssl pkey -pubin -in backup-signing-public.pem -outform DER \
+  | sha256sum
+
+sudo install -o fiatlux -g fiatlux -m 0400 \
+  backup-signing-private.pem /etc/fiatlux-choice/backup-signing-private.pem
+sudo install -o root -g fiatlux -m 0640 \
+  backup-signing-public.pem /etc/fiatlux-choice/backup-signing-public.pem
+```
+
+把输出的 64 位小写 SHA-256 经独立批准后写入 root 所有、部署用户只读的 `BACKUP_SIGNING_PUBLIC_KEY_SHA256`；同时配置 `BACKUP_SIGNING_PRIVATE_KEY_FILE`、`BACKUP_SIGNING_PUBLIC_KEY_FILE` 和 `BACKUP_REQUIRE_SIGNATURE=true`。签名私钥需要在线供每日一次性备份容器使用，因此不能替代离线 age identity；至少再保存一份加密离线副本并记录轮换/泄露处置。生产脚本拒绝符号链接、加密私钥、非 Ed25519 私钥以及权限不是 `0400`/`0600` 的文件。
 
 验证生产配置不会输出展开后的密钥：
 
@@ -187,7 +205,7 @@ sudo systemctl enable --now fiatlux-choice-restore-drill.timer
 systemctl list-timers 'fiatlux-choice-*'
 ```
 
-systemd 单元默认每日备份、每月在独立卷恢复演练。首次启用前先手工执行一次备份和恢复演练，确认 age 私钥路径、磁盘空间和镜像权限。每份待演练归档还必须由审批人把核对后的 `.sha256` 清单复制到 `BACKUP_APPROVED_MANIFEST_DIR`；同一可写备份目录中的 sidecar 不会被自动信任，缺失批准时定时演练按设计失败关闭。
+systemd 单元默认每日备份、每月在独立卷恢复演练。首次启用前先手工执行一次签名备份和恢复演练，确认 age identity、Ed25519 私钥/公钥、独立批准的公钥指纹、磁盘空间和镜像权限。每份待演练归档还必须由审批人把核对后的 `.sha256` 清单复制到 `BACKUP_APPROVED_MANIFEST_DIR`；同一可写备份目录中的 SHA sidecar、公钥或指纹不会被自动信任。归档 attestation/signature 可以与归档一起保存，因为任何篡改都会被独立指纹锚定的签名验证发现；缺失任一批准值或签名材料时定时演练按设计失败关闭。
 
 ## 8. 上线验收
 
@@ -198,7 +216,7 @@ systemd 单元默认每日备份、每月在独立卷恢复演练。首次启用
 - 桌面 Playwright/PWA 结果、真实受管手机浏览器结果；iPhone 14 Chromium 仿真只能作为补充，不能标作真机。
 - RBAC 拒绝、审计追踪、高风险人工审批的端到端结果。
 - Trivy、CodeQL、依赖审计、secret scan 与 SBOM。
-- 首次加密备份、独立恢复演练报告、实际 RPO/RTO。
+- 首次加密且 Ed25519 签名的备份、独立 SHA/公钥指纹批准记录、带签名字段的独立恢复演练报告、实际 RPO/RTO。
 - 内网 DNS、防火墙和 CA 分发审批记录。
 
 任何一项缺失，都只能标记为“待验证”，不能声明生产部署完成。

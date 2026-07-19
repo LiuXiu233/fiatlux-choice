@@ -39,7 +39,7 @@ df -h /var/lib/docker /var/backups/fiatlux-choice
 每日：
 
 - live/ready、容器重启次数、worker 失败任务和磁盘使用率。
-- 上一次备份服务状态与加密文件大小；异常小的备份视为失败。
+- 上一次备份服务状态、加密文件大小、`.attestation.json`/`.attestation.sig` 是否齐全及签名公钥指纹；异常小、缺少签名或未获独立 SHA/指纹批准的备份均视为不可用于生产恢复。
 - 登录失败、关键权限修改、人工审批与外部适配器失败事件。
 - 合规来源 `changed`/`failed`、已到期人工复核、连续失败次数、异常长租约及 `monitor_result_discarded` 审计；核对到期、正文变化和连续第三次失败对应的高优先级任务及 `escalationTaskId`，202 排队或自动建任务都不能当作抓取成功、法规已复核或问题已解决。
 
@@ -51,9 +51,9 @@ df -h /var/lib/docker /var/backups/fiatlux-choice
 
 每月：
 
-- 独立恢复演练及 RPO/RTO，抽查附件校验和。
+- 独立恢复演练及 RPO/RTO，核对恢复报告 `signatureVerified`、attestation SHA、公钥指纹和逐对象校验。
 - 管理员、Docker 组、公司角色和外部 token 权限复核。
-- Caddy CA、LLM/GitHub 凭据、age 密钥托管清单复核。
+- Caddy CA、LLM/GitHub 凭据、age 密钥和 Ed25519 备份签名密钥的托管/轮换/旧公钥保留清单复核。
 
 ## 常用处置
 

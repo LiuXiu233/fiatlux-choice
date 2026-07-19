@@ -21,7 +21,7 @@ GHCR 不提供七个仓库 tag 的跨仓库原子提交。若 promotion 在创�
 1. CI、Trivy、依赖审计和 secret scan 全部通过；CodeQL 必须实际运行通过。若私有仓库 entitlement 不可用，只能记录“未运行”，并在生产发布前补充经安全负责人批准的等效 SAST 结果。
 2. 在全新数据库和上一版本快照上执行业务迁移、pg-boss 迁移和 `database-permissions`；运行 `test-database-privileges.sh` 的新卷与旧单角色两种模式。
 3. 数据库变更遵循 expand/contract：先扩展 schema，等待所有旧进程不再依赖旧结构后，后续版本再收缩。
-4. 最近一次独立恢复演练通过，age 私钥可用，备份介质空间充足。
+4. 最近一次 age+Ed25519 独立恢复演练通过；age identity、签名私钥、公钥及独立批准的公钥指纹可用，备份介质空间充足。
 5. 确认维护窗口、审批人、操作人、回滚目标和沟通渠道。
 
 常规升级、回滚和恢复只允许 PostgreSQL 同 major。major 变化必须使用单独设计、测试并批准的 `pg_upgrade` 或逻辑迁移方案，发布脚本没有绕过参数。升级也拒绝 minor 回退；回滚或恢复若确需切到较低 minor，必须先在副本上完成兼容性复核并取得外部人工批准，再显式传入 `--confirm-postgres-minor-rollback POSTGRES-MINOR-ROLLBACK-REVIEWED`。该 token 只证明操作人作了显式确认，不证明审批已存在。
@@ -45,6 +45,8 @@ export FIATLUX_ENV_FILE=/etc/fiatlux-choice/production.env
 ```
 
 脚本先验证清单、受审 Git SHA 与 clean 部署资产，再拉取七个目标镜像并逐一核对本地 `RepoDigest`。从这次核验到迁移、切换完成之间，所有 one-shot `run` 都显式使用 `--pull never`，所有 `up` 都显式使用 `--pull never --no-build`；不得再次解析远端可变 tag，也不得用本地工作树临时构建替代受审镜像。只有核验通过，才用目标版本 backup image 创建 formatVersion 2 加密恢复点。备份时暂停/恢复的是当前版本入口/API/worker，不会提前重建目标应用。随后脚本显式停止入口/API/worker，先重建并等待目标 PostgreSQL，再执行 Drizzle 业务迁移、pg-boss 迁移和 runtime 授权收敛，最后一致重建 MinIO、桶初始化以及 api/worker/web/gateway；启动后再次核对七个本地 digest，并核对这六个常驻容器的实际 image ID，再验证健康、实际数据库角色姿态和容器安全参数，最后才写入 `data/releases/current`、`previous`、`history.tsv` 与 `data/releases/manifests/` 的受审副本。backup 是按需容器，没有可长期核对的运行实例。任何中途失败都不能手工伪造版本状态，也不能通过给 runtime 临时 DDL 来放行。
+
+上述升级/回滚恢复点在生产环境不仅强制 age 加密，也必须由 Ed25519 私钥签署 attestation；缺少签名私钥时，切换会在停止写入方之前失败。签名不替代发布清单核验、独立归档 SHA-256 或人工批准。
 
 首次部署由 `production.env` 的 `APP_IMAGE_TAG` 决定；首次成功升级后，`data/releases/current` 成为 Compose 的本机版本状态并优先于环境文件，确保重启不会退回旧镜像。该状态文件必须与发布记录一起备份和审计，但不能在验证失败前提前修改。
 

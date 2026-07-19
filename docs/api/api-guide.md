@@ -398,7 +398,7 @@ POST /external-actions/:id/transition 记录状态变化。manual 进入 submitt
 
 连接测试只验证可达性，不执行业务动作。external-manual 测试只确认人工适配器可用。
 
-POST /backups 的 scope 为 database、files 或 full。没有受控 BACKUP_COMMAND 时，worker 只支持 database；files/full 会明确失败。生产完整备份与恢复使用管理员脚本。
+POST /backups 的 scope 为 database、files 或 full。没有受控 BACKUP_COMMAND 时，worker 只支持 database；files/full 会明确失败。内置 database-only 导出不是完整灾备恢复点，也不持有主机 Ed25519 签名私钥。生产完整备份与恢复使用管理员脚本，由一次性容器完成 age 加密、来源签名和人工批准边界。
 
 ## 13. 健康检查
 

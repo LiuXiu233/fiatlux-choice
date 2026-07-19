@@ -15,7 +15,7 @@
 
 ## 2. 工程验证状态
 
-2026-07-18 的旧测试、六镜像、v1 恢复和同内容标签升级数字只保留为历史背景。2026-07-19 最新工作树已完成 Biome 198 files、ShellCheck/Actionlint、7 项类型检查、173/173 单元、API 17 files/86 tests、worker 5 files/25 tests、PostgreSQL/pg-boss/真实 MinIO 集成、mock 44+6 与隔离 real 2 项 Playwright、PWA/构建、独立桌面/390 px 引用链及教育内容检查，以及新建 Compose 的七镜像构建、六服务健康、Trivy 0 与七份 SPDX。Web/E2E/Compose/七镜像证据来自本轮未修改对应层的前一冻结基线，尚未与最新文件门禁绑定同一不可变 SHA。此前冻结候选还完成六服务重启持久性、双平台 provenance fixture、一次底层 formatVersion 2 独立恢复，以及一次本地 synthetic bridge 真实 schema/镜像差异升级与应用回滚。
+2026-07-18 的旧测试、六镜像、v1 恢复和同内容标签升级数字只保留为历史背景。2026-07-19 最新工作树已完成 Biome 199 files、ShellCheck/Actionlint、7 项类型检查、173/173 单元、API 17 files/86 tests、worker 5 files/25 tests、PostgreSQL/pg-boss/真实 MinIO 集成、mock 44+6 与隔离 real 2 项 Playwright、PWA/构建、独立桌面/390 px 引用链及教育内容检查，以及新建 Compose 的七镜像构建、六服务健康、Trivy 0 与七份 SPDX。Web/E2E/Compose/七镜像证据来自本轮未修改对应层的前一冻结基线，尚未与最新文件门禁绑定同一不可变 SHA。此前冻结候选还完成六服务重启持久性、双平台 provenance fixture、一次底层 formatVersion 2 独立恢复，以及一次本地 synthetic bridge 真实 schema/镜像差异升级与应用回滚。
 
 当前 schema 为 38 张业务表和 10 个迁移（`0000`–`0009`）。上述结果仍是本地冻结候选而非 GitHub runner、GHCR 双平台、耀光办公内网、真实设备或生产批准证据。本地 synthetic bridge 已实跑真实差异升级/回滚，但历史生产 N−1、目标发布复演和经审批的破坏性 `restore.sh` 生产入口没有实跑。GitHub CI、目标内网、真实设备、MinIO 长期维护/支持风险处置和责任人批准仍是发布闸门，以[验收矩阵](./v1-acceptance-matrix.md)为准。
 
@@ -108,11 +108,11 @@
 - 冻结工作树已在 production-like Compose 的受信 TLS SAN `choice-final.localhost` 验证 desktop/mobile、PWA active service worker、离线壳、390 px 无溢出、核心业务链和六常驻服务重启持久性；这仍不等于耀光广州办公内网或真实受管移动设备验收。
 - PostgreSQL 已成为第七发布组件。七个最终本地 `linux/arm64` 镜像的 Trivy 0.70.0 HIGH/CRITICAL/fixable/unfixed 均为 0，七份 Syft SPDX 和真实 BuildKit 0.31.2 双平台 provenance fixture 通过；API/worker 另有 amd64 原生件和工具验证。它们是本地 content ID，不是已发布 GHCR 双平台 root digest或签名。
 - 旧报告中的 MinIO 6 项扫描结论已由最终镜像重建和当前 Trivy 0 取代。仍需决策的是 MinIO OSS 长期维护/支持与退出路径；internal network、无宿主端口和最小权限是补偿控制，不等于供应商支持承诺。
-- worker 内置备份降级只支持 database；files/full 必须配置受控 BACKUP_COMMAND 或运行完整运维脚本。
-- 生产完整备份需要 age recipient；私钥必须与备份分离。
-- age 加密不认证备份来源。恢复现在强制匹配独立受审的归档 SHA-256，并通过只允许目录/普通文件的归档守卫；相邻 `.sha256` sidecar 不能自动充当批准记录。当前没有备份数字签名，无法建立独立审批渠道时属于生产恢复阻断项。
+- worker 内置备份降级只支持 database，不持有主机签名私钥且不构成完整灾备恢复点；files/full 必须配置受控 BACKUP_COMMAND 或运行 age+Ed25519 完整运维脚本。
+- 生产完整备份需要 age recipient 和主机 Ed25519 签名私钥；age identity、签名私钥与备份必须分离。在线签名私钥是受主机权限保护的普通文件，不是 HSM 或不可导出企业密钥。
+- age 加密不认证备份来源。当前备份会签署规范化 attestation，绑定密文 SHA/大小、来源、数据库/桶、backup tool release、创建时间和公钥 DER 指纹；生产恢复和演练同时强制匹配签名、独立批准的公钥指纹与归档 SHA-256，并通过只允许目录/普通文件的归档守卫。相邻 `.sha256`、公钥或指纹不能自动充当批准记录；无法建立独立审批渠道时仍属于生产恢复阻断项。错误公钥/指纹、篡改归档/attestation/signature、错误来源/版本、签名缺失/部分参数均有 fail-before-Compose 回归，但在线私钥或主机失陷仍是剩余风险。
 - 备份恢复是破坏性管理员操作，不提供普通 Web 恢复按钮。
-- 冻结候选只执行一次底层 formatVersion 2 隔离恢复：`finalqa-isolated-v2-20260719T042309Z.tar.gz.age`，SHA-256 `bcfd6c59d9e66f7319ab2b55e6e711e2adfe2732f2c3a928b02eb82a3768b6ba`，`sourceId=fiatlux-finalqa-isolated`；核对 38 表、10 migration SQL SHA、pg-boss 24、1 对象/56 bytes、ready、数据库/对象 ACL，RPO 2 秒、drill RTO 75 秒，随后删除归档、identity、容器、卷和明文 workspace。`production_restore_entrypoint_executed=false`，因此不能表述为 `restore.sh` 生产审批入口已实跑。
+- 旧的 `finalqa-isolated-v2-20260719T042309Z.tar.gz.age` 演练早于 Ed25519 attestation，只保留为历史恢复证据。2026-07-20 不可变实现提交 `6545c18…` 已完成一次真实 age+Ed25519 一致性备份与隔离恢复：归档 SHA `fa60a439…0e85`、attestation SHA `ef26e210…1cae`，数据/配置 checksum sidecar 与签名均直接验证，并核对 38 表、10 migration SQL SHA、pg-boss 24、3 对象/132 bytes、ready、数据库/对象 ACL、签名报告和资源清理，RPO 20 秒、drill RTO 45 秒；脱敏记录见[签名恢复证据](./evidence/signed-backup-restore-drill-20260720.json)。该运行尚未统一最终跨层提交，且 `productionRestoreEntrypointExecuted=false`，不能表述为 `restore.sh` 生产审批入口、异介质或目标内网已实跑。
 - 2026-07-18 formatVersion 1 的 `final-rc-...`、37 表/4 对象/16 秒，以及同内容标签的 35/35/33 秒升级回滚只保留为历史证据，不能作为当前发布结论。
 - 首轮新演练虽完成升级和回滚脚本，但回滚后的常驻 API 在 idle 后连续两次登录 `CONNECT_TIMEOUT`/HTTP 500，任务 CRUD 未执行，因此正确 BLOCKED。连接恢复修复提交 `859841f…` 经 162 单元、API 83、worker 23、暖连接/断链/黑洞同句柄恢复与生产构建复验。
 - 第二轮以 N 10 migrations、synthetic bridge 9 migrations 和七个全异 digest 完成真实 registry push/pull、46 秒升级、43 秒应用回滚及双 formatVersion 2 恢复点；回滚后同一 API 启动 308.138 秒登录 200，任务 CRUD/审计通过，日志无 `CONNECT_TIMEOUT`。该证据仅证明本地相邻兼容，不是历史生产 N−1、GHCR 或目标内网。

@@ -134,7 +134,7 @@ GitHubReader 只读取公开或 token 允许的仓库信息。manual 模式与�
 
 ### 备份
 
-应用内 backup.create 只负责排队和审计。生产 full/files 备份必须调用受控 BACKUP_COMMAND，或由运维脚本和 systemd timer 完成。恢复始终是管理员维护操作，不由普通 Web 请求触发。
+应用内 backup.create 只负责排队和审计。内置 database-only 导出不接触主机签名私钥，也不构成完整灾备点；生产 full/files 备份必须调用受控 BACKUP_COMMAND，或由运维脚本和 systemd timer 通过一次性容器完成 age 加密与 Ed25519 来源签名。恢复始终是管理员维护操作，不由普通 Web 请求触发。
 
 ## 9. 身份、安全与审计
 
