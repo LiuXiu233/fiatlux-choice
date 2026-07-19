@@ -215,6 +215,28 @@ function monitoringCadenceDays(category: string) {
   return 90;
 }
 
+const ONE_DAY_MS = 24 * 60 * 60 * 1_000;
+export const INITIAL_COMPLIANCE_MONITOR_SPREAD_DAYS = 7;
+
+export function scheduleInitialComplianceMonitorAt(
+  importStartedAt: Date,
+  recordIndex: number,
+  cadenceDays: number,
+) {
+  if (Number.isNaN(importStartedAt.getTime())) {
+    throw new Error("Compliance source import start time must be a valid date");
+  }
+  if (!Number.isSafeInteger(recordIndex) || recordIndex < 0) {
+    throw new Error("Compliance source record index must be a non-negative safe integer");
+  }
+  if (!Number.isSafeInteger(cadenceDays) || cadenceDays < 1) {
+    throw new Error("Compliance monitoring cadence must be a positive safe integer");
+  }
+  const spreadDays = Math.min(INITIAL_COMPLIANCE_MONITOR_SPREAD_DAYS, cadenceDays);
+  const offsetDays = recordIndex % spreadDays;
+  return new Date(importStartedAt.getTime() + offsetDays * ONE_DAY_MS);
+}
+
 const defaultComplianceSourcesFile = () =>
   fileURLToPath(new URL("../../../content/compliance/official-sources.json", import.meta.url));
 
@@ -313,10 +335,11 @@ export async function importOfficialComplianceSources(
   const loaded = preloadedDocument ?? (await loadComplianceSourceDocument(sourceFile));
   if (loaded.missing) return { imported: 0, skipped: 0, missing: true };
   const records = complianceSourceRecords(loaded.parsedDocument);
+  const importStartedAt = new Date();
   let imported = 0;
   let skipped = 0;
 
-  for (const rawRecord of records) {
+  for (const [recordIndex, rawRecord] of records.entries()) {
     const record = objectValue(rawRecord);
     if (!record) {
       skipped += 1;
@@ -377,8 +400,14 @@ export async function importOfficialComplianceSources(
         : (existing?.contentHashStatus ?? item.contentHashStatus),
       nextReviewAt: existing?.nextReviewAt ?? optionalDate(item.nextReviewAt),
       monitoringCadenceDays: existing?.monitoringCadenceDays ?? item.monitoringCadenceDays,
-      nextMonitorAt: existing?.nextMonitorAt ?? new Date(),
-      updatedAt: new Date(),
+      nextMonitorAt:
+        existing?.nextMonitorAt ??
+        scheduleInitialComplianceMonitorAt(
+          importStartedAt,
+          recordIndex,
+          item.monitoringCadenceDays,
+        ),
+      updatedAt: importStartedAt,
     };
     await db
       .insert(complianceItems)

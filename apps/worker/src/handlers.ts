@@ -1197,7 +1197,8 @@ async function expireOverdueComplianceReviews(
 async function enqueueDueComplianceSources(dependencies: WorkerDependencies, orgId: string) {
   const now = new Date();
   const expiredReviewIds = await expireOverdueComplianceReviews(dependencies, orgId, now);
-  const dueSources = await dependencies.db
+  const batchLimit = dependencies.config.COMPLIANCE_MONITOR_SWEEP_BATCH_SIZE;
+  const dueCandidates = await dependencies.db
     .select({ id: complianceItems.id, version: complianceItems.version })
     .from(complianceItems)
     .where(
@@ -1211,7 +1212,10 @@ async function enqueueDueComplianceSources(dependencies: WorkerDependencies, org
         isNull(complianceItems.archivedAt),
       ),
     )
-    .limit(250);
+    .orderBy(asc(complianceItems.nextMonitorAt), asc(complianceItems.id))
+    .limit(batchLimit + 1);
+  const hasMoreDue = dueCandidates.length > batchLimit;
+  const dueSources = dueCandidates.slice(0, batchLimit);
   const queuedSourceIds: string[] = [];
   for (const source of dueSources) {
     const claimToken = randomUUID();
@@ -1292,6 +1296,9 @@ async function enqueueDueComplianceSources(dependencies: WorkerDependencies, org
     metadata: {
       trigger: "schedule",
       dueCount: dueSources.length,
+      queuedCount: queuedSourceIds.length,
+      batchLimit,
+      hasMoreDue,
       expiredReviewIds,
     },
   });

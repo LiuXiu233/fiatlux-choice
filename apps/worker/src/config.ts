@@ -15,6 +15,7 @@ export const workerConfigSchema = z
     DATABASE_URL: z.string().url(),
     DATABASE_POOL_SIZE: z.coerce.number().int().min(1).max(50).default(5),
     DATABASE_CONNECT_TIMEOUT_SECONDS: z.coerce.number().int().min(1).max(60).default(10),
+    COMPLIANCE_MONITOR_SWEEP_BATCH_SIZE: z.coerce.number().int().min(1).max(250).default(12),
     LLM_DRIVER: z.enum(["mock", "compatible", "disabled"]).default("disabled"),
     LLM_BASE_URL: optionalUrl,
     LLM_API_KEY: optionalSecret,

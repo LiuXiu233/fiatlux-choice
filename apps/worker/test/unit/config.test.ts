@@ -20,6 +20,21 @@ describe("worker config", () => {
     expect(config.BACKUP_COMMAND).toBeUndefined();
     expect(config.DATABASE_POOL_SIZE).toBe(5);
     expect(config.DATABASE_CONNECT_TIMEOUT_SECONDS).toBe(10);
+    expect(config.COMPLIANCE_MONITOR_SWEEP_BATCH_SIZE).toBe(12);
+  });
+
+  it("bounds each organization's scheduled compliance monitoring batch", () => {
+    const base = { DATABASE_URL: "postgresql://user:password@localhost:5432/database" };
+    expect(() =>
+      workerConfigSchema.parse({ ...base, COMPLIANCE_MONITOR_SWEEP_BATCH_SIZE: 0 }),
+    ).toThrow();
+    expect(() =>
+      workerConfigSchema.parse({ ...base, COMPLIANCE_MONITOR_SWEEP_BATCH_SIZE: 251 }),
+    ).toThrow();
+    expect(
+      workerConfigSchema.parse({ ...base, COMPLIANCE_MONITOR_SWEEP_BATCH_SIZE: "24" })
+        .COMPLIANCE_MONITOR_SWEEP_BATCH_SIZE,
+    ).toBe(24);
   });
 
   it("validates worker database pool settings", () => {

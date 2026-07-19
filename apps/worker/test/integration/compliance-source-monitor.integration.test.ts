@@ -211,6 +211,67 @@ describe.skipIf(!databaseUrl)("compliance source monitoring PostgreSQL integrati
     expect(imported?.nextReviewAt?.toISOString()).toBe("2027-01-17T16:00:00.000Z");
   });
 
+  it("persists fresh source imports in separate initial daily monitoring buckets", async () => {
+    const firstUrl = `https://www.gov.cn/initial-spread-a-${randomUUID()}`;
+    const secondUrl = `https://www.gov.cn/initial-spread-b-${randomUUID()}`;
+    const beforeImport = Date.now();
+    const result = await importOfficialComplianceSources(
+      dbHandle.db,
+      firstOrgId,
+      "/unused/in-memory-compliance-sources.json",
+      {
+        missing: false,
+        parsedDocument: {
+          sources: [
+            {
+              title: "首轮分批来源一",
+              category: "tax_invoice",
+              issuingAuthority: "国务院",
+              sourceUrl: firstUrl,
+              jurisdiction: "中国",
+              reviewStatus: "pending",
+              contentHashStatus: "pending_fetch",
+            },
+            {
+              title: "首轮分批来源二",
+              category: "tax_invoice",
+              issuingAuthority: "国务院",
+              sourceUrl: secondUrl,
+              jurisdiction: "中国",
+              reviewStatus: "pending",
+              contentHashStatus: "pending_fetch",
+            },
+          ],
+        },
+      },
+    );
+    const afterImport = Date.now();
+    expect(result).toMatchObject({ imported: 2, skipped: 0, missing: false });
+
+    const imported = await dbHandle.db
+      .select({
+        sourceUrl: complianceItems.sourceUrl,
+        nextMonitorAt: complianceItems.nextMonitorAt,
+      })
+      .from(complianceItems)
+      .where(
+        and(
+          eq(complianceItems.orgId, firstOrgId),
+          inArray(complianceItems.sourceUrl, [firstUrl, secondUrl]),
+        ),
+      );
+    const byUrl = new Map(imported.map((source) => [source.sourceUrl, source.nextMonitorAt]));
+    const firstMonitorAt = byUrl.get(firstUrl);
+    const secondMonitorAt = byUrl.get(secondUrl);
+    expect(firstMonitorAt).toBeDefined();
+    expect(secondMonitorAt).toBeDefined();
+    expect(firstMonitorAt?.getTime()).toBeGreaterThanOrEqual(beforeImport);
+    expect(firstMonitorAt?.getTime()).toBeLessThanOrEqual(afterImport);
+    expect((secondMonitorAt?.getTime() ?? 0) - (firstMonitorAt?.getTime() ?? 0)).toBe(
+      24 * 60 * 60 * 1_000,
+    );
+  });
+
   it("persists append-only hashes and makes a changed source stale without crossing tenants", async () => {
     const firstHash = "a".repeat(64);
     const changedHash = "b".repeat(64);
@@ -952,29 +1013,74 @@ describe.skipIf(!databaseUrl)("compliance source monitoring PostgreSQL integrati
     expect((await complianceEscalations(source.id, "monitor_failed")).records).toHaveLength(0);
   });
 
-  it("queues only due sources inside the requested organization", async () => {
+  it("bounds a scheduled organization sweep and drains the oldest due sources first", async () => {
     queuedJobs.length = 0;
     await dbHandle.db
       .update(complianceItems)
-      .set({ nextMonitorAt: new Date(0) })
+      .set({ nextMonitorAt: new Date("2036-01-01T00:00:00.000Z") })
       .where(eq(complianceItems.orgId, firstOrgId));
-    await handleComplianceSourceMonitor(
-      dependencies({
-        async fetch() {
-          throw new Error("Scheduled sweep must enqueue rather than fetch inline");
+    const dueSources = await dbHandle.db
+      .insert(complianceItems)
+      .values([
+        {
+          orgId: firstOrgId,
+          title: "批次容量来源一",
+          category: "company_governance",
+          issuingAuthority: "国务院",
+          sourceUrl: `https://www.gov.cn/batch-oldest-${randomUUID()}`,
+          nextMonitorAt: new Date("2020-01-01T00:00:00.000Z"),
         },
-      }),
-      { orgId: firstOrgId },
-    );
-    expect(queuedJobs.length).toBeGreaterThanOrEqual(2);
-    expect(queuedJobs).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          name: "compliance-source.monitor",
-          data: expect.objectContaining({ orgId: firstOrgId }),
-        }),
-      ]),
-    );
+        {
+          orgId: firstOrgId,
+          title: "批次容量来源二",
+          category: "company_governance",
+          issuingAuthority: "国务院",
+          sourceUrl: `https://www.gov.cn/batch-middle-${randomUUID()}`,
+          nextMonitorAt: new Date("2020-01-02T00:00:00.000Z"),
+        },
+        {
+          orgId: firstOrgId,
+          title: "批次容量来源三",
+          category: "company_governance",
+          issuingAuthority: "国务院",
+          sourceUrl: `https://www.gov.cn/batch-newest-${randomUUID()}`,
+          nextMonitorAt: new Date("2020-01-03T00:00:00.000Z"),
+        },
+      ])
+      .returning({ id: complianceItems.id });
+    expect(dueSources).toHaveLength(3);
+    const [otherOrganizationSource] = await dbHandle.db
+      .insert(complianceItems)
+      .values({
+        orgId: secondOrgId,
+        title: "其他组织更早到期来源",
+        category: "company_governance",
+        issuingAuthority: "国务院",
+        sourceUrl: `https://www.gov.cn/batch-other-organization-${randomUUID()}`,
+        nextMonitorAt: new Date("2019-01-01T00:00:00.000Z"),
+      })
+      .returning({ id: complianceItems.id });
+    expect(otherOrganizationSource).toBeDefined();
+    const deps = dependencies({
+      async fetch() {
+        throw new Error("Scheduled sweep must enqueue rather than fetch inline");
+      },
+    });
+    deps.config = workerConfigSchema.parse({
+      DATABASE_URL: testDatabaseUrl,
+      COMPLIANCE_MONITOR_SWEEP_BATCH_SIZE: 2,
+    });
+
+    await handleComplianceSourceMonitor(deps, { orgId: firstOrgId });
+    expect(queuedJobs.map((job) => (job.data as { sourceId?: string }).sourceId)).toEqual([
+      dueSources[0]?.id,
+      dueSources[1]?.id,
+    ]);
+    expect(
+      queuedJobs.some(
+        (job) => (job.data as { sourceId?: string }).sourceId === otherOrganizationSource?.id,
+      ),
+    ).toBe(false);
     expect(
       queuedJobs.every(
         (job) =>
@@ -982,5 +1088,63 @@ describe.skipIf(!databaseUrl)("compliance source monitoring PostgreSQL integrati
           (job.data as { orgId?: string }).orgId === firstOrgId,
       ),
     ).toBe(true);
+
+    const firstDispatchAudits = await dbHandle.db
+      .select({ metadata: auditEvents.metadata })
+      .from(auditEvents)
+      .where(
+        and(
+          eq(auditEvents.orgId, firstOrgId),
+          eq(auditEvents.action, "monitor_dispatch"),
+          eq(auditEvents.resourceType, "compliance-source-monitor"),
+        ),
+      );
+    expect(firstDispatchAudits.map((audit) => audit.metadata)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          batchLimit: 2,
+          dueCount: 2,
+          queuedCount: 2,
+          hasMoreDue: true,
+        }),
+      ]),
+    );
+
+    queuedJobs.length = 0;
+    await handleComplianceSourceMonitor(deps, { orgId: firstOrgId });
+    expect(queuedJobs).toHaveLength(1);
+    await handleComplianceSourceMonitor(
+      dependencies({ fetch: async () => snapshot("9".repeat(64)) }),
+      queuedJobs[0]?.data as { orgId: string; sourceId: string; claimToken: string },
+    );
+    expect(queuedJobs[0]).toEqual(
+      expect.objectContaining({
+        name: "compliance-source.monitor",
+        data: expect.objectContaining({
+          orgId: firstOrgId,
+          sourceId: dueSources[2]?.id,
+        }),
+      }),
+    );
+    const secondDispatchAudits = await dbHandle.db
+      .select({ metadata: auditEvents.metadata })
+      .from(auditEvents)
+      .where(
+        and(
+          eq(auditEvents.orgId, firstOrgId),
+          eq(auditEvents.action, "monitor_dispatch"),
+          eq(auditEvents.resourceType, "compliance-source-monitor"),
+        ),
+      );
+    expect(secondDispatchAudits.map((audit) => audit.metadata)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          batchLimit: 2,
+          dueCount: 1,
+          queuedCount: 1,
+          hasMoreDue: false,
+        }),
+      ]),
+    );
   });
 });

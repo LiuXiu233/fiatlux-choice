@@ -41,7 +41,7 @@ df -h /var/lib/docker /var/backups/fiatlux-choice
 - live/ready、容器重启次数、worker 失败任务和磁盘使用率。
 - 上一次备份服务状态、加密文件大小、`.attestation.json`/`.attestation.sig` 是否齐全及签名公钥指纹；异常小、缺少签名或未获独立 SHA/指纹批准的备份均视为不可用于生产恢复。
 - 登录失败、关键权限修改、人工审批与外部适配器失败事件。
-- 合规来源 `changed`/`failed`、已到期人工复核、连续失败次数、异常长租约及 `monitor_result_discarded` 审计；核对到期、正文变化和连续第三次失败对应的高优先级任务、协调责任人、已送达站内通知，以及来源审计中的 `escalationTaskId`、`escalationNotificationId`、`escalationAssigneeId`、`assignmentStrategy`。202 排队、自动建任务或站内通知都不能当作抓取成功、法规已复核、协调人具备专业资质或问题已解决。
+- 合规来源 `changed`/`failed`、已到期人工复核、连续失败次数、异常长租约及 `monitor_result_discarded` 审计；检查当天 `monitor_dispatch` 的 `batchLimit`、`dueCount`、`queuedCount`、`hasMoreDue`，默认批次为每组织 12 条。首次 73 条目录会分布在 7 个每日时间桶；若 `hasMoreDue=true` 连续超过 7 次扫描，先排查统一网络阻断、长租约和 worker 失败，再经容量记录调整 `COMPLIANCE_MONITOR_SWEEP_BATCH_SIZE`，不能直接拉到 250。核对到期、正文变化和连续第三次失败对应的高优先级任务、协调责任人、已送达站内通知，以及来源审计中的 `escalationTaskId`、`escalationNotificationId`、`escalationAssigneeId`、`assignmentStrategy`。202 排队、自动建任务或站内通知都不能当作抓取成功、法规已复核、协调人具备专业资质或问题已解决。
 
 每周：
 
