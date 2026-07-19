@@ -4,7 +4,7 @@ import { type FormEvent, useMemo, useState } from "react";
 import { EmptyState, ErrorState, Modal, Spinner, StatusBadge, useToast } from "../components/ui";
 import { ApiError, api, queryString } from "../lib/api";
 import { useAuth } from "../lib/auth";
-import { formatDateTime } from "../lib/format";
+import { formatDateTime, formatMoneyCents } from "../lib/format";
 import type { BusinessRecord } from "../lib/types";
 
 const actionKinds = [
@@ -12,6 +12,7 @@ const actionKinds = [
   ["tax_filing", "税务申报"],
   ["invoice_red", "发票红冲"],
   ["contract_sign", "合同正式签署"],
+  ["contract_terminate", "合同终止"],
   ["hr_discipline", "人事处分"],
   ["permission_change", "关键权限变更"],
   ["external_legal_commitment", "对外法律承诺"],
@@ -210,8 +211,14 @@ function ActionDetails({ action }: { action: ExternalAction }) {
 const referenceConfigs: Partial<
   Record<ActionKind, { endpoint: string; valueKey: string; label: string }>
 > = {
+  bank_payment: {
+    endpoint: "/financial-entries?status=draft",
+    valueKey: "id",
+    label: "选择待付款费用",
+  },
   invoice_red: { endpoint: "/invoices", valueKey: "id", label: "选择发票" },
   contract_sign: { endpoint: "/contracts", valueKey: "id", label: "选择合同" },
+  contract_terminate: { endpoint: "/contracts", valueKey: "id", label: "选择有效合同" },
   hr_discipline: { endpoint: "/users", valueKey: "id", label: "选择成员" },
   permission_change: {
     endpoint: "/users",
@@ -221,20 +228,30 @@ const referenceConfigs: Partial<
 };
 
 function relatedLabel(record: BusinessRecord): string {
-  return String(
+  const label = String(
     record.name ??
       record.title ??
       record.invoiceNumber ??
       record.counterparty ??
       record.displayName ??
+      record.description ??
       record.id,
   );
+  return amountCentsToYuan(record.amountCents)
+    ? `${label} · ${formatMoneyCents(record.amountCents)}`
+    : label;
+}
+
+export function amountCentsToYuan(value: unknown): string {
+  const parsed = typeof value === "number" ? value : Number(value);
+  return Number.isSafeInteger(parsed) && parsed >= 0 ? String(parsed / 100) : "";
 }
 
 function CreateActionForm({ onDone, onCancel }: { onDone: () => void; onCancel: () => void }) {
   const [kind, setKind] = useState<ActionKind>("bank_payment");
   const [adapter, setAdapter] = useState<AdapterMode>("manual");
   const [reference, setReference] = useState("");
+  const [beneficiary, setBeneficiary] = useState("");
   const [detail, setDetail] = useState("");
   const [amountYuan, setAmountYuan] = useState("");
   const [reason, setReason] = useState("");
@@ -245,7 +262,7 @@ function CreateActionForm({ onDone, onCancel }: { onDone: () => void; onCancel: 
     queryFn: async () =>
       (
         await api.get<BusinessRecord[]>(
-          `${referenceConfig?.endpoint}${queryString({ pageSize: 100 })}`,
+          `${referenceConfig?.endpoint}${referenceConfig?.endpoint.includes("?") ? "&" : "?"}pageSize=100`,
         )
       ).data,
     enabled: Boolean(referenceConfig),
@@ -255,9 +272,10 @@ function CreateActionForm({ onDone, onCancel }: { onDone: () => void; onCancel: 
   const payload = useMemo(() => {
     if (kind === "bank_payment") {
       return {
-        beneficiary: reference.trim(),
+        beneficiary: beneficiary.trim(),
         purpose: detail.trim(),
         amountCents: Math.round(Number(amountYuan) * 100),
+        financialEntryId: reference,
       };
     }
     if (kind === "tax_filing") {
@@ -267,6 +285,9 @@ function CreateActionForm({ onDone, onCancel }: { onDone: () => void; onCancel: 
     if (kind === "contract_sign") {
       return { contractId: reference, signingBasis: detail.trim() };
     }
+    if (kind === "contract_terminate") {
+      return { contractId: reference, terminationBasis: detail.trim() };
+    }
     if (kind === "hr_discipline") {
       return { userId: reference, proposedMeasure: detail.trim() };
     }
@@ -274,7 +295,7 @@ function CreateActionForm({ onDone, onCancel }: { onDone: () => void; onCancel: 
       return { membershipId: reference, requestedChange: detail.trim() };
     }
     return { counterparty: reference.trim(), commitment: detail.trim() };
-  }, [amountYuan, detail, kind, reference]);
+  }, [amountYuan, beneficiary, detail, kind, reference]);
   const mutation = useMutation({
     mutationFn: () =>
       api.post<ExternalAction>("/external-actions", {
@@ -311,6 +332,7 @@ function CreateActionForm({ onDone, onCancel }: { onDone: () => void; onCancel: 
             onChange={(event) => {
               setKind(event.target.value as ActionKind);
               setReference("");
+              setBeneficiary("");
               setDetail("");
               setAmountYuan("");
             }}
@@ -342,7 +364,16 @@ function CreateActionForm({ onDone, onCancel }: { onDone: () => void; onCancel: 
             <select
               id="external-action-reference"
               value={reference}
-              onChange={(event) => setReference(event.target.value)}
+              onChange={(event) => {
+                const nextReference = event.target.value;
+                setReference(nextReference);
+                if (kind === "bank_payment") {
+                  const selected = references.data?.find(
+                    (record) => String(record[referenceConfig.valueKey]) === nextReference,
+                  );
+                  setAmountYuan(amountCentsToYuan(selected?.amountCents));
+                }
+              }}
               required
             >
               <option value="">请选择</option>
@@ -366,6 +397,17 @@ function CreateActionForm({ onDone, onCancel }: { onDone: () => void; onCancel: 
         </div>
         {kind === "bank_payment" ? (
           <div className="form-field">
+            <label htmlFor="external-action-beneficiary">收款方</label>
+            <input
+              id="external-action-beneficiary"
+              value={beneficiary}
+              onChange={(event) => setBeneficiary(event.target.value)}
+              required
+            />
+          </div>
+        ) : null}
+        {kind === "bank_payment" ? (
+          <div className="form-field">
             <label htmlFor="external-action-amount">金额（元）</label>
             <input
               id="external-action-amount"
@@ -374,6 +416,7 @@ function CreateActionForm({ onDone, onCancel }: { onDone: () => void; onCancel: 
               step="0.01"
               value={amountYuan}
               onChange={(event) => setAmountYuan(event.target.value)}
+              readOnly={Boolean(reference)}
               required
             />
           </div>
@@ -384,9 +427,11 @@ function CreateActionForm({ onDone, onCancel }: { onDone: () => void; onCancel: 
               ? "税种"
               : kind === "hr_discipline"
                 ? "拟采取措施"
-                : kind === "permission_change"
-                  ? "拟变更权限"
-                  : "动作说明"}
+                : kind === "contract_terminate"
+                  ? "终止依据"
+                  : kind === "permission_change"
+                    ? "拟变更权限"
+                    : "动作说明"}
           </label>
           <input
             id="external-action-detail"
@@ -413,7 +458,7 @@ function CreateActionForm({ onDone, onCancel }: { onDone: () => void; onCancel: 
         <button
           type="submit"
           className="button primary"
-          disabled={mutation.isPending || references.isLoading}
+          disabled={mutation.isPending || references.isLoading || references.isError}
         >
           {mutation.isPending ? "正在提交…" : "提交审批"}
         </button>
@@ -443,7 +488,7 @@ function TransitionForm({
 }) {
   const targets = availableTargets(action);
   const [targetStatus, setTargetStatus] = useState<ActionStatus>(targets[0] ?? "cancelled");
-  const [externalReference, setExternalReference] = useState("");
+  const [evidenceReference, setEvidenceReference] = useState("");
   const [note, setNote] = useState("");
   const needsEvidence = targetStatus === "submitted" || targetStatus === "confirmed";
   const toast = useToast();
@@ -452,10 +497,11 @@ function TransitionForm({
     mutationFn: () =>
       api.post<ExternalAction>(`/external-actions/${action.id}/transition`, {
         targetStatus,
-        ...(externalReference.trim()
+        ...(evidenceReference.trim()
           ? {
               evidence: {
-                externalReference: externalReference.trim(),
+                [targetStatus === "confirmed" ? "receiptReference" : "externalReference"]:
+                  evidenceReference.trim(),
                 recordedAt: new Date().toISOString(),
               },
             }
@@ -468,6 +514,7 @@ function TransitionForm({
         queryClient.invalidateQueries({ queryKey: ["external-actions"] }),
         queryClient.invalidateQueries({ queryKey: ["resource", "contracts"] }),
         queryClient.invalidateQueries({ queryKey: ["resource", "invoices"] }),
+        queryClient.invalidateQueries({ queryKey: ["resource", "transactions"] }),
       ]);
       onDone();
     },
@@ -497,11 +544,13 @@ function TransitionForm({
           </select>
         </div>
         <div className="form-field full-width">
-          <label htmlFor="external-action-evidence">外部参考号或回执编号</label>
+          <label htmlFor="external-action-evidence">
+            {targetStatus === "confirmed" ? "外部回执编号" : "外部提交参考号"}
+          </label>
           <input
             id="external-action-evidence"
-            value={externalReference}
-            onChange={(event) => setExternalReference(event.target.value)}
+            value={evidenceReference}
+            onChange={(event) => setEvidenceReference(event.target.value)}
             required={needsEvidence}
           />
         </div>

@@ -10,7 +10,9 @@
     "typecheck": "tsc -b --pretty false",
     "test": "vitest run src",
     "test:unit": "vitest run src",
-    "test:e2e": "playwright test"
+    "test:e2e": "pnpm test:e2e:mock",
+    "test:e2e:mock": "playwright test --config playwright.config.ts",
+    "test:e2e:real:attached": "playwright test --config playwright.real.config.ts"
   },
   "dependencies": {
     "@tanstack/react-query": "5.101.2",

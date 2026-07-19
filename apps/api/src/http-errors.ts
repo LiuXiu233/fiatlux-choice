@@ -61,9 +61,29 @@ async function appendRejectedRequestAudit(
   }
 }
 
+function logUnauthenticatedLoginRejection(request: FastifyRequest, code: string, status: number) {
+  if (request.auth?.orgId || request.auth?.userId) return;
+  const path = request.url.split("?", 1)[0] ?? request.url;
+  if (request.method !== "POST" || path !== "/api/v1/auth/login") return;
+  request.log.warn(
+    {
+      requestId: request.id,
+      method: request.method,
+      path,
+      code,
+      status,
+      ipAddress: request.ip,
+      userAgent: request.headers["user-agent"],
+    },
+    "unauthenticated login request rejected",
+  );
+}
+
 export function registerErrorHandler(app: FastifyInstance, db?: Database) {
   app.setErrorHandler(async (error, request, reply) => {
     if (error instanceof ZodError) {
+      await appendRejectedRequestAudit(db, request, "VALIDATION_FAILED", 400);
+      logUnauthenticatedLoginRejection(request, "VALIDATION_FAILED", 400);
       return reply.status(400).send({
         error: {
           code: "VALIDATION_FAILED",
@@ -77,6 +97,7 @@ export function registerErrorHandler(app: FastifyInstance, db?: Database) {
     if (error instanceof DomainError) {
       if (error.statusCode >= 400 && error.statusCode < 500) {
         await appendRejectedRequestAudit(db, request, error.code, error.statusCode);
+        logUnauthenticatedLoginRejection(request, error.code, error.statusCode);
       }
       return reply.status(error.statusCode).send({
         error: {
@@ -98,6 +119,8 @@ export function registerErrorHandler(app: FastifyInstance, db?: Database) {
     const clientStatus = clientStatusCode(error);
     if (clientStatus) {
       const clientError = clientErrorEnvelope(clientStatus);
+      await appendRejectedRequestAudit(db, request, clientError.code, clientStatus);
+      logUnauthenticatedLoginRejection(request, clientError.code, clientStatus);
       return reply.status(clientStatus).send({
         error: { ...clientError, requestId: request.id },
       });

@@ -177,9 +177,14 @@ export const navGroups: NavGroup[] = [
 
 export const mobileNav: NavItem[] = [
   { label: "总览", path: "/", icon: CircleGauge },
-  { label: "执行", path: "/resources/tasks", icon: BriefcaseBusiness },
-  { label: "审批", path: "/approvals", icon: ShieldCheck },
-  { label: "顾问", path: "/advisors", icon: Sparkles },
+  {
+    label: "执行",
+    path: "/resources/tasks",
+    icon: BriefcaseBusiness,
+    permission: "tasks:read",
+  },
+  { label: "审批", path: "/approvals", icon: ShieldCheck, permission: "approvals:read" },
+  { label: "顾问", path: "/advisors", icon: Sparkles, permission: "advisors:read" },
   { label: "更多", path: "/menu", icon: Building2 },
 ];
 

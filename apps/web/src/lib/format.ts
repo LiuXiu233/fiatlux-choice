@@ -48,6 +48,19 @@ export function formatConfidence(value: number): string {
   return `${Math.round(normalized)}%`;
 }
 
-export function recordLabel(record: { title?: string; name?: string; summary?: string }): string {
-  return record.title ?? record.name ?? record.summary ?? "未命名记录";
+export function recordLabel(record: {
+  title?: string;
+  name?: string;
+  displayName?: string;
+  filename?: string;
+  summary?: string;
+}): string {
+  return (
+    record.title ??
+    record.name ??
+    record.displayName ??
+    record.filename ??
+    record.summary ??
+    "未命名记录"
+  );
 }

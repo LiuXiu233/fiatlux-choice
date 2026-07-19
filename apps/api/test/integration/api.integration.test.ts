@@ -34,6 +34,27 @@ function cookie(response: { headers: Record<string, string | string[] | number |
   return cookieValue;
 }
 
+async function completeInitialPasswordChange(
+  app: FastifyInstance,
+  loginResponse: {
+    body: string;
+    headers: Record<string, string | string[] | number | undefined>;
+  },
+  currentPassword: string,
+  newPassword: string,
+) {
+  expect(body(loginResponse).data).toMatchObject({ mustChangePassword: true });
+  const sessionCookie = cookie(loginResponse);
+  const changed = await app.inject({
+    method: "POST",
+    url: "/api/v1/auth/change-password",
+    headers: { cookie: sessionCookie },
+    payload: { currentPassword, newPassword },
+  });
+  expect(changed.statusCode, changed.body).toBe(200);
+  return sessionCookie;
+}
+
 describe.skipIf(!databaseUrl)("API PostgreSQL vertical slice", () => {
   let app: FastifyInstance;
   let dbHandle: ReturnType<typeof createDatabase>;
@@ -55,6 +76,7 @@ describe.skipIf(!databaseUrl)("API PostgreSQL vertical slice", () => {
       adminEmail: `first-${suffix}@example.test`,
       adminDisplayName: "First Owner",
       adminPassword: "correct-horse-battery-staple-1",
+      adminMustChangePassword: false,
     });
     firstOrgId = firstSeed.organization.id;
     firstUserId = firstSeed.user.id;
@@ -64,6 +86,7 @@ describe.skipIf(!databaseUrl)("API PostgreSQL vertical slice", () => {
       adminEmail: `second-${suffix}@example.test`,
       adminDisplayName: "Second Owner",
       adminPassword: "correct-horse-battery-staple-2",
+      adminMustChangePassword: false,
     });
     secondOrgId = secondSeed.organization.id;
     config = apiConfigSchema.parse({
@@ -133,6 +156,9 @@ describe.skipIf(!databaseUrl)("API PostgreSQL vertical slice", () => {
       url: "/api/v1/objectives",
       headers: { cookie: secondCookie },
     });
+    expect(firstList.headers["cache-control"]).toBe("no-store, max-age=0");
+    expect(firstList.headers.pragma).toBe("no-cache");
+    expect(firstList.headers.expires).toBe("0");
     expect(body(firstList).data as JsonObject[]).toHaveLength(1);
     expect(body(secondList).data as JsonObject[]).toHaveLength(0);
 
@@ -298,8 +324,63 @@ describe.skipIf(!databaseUrl)("API PostgreSQL vertical slice", () => {
       url: `/api/v1/files/${String(metadata.file.id)}/download`,
       headers: { cookie: firstCookie },
     });
+    expect(downloadResponse.headers["cache-control"]).toBe("no-store, max-age=0");
     expect(downloadResponse.statusCode).toBe(200);
     expect(downloadResponse.rawPayload).toEqual(fileData);
+
+    const [downloadAudit] = await dbHandle.db
+      .select()
+      .from(auditEvents)
+      .where(
+        and(
+          eq(auditEvents.orgId, firstOrgId),
+          eq(auditEvents.resourceType, "file"),
+          eq(auditEvents.resourceId, String(metadata.file.id)),
+          eq(auditEvents.action, "download_issued"),
+        ),
+      )
+      .limit(1);
+    expect(downloadAudit).toMatchObject({ actorUserId: firstUserId });
+    expect(downloadAudit?.metadata).toMatchObject({
+      classification: "confidential",
+      sizeBytes: fileData.byteLength,
+      semantics: "authorized object stream issued; client receipt is not asserted",
+    });
+
+    for (const filename of ["renamed.html", "invoice.exe.pdf", "evidence.pdf"]) {
+      const invalidRename = await app.inject({
+        method: "PATCH",
+        url: `/api/v1/files/${String(metadata.file.id)}`,
+        headers: { cookie: firstCookie },
+        payload: { filename, expectedVersion: 3 },
+      });
+      expect(invalidRename.statusCode, `${filename}: ${invalidRename.body}`).toBe(400);
+      expect(body(invalidRename).error).toMatchObject({ code: "VALIDATION_FAILED" });
+    }
+  });
+
+  it("rejects unsafe or mismatched declared file types before issuing upload storage", async () => {
+    const base = {
+      sizeBytes: 1,
+      checksumSha256: "0".repeat(64),
+      classification: "internal",
+    };
+    for (const payload of [
+      { ...base, filename: "payload.html", contentType: "text/html" },
+      { ...base, filename: "payload.svg", contentType: "image/svg+xml" },
+      { ...base, filename: "invoice.exe.pdf", contentType: "application/pdf" },
+      { ...base, filename: "invoice.pdf", contentType: "application/octet-stream" },
+      { ...base, filename: "invoice.pdf", contentType: "image/png" },
+    ]) {
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/v1/files",
+        headers: { cookie: firstCookie },
+        payload,
+      });
+      expect(response.statusCode, `${payload.filename}: ${response.body}`).toBe(400);
+      expect(body(response).error).toMatchObject({ code: "VALIDATION_FAILED" });
+    }
   });
 
   it("rejects unauthenticated uploads before parsing their content type", async () => {
@@ -312,6 +393,45 @@ describe.skipIf(!databaseUrl)("API PostgreSQL vertical slice", () => {
 
     expect(response.statusCode).toBe(401);
     expect(body(response).error).toMatchObject({ code: "AUTHENTICATION_REQUIRED" });
+  });
+
+  it("audits authenticated schema and media-type rejections without storing request bodies", async () => {
+    const invalidTask = await app.inject({
+      method: "POST",
+      url: "/api/v1/tasks",
+      headers: { cookie: firstCookie },
+      payload: { title: "" },
+    });
+    expect(invalidTask.statusCode, invalidTask.body).toBe(400);
+
+    const invalidUpload = await app.inject({
+      method: "PUT",
+      url: `/api/v1/files/${randomUUID()}/content`,
+      headers: { cookie: firstCookie, "content-type": "application/x-unsupported" },
+      payload: "must not be parsed",
+    });
+    expect(invalidUpload.statusCode, invalidUpload.body).toBe(415);
+
+    for (const [response, expected] of [
+      [invalidTask, { code: "VALIDATION_FAILED", status: 400, method: "POST" }],
+      [invalidUpload, { code: "UNSUPPORTED_MEDIA_TYPE", status: 415, method: "PUT" }],
+    ] as const) {
+      const requestId = String((body(response).error as JsonObject).requestId);
+      const [audit] = await dbHandle.db
+        .select()
+        .from(auditEvents)
+        .where(
+          and(
+            eq(auditEvents.orgId, firstOrgId),
+            eq(auditEvents.requestId, requestId),
+            eq(auditEvents.action, "request_rejected"),
+          ),
+        )
+        .limit(1);
+      expect(audit).toMatchObject({ actorUserId: firstUserId, metadata: expected });
+      expect(audit?.metadata).not.toHaveProperty("body");
+      expect(audit?.metadata).not.toHaveProperty("password");
+    }
   });
 
   it("lets members complete only their own file uploads without global update permission", async () => {
@@ -355,7 +475,12 @@ describe.skipIf(!databaseUrl)("API PostgreSQL vertical slice", () => {
       payload: { email: memberEmail, password: memberPassword },
     });
     expect(memberLogin.statusCode).toBe(200);
-    const memberCookie = cookie(memberLogin);
+    const memberCookie = await completeInitialPasswordChange(
+      app,
+      memberLogin,
+      memberPassword,
+      "member-replacement-password-long-enough",
+    );
 
     const ownData = Buffer.from("member-owned upload");
     const ownMetadataResponse = await app.inject({
@@ -393,6 +518,22 @@ describe.skipIf(!databaseUrl)("API PostgreSQL vertical slice", () => {
     });
     expect(ownComplete.statusCode).toBe(200);
     expect(body(ownComplete).data).toMatchObject({ uploadStatus: "uploaded" });
+
+    const ownDownload = await app.inject({
+      method: "GET",
+      url: `/api/v1/files/${String(ownMetadata.file.id)}/download`,
+      headers: { cookie: memberCookie },
+    });
+    expect(ownDownload.statusCode, ownDownload.body).toBe(200);
+    expect(ownDownload.rawPayload).toEqual(ownData);
+
+    const forbiddenArchive = await app.inject({
+      method: "DELETE",
+      url: `/api/v1/files/${String(ownMetadata.file.id)}?expectedVersion=3`,
+      headers: { cookie: memberCookie },
+    });
+    expect(forbiddenArchive.statusCode).toBe(403);
+    expect(body(forbiddenArchive).error).toMatchObject({ code: "FORBIDDEN" });
 
     const metadataPatch = await app.inject({
       method: "PATCH",
@@ -520,11 +661,16 @@ describe.skipIf(!databaseUrl)("API PostgreSQL vertical slice", () => {
       expect(body(queuedResponse).data).toMatchObject({
         insightId: firstInsight.id,
         repository: "fiatlux/choice",
+        expectedVersion: firstInsight.version,
         status: "queued",
       });
       expect(queuedJobs.at(-1)).toEqual({
         name: "github.refresh",
-        data: { orgId: firstOrgId, insightId: firstInsight.id },
+        data: {
+          orgId: firstOrgId,
+          insightId: firstInsight.id,
+          expectedVersion: firstInsight.version,
+        },
       });
 
       const [audit] = await dbHandle.db
@@ -800,7 +946,12 @@ describe.skipIf(!databaseUrl)("API PostgreSQL vertical slice", () => {
       payload: { email: viewerEmail, password: viewerPassword },
     });
     expect(viewerLogin.statusCode).toBe(200);
-    const viewerCookie = cookie(viewerLogin);
+    const viewerCookie = await completeInitialPasswordChange(
+      app,
+      viewerLogin,
+      viewerPassword,
+      "viewer-replacement-password-long-enough",
+    );
 
     const financeRecordResponse = await app.inject({
       method: "POST",
@@ -837,8 +988,20 @@ describe.skipIf(!databaseUrl)("API PostgreSQL vertical slice", () => {
     });
     expect(financeRunResponse.statusCode).toBe(201);
     expect(managerRunResponse.statusCode).toBe(201);
+    const privateManagerRunResponse = await app.inject({
+      method: "POST",
+      url: "/api/v1/advisor-runs",
+      headers: { cookie: firstCookie },
+      payload: {
+        advisor: "general_manager",
+        question: "Private management notes without record context",
+        context: [],
+      },
+    });
+    expect(privateManagerRunResponse.statusCode).toBe(201);
     const financeRun = body(financeRunResponse).data as JsonObject;
     const managerRun = body(managerRunResponse).data as JsonObject;
+    const privateManagerRun = body(privateManagerRunResponse).data as JsonObject;
 
     const viewerList = await app.inject({
       method: "GET",
@@ -849,8 +1012,9 @@ describe.skipIf(!databaseUrl)("API PostgreSQL vertical slice", () => {
     const visibleIds = (body(viewerList).data as JsonObject[]).map((run) => run.id);
     expect(visibleIds).not.toContain(financeRun.id);
     expect(visibleIds).not.toContain(managerRun.id);
+    expect(visibleIds).not.toContain(privateManagerRun.id);
 
-    for (const run of [financeRun, managerRun]) {
+    for (const run of [financeRun, managerRun, privateManagerRun]) {
       const detail = await app.inject({
         method: "GET",
         url: `/api/v1/advisor-runs/${String(run.id)}`,
@@ -945,5 +1109,38 @@ describe.skipIf(!databaseUrl)("API PostgreSQL vertical slice", () => {
     const serializedAudit = JSON.stringify(audit);
     expect(serializedAudit).not.toContain(originalPassword);
     expect(serializedAudit).not.toContain(newPassword);
+  });
+
+  it("audits session row ids without retaining the raw JWT session id", async () => {
+    const login = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/login",
+      payload: {
+        email: `first-${suffix}@example.test`,
+        password: "rotated-owner-password-long-enough",
+      },
+    });
+    expect(login.statusCode, login.body).toBe(200);
+    const sessionCookie = cookie(login);
+    const token = sessionCookie.split("=", 2)[1];
+    const payloadSegment = token?.split(".", 3)[1];
+    if (!payloadSegment) throw new Error("Login cookie did not contain a JWT payload");
+    const jwtPayload = JSON.parse(Buffer.from(payloadSegment, "base64url").toString("utf8")) as {
+      sid: string;
+    };
+    const logout = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/logout",
+      headers: { cookie: sessionCookie },
+    });
+    expect(logout.statusCode, logout.body).toBe(200);
+    const sessionAudits = (
+      await dbHandle.db.select().from(auditEvents).where(eq(auditEvents.actorUserId, firstUserId))
+    ).filter(
+      (event) => event.resourceType === "session" && ["login", "logout"].includes(event.action),
+    );
+    expect(sessionAudits.some((event) => event.action === "login")).toBe(true);
+    expect(sessionAudits.some((event) => event.action === "logout")).toBe(true);
+    expect(JSON.stringify(sessionAudits)).not.toContain(jwtPayload.sid);
   });
 });

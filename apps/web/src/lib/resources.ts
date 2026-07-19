@@ -338,6 +338,27 @@ export const resources: Record<string, ResourceConfig> = {
     fields: [
       titleField("议题"),
       statusField(decisionStatuses),
+      {
+        key: "objectiveId",
+        label: "关联目标",
+        kind: "reference",
+        referenceEndpoint: "/objectives",
+        referenceLabelKey: "title",
+      },
+      {
+        key: "projectId",
+        label: "关联项目",
+        kind: "reference",
+        referenceEndpoint: "/projects",
+        referenceLabelKey: "name",
+      },
+      {
+        key: "taskId",
+        label: "关联任务",
+        kind: "reference",
+        referenceEndpoint: "/tasks",
+        referenceLabelKey: "title",
+      },
       { key: "context", label: "背景与选项", kind: "textarea", required: true, width: "full" },
       { key: "decision", label: "决策结论", kind: "textarea", width: "full" },
       { key: "decidedAt", label: "决策时间", kind: "datetime-local" },
@@ -379,7 +400,26 @@ export const resources: Record<string, ResourceConfig> = {
       },
       userField("ownerId", "负责人"),
       { key: "dueAt", label: "到期时间", kind: "datetime-local" },
-      { key: "recurrenceRule", label: "重复规则", kind: "text", placeholder: "例如 FREQ=MONTHLY" },
+      {
+        key: "sourceId",
+        label: "关联合规来源",
+        kind: "reference",
+        referenceEndpoint: "/compliance-items",
+        referenceLabelKey: "title",
+      },
+      {
+        key: "evidenceFileId",
+        label: "履行证据文件",
+        kind: "reference",
+        referenceEndpoint: "/files?status=uploaded",
+        referenceLabelKey: "filename",
+      },
+      {
+        key: "recurrenceRule",
+        label: "重复规则（仅元数据）",
+        kind: "text",
+        placeholder: "仅记录规则，例如 FREQ=MONTHLY；V1 不自动生成下一期",
+      },
       descriptionField,
     ],
   },
@@ -428,6 +468,20 @@ export const resources: Record<string, ResourceConfig> = {
         options: statusOptions(["pending", "待复核"], ["reviewed", "已复核"], ["stale", "需更新"]),
       },
       userField("ownerId", "负责人"),
+      {
+        key: "sourceId",
+        label: "关联合规来源",
+        kind: "reference",
+        referenceEndpoint: "/compliance-items",
+        referenceLabelKey: "title",
+      },
+      {
+        key: "evidenceFileId",
+        label: "完成证据文件",
+        kind: "reference",
+        referenceEndpoint: "/files?status=uploaded",
+        referenceLabelKey: "filename",
+      },
       { key: "description", label: "说明", kind: "textarea", width: "full" },
     ],
   },
@@ -444,8 +498,10 @@ export const resources: Record<string, ResourceConfig> = {
       { key: "title", label: "主题" },
       { key: "category", label: "领域" },
       { key: "issuingAuthority", label: "发布机关" },
-      { key: "effectiveDate", label: "生效", format: formatDate },
       { key: "reviewStatus", label: "复核" },
+      { key: "nextReviewAt", label: "人工复核截止", format: formatDate },
+      { key: "contentHashStatus", label: "来源检查" },
+      { key: "nextMonitorAt", label: "下次检查", format: formatDate },
     ],
     fields: [
       titleField("主题"),
@@ -455,6 +511,14 @@ export const resources: Record<string, ResourceConfig> = {
       { key: "sourceUrl", label: "官方来源", kind: "url", required: true, width: "full" },
       { key: "effectiveDate", label: "生效日期", kind: "date" },
       { key: "lastVerifiedAt", label: "核验日期", kind: "date" },
+      { key: "nextReviewAt", label: "最迟人工复核日", kind: "date" },
+      {
+        key: "monitoringCadenceDays",
+        label: "自动检查周期（天）",
+        kind: "number",
+        required: true,
+        defaultValue: "30",
+      },
       {
         key: "reviewStatus",
         label: "人工复核",
@@ -524,6 +588,13 @@ export const resources: Record<string, ResourceConfig> = {
       currencyField,
       { key: "startsAt", label: "开始时间", kind: "datetime-local" },
       { key: "endsAt", label: "结束时间", kind: "datetime-local" },
+      {
+        key: "fileId",
+        label: "合同原件",
+        kind: "reference",
+        referenceEndpoint: "/files?status=uploaded",
+        referenceLabelKey: "filename",
+      },
       userField("ownerId", "经办人"),
     ],
   },
@@ -541,6 +612,7 @@ export const resources: Record<string, ResourceConfig> = {
       { key: "type", label: "类型" },
       { key: "amountCents", label: "金额", format: formatMoneyCents },
       { key: "status", label: "状态" },
+      { key: "externalActionId", label: "付款动作" },
       { key: "occurredAt", label: "日期", format: formatDate },
     ],
     fields: [
@@ -598,6 +670,13 @@ export const resources: Record<string, ResourceConfig> = {
       statusField(invoiceStatuses),
       { key: "issuedAt", label: "开票时间", kind: "datetime-local" },
       { key: "dueAt", label: "到期时间", kind: "datetime-local" },
+      {
+        key: "fileId",
+        label: "发票原件",
+        kind: "reference",
+        referenceEndpoint: "/files?status=uploaded",
+        referenceLabelKey: "filename",
+      },
     ],
   },
   "cashflow-forecasts": {
@@ -653,6 +732,13 @@ export const resources: Record<string, ResourceConfig> = {
       { key: "name", label: "产品名称", kind: "text", required: true, width: "full" },
       statusField(productStatuses),
       {
+        key: "projectId",
+        label: "关联项目",
+        kind: "reference",
+        referenceEndpoint: "/projects",
+        referenceLabelKey: "name",
+      },
+      {
         key: "category",
         label: "类别",
         kind: "select",
@@ -703,6 +789,20 @@ export const resources: Record<string, ResourceConfig> = {
     fields: [
       titleField("机会名称"),
       statusField(opportunityStatuses),
+      {
+        key: "productId",
+        label: "关联产品",
+        kind: "reference",
+        referenceEndpoint: "/products",
+        referenceLabelKey: "name",
+      },
+      {
+        key: "projectId",
+        label: "关联项目",
+        kind: "reference",
+        referenceEndpoint: "/projects",
+        referenceLabelKey: "name",
+      },
       { key: "organization", label: "机构", kind: "text" },
       { key: "contact", label: "联系人", kind: "text" },
       { key: "source", label: "线索来源", kind: "text" },
@@ -810,6 +910,7 @@ export const resources: Record<string, ResourceConfig> = {
     description: "站内通知和适配器投递状态",
     icon: Megaphone,
     permission: "notifications",
+    archivable: false,
     statuses: notificationStatuses,
     columns: [
       { key: "title", label: "主题" },
@@ -860,7 +961,14 @@ export const resources: Record<string, ResourceConfig> = {
     ],
     fields: [
       { key: "name", label: "工作流名称", kind: "text", required: true, width: "full" },
-      { key: "trigger", label: "触发条件", kind: "text", required: true },
+      {
+        key: "trigger",
+        label: "触发方式",
+        kind: "select",
+        required: true,
+        defaultValue: "manual",
+        options: [{ label: "仅人工运行", value: "manual" }],
+      },
       { key: "enabled", label: "启用", kind: "boolean", defaultValue: "true" },
       {
         key: "steps",
@@ -868,7 +976,7 @@ export const resources: Record<string, ResourceConfig> = {
         kind: "json",
         required: true,
         width: "full",
-        defaultValue: '[{"type":"notify","config":{}}]',
+        placeholder: "请使用可视化通知步骤表单，或通过受控 API 提交完整步骤",
       },
     ],
   },
@@ -881,12 +989,43 @@ export const resources: Record<string, ResourceConfig> = {
     icon: Users,
     permission: "users",
     archivable: false,
-    statuses: [],
+    statuses: statusOptions(
+      ["pending", "待入职审批"],
+      ["active", "在职/有效"],
+      ["inactive", "已停用"],
+      ["offboarded", "已离职"],
+    ),
     columns: [
       { key: "displayName", label: "姓名" },
       { key: "email", label: "邮箱" },
       { key: "userStatus", label: "用户状态" },
       { key: "membershipStatus", label: "成员状态" },
+      {
+        key: "roles",
+        label: "当前角色",
+        format: (value) =>
+          Array.isArray(value) && value.length
+            ? value
+                .map((role) =>
+                  typeof role === "object" && role !== null && "name" in role
+                    ? String(role.name)
+                    : "未知角色",
+                )
+                .join("、")
+            : "无角色",
+      },
+      {
+        key: "pendingLifecycleAction",
+        label: "生命周期申请",
+        format: (value) =>
+          value === "deactivate"
+            ? "待审批：停用"
+            : value === "offboard"
+              ? "待审批：离职"
+              : value === "reactivate"
+                ? "待审批：重新启用"
+                : "—",
+      },
       { key: "createdAt", label: "加入时间", format: formatDateTime },
     ],
     fields: [
@@ -963,6 +1102,8 @@ export const statusLabels: Record<string, string> = Object.fromEntries(
       ["not_started", "未执行"],
       ["reviewed", "已复核"],
       ["stale", "需更新"],
+      ["inactive", "已停用"],
+      ["offboarded", "已离职"],
     ),
   ].map((option) => [option.value, option.label]),
 );

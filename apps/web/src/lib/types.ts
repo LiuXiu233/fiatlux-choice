@@ -21,7 +21,7 @@ export interface UserSession {
   displayName: string;
   role: string;
   permissions: string[];
-  mustChangePassword?: boolean;
+  mustChangePassword: boolean;
 }
 
 export interface BusinessRecord {

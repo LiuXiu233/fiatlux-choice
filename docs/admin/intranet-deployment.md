@@ -36,7 +36,7 @@ docker info --format '{{.OSType}}/{{.Architecture}} {{.ServerVersion}}'
 
 不要安装或回退到已停止维护的 Compose v1，也不要把未经校验的二进制放入仓库。
 
-2026-07-18 候选验证已在开发机以 production-like Compose 完成，入口为 `https://choice.localhost:18443`。这只证明本机 Docker、HTTPS 和依赖组合能够运行，不证明目标 Linux 主机、多架构发布、广州办公内网 DNS/CA、防火墙或真实移动设备已经验证。
+2026-07-19 最新冻结候选已在开发机以 production-like Compose 完成验证，入口为 `https://choice-final.localhost:19443`；桌面/移动仿真、PWA、重启持久性和部署检查均通过。这只证明本机 Docker、HTTPS 和依赖组合能够运行，不证明目标 Linux 主机、GHCR 多架构发布、广州办公内网 DNS/CA、防火墙或真实受管移动设备已经验证。
 
 ## 3. 目录和账户
 
@@ -47,12 +47,23 @@ sudo useradd --create-home --shell /bin/bash fiatlux
 sudo usermod --append --groups docker fiatlux
 sudo install -d -o fiatlux -g fiatlux -m 0750 /opt/fiatlux-choice
 sudo install -d -o fiatlux -g fiatlux -m 0700 /var/backups/fiatlux-choice
+sudo install -d -o fiatlux -g fiatlux -m 0700 /var/lib/fiatlux-choice/pre-restore-backups
+sudo install -d -o fiatlux -g fiatlux -m 0700 /var/lib/fiatlux-choice/restore-drill-reports
+sudo install -d -o root -g root -m 0755 /var/lib/fiatlux-choice
+sudo install -d -o fiatlux -g fiatlux -m 0700 /var/lib/fiatlux-choice/backup-scratch
+sudo install -d -o fiatlux -g fiatlux -m 0700 /var/lib/fiatlux-choice/restore-scratch
+sudo install -d -o fiatlux -g fiatlux -m 0700 /var/lib/fiatlux-choice/maintenance
 sudo install -d -o root -g fiatlux -m 0750 /etc/fiatlux-choice
+sudo install -d -o root -g fiatlux -m 0750 /etc/fiatlux-choice/approved-backups
 ```
+
+`BACKUP_DIR`/`RESTORE_SOURCE_DIR` 是可审计归档源；执行恢复时它会以只读方式挂载到 `backup-tools:/restore-source`。`RESTORE_PRE_BACKUP_DIR` 必须指向上面的独立可写目录，不能把恢复前备份写回只读 U 盘、审批介质或源归档目录。
+`RESTORE_DRILL_REPORT_DIR` 同样必须是独立可写目录；定期恢复演练的日志和容器报告写入此目录，不写回只读归档源。
+`BACKUP_APPROVED_MANIFEST_DIR` 及其父链必须保持 root 所有且不允许 group/other 写入；批准文件使用 `root:fiatlux 0640`。部署用户只能读取，不能拥有、改写、替换或通过可写父目录重定向该批准记录；批准目录也不能放在 `BACKUP_DIR` 子树中。
 
 Docker 组等价于主机 root 权限。只能把受信任的部署账户加入该组，不允许普通应用用户登录主机。
 
-将已审核的发布版本检出到 `/opt/fiatlux-choice`。生产主机应使用签名 tag 或固定 Git SHA，不直接跟随 `main`。
+将已审核的发布版本检出到 `/opt/fiatlux-choice`。生产主机应使用经核对的固定 Git SHA，不直接跟随 `main`；只有实际验证过 Git 签名时才能称为“签名 tag”。当前 BuildKit provenance 不是 Git 或镜像签名。
 
 ## 4. 生产配置与密钥
 
@@ -63,15 +74,19 @@ sudo install -o root -g fiatlux -m 0640 \
 sudoedit /etc/fiatlux-choice/production.env
 ```
 
-使用 URL 安全的随机十六进制，避免数据库 URL 与 MinIO 健康探针中的编码歧义：
+使用 URL 安全的随机十六进制，避免数据库 URL 与 MinIO 健康探针中的编码歧义。数据库五类身份必须分别生成，不能复用：
 
 ```sh
+openssl rand -hex 32
+openssl rand -hex 32
+openssl rand -hex 32
+openssl rand -hex 32
 openssl rand -hex 32
 openssl rand -hex 32
 openssl rand -hex 48
 ```
 
-分别用于 `POSTGRES_PASSWORD`、`MINIO_ROOT_PASSWORD` 和 `SESSION_SECRET`。另为 `INITIAL_ADMIN_PASSWORD` 生成独立、至少 14 位的随机引导密码；它只用于显式 seed。LLM 与 GitHub 凭据按最小权限配置；不启用时保持 mock/manual，不伪造外部调用成功。
+前五个数据库值分别用于 `POSTGRES_BOOTSTRAP_PASSWORD`、`POSTGRES_MIGRATION_PASSWORD`、`POSTGRES_RUNTIME_PASSWORD`、`POSTGRES_BACKUP_PASSWORD`、`POSTGRES_RESTORE_PASSWORD`，随后用于 `MINIO_ROOT_PASSWORD` 和 `SESSION_SECRET`。另为 `INITIAL_ADMIN_PASSWORD` 生成独立、至少 14 位的随机引导密码；它只用于显式 seed。LLM 与 GitHub 凭据按最小权限配置；不启用时保持 mock/manual，不伪造外部调用成功。角色能力和旧卷升级步骤见[PostgreSQL 最小权限角色手册](./database-roles.md)。
 
 在与生产服务器分离的管理员设备生成 age 身份：
 
@@ -100,37 +115,38 @@ export FIATLUX_ENV_FILE=/etc/fiatlux-choice/production.env
 export FIATLUX_ENV=production
 export FIATLUX_ENV_FILE=/etc/fiatlux-choice/production.env
 ./scripts/compose.sh pull
+./scripts/bootstrap-database.sh --apply --confirm DATABASE-BOOTSTRAP
 ./scripts/compose.sh up -d --wait --remove-orphans
 ./scripts/compose.sh ps
 ```
 
-启动顺序由 Compose 强制为：PostgreSQL 健康 -> 一次性迁移；MinIO 健康 -> 私有桶初始化；随后启动 API/worker/Web/Caddy。迁移失败时 API 不会启动，必须先查看迁移日志，不能把迁移容器改成忽略错误。
+第一次 `bootstrap-database.sh` 在自动删除的一次性容器内创建/轮换角色并转移既有应用对象所有权，然后执行 Drizzle、pg-boss 与权限收敛。生产执行前要求入口/API/worker 已停止。常规启动顺序由 Compose 强制为：PostgreSQL 健康 -> 一次性业务迁移 -> 一次性 pg-boss 迁移 -> 权限收敛；MinIO 健康 -> 私有桶初始化；随后启动 API/worker/Web/Caddy。任一步失败时 API 不会启动，必须查看对应日志，不能改成忽略错误或临时给 runtime DDL。
 
 ```sh
 ./scripts/compose.sh logs --no-log-prefix migrate
+./scripts/compose.sh logs --no-log-prefix queue-migrate database-permissions
 ./scripts/compose.sh logs --tail 100 api worker caddy
 ```
 
 服务 ready 后，**仅在新建空库的首次初始化窗口**运行 seed：
 
 ```sh
-./scripts/compose.sh run --rm api \
-  node packages/db/dist/seed-cli.js
+SEED_MODE=bootstrap ./scripts/compose.sh run --rm seed
 ```
 
 确认命令输出显示目标 organization、引导管理员和导入 72 条合规来源；再通过 UI/API 抽查来源保持 `reviewStatus=pending`、`contentHashStatus=pending_fetch`、业务 `status=draft`。seed 会创建 owner 角色，但不会替代登录和权限验收。
 
-seed 是幂等数据初始化，但**不是无副作用的日常命令**：每次执行都会把引导 owner 的密码改成当时 `INITIAL_ADMIN_PASSWORD`/`BOOTSTRAP_ADMIN_PASSWORD` 的值。不要把 seed 放进常规重启、systemd 或升级流程；确需重跑时，必须先取得管理员密码重置批准并通知 owner。
+seed 是**非日常运维命令**，且必须显式选择模式。`bootstrap` 只接受空组织初始化，遇到既有 organization slug 会失败，不会更新 owner 密码或自动转成维护。既有组织补提示词/合规元数据只能用 `SEED_MODE=metadata-only`，该模式拒绝管理员身份/密码并且不修改 membership、assignment、角色或权限；系统角色维护必须另走经批准的 `system-role-maintenance`。不要把任何 seed 模式放进常规重启、systemd 或升级流程。
 
 随后用受控浏览器完成：
 
 1. 用 `INITIAL_ADMIN_EMAIL` 和引导密码首次登录，确认角色为 owner。
 2. 打开“设置 → 登录密码”，输入当前引导密码并设置新的独立密码（至少 14 位）。成功后系统撤销该用户的其他会话。
 3. 退出并用新密码重新登录，确认引导密码不再可用；保存登录、改密和审计结果，但不得保存明文密码或 Cookie。
-4. 将生产环境中的 `INITIAL_ADMIN_PASSWORD` 替换为另一个未分发的随机 guard 值并重启。该变量当前仍是生产 Compose 的必填配置；替换不会自动改变数据库密码，只有误重跑 seed 才会使用它。
-5. 在密码管理系统中记录 owner 恢复责任人；当前没有自助忘记密码、恢复码或 MFA。
+4. 从生产环境文件清空 `INITIAL_ADMIN_PASSWORD`，再用 `./scripts/compose.sh config --quiet` 验证配置。API 和 worker 从不接收该变量；不得用重新 bootstrap 作为密码恢复手段。
+5. 在密码管理系统中记录 owner 恢复责任人；当前没有自助忘记密码、恢复码或 MFA。唯一 active owner 无法登录时，按 README 的离线 one-off recovery 流程从 stdin 提供临时密码，并记录固定确认、理由、批准编号和唯一 requestId。
 
-如果 seed 输出的 organization/email 与批准配置不一致，或重复 seed 意外重置密码，立即停止上线并按事件/变更流程处理，不要直接修改数据库。
+如果 seed 输出的 organization/email、模式或 metadata requestId 与批准配置不一致，或者既有组织 bootstrap 没有按设计失败，立即停止上线并按事件/变更流程处理，不要直接修改数据库。
 
 ## 6. 内网 TLS
 
@@ -169,7 +185,7 @@ sudo systemctl enable --now fiatlux-choice-restore-drill.timer
 systemctl list-timers 'fiatlux-choice-*'
 ```
 
-systemd 单元默认每日备份、每月在独立卷恢复演练。首次启用前先手工执行一次备份和恢复演练，确认 age 私钥路径、磁盘空间和镜像权限。
+systemd 单元默认每日备份、每月在独立卷恢复演练。首次启用前先手工执行一次备份和恢复演练，确认 age 私钥路径、磁盘空间和镜像权限。每份待演练归档还必须由审批人把核对后的 `.sha256` 清单复制到 `BACKUP_APPROVED_MANIFEST_DIR`；同一可写备份目录中的 sidecar 不会被自动信任，缺失批准时定时演练按设计失败关闭。
 
 ## 8. 上线验收
 
@@ -185,4 +201,4 @@ systemd 单元默认每日备份、每月在独立卷恢复演练。首次启用
 
 任何一项缺失，都只能标记为“待验证”，不能声明生产部署完成。
 
-当前候选已有本机 production-like、age 加密备份、隔离恢复和实际升级/回滚演练证据；这些结果仍未绑定最终 Git SHA，也不能替代目标办公内网证据。目标办公内网部署与恢复、最终 GitHub CI 和业务批准均不得预填为通过。
+此前版本曾取得本机 production-like、age 加密备份、隔离恢复，以及 formatVersion 1／同内容标签升级回滚的历史演练证据；这些结果早于当前严格七组件清单、N−1 工具链和最新代码，不能证明当前真实相邻版本升级／回滚路径，也不能绑定最终 Git SHA 或替代目标办公内网证据。当前严格发布路径的真实相邻版本演练、目标办公内网部署与恢复、最终 GitHub CI 和业务批准均仍待完成，不得预填为通过。

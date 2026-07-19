@@ -106,7 +106,7 @@ interface AuthPayload {
   orgId: string;
   permissions: string[];
   role?: string;
-  mustChangePassword?: boolean;
+  mustChangePassword: boolean;
 }
 
 function normalizeSession(payload: AuthPayload): UserSession {
@@ -118,9 +118,7 @@ function normalizeSession(payload: AuthPayload): UserSession {
     displayName: payload.user.displayName,
     role,
     permissions: payload.permissions,
-    ...(payload.mustChangePassword !== undefined
-      ? { mustChangePassword: payload.mustChangePassword }
-      : {}),
+    mustChangePassword: payload.mustChangePassword,
   };
 }
 

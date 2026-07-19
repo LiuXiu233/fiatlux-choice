@@ -27,15 +27,23 @@ https://{$APP_DOMAIN:localhost}:8443 {
 	}
 
 	handle /api/* {
-		reverse_proxy api:3000
+		reverse_proxy api:3000 {
+			lb_try_duration 5s
+		}
 	}
 	handle /health/* {
-		reverse_proxy api:3000
+		reverse_proxy api:3000 {
+			lb_try_duration 5s
+		}
 	}
 	handle /openapi* {
-		reverse_proxy api:3000
+		reverse_proxy api:3000 {
+			lb_try_duration 5s
+		}
 	}
 	handle {
-		reverse_proxy web:8080
+		reverse_proxy web:8080 {
+			lb_try_duration 5s
+		}
 	}
 }

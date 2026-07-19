@@ -9,6 +9,18 @@ import { formatDateTime, formatMoney, recordLabel } from "../lib/format";
 import type { ApprovalRequest } from "../lib/types";
 import { ExternalActionsPanel } from "./external-actions-panel";
 
+interface LinkedExternalAction {
+  id: string;
+  status: string;
+  adapter: string;
+  evidence: Record<string, unknown> | null;
+  externalReference: string | null;
+}
+
+type ApprovalRecord = ApprovalRequest & {
+  linkedExternalAction?: LinkedExternalAction | null;
+};
+
 const actionLabels: Record<string, string> = {
   bank_payment: "银行付款",
   tax_filing: "税务申报",
@@ -16,22 +28,38 @@ const actionLabels: Record<string, string> = {
   invoice_red: "发票红冲",
   contract_signature: "合同正式签署",
   contract_sign: "合同正式签署",
+  contract_terminate: "合同终止",
   personnel_discipline: "人事处分",
   hr_discipline: "人事处分",
   critical_permission_change: "关键权限修改",
   permission_change: "关键权限修改",
+  membership_deactivate: "停用组织成员",
+  membership_offboard: "成员离职",
+  membership_reactivate: "重新启用组织成员",
   external_legal_commitment: "对外法律承诺",
 };
 
+function isMembershipLifecycleApproval(approval: ApprovalRequest) {
+  return (
+    approval.operation === "membership_deactivate" ||
+    approval.operation === "membership_offboard" ||
+    approval.operation === "membership_reactivate"
+  );
+}
+
+function isMembershipReactivation(approval: ApprovalRequest) {
+  return approval.operation === "membership_reactivate";
+}
+
 export function ApprovalsPage() {
   const [view, setView] = useState<"pending" | "history" | "execution">("pending");
-  const [selected, setSelected] = useState<ApprovalRequest | null>(null);
+  const [selected, setSelected] = useState<ApprovalRecord | null>(null);
   const [decision, setDecision] = useState<"approve" | "reject" | null>(null);
   const approvals = useQuery({
     queryKey: ["approvals", view],
     queryFn: async () => {
       const items = (
-        await api.get<ApprovalRequest[]>(
+        await api.get<ApprovalRecord[]>(
           `/approvals${queryString({ pageSize: 50, ...(view === "pending" ? { status: "pending" } : {}) })}`,
         )
       ).data;
@@ -198,7 +226,7 @@ export function ApprovalsPage() {
   );
 }
 
-function ApprovalDetails({ approval }: { approval: ApprovalRequest }) {
+export function ApprovalDetails({ approval }: { approval: ApprovalRecord }) {
   return (
     <div className="approval-details">
       <dl>
@@ -229,12 +257,26 @@ function ApprovalDetails({ approval }: { approval: ApprovalRequest }) {
             <StatusBadge status={approval.status} />
           </dd>
         </div>
-        <div>
-          <dt>外部执行</dt>
-          <dd>
-            <StatusBadge status={approval.externalState ?? "not_started"} />
-          </dd>
-        </div>
+        {approval.linkedExternalAction ? (
+          <>
+            <div>
+              <dt>外部执行状态</dt>
+              <dd>
+                <StatusBadge status={approval.linkedExternalAction.status} />
+              </dd>
+            </div>
+            <div>
+              <dt>执行适配器</dt>
+              <dd>{approval.linkedExternalAction.adapter}</dd>
+            </div>
+            {approval.linkedExternalAction.externalReference ? (
+              <div>
+                <dt>外部回执引用</dt>
+                <dd>{approval.linkedExternalAction.externalReference}</dd>
+              </div>
+            ) : null}
+          </>
+        ) : null}
       </dl>
       <section>
         <h3>申请理由</h3>
@@ -243,17 +285,15 @@ function ApprovalDetails({ approval }: { approval: ApprovalRequest }) {
       <section>
         <h3>执行边界</h3>
         <p>
-          {approval.evidenceRequired
-            ? "批准后仍需人工执行并上传外部回执，系统不会自动标记成功。"
-            : "批准仅授权系统内动作，执行结果仍写入审计日志。"}
+          {isMembershipLifecycleApproval(approval)
+            ? isMembershipReactivation(approval)
+              ? "批准后系统将在同一事务中重新启用本组织成员关系；旧会话保持撤销，成员必须重新登录。驳回不会改变成员或会话。"
+              : "批准后系统将在同一事务中更新本组织成员状态并撤销该成员在本组织的全部会话；驳回不会改变成员或会话。"
+            : approval.resourceType === "external-action"
+              ? "批准后仍需人工执行并上传外部回执，系统不会自动标记成功。"
+              : "批准仅授权系统内动作，执行结果仍写入审计日志。"}
         </p>
       </section>
-      {typeof approval.evidenceUrl === "string" ? (
-        <a className="evidence-link" href={approval.evidenceUrl} target="_blank" rel="noreferrer">
-          <ExternalLink aria-hidden="true" />
-          查看已有凭证
-        </a>
-      ) : null}
     </div>
   );
 }
@@ -284,8 +324,22 @@ function DecisionForm({
           : {}),
       }),
     onSuccess: async () => {
-      toast.push(decision === "approve" ? "已批准，等待执行凭证" : "已驳回", "success");
-      await queryClient.invalidateQueries({ queryKey: ["approvals"] });
+      toast.push(
+        decision === "approve"
+          ? isMembershipLifecycleApproval(approval)
+            ? isMembershipReactivation(approval)
+              ? "已重新启用成员；旧会话仍已撤销，需重新登录"
+              : "已批准并应用成员状态，会话已按组织撤销"
+            : "已批准，等待执行凭证"
+          : isMembershipLifecycleApproval(approval)
+            ? "已驳回，成员状态未改变"
+            : "已驳回",
+        "success",
+      );
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["approvals"] }),
+        queryClient.invalidateQueries({ queryKey: ["resource", "users"] }),
+      ]);
       onDone();
     },
     onError: (error) => toast.push(error instanceof ApiError ? error.message : "审批失败", "error"),
@@ -299,7 +353,11 @@ function DecisionForm({
     <form onSubmit={submit} className="decision-form">
       <p>
         {decision === "approve"
-          ? `批准“${recordLabel(approval)}”不会替代外部实际操作。`
+          ? isMembershipLifecycleApproval(approval)
+            ? isMembershipReactivation(approval)
+              ? `批准“${recordLabel(approval)}”会重新启用成员，但不会恢复旧会话。`
+              : `批准“${recordLabel(approval)}”会立即更新本组织成员状态并撤销其本组织会话。`
+            : `批准“${recordLabel(approval)}”不会替代外部实际操作。`
           : `驳回“${recordLabel(approval)}”。`}
       </p>
       <label>

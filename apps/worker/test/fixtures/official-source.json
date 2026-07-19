@@ -1,0 +1,18 @@
+{
+  "sources": [
+    {
+      "id": "integration-company-law",
+      "title": "集成测试官方来源",
+      "category": "company_governance",
+      "authority": "国务院",
+      "sourceUrl": "https://www.gov.cn/integration-fixture",
+      "effective": "2026-01-01",
+      "reviewStatus": "pending",
+      "lastVerifiedAt": "2026-07-18",
+      "nextReviewAt": "2027-01-18",
+      "contentHash": null,
+      "contentHashStatus": "pending_fetch",
+      "status": "effective"
+    }
+  ]
+}

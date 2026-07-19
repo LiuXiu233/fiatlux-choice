@@ -170,15 +170,17 @@ export function AppShell() {
       </div>
 
       <nav className="mobile-bottom-nav" aria-label="移动导航">
-        {mobileNav.map((item) => {
-          const Icon = item.icon;
-          return (
-            <NavLink key={item.path} to={item.path} end={item.path === "/"}>
-              <Icon aria-hidden="true" />
-              <span>{item.label}</span>
-            </NavLink>
-          );
-        })}
+        {mobileNav
+          .filter((item) => !item.permission || auth.can(item.permission))
+          .map((item) => {
+            const Icon = item.icon;
+            return (
+              <NavLink key={item.path} to={item.path} end={item.path === "/"}>
+                <Icon aria-hidden="true" />
+                <span>{item.label}</span>
+              </NavLink>
+            );
+          })}
       </nav>
 
       <CommandPalette open={commandOpen} onClose={() => setCommandOpen(false)} />

@@ -26,14 +26,14 @@ import type { BusinessRecord, DashboardData } from "../lib/types";
 
 interface ApiDashboardData {
   summary: {
-    activeObjectives: number;
-    openTasks: number;
-    overdueObligations: number;
-    openRisks: number;
-    pendingApprovals: number;
-    activeContracts: number;
+    activeObjectives: number | null;
+    openTasks: number | null;
+    overdueObligations: number | null;
+    openRisks: number | null;
+    pendingApprovals: number | null;
+    activeContracts: number | null;
   };
-  cashFlow: { inCents: number; outCents: number; netCents: number; currency: string };
+  cashFlow: { inCents: number; outCents: number; netCents: number; currency: string } | null;
   urgentTasks: BusinessRecord[];
   upcomingObligations: BusinessRecord[];
   generatedAt: string;
@@ -41,39 +41,45 @@ interface ApiDashboardData {
 
 function normalizeDashboard(data: DashboardData | ApiDashboardData): DashboardData {
   if ("metrics" in data) return data;
-  return {
-    metrics: [
-      {
-        key: "active_objectives",
-        label: "进行中目标",
-        value: data.summary.activeObjectives,
-        tone: "neutral",
-      },
-      { key: "open_tasks", label: "未完成任务", value: data.summary.openTasks, tone: "neutral" },
-      {
-        key: "pending_approvals",
-        label: "待审批",
-        value: data.summary.pendingApprovals,
-        tone: data.summary.pendingApprovals ? "warning" : "positive",
-      },
-      {
-        key: "overdue_obligations",
-        label: "逾期义务",
-        value: data.summary.overdueObligations,
-        tone: data.summary.overdueObligations ? "danger" : "positive",
-      },
-      {
-        key: "open_risks",
-        label: "开放风险",
-        value: data.summary.openRisks,
-        tone: data.summary.openRisks ? "warning" : "positive",
-      },
-      {
-        key: "active_contracts",
-        label: "履行中合同",
-        value: data.summary.activeContracts,
-        tone: "neutral",
-      },
+  const metrics: DashboardData["metrics"] = [];
+  const addMetric = (
+    value: number | null,
+    metric: Omit<DashboardData["metrics"][number], "value">,
+  ) => {
+    if (value !== null) metrics.push({ ...metric, value });
+  };
+  addMetric(data.summary.activeObjectives, {
+    key: "active_objectives",
+    label: "进行中目标",
+    tone: "neutral",
+  });
+  addMetric(data.summary.openTasks, {
+    key: "open_tasks",
+    label: "未完成任务",
+    tone: "neutral",
+  });
+  addMetric(data.summary.pendingApprovals, {
+    key: "pending_approvals",
+    label: "待审批",
+    tone: data.summary.pendingApprovals ? "warning" : "positive",
+  });
+  addMetric(data.summary.overdueObligations, {
+    key: "overdue_obligations",
+    label: "逾期义务",
+    tone: data.summary.overdueObligations ? "danger" : "positive",
+  });
+  addMetric(data.summary.openRisks, {
+    key: "open_risks",
+    label: "开放风险",
+    tone: data.summary.openRisks ? "warning" : "positive",
+  });
+  addMetric(data.summary.activeContracts, {
+    key: "active_contracts",
+    label: "履行中合同",
+    tone: "neutral",
+  });
+  if (data.cashFlow) {
+    metrics.push(
       {
         key: "cash_in",
         label: "累计流入",
@@ -86,7 +92,10 @@ function normalizeDashboard(data: DashboardData | ApiDashboardData): DashboardDa
         value: formatMoney(data.cashFlow.outCents / 100),
         tone: "neutral",
       },
-    ],
+    );
+  }
+  return {
+    metrics,
     priorities: data.urgentTasks.map((item) => ({
       ...item,
       ...(item.dueDate
@@ -103,20 +112,34 @@ function normalizeDashboard(data: DashboardData | ApiDashboardData): DashboardDa
           ? { dueDate: item.dueAt }
           : {}),
     })),
-    cashflow: [
-      { label: "当前", inflow: data.cashFlow.inCents / 100, outflow: data.cashFlow.outCents / 100 },
-    ],
+    cashflow: data.cashFlow
+      ? [
+          {
+            label: "当前",
+            inflow: data.cashFlow.inCents / 100,
+            outflow: data.cashFlow.outCents / 100,
+          },
+        ]
+      : [],
     riskSummary: [
-      {
-        label: "开放风险",
-        value: data.summary.openRisks,
-        tone: data.summary.openRisks ? "warning" : "positive",
-      },
-      {
-        label: "逾期义务",
-        value: data.summary.overdueObligations,
-        tone: data.summary.overdueObligations ? "danger" : "positive",
-      },
+      ...(data.summary.openRisks === null
+        ? []
+        : [
+            {
+              label: "开放风险",
+              value: data.summary.openRisks,
+              tone: data.summary.openRisks ? "warning" : "positive",
+            },
+          ]),
+      ...(data.summary.overdueObligations === null
+        ? []
+        : [
+            {
+              label: "逾期义务",
+              value: data.summary.overdueObligations,
+              tone: data.summary.overdueObligations ? "danger" : "positive",
+            },
+          ]),
     ],
     advisorBriefs: [],
   };
@@ -271,19 +294,21 @@ export function DashboardPage() {
       </div>
 
       <div className="dashboard-grid secondary-grid">
-        <section className="dashboard-section cashflow-section">
-          <header>
-            <div>
-              <WalletCards aria-hidden="true" />
-              <h2>现金流预测</h2>
-            </div>
-            <Link to="/resources/cashflow-forecasts">
-              查看明细
-              <ArrowRight aria-hidden="true" />
-            </Link>
-          </header>
-          <CashflowBars values={data.cashflow} />
-        </section>
+        {auth.can("cash-flow:read") ? (
+          <section className="dashboard-section cashflow-section">
+            <header>
+              <div>
+                <WalletCards aria-hidden="true" />
+                <h2>现金流预测</h2>
+              </div>
+              <Link to="/resources/cashflow-forecasts">
+                查看明细
+                <ArrowRight aria-hidden="true" />
+              </Link>
+            </header>
+            <CashflowBars values={data.cashflow} />
+          </section>
+        ) : null}
 
         <section className="dashboard-section risk-section">
           <header>

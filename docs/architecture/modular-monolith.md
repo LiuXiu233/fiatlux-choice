@@ -100,7 +100,7 @@ flowchart LR
 
 ## 7. 后台任务
 
-pg-boss 与业务共用 PostgreSQL，避免为小团队维护额外消息系统。当前队列：
+pg-boss 与业务共用 PostgreSQL，避免为小团队维护额外消息系统。业务迁移、pg-boss 迁移与常驻 DML 身份分离：一次性 migrator 安装/升级 schema 和声明队列，API/worker 使用无 DDL 的 runtime 且以 `migrate:false` 启动。当前队列：
 
 | 队列 | 作用 |
 | --- | --- |
@@ -109,9 +109,9 @@ pg-boss 与业务共用 PostgreSQL，避免为小团队维护额外消息系统�
 | notification.deliver | 投递站内通知；未配置渠道明确失败 |
 | github.refresh | 读取 GitHub 仓库快照并更新情报 |
 | obligation.sweep | 每小时按 Asia/Shanghai 扫描逾期义务和合规事件 |
-| backup.create | 调用受控备份命令；内置降级只支持数据库 |
+| backup.create | 调用受控备份命令；内置降级只支持数据库。队列 active lease 为 2 小时 10 分钟，长于 worker 的 2 小时数据库 claim lease；超时重投只会把仍未完成的 running 记录标记为人工复核失败，不会自动重新执行可能产生部分结果的备份 |
 
-普通任务最多重试 5 次，带退避和有效期。处理器必须使用 orgId、幂等状态和审计，重复投递不能产生虚假外部动作。
+普通任务最多重试 5 次，带退避和有效期。处理器必须使用 orgId、幂等状态和审计，重复投递不能产生虚假外部动作。备份任务的队列有效期必须与数据库 claim lease 对齐；不要把通用 10 分钟 active expiry 复用于可能运行一小时的备份命令。
 
 ## 8. 集成适配器
 
@@ -121,7 +121,7 @@ ObjectStorage 提供 healthCheck、putVerified、head、get 和 delete。开发�
 
 ### LLM
 
-LlmProvider 有 compatible、mock 和 disabled 模式。业务层只接收结构化 AdvisorOutput；供应商响应必须经过 schema 和证据校验。配置失败时返回失败，不允许未标识地改用另一供应商。
+LlmProvider 有 compatible、mock 和 disabled 模式。业务层只接收结构化 AdvisorOutput；供应商响应必须经过 schema 和证据校验。compatible 模式的 `LLM_BASE_URL` 在 API、worker 和适配器边界都必须使用 HTTPS，HTTP（包括生产环回地址）会在启动前失败；模型请求禁止跟随重定向，避免凭据或上下文被转送到未批准端点。配置或传输失败时返回失败，不允许未标识地改用另一供应商。
 
 ### GitHub
 
@@ -159,9 +159,11 @@ PWA 的目标是安装体验与弱网静态壳，不是离线数据库。敏感�
 
 ## 11. 部署与可观测性
 
-Compose 服务包括 postgres、minio、minio-bootstrap、migrate、api、worker、web、caddy 和 operations profile 的 backup-tools。
+Compose 服务包括 postgres、minio、minio-bootstrap、migrate、queue-migrate、database-permissions、api、worker、web、caddy，以及 operations profile 的 db-bootstrap、seed、backup-tools。
 
-- migrate 成功后 API 和 worker 才启动。
+- 全新卷先显式执行一次 `db-bootstrap --rm`；常规启动依次完成 migrate、queue-migrate、database-permissions，成功后 API 和 worker 才启动。
+- API/worker 只持有 `fiatlux_runtime`；迁移所有者、bootstrap 超级用户和 restore 身份不进入常驻应用环境。
+- API 暴露 live/ready。worker 封装 pg-boss 的 `work/offWork/stop`，以本进程注册表要求七个唯一订阅，并每 10 秒通过 pg-boss 自身连接只读核对全部声明队列；两者都通过才刷新私有心跳，30 秒陈旧即失去容器健康。pg-boss 没有公开的空闲订阅最近 fetch 枚举，因此该信号不冒充逐任务吞吐证明。Caddy 的健康检查同时覆盖 API 与 Web 登录壳，避免只因网关进程存在就误报可用。
 - live 检查进程存活；ready 检查数据库、队列和对象存储。
 - JSON 容器日志按 10 MiB、5 个文件轮转。
 - PostgreSQL、MinIO、API 和 Web 不直接发布宿主端口。

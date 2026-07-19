@@ -51,7 +51,14 @@ export const ADVISOR_DATA_SCOPES: Record<AdvisorKey, readonly string[]> = {
     "decisions",
   ],
   product_rnd: ["products", "projects", "tasks", "decisions", "github-insights", "risks"],
-  market_opportunity: ["opportunities", "products", "contracts", "objectives", "decisions"],
+  market_opportunity: [
+    "opportunities",
+    "products",
+    "projects",
+    "contracts",
+    "objectives",
+    "decisions",
+  ],
   hr_admin: ["objectives", "projects", "tasks", "obligations", "risks"],
   information_security: [
     "risks",

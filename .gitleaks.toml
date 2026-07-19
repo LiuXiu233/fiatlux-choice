@@ -6,14 +6,20 @@ useDefault = true
 # These exact strings are public dummy values used only by integration tests and
 # the API guide. Keep the default generic-api-key rule enabled and allow only the
 # literal placeholders—not their files, directories, or the rule as a whole.
+#
+# This is intentionally a rule-specific allowlist. In Gitleaks v8.28.0,
+# [[allowlists]] targetRules are translated before useDefault rules are merged,
+# so a targeted global allowlist is not reliably attached to the built-in rule.
+# regexTarget = "secret" makes the anchors apply to the extracted secret rather
+# than to source-line context ("match"), preserving an exact-value boundary.
 [[rules]]
 id = "generic-api-key"
 
 [[rules.allowlists]]
 description = "Public integration-test and documentation password placeholders"
-regexTarget = "match"
+regexTarget = "secret"
 regexes = [
-  '''REPLACE_WITH_14_PLUS_CHARACTERS''',
-  '''correct-horse-battery-staple-1''',
-  '''correct-horse-battery-staple-2''',
+  '''^REPLACE_WITH_14_PLUS_CHARACTERS$''',
+  '''^correct-horse-battery-staple-1$''',
+  '''^correct-horse-battery-staple-2$''',
 ]

@@ -16,7 +16,8 @@ import { type FormEvent, type ReactNode, useMemo, useState } from "react";
 import { PageHeader } from "../components/page-header";
 import { EmptyState, ErrorState, Modal, Spinner, StatusBadge, useToast } from "../components/ui";
 import { ApiError, api, queryString } from "../lib/api";
-import { formatConfidence, formatDateTime } from "../lib/format";
+import { useAuth } from "../lib/auth";
+import { formatConfidence, formatDateTime, recordLabel } from "../lib/format";
 import type { AdvisorDefinition, AdvisorRun, BusinessRecord } from "../lib/types";
 
 interface AdvisorVisual {
@@ -125,6 +126,7 @@ export function advisorAvailableScopes(
 }
 
 export function AdvisorsPage() {
+  const auth = useAuth();
   const [running, setRunning] = useState<AdvisorVisual | null>(null);
   const [selected, setSelected] = useState<AdvisorRun | null>(null);
   const advisors = useQuery({
@@ -226,14 +228,16 @@ export function AdvisorsPage() {
                   ) : (
                     <span />
                   )}
-                  <button
-                    type="button"
-                    className="button primary"
-                    onClick={() => setRunning(advisor)}
-                  >
-                    <Play aria-hidden="true" />
-                    运行分析
-                  </button>
+                  {auth.can("advisor-runs:create") ? (
+                    <button
+                      type="button"
+                      className="button primary"
+                      onClick={() => setRunning(advisor)}
+                    >
+                      <Play aria-hidden="true" />
+                      运行分析
+                    </button>
+                  ) : null}
                 </div>
               </article>
             );
@@ -337,24 +341,18 @@ function AdvisorRunForm({
 }) {
   const [objective, setObjective] = useState(advisor.templates[0] ?? "");
   const [scope, setScope] = useState<string[]>(advisor.scopes.slice(0, 3));
+  const [context, setContext] = useState<
+    Array<{ resourceType: string; resourceId: string; label: string }>
+  >([]);
   const toast = useToast();
   const queryClient = useQueryClient();
   const mutation = useMutation({
-    mutationFn: async () => {
-      const records = await Promise.all(
-        scope.map(async (resourceType) => {
-          const response = await api.get<BusinessRecord[]>(
-            `/${resourceType}${queryString({ pageSize: 5 })}`,
-          );
-          return response.data.map((record) => ({ resourceType, resourceId: record.id }));
-        }),
-      );
-      return api.post<AdvisorRun>("/advisor-runs", {
+    mutationFn: () =>
+      api.post<AdvisorRun>("/advisor-runs", {
         advisor: advisor.code,
         question: objective,
-        context: records.flat(),
-      });
-    },
+        context: context.map(({ resourceType, resourceId }) => ({ resourceType, resourceId })),
+      }),
     onSuccess: async () => {
       toast.push("分析任务已进入后台队列", "success");
       await queryClient.invalidateQueries({ queryKey: ["advisor-runs"] });
@@ -400,16 +398,66 @@ function AdvisorRunForm({
                 type="checkbox"
                 checked={scope.includes(value)}
                 onChange={(event) =>
-                  setScope((current) =>
-                    event.target.checked
-                      ? [...current, value]
-                      : current.filter((item) => item !== value),
-                  )
+                  setScope((current) => {
+                    if (event.target.checked) return [...current, value];
+                    setContext((selected) =>
+                      selected.filter((item) => item.resourceType !== value),
+                    );
+                    return current.filter((item) => item !== value);
+                  })
                 }
               />
               <span>{scopeLabels[value] ?? value}</span>
             </label>
           ))}
+        </div>
+        <p className="muted">勾选模块不会自动送出数据；请在下方逐条选择本次需要的记录。</p>
+        <div className="advisor-context-picker">
+          {scope.map((resourceType) => (
+            <AdvisorScopeRecords
+              key={resourceType}
+              resourceType={resourceType}
+              selectedIds={
+                new Set(
+                  context
+                    .filter((item) => item.resourceType === resourceType)
+                    .map((item) => item.resourceId),
+                )
+              }
+              onToggle={(record, checked) =>
+                setContext((current) => {
+                  if (checked) {
+                    if (current.length >= 100) return current;
+                    return [
+                      ...current,
+                      {
+                        resourceType,
+                        resourceId: record.id,
+                        label: recordLabel(record),
+                      },
+                    ];
+                  }
+                  return current.filter(
+                    (item) => item.resourceType !== resourceType || item.resourceId !== record.id,
+                  );
+                })
+              }
+            />
+          ))}
+        </div>
+        <div className="advisor-context-summary" aria-live="polite">
+          <strong>本次明确授权 {context.length} 条记录</strong>
+          {context.length ? (
+            <ul>
+              {context.map((item) => (
+                <li key={`${item.resourceType}:${item.resourceId}`}>
+                  {scopeLabels[item.resourceType] ?? item.resourceType}：{item.label}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p>未选择公司记录；顾问只会收到分析目标和系统提示词。</p>
+          )}
         </div>
       </section>
       <div className="advisor-boundary">
@@ -434,7 +482,70 @@ function AdvisorRunForm({
   );
 }
 
+function AdvisorScopeRecords({
+  resourceType,
+  selectedIds,
+  onToggle,
+}: {
+  resourceType: string;
+  selectedIds: ReadonlySet<string>;
+  onToggle: (record: BusinessRecord, checked: boolean) => void;
+}) {
+  const [search, setSearch] = useState("");
+  const records = useQuery({
+    queryKey: ["advisor-context-options", resourceType],
+    queryFn: async () =>
+      (await api.get<BusinessRecord[]>(`/${resourceType}${queryString({ pageSize: 100 })}`)).data,
+  });
+  const visibleRecords = (records.data ?? []).filter((record) =>
+    recordLabel(record).toLocaleLowerCase("zh-CN").includes(search.toLocaleLowerCase("zh-CN")),
+  );
+
+  return (
+    <section
+      className="advisor-context-scope"
+      aria-label={`${scopeLabels[resourceType] ?? resourceType}记录`}
+    >
+      <header>
+        <h4>{scopeLabels[resourceType] ?? resourceType}</h4>
+        <span>{records.data?.length ?? 0} 条可选</span>
+      </header>
+      <input
+        type="search"
+        value={search}
+        onChange={(event) => setSearch(event.target.value)}
+        aria-label={`搜索${scopeLabels[resourceType] ?? resourceType}记录`}
+        placeholder="按名称搜索"
+      />
+      {records.isLoading ? (
+        <Spinner label="正在加载可授权记录" />
+      ) : records.isError ? (
+        <ErrorState message="记录加载失败，未授权任何数据" onRetry={() => void records.refetch()} />
+      ) : visibleRecords.length === 0 ? (
+        <p className="muted">没有可选记录</p>
+      ) : (
+        <div className="advisor-context-options">
+          {visibleRecords.map((record) => (
+            <label key={record.id}>
+              <input
+                type="checkbox"
+                checked={selectedIds.has(record.id)}
+                onChange={(event) => onToggle(record, event.target.checked)}
+              />
+              <span>
+                <strong>{recordLabel(record)}</strong>
+                <small>{String(record.status ?? record.category ?? "")}</small>
+              </span>
+            </label>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
 function AdvisorRunDetails({ run }: { run: AdvisorRun }) {
+  const auth = useAuth();
   const detail = useQuery({
     queryKey: ["advisor-run", run.id],
     queryFn: async () => (await api.get<AdvisorRun>(`/advisor-runs/${run.id}`)).data,
@@ -607,37 +718,39 @@ function AdvisorRunDetails({ run }: { run: AdvisorRun }) {
           ))}
         </section>
       ) : null}
-      <section className="human-edit">
-        <h3>
-          <FilePenLine aria-hidden="true" />
-          人工修订
-        </h3>
-        <textarea
-          rows={12}
-          value={
-            editedOutput === "{}" && detail.data?.output
-              ? JSON.stringify(detail.data.output, null, 2)
-              : editedOutput
-          }
-          onChange={(event) => setEditedOutput(event.target.value)}
-          aria-label="结构化输出 JSON"
-        />
-        <textarea
-          rows={3}
-          value={reason}
-          onChange={(event) => setReason(event.target.value)}
-          placeholder="修订原因"
-          aria-label="修订原因"
-        />
-        <button
-          type="button"
-          className="button secondary"
-          onClick={() => editMutation.mutate()}
-          disabled={editMutation.isPending || reason.trim().length < 2}
-        >
-          {editMutation.isPending ? "正在保存…" : "保存人工修订"}
-        </button>
-      </section>
+      {auth.can("advisor-runs:update") ? (
+        <section className="human-edit">
+          <h3>
+            <FilePenLine aria-hidden="true" />
+            人工修订
+          </h3>
+          <textarea
+            rows={12}
+            value={
+              editedOutput === "{}" && detail.data?.output
+                ? JSON.stringify(detail.data.output, null, 2)
+                : editedOutput
+            }
+            onChange={(event) => setEditedOutput(event.target.value)}
+            aria-label="结构化输出 JSON"
+          />
+          <textarea
+            rows={3}
+            value={reason}
+            onChange={(event) => setReason(event.target.value)}
+            placeholder="修订原因"
+            aria-label="修订原因"
+          />
+          <button
+            type="button"
+            className="button secondary"
+            onClick={() => editMutation.mutate()}
+            disabled={editMutation.isPending || reason.trim().length < 2}
+          >
+            {editMutation.isPending ? "正在保存…" : "保存人工修订"}
+          </button>
+        </section>
+      ) : null}
     </div>
   );
 }

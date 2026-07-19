@@ -37,6 +37,12 @@ export const advisorRunStatusEnum = pgEnum("advisor_run_status", [
   "failed",
   "cancelled",
 ]);
+export const complianceContentHashStatusEnum = pgEnum("compliance_content_hash_status", [
+  "pending_fetch",
+  "current",
+  "changed",
+  "failed",
+]);
 
 export const organizations = pgTable(
   "organizations",
@@ -60,6 +66,7 @@ export const users = pgTable(
     passwordHash: text("password_hash").notNull(),
     displayName: text("display_name").notNull(),
     status: text("status").notNull().default("active"),
+    mustChangePassword: boolean("must_change_password").notNull().default(false),
     lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
@@ -254,13 +261,21 @@ export const decisions = pgTable(
   "decisions",
   {
     ...scopedColumns(),
+    objectiveId: uuid("objective_id").references(() => objectives.id, { onDelete: "set null" }),
+    projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
+    taskId: uuid("task_id").references(() => tasks.id, { onDelete: "set null" }),
     title: text("title").notNull(),
     context: text("context").notNull(),
     decision: text("decision"),
     status: text("status").notNull().default("proposed"),
     decidedAt: timestamp("decided_at", { withTimezone: true }),
   },
-  (table) => [index("decisions_org_status_idx").on(table.orgId, table.status)],
+  (table) => [
+    index("decisions_org_status_idx").on(table.orgId, table.status),
+    index("decisions_org_objective_idx").on(table.orgId, table.objectiveId),
+    index("decisions_org_project_idx").on(table.orgId, table.projectId),
+    index("decisions_org_task_idx").on(table.orgId, table.taskId),
+  ],
 );
 
 export const complianceItems = pgTable(
@@ -284,10 +299,65 @@ export const complianceItems = pgTable(
     lastVerifiedAt: timestamp("last_verified_at", { withTimezone: true }),
     contentHash: text("content_hash"),
     metadataHash: text("metadata_hash"),
+    contentHashStatus: complianceContentHashStatusEnum("content_hash_status")
+      .notNull()
+      .default("pending_fetch"),
+    nextReviewAt: timestamp("next_review_at", { withTimezone: true }),
+    monitoringCadenceDays: integer("monitoring_cadence_days").notNull().default(30),
+    nextMonitorAt: timestamp("next_monitor_at", { withTimezone: true }).notNull().defaultNow(),
+    lastCheckedAt: timestamp("last_checked_at", { withTimezone: true }),
+    lastFetchedAt: timestamp("last_fetched_at", { withTimezone: true }),
+    lastResolvedUrl: text("last_resolved_url"),
+    lastHttpStatus: integer("last_http_status"),
+    lastEtag: text("last_etag"),
+    lastModified: text("last_modified"),
+    rawSnapshotHash: text("raw_snapshot_hash"),
+    monitoringFailureCount: integer("monitoring_failure_count").notNull().default(0),
+    lastMonitoringError: text("last_monitoring_error"),
+    monitoringLeaseToken: text("monitoring_lease_token"),
+    monitoringLeaseUntil: timestamp("monitoring_lease_until", { withTimezone: true }),
+    monitoringJobId: text("monitoring_job_id"),
   },
   (table) => [
     index("compliance_items_org_status_idx").on(table.orgId, table.status, table.reviewStatus),
+    index("compliance_items_org_monitor_idx").on(
+      table.orgId,
+      table.contentHashStatus,
+      table.nextMonitorAt,
+    ),
     uniqueIndex("compliance_items_org_source_url_uq").on(table.orgId, table.sourceUrl),
+  ],
+);
+
+export const complianceSourceSnapshots = pgTable(
+  "compliance_source_snapshots",
+  {
+    ...scopedColumns(),
+    sourceId: uuid("source_id")
+      .notNull()
+      .references(() => complianceItems.id, { onDelete: "cascade" }),
+    requestedUrl: text("requested_url").notNull(),
+    finalUrl: text("final_url").notNull(),
+    httpStatus: integer("http_status").notNull(),
+    contentType: text("content_type"),
+    sizeBytes: bigint("size_bytes", { mode: "number" }).notNull(),
+    etag: text("etag"),
+    lastModified: text("last_modified"),
+    rawHash: text("raw_hash"),
+    normalizedHash: text("normalized_hash"),
+    previousContentHash: text("previous_content_hash"),
+    normalizedExcerpt: text("normalized_excerpt"),
+    changed: boolean("changed").notNull().default(false),
+    notModified: boolean("not_modified").notNull().default(false),
+    fetcherVersion: text("fetcher_version").notNull(),
+    fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("compliance_source_snapshots_org_source_idx").on(
+      table.orgId,
+      table.sourceId,
+      table.fetchedAt,
+    ),
   ],
 );
 
@@ -303,8 +373,14 @@ export const obligations = pgTable(
     dueAt: timestamp("due_at", { withTimezone: true }),
     recurrenceRule: text("recurrence_rule"),
     sourceId: uuid("source_id").references(() => complianceItems.id, { onDelete: "set null" }),
+    evidenceFileId: uuid("evidence_file_id").references(() => files.id, {
+      onDelete: "set null",
+    }),
   },
-  (table) => [index("obligations_org_due_idx").on(table.orgId, table.status, table.dueAt)],
+  (table) => [
+    index("obligations_org_due_idx").on(table.orgId, table.status, table.dueAt),
+    index("obligations_org_evidence_file_idx").on(table.orgId, table.evidenceFileId),
+  ],
 );
 
 export const risks = pgTable(
@@ -353,7 +429,10 @@ export const financialEntries = pgTable(
     status: text("status").notNull().default("draft"),
     externalActionId: uuid("external_action_id"),
   },
-  (table) => [index("financial_entries_org_date_idx").on(table.orgId, table.occurredAt)],
+  (table) => [
+    index("financial_entries_org_date_idx").on(table.orgId, table.occurredAt),
+    uniqueIndex("financial_entries_org_external_action_uq").on(table.orgId, table.externalActionId),
+  ],
 );
 
 export const invoices = pgTable(
@@ -393,6 +472,7 @@ export const products = pgTable(
   "products",
   {
     ...scopedColumns(),
+    projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
     name: text("name").notNull(),
     description: text("description"),
     category: text("category").notNull().default("other"),
@@ -403,6 +483,7 @@ export const products = pgTable(
   (table) => [
     index("products_org_stage_idx").on(table.orgId, table.stage),
     index("products_org_category_idx").on(table.orgId, table.category),
+    index("products_org_project_idx").on(table.orgId, table.projectId),
   ],
 );
 
@@ -418,6 +499,9 @@ export const complianceEvents = pgTable(
     reviewStatus: text("review_status").notNull().default("pending"),
     description: text("description"),
     sourceId: uuid("source_id").references(() => complianceItems.id, { onDelete: "set null" }),
+    evidenceFileId: uuid("evidence_file_id").references(() => files.id, {
+      onDelete: "set null",
+    }),
     ownerId: uuid("owner_id").references(() => users.id, { onDelete: "set null" }),
   },
   (table) => [
@@ -427,6 +511,7 @@ export const complianceEvents = pgTable(
       table.status,
       table.dueDate,
     ),
+    index("compliance_events_org_evidence_file_idx").on(table.orgId, table.evidenceFileId),
   ],
 );
 
@@ -434,6 +519,8 @@ export const opportunities = pgTable(
   "opportunities",
   {
     ...scopedColumns(),
+    productId: uuid("product_id").references(() => products.id, { onDelete: "set null" }),
+    projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
     title: text("title").notNull(),
     source: text("source"),
     organization: text("organization"),
@@ -444,7 +531,11 @@ export const opportunities = pgTable(
     nextActionAt: timestamp("next_action_at", { withTimezone: true }),
     ownerId: uuid("owner_id").references(() => users.id, { onDelete: "set null" }),
   },
-  (table) => [index("opportunities_org_status_idx").on(table.orgId, table.status)],
+  (table) => [
+    index("opportunities_org_status_idx").on(table.orgId, table.status),
+    index("opportunities_org_product_idx").on(table.orgId, table.productId),
+    index("opportunities_org_project_idx").on(table.orgId, table.projectId),
+  ],
 );
 
 export const githubInsights = pgTable(
@@ -507,6 +598,8 @@ export const workflowRuns = pgTable(
       .references(() => users.id, { onDelete: "restrict" }),
     status: text("status").notNull().default("queued"),
     input: jsonb("input").notNull().default({}),
+    definitionVersion: integer("definition_version"),
+    stepsSnapshot: jsonb("steps_snapshot"),
     output: jsonb("output"),
     error: text("error"),
     startedAt: timestamp("started_at", { withTimezone: true }),

@@ -3,6 +3,7 @@ import postgres from "postgres";
 
 import * as schema from "./schema.js";
 
+export * from "./owner-recovery.js";
 export * from "./schema.js";
 
 export function createDatabase(databaseUrl = process.env.DATABASE_URL) {

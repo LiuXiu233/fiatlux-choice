@@ -1,5 +1,7 @@
 import { type AdvisorOutput, advisorOutputSchema } from "@fiatlux/contracts";
 
+import { isRequestTimeout, readResponseTextWithinLimit } from "./http-response.js";
+
 export interface LlmCallInput {
   system: string;
   user: Record<string, unknown>;
@@ -24,6 +26,7 @@ export interface CompatibleLlmConfig {
   model: string;
   providerName?: string;
   timeoutMs?: number;
+  fetchImpl?: typeof fetch;
 }
 
 type ChatCompletionResponse = {
@@ -35,34 +38,66 @@ export class CompatibleLlmProvider implements LlmProvider {
   readonly #config: CompatibleLlmConfig;
 
   constructor(config: CompatibleLlmConfig) {
+    if (new URL(config.baseUrl).protocol !== "https:") {
+      throw new Error("Compatible LLM base URL must use HTTPS");
+    }
     this.#config = config;
   }
 
   async completeAdvisor(input: LlmCallInput): Promise<LlmCallResult> {
     const startedAt = Date.now();
-    const response = await fetch(`${this.#config.baseUrl.replace(/\/$/, "")}/v1/chat/completions`, {
-      method: "POST",
-      headers: {
-        authorization: `Bearer ${this.#config.apiKey}`,
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        model: this.#config.model,
-        temperature: 0.1,
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: input.system },
-          { role: "user", content: JSON.stringify(input.user) },
-        ],
-      }),
-      signal: AbortSignal.timeout(this.#config.timeoutMs ?? 60_000),
-    });
-
-    if (!response.ok) {
-      throw new Error(`LLM provider returned HTTP ${response.status}`);
+    let response: Response;
+    try {
+      response = await (this.#config.fetchImpl ?? fetch)(
+        `${this.#config.baseUrl.replace(/\/+$/, "")}/v1/chat/completions`,
+        {
+          method: "POST",
+          headers: {
+            authorization: `Bearer ${this.#config.apiKey}`,
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({
+            model: this.#config.model,
+            temperature: 0.1,
+            response_format: { type: "json_object" },
+            messages: [
+              { role: "system", content: input.system },
+              { role: "user", content: JSON.stringify(input.user) },
+            ],
+          }),
+          redirect: "error",
+          signal: AbortSignal.timeout(this.#config.timeoutMs ?? 60_000),
+        },
+      );
+    } catch (error) {
+      if (isRequestTimeout(error)) {
+        throw new Error("LLM provider request timed out");
+      }
+      throw new Error("LLM provider request failed");
     }
 
-    const rawResponse = (await response.json()) as ChatCompletionResponse;
+    if (!response.ok) {
+      const requestId = response.headers.get("x-request-id");
+      const retryAfter = response.headers.get("retry-after");
+      const details = [
+        `HTTP ${response.status}`,
+        ...(requestId ? [`request ${requestId.slice(0, 200)}`] : []),
+        ...(retryAfter ? [`retry-after ${retryAfter.slice(0, 100)}`] : []),
+      ];
+      throw new Error(`LLM provider returned ${details.join(", ")}`);
+    }
+
+    const responseText = await readResponseTextWithinLimit(
+      response,
+      2_000_000,
+      "LLM provider response exceeded the 2 MB safety limit",
+    );
+    let rawResponse: ChatCompletionResponse;
+    try {
+      rawResponse = JSON.parse(responseText) as ChatCompletionResponse;
+    } catch {
+      throw new Error("LLM provider returned an invalid response envelope");
+    }
     const content = rawResponse.choices?.[0]?.message?.content;
     if (!content) throw new Error("LLM provider returned no content");
 

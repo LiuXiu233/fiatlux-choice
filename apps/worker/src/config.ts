@@ -33,6 +33,17 @@ export const workerConfigSchema = z
         path: ["LLM_DRIVER"],
       });
     }
+    if (
+      config.LLM_DRIVER === "compatible" &&
+      config.LLM_BASE_URL &&
+      new URL(config.LLM_BASE_URL).protocol !== "https:"
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "LLM_BASE_URL must use HTTPS when LLM_DRIVER=compatible",
+        path: ["LLM_BASE_URL"],
+      });
+    }
   });
 
 export type WorkerConfig = z.infer<typeof workerConfigSchema>;

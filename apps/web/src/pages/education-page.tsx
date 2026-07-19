@@ -1,5 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
-import { ArrowRight, BookOpenCheck, GraduationCap, ShieldCheck, UsersRound } from "lucide-react";
+import {
+  ArrowRight,
+  BookOpenCheck,
+  ClipboardList,
+  FileWarning,
+  GraduationCap,
+  ShieldCheck,
+  UsersRound,
+} from "lucide-react";
 import { Link } from "react-router-dom";
 import { PageHeader } from "../components/page-header";
 import { EmptyState, ErrorState, Spinner, StatusBadge } from "../components/ui";
@@ -16,7 +24,7 @@ const curriculumTracks = [
   },
   {
     title: "团队赛训体系",
-    audience: "半职业战队与高校社团",
+    audience: "半职业战队与高校成年社团成员",
     format: "6 周小班项目",
     outcome: "角色分工、战术沟通、赛前准备与赛后复盘",
   },
@@ -28,19 +36,55 @@ const curriculumTracks = [
   },
   {
     title: "电竞职业与数字素养",
-    audience: "职业探索者与家长",
+    audience: "成年职业探索者；家长仅限公开内容",
     format: "公开课 + 职业访谈",
     outcome: "行业岗位、健康习惯、信息安全与职业边界",
   },
 ];
 
 const launchGates = [
-  "课程对象、年龄与身份适用条件已明确",
+  "服务主体、地域、课程对象、年龄与身份条件已明确",
+  "业务类型和可能涉及的教育或培训资质已由专业人员复核",
   "讲师、内容版权和素材授权证据已归档",
   "价格、退款、服务范围与合同条款已复核",
   "个人信息最小收集清单和保存期限已批准",
-  "直播、社群、未成年人和游戏内容风险已人工评估",
+  "直播、社群、内容安全、作弊与账号交易规则已人工评估",
+  "涉及未成年人时已暂停上线并完成专项评估",
   "投诉、内容纠错和安全事件流程已演练",
+  "官网、广告、销售话术、案例和合同表述一致且有证据",
+];
+
+const contentPillars = [
+  {
+    title: "竞技训练方法",
+    topics: "目标设定、有效练习、回放标注与版本复盘",
+  },
+  {
+    title: "团队与教练能力",
+    topics: "角色分工、沟通协议、反馈方法与冲突处理",
+  },
+  {
+    title: "赛事运营实务",
+    topics: "报名核验、赛程执行、应急处置与证据归档",
+  },
+  {
+    title: "职业与经营认知",
+    topics: "岗位地图、合同边界、收入不确定性与备选路径",
+  },
+  {
+    title: "健康与数字安全",
+    topics: "作息、人体工学、压力求助、账号与社群安全",
+  },
+  {
+    title: "真实案例与行业事实",
+    topics: "授权赛训案例、注明时点的规则与可核查来源",
+  },
+];
+
+const publicSiteFindings = [
+  "9 篇公开博文中 7 篇仍是模板占位文",
+  "页面仍保留美国地域表述和已过期赛事时态",
+  "联系表单缺少可见主体、隐私和投诉说明",
 ];
 
 export function EducationPage() {
@@ -121,6 +165,44 @@ export function EducationPage() {
               <span>{track.outcome}</span>
             </article>
           ))}
+        </div>
+      </section>
+
+      <section className="education-section content-program-section">
+        <header>
+          <div>
+            <ClipboardList aria-hidden="true" />
+            <h2>公开内容重建</h2>
+          </div>
+          <Link to="/resources/tasks?create=1">
+            建立内容任务
+            <ArrowRight aria-hidden="true" />
+          </Link>
+        </header>
+        <div className="content-program-body">
+          <aside className="site-audit-callout">
+            <div>
+              <FileWarning aria-hidden="true" />
+              <span>官网公开盘点 · 2026-07-19</span>
+            </div>
+            <ul>
+              {publicSiteFindings.map((finding) => (
+                <li key={finding}>{finding}</li>
+              ))}
+            </ul>
+            <p>先撤回模板内容并核验主体、人员、赛事、见证和素材权利，再开展对外获客。</p>
+          </aside>
+          <div className="content-pillar-grid">
+            {contentPillars.map((pillar, index) => (
+              <article key={pillar.title}>
+                <span>{String(index + 1).padStart(2, "0")}</span>
+                <div>
+                  <strong>{pillar.title}</strong>
+                  <p>{pillar.topics}</p>
+                </div>
+              </article>
+            ))}
+          </div>
         </div>
       </section>
 

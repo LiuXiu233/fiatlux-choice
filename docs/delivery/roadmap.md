@@ -24,27 +24,43 @@
 
 把已经完成本机 production-like 验证的候选版本，变成有不可变 Git/GitHub 证据、能在目标办公内网恢复、可审计并可由两人或单人补偿控制运行的内部系统。
 
-### 2026-07-18 基线
+### 2026-07-19 工程基线
 
-- 本地候选已通过 Biome 118 个纳入检查的源码与配置文件、7 工作区类型检查、46 单元、31 真实集成零 skip（API 25、worker 4、MinIO 2）、77 聚合和 Playwright 19 passed/1 条件 skip；gitignored 的运行数据与证据目录不属于源码检查范围，最终 Git SHA 仍须由 GitHub CI 复现。
-- 本机 `https://choice.localhost:18443` 已验证 production-like HTTPS、PostgreSQL、MinIO、pg-boss、桌面 Chromium、iPhone 14 Chromium 仿真及 PWA 离线恢复；这不是耀光广州办公内网或真机验证。
-- 六个本地候选镜像达到 Trivy 0 个可修复 HIGH/CRITICAL；最终 age 全量备份与隔离恢复核对 37 张表、4 个对象和 readiness，实际升级/回滚通过。API/worker/MinIO 的无公开修复版本项必须保留完整报告和风险决策。
-- 真实 LLM、真实 GitHub、72 条合规来源的专业人工复核、GitHub CI、目标内网、真实设备和 MinIO OSS 剩余风险处置仍未完成。
+- 当前 schema 有 38 张业务表和 10 个业务迁移 `0000`–`0009`。首次强制改密、成员 pending/active/inactive/offboarded 生命周期、最后 owner 保护、归档角色即时失权、同组织 typed refs 和八类高风险人工批准已经实现。
+- seed 已拆为显式 `bootstrap`、`metadata-only`、`system-role-maintenance` 三种模式；常规 metadata seed 不会修改身份、membership、role assignment 或权限。离线 owner 恢复要求 exact org/email、active owner、生产确认、原因、批准引用和 requestId，密码只从 stdin 读取，成功后撤销全部会话、强制下次改密并审计。
+- 通知创建为 queued-only；GitHub 刷新保存 `expectedVersion` 并以 CAS 防止陈旧写回；workflow 保存不可变定义版本/步骤快照和 partial checkpoint；advisor/workflow/backup 使用原子 claim、CAS 与 `lease_expired` 人工复核边界。
+- 银行付款取消或审批驳回会原子解除草稿支出关联；顾问运行默认 requester-only，管理员的 `advisor-runs:read-all` 仍受顾问入口和上下文读权限限制；角色分配审批保存 membership 版本快照并在批准时重验。
+- 义务/合规日历已分开 `sourceId` 与 `evidenceFileId`，凭证必须是同组织已上传文件；来源关联不自动等于适用性复核。
+- 2026-07-19 冻结工作树已通过 Biome/ShellCheck/Actionlint、7 项类型检查、150/150 单元与聚合、API/worker/PostgreSQL/pg-boss/MinIO 集成、mock 44+6 与 real 2 项 Playwright、PWA/生产构建、最新 Compose、独立桌面/移动浏览器和六服务重启持久性。
+- 七个最终本地 arm64 镜像、Trivy 0.70.0 四口径零 HIGH/CRITICAL、七份 SPDX、真实 BuildKit 0.31.2 双平台 provenance fixture，以及 API/worker amd64 原生件补偿验证均通过；GHCR 双平台 root digest 仍待最终提交后的 release workflow。
+- 底层 formatVersion 2 只执行一次最终隔离恢复：归档 SHA-256 `bcfd6c59d9e66f7319ab2b55e6e711e2adfe2732f2c3a928b02eb82a3768b6ba`、`sourceId=fiatlux-finalqa-isolated`，恢复并核对 38 表、10 migrations、pg-boss 24 和 1 个 56-byte 对象，实测 RPO 2 秒、drill RTO 75 秒，临时资源和密钥已清理。该演练没有执行破坏性的生产 `restore.sh` 审批入口。
+- 2026-07-18 的旧测试总数、镜像 digest、v1 归档、37 表/4 对象/16 秒恢复和同内容标签升级回滚均为历史证据，不能作为当前通过或发布门禁。
+- 真实相邻版本升级/回滚、经审批生产恢复入口、不可变 Git SHA/GitHub CI/GHCR、目标内网、真实受管手机、真实 LLM/GitHub、72 条合规来源的专业人工复核、MinIO 长期支持风险处置和业务批准仍未完成。
+
+### 2026-07-19 官网与教育内容基线
+
+- [fiatlux.gg 公开业务与内容盘点](../research/fiatlux-gg-public-business-audit.md)确认官网可见 Marvel Rivals 项目队伍、选手/教练角色、2025 年两项赛事、Player Development、Tournament Management 和 Community Engagement 等业务信号；这些仍需真实性、权利和有效期证据，不能直接当作已交付案例。
+- 公开 9 篇博文只有 2 篇具有成型正文，另 7 篇仍是模板占位文；页面还存在美国地域表述、过期赛事未来时态、未核验见证和 Contact 隐私/投诉说明不足。
+- 电竞教育首期继续限定为中国境内成年人、小班、人工交付、一个游戏项目和 4–6 周验证，不在 V1 内建设公开招生、支付、直播、考试、证书或未成年人平台。
 
 ### 交付
 
-- 冻结完整 Git SHA；在同一 SHA 重跑 lint、类型、单元、集成、E2E、生产构建和六镜像安全扫描。
-- 在耀光目标办公内网从空环境完成迁移、单次 seed、owner 首登改密、登录、MinIO、pg-boss、ready、CA 分发和重启持久性。
-- 在目标内网和异介质上复演 age 加密备份、独立恢复和真实 schema 变更的升级/回滚；本机相同内容标签的机制演练已完成。
-- 迁移到有安全维护承诺的 S3 兼容存储、取得 MinIO AIStor 修复版，或在 internal-network 补偿控制下形成有期限的负责人风险接受与退出计划。
-- 修复或明确单人审批例外的 Web 流程，补完整权限拒绝测试。
-- 补成员停用、会话撤销、密码轮换/恢复的最小管理员流程。
-- 补 OpenAPI 请求响应 schema 的高频端点，发布兼容性规则。
-- 为 decisions 增加 objective/project/task 类型化关联，并为 products、opportunities 与 projects 设计最小类型化关联；迁移前先确认交叉组织约束和删除语义。
+- 冻结完整 Git SHA；在同一 SHA 重跑 lint、类型、单元、集成、E2E、生产构建和七镜像安全扫描。
+- 在耀光目标办公内网从空环境完成 10 个业务迁移 `0000`–`0009`、pg-boss 迁移和权限收敛；显式运行一次 `SEED_MODE=bootstrap`，验证 owner 首登改密、登录、MinIO、ready、CA 分发和重启持久性。
+- 在 legacy 副本验证 `metadata-only` 不改变组织、用户、membership、assignment 或权限；通过人工批准的 `system-role-maintenance` 演练角色基线升级，并完成一次受控离线 owner 恢复/回滚演练。
+- 对归档角色即时失权、成员停用、最后 owner、两人审批和单人补偿控制完成最终 Web/API E2E 与运维手册演练。
+- 为 decision 的 objective/project/task 增加同链一致性校验，并为 opportunity.project 与 product.project 定义一致性规则；若 V1 不补，必须在界面、文档和批准记录中明确人工核对边界。
+- 对 notification queued-only、GitHub refresh expectedVersion/CAS、workflow 不可变快照与 partial checkpoint、付款取消/驳回解链、advisor requester-only/read-all、合规 source/evidence、角色版本审批，以及 advisor/workflow/backup 并发 claim/lease-expired 建立最终测试与操作演练证据；禁止把旧运行静默重放。
+- 在最终 SHA 发布并校验 OpenAPI，冻结高频端点请求/响应 schema 和兼容性规则。
+- 在目标内网和异介质上生成新的 formatVersion 2 age 归档并独立恢复；使用真实 schema/镜像变化演练升级/回滚，不能沿用旧 v1 或同内容标签证据。
+- 保持 MinIO root/bootstrap、app、backup、restore 四身份最小权限。若改变 access-key ID，使用 root-only 运维显式删除旧用户，并以旧凭据负向验证；bootstrap 不会枚举未知旧 ID。
+- 迁移到有安全维护承诺的 S3 兼容存储、取得受支持的修复版，或在 internal-network 补偿控制下形成有期限的负责人风险接受与退出计划。
 - 运行 GitHub CI、安全扫描、SBOM 和 secret history scan。
 - 对 72 条合规来源按风险优先人工复核，获取关键正文哈希。
 - 统一官网中国境内主体、地域和业务表述。
-- 为成人电竞教育试点完成合同、隐私、退款、版权和事件响应材料。
+- 撤回或重写 7 篇模板占位文，修复重复标题、过期赛事时态和未核验见证；补主体、隐私、投诉和纠错入口。
+- 按六个内容支柱完成首批 4 篇可用于内部试讲的基础内容，并建立 12 周内容版本、来源、权利和复核台账。
+- 为成人电竞教育试点完成合同、隐私、退款、版权、健康提示、内容安全和事件响应材料。
 
 ### 建议投入
 
@@ -63,10 +79,17 @@
 
 - [ ] 验收矩阵所有阻断项关闭。
 - [ ] 耀光目标办公内网的生产式 Compose 连续运行 14 天，无 P0/P1 未关闭事件。
-- [ ] 独立恢复达到批准的 RPO/RTO，数据库和对象抽查一致。
+- [ ] 最终 SHA 的 formatVersion 2 归档在独立环境达到批准的 RPO/RTO，38 张业务表和对象抽查一致。
 - [ ] 两人审批和单人补偿流程均有 E2E 证据。
 - [ ] 最终 Git SHA 已推送到私有目标仓库，主分支和安全工作流全部绿色。
+- [ ] fresh/legacy seed、首次改密、归档角色即时失权和离线 owner 恢复演练全部通过；没有身份或权限被 seed 静默恢复。
+- [ ] advisor/workflow/backup 并发投递只执行一次，lease-expired 与 partial output 均能由操作员完成调查和显式补偿。
+- [ ] MinIO/S3 四身份最小权限通过；所有已更换 access-key ID 的旧用户均有 root 删除与旧凭据失败证据。
+- [ ] 真实版本变化的升级和应用回滚均通过；不使用旧 v1 或同内容标签历史结果替代。
 - [ ] 电竞教育九项事实问卷和首期上线闸门完成人工批准。
+- [ ] 7 篇模板占位文不再公开可索引，团队、赛事、见证和素材权利均有负责人核验结果。
+- [ ] 首批 4 篇基础内容完成作者、专业复核、版本、来源、最近复核日和纠错入口。
+- [ ] 公司、运维安全、残余风险、法务合规和财税责任人完成适用范围内的真实批准。
 
 ## 3. 3–6 个月：低人力运营与成人教育试点
 
@@ -79,9 +102,10 @@
 - 每日/每周经营摘要、逾期分级和 13 周现金预警。
 - 经批准的邮件或企业协作通知适配器，保留站内为事实源。
 - 合规来源变更监控、哈希差异、复核任务和负责人通知。
-- 审计导出、管理层月报和风险接受到期提醒。
+- 审计导出、管理层月报、风险接受到期提醒，以及 `lease_expired`/partial run 的人工处理看板。
 - 第一个成人团队赛训或竞技基础小班，从机会、合同、交付到退款/复盘闭环。
 - 课程内容版本、讲师授权、学员告知和删除期限台账。
+- 公开内容到成人试点的最小漏斗：无跟踪的课程说明、年龄/适用性筛选、完整告知、人工合同、交付、退款/投诉与删除；留言不自动视为报名或营销同意。
 - 真实 LLM 小范围启用：供应商审查、脱敏、预算、质量样本和停用开关。
 - GitHub 只读同步：最小权限 token、速率和失败可见性。
 - 会计系统 CSV/标准格式人工导入适配器，不做自动报税。
@@ -103,6 +127,7 @@
 - [ ] 成人试点按合同完成，投诉、退款和隐私请求全部闭环。
 - [ ] 至少 20 个顾问样本完成人工质量评分，越权引用为零。
 - [ ] 课程贡献毛利、完成率和复购信号达到预先记录阈值。
+- [ ] 公开内容没有未注明来源的结果承诺；版本到期、游戏规则变化和纠错请求均能产生复核动作。
 - [ ] 月度恢复演练和权限复核按计划完成。
 
 ## 4. 6–12 个月：标准化集成与可重复增长
@@ -118,7 +143,7 @@
 - 合同模板、版本比较、义务提取建议和续期工作流；签署仍保持人工边界。
 - 财务导入对账、发票查重和现金情景分析；不越过合法接口边界。
 - 顾问评测集、提示词发布审批、成本/延迟看板和供应商切换演练。
-- 工作流条件、人工暂停、重试/补偿和版本发布治理。
+- 工作流条件、人工暂停、显式新运行、重试/补偿和版本发布治理；任何可能已有副作用的失败都不得静默重放。
 - 第二期/第三期成人课程或首个机构客户，建立讲师准入和观察机制。
 - 评估是否需要独立学员门户；只有真实需求才建立最小报名、内容和反馈界面。
 - 归档保留、法定销毁批准和可验证删除。
@@ -185,6 +210,7 @@
 - 13 周最低现金余额与预测偏差。
 - 开放高风险数量和平均关闭时长。
 - 备份成功率、最近恢复时间、实测 RPO/RTO。
+- `lease_expired` 数量、partial run 未复核时长和人工补偿完成率。
 - 权限异常、失败登录和离职撤权时长。
 - 顾问事实引用通过率、人工改写率、单位有效建议成本。
 - 教育产品完成、投诉、退款、贡献毛利和风险事件。

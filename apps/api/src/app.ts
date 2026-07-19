@@ -20,10 +20,17 @@ import { registerAdminRoutes, registerOperationsRoutes } from "./admin-routes.js
 import { registerAdvisorRoutes } from "./advisor-routes.js";
 import { registerApprovalRoutes } from "./approval-routes.js";
 import { registerAuthRoutes } from "./auth.js";
+import { registerComplianceMonitorRoutes } from "./compliance-monitor-routes.js";
 import type { ApiConfig } from "./config.js";
 import { registerDashboardRoutes } from "./dashboard-routes.js";
 import { registerFileRoutes } from "./file-routes.js";
 import { registerErrorHandler } from "./http-errors.js";
+import {
+  attachPublicRouteInventory,
+  OPENAPI_ERROR_SCHEMA,
+  openApiTransform,
+  openApiTransformObject,
+} from "./openapi.js";
 import { registerResourceRoutes } from "./resource-routes.js";
 import type { AppDependencies } from "./types.js";
 
@@ -54,13 +61,14 @@ export function createDefaultDependencies(config: ApiConfig): AppDependencies {
     db,
     closeDatabase: () => client.end(),
     storage,
-    queue: new JobQueue(config.DATABASE_URL),
+    queue: new JobQueue(config.DATABASE_URL, { migrate: false, provisionQueues: false }),
     llmProvider,
   };
 }
 
 export async function buildApp(dependencies: AppDependencies) {
   const app = Fastify({
+    exposeHeadRoutes: false,
     logger: {
       level: dependencies.config.NODE_ENV === "test" ? "silent" : "info",
       redact: [
@@ -98,20 +106,27 @@ export async function buildApp(dependencies: AppDependencies) {
   await app.register(rateLimit, { max: 300, timeWindow: "1 minute" });
   await app.register(swagger, {
     openapi: {
+      openapi: "3.1.0",
+      jsonSchemaDialect: "https://json-schema.org/draft/2020-12/schema",
       info: {
         title: "FIAT LUX CHOICE API",
         description: "Organization-scoped internal company management API",
         version: "0.1.0",
       },
-      servers: [{ url: "/api/v1" }],
+      servers: [{ url: "/" }],
       components: {
         securitySchemes: {
           cookieAuth: { type: "apiKey", in: "cookie", name: "fiatlux_session" },
         },
+        schemas: { ErrorResponse: OPENAPI_ERROR_SCHEMA },
       },
     },
+    transform: openApiTransform,
+    transformObject: openApiTransformObject,
   });
   await app.register(swaggerUi, { routePrefix: "/api/docs" });
+
+  attachPublicRouteInventory(app);
 
   app.addHook("onRequest", async (request, reply) => {
     if (["POST", "PATCH", "PUT", "DELETE"].includes(request.method)) {
@@ -126,6 +141,15 @@ export async function buildApp(dependencies: AppDependencies) {
         });
       }
     }
+  });
+
+  app.addHook("onSend", async (request, reply, payload) => {
+    if (request.url.startsWith("/api/")) {
+      reply.header("Cache-Control", "no-store, max-age=0");
+      reply.header("Pragma", "no-cache");
+      reply.header("Expires", "0");
+    }
+    return payload;
   });
 
   app.get("/health", { schema: { tags: ["health"] } }, async () => ({
@@ -156,6 +180,7 @@ export async function buildApp(dependencies: AppDependencies) {
   const authenticate = registerAuthRoutes(app, dependencies);
   registerDashboardRoutes(app, dependencies, authenticate);
   registerResourceRoutes(app, dependencies, authenticate);
+  registerComplianceMonitorRoutes(app, dependencies, authenticate);
   registerApprovalRoutes(app, dependencies, authenticate);
   registerFileRoutes(app, dependencies, authenticate);
   registerAdvisorRoutes(app, dependencies, authenticate);

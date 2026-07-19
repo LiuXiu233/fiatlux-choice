@@ -1,6 +1,6 @@
 # V1 验收矩阵
 
-基准日期：2026-07-18
+基准日期：2026-07-19
 
 版本状态：**受控候选，尚未达到“V1 完成并批准上线”条件**
 
@@ -8,119 +8,128 @@
 
 | 状态 | 含义 |
 | --- | --- |
-| 本地候选已验证 | 在本地候选工作树或 production-like QA 环境得到可重复通过结果，但尚未绑定最终 Git SHA |
-| 历史证据 | 结果真实有效，但其后源码或镜像已有变化，不能作为最终发布证据 |
-| 已实现 / 待目标验证 | 代码和配置存在，尚缺最终 Git SHA、GitHub 或目标办公内网证据 |
-| 边界 / 待决策 | 实现有明确能力边界，需补实现或由负责人决定是否阻断 V1 |
+| 冻结候选本地通过 | 在 2026-07-19 冻结工作树完成对应全量/定向/真实栈验证，但尚未绑定最终 Git SHA 或 GitHub run |
+| 本地演练已验证 | 在本地隔离环境完成真实数据库、对象存储、队列或恢复演练，但不是目标办公内网验收 |
+| 历史证据 | 结果在当时真实，但其后源码、迁移、镜像或备份格式已有变化，不能作为当前发布证据 |
+| GitHub/目标环境待复现 | 冻结工作树本地已通过，仍缺不可变 SHA、GitHub runner、GHCR、目标内网或真机证据 |
+| 边界 / 待决策 | 实现有明确能力边界，需补控制或由有权负责人决定是否阻断 V1 |
 | 待执行 / 阻断 | 未完成前不能宣布 V1 完成 |
 
-本矩阵严格区分代码存在、本机候选验证、GitHub CI、目标办公内网和真实外部集成。`https://choice.localhost:18443` 是开发机上的 production-like Docker Compose QA，不是耀光广州办公内网生产部署。本地候选数字都必须在最终提交的完整 Git SHA 上由 GitHub CI 或对应的受控运行环境复现，不能自动升级为最终发布证据。
+本矩阵严格区分代码存在、冻结工作树本地测试、本地恢复、GitHub CI、耀光目标办公内网、真实设备和真实外部集成。最新本机 Compose 不是广州办公内网生产部署；本地 arm64 image ID 也不是 GHCR 双平台 root digest。最终证据必须绑定同一个完整 Git SHA，旧 v1 恢复和同内容标签升级数字不能滚入当前通过口径。
 
-## 2. 产品能力
+## 2. 产品与治理能力
 
-| 验收项 | 当前实现与验证 | 状态 | 最终 V1 闸门 |
+| 验收项 | 当前实现与证据 | 状态 | 最终 V1 闸门 |
 | --- | --- | --- | --- |
-| 响应式 Web 与导航 | Playwright 共 10 个测试定义：9 个在桌面和 iPhone 14 Chromium 仿真各运行一次，另 1 个仅移动项目运行；结果 19 passed、桌面项目 1 个预期条件 skip。另完成桌面与仿真移动视觉检查 | 本地候选已验证 | 最终 Git SHA 复跑；目标受管设备至少完成一次真实手机浏览器验证，不能把仿真称为真机 |
-| PWA 与离线边界 | 生产构建生成 manifest/service worker，9 项 precache；本机 HTTPS 验证 Service Worker、离线壳、离线隐藏工作区与登录表单、恢复网络后重新验证会话 | 本地候选已验证 | 最终 Git SHA 复跑安装、升级、离线和缓存清理；目标受管设备安装验证 |
-| 身份与会话 | Argon2id、数据库会话、HttpOnly/Secure/SameSite Cookie、限流、改密并撤销其他会话；本机 HTTPS 中待审批成员登录返回 403 且没有会话 | 本地候选已验证 | 最终 Git SHA 复跑 owner/member/停用/改密；目标内网验证 CA 和 Cookie |
-| 四级 RBAC | owner/admin/member/viewer，服务端权限 hook 与组织作用域；API 集成覆盖允许、拒绝、跨组织和待审批成员 | 本地候选已验证 | 最终 Git SHA 抽查跨组织、财务、文件、审计和关键权限拒绝 |
-| 追加审计 | 请求 ID、人工/系统 actor、前后值、拒绝与 worker 事件；本机 HTTPS 验证 409 拒绝审计且不保存请求体 | 本地候选已验证 | 最终 Git SHA 抽查核心动作、拒绝、模型和后台任务；确认数据库/主机运维分权 |
-| 文件 | 私有对象键、三步上传、大小/SHA-256 校验和权限下载；最终运行栈完成 68 字节 MinIO 上传/下载，核心链集成完成 70 字节 S3/SHA 校验；MinIO 专项 2 passed、零 skip | 本地候选已验证 | 目标内网复跑篡改拒绝、归档与全量恢复对象核对 |
-| 目标、项目、任务、决策 | CRUD、状态、版本与 UI 已实现；新增核心链集成验证目标→项目→任务强外键 | 本地候选已验证 / 有边界 | 决策目前没有 objective/project/task 类型化外键；不得把文字约定表述为完整类型化闭环 |
-| 产品、机会、项目 | 产品、机会和项目 CRUD/UI 可用 | 本地候选已验证 / 有边界 | products、opportunities 与 projects 之间尚无类型化关联；需补关联或批准受限的人工交叉引用流程 |
-| 义务、合规、风险、合同 | 资源 API/UI、逾期 worker、合同文件引用和状态规则已实现；核心链集成覆盖 pending 官方来源→义务/事件及文件→合同/发票引用 | 本地候选已验证 | pending 引用只证明关系完整性，不代表来源适用；仍需 reviewed 来源的人工复核场景与合同外部回执 |
-| 收支、发票、现金流 | 整数分、乐观版本和外部动作引用已实现；核心链集成覆盖收支/现金流，签署、银行和红冲 manual 动作只到 approved、不进入 confirmed | 本地候选已验证 | 最终 Git SHA 复跑；人工核对真实会计边界，真实外部回执仍不在候选证据内 |
-| GitHub 技术情报 | manual/read-only 适配器边界、刷新队列与审计已实现 | 已实现 / 待目标验证 | `GITHUB_INTEGRATION_MODE=manual` 候选环境不证明真实 GitHub；经批准最小权限 token 后另行验证 |
-| 通知与工作流 | notify、create_task、request_approval、advisor_run；真实 pg-boss 工作流达到 completed 并创建任务，队列失败状态可见 | 本地候选已验证 | 最终 Git SHA 复跑成功、失败、重试和组织隔离；email/webhook 无适配器时仍应明确失败 |
-| 审批与外部动作真实性 | 七类高风险动作默认人工批准；本机 HTTPS 验证银行动作保持 `pending_approval/manual`，幂等重放与冲突正确 | 本地候选已验证 | 最终 Git SHA 复跑申请、批准/拒绝和人工回执；不得用 manual/mock 冒充外部成功 |
-| 七类 AI 顾问 | 权限过滤、结构化输出、提示词/模型/工具/引用/人工编辑审计；七类均以 mock 完成，未复核合规来源被法务顾问 withheld | 候选流程已验证 | `LLM_DRIVER=mock` 不证明真实模型质量；真实供应商、数据处理和质量评测仍待批准 |
-| 成员与关键权限 | 创建成员时 membership 为 pending，审批前不能登录；角色变更事务、最后 owner 保护和单人例外确认已实现 | 本地候选已验证 | 最终 Git SHA 复跑两人审批与单人补偿控制，抽查角色生效和拒绝审计 |
+| 响应式 Web 与导航 | mock 44 passed/6 设计内 skip；真实栈 desktop/mobile 2 项和独立浏览器抽查通过；390/390 无横向溢出 | 冻结候选本地通过 | GitHub CI 复现；至少一台真实受管手机 |
+| PWA 与离线边界 | 9 个 precache（560.08 KiB）、manifest、active service worker、离线壳和会话恢复通过 | 冻结候选本地通过 | 目标受管设备安装、升级和缓存清理验证 |
+| 身份、首次改密与会话 | Argon2id、数据库会话、安全 Cookie、限流、`mustChangePassword` 路由门禁、改密后撤销其他会话 | 冻结候选本地通过 | 目标 HTTPS 复跑 owner/member 首登和并发 |
+| 成员生命周期 | pending 登录拒绝、批准/停用/角色变更、乐观并发、最后 owner 保护和审计 | 冻结候选本地通过 | 两人审批和单人补偿控制由真实责任人演练 |
+| 四级 RBAC 与归档角色 | owner/admin/member/viewer、组织作用域；已有 Cookie 即时 403、新登录不建 session、恢复后重新授权 | 冻结候选本地通过 | 目标内网抽查跨组织拒绝和会话撤销 |
+| 追加审计 | 请求 ID、人工/系统 actor、before/after、拒绝、模型、工具、worker 和恢复事件 | 冻结候选本地通过 | 目标环境验证数据库与主机运维分权 |
+| 文件 | 三步上传、真实 MinIO 往返、大小/SHA-256、权限下载、篡改/并发/归档边界和恢复对象核对 | 冻结候选本地通过 | 目标内网和异介质复核 |
+| 目标、项目、任务、决策 typed refs | project→objective、task→project、decision→objective/project/task 均为同组织活动记录引用 | 冻结候选本地通过 / 有边界 | 服务端尚不强制 decision 三字段来自同一业务链；补一致性或批准人工核对边界 |
+| 产品、机会、项目 typed refs | product→project；opportunity→product/project，均校验同组织活动记录 | 冻结候选本地通过 / 有边界 | 尚不强制 opportunity.project 与 product.project 一致 |
+| 义务、合规、风险、合同 | API/UI、逾期 worker、状态规则、`sourceId`/`evidenceFileId` 分离及文件凭证校验 | 冻结候选本地通过 / 有业务边界 | 来源关联不等于适用性复核；合同正式状态仍需人工外部回执 |
+| 收支、发票、现金流 | 整数分、乐观版本、文件/外部动作引用和同事务联动 | 冻结候选本地通过 | 财税人员核对真实会计边界；manual/mock 不得写成平台成功 |
+| GitHub 技术情报 | manual/read-only；服务端固定 `expectedVersion`，worker 读取/写回 CAS，GitHub HTTPS adapter 绑定仓库身份且拒绝 redirect | 冻结候选本地通过 / 真实凭据未验收 | 用批准的最小权限凭据验证读取，否则保持 manual/disabled |
+| 通知与工作流 | queued-only、sent/failed 由 worker 控制；run 固化版本/步骤快照和 partial checkpoint | 冻结候选本地通过 | 目标操作员演练失败调查与人工补偿 |
+| 八类高风险动作 | 人工批准、取消/驳回解链、幂等/CAS、manual/mock 与外部回执边界 | 冻结候选本地通过 / 外部边界 | 真实责任人逐类批准；无合法适配器的 `real` 必须拒绝 |
+| 七类 AI 顾问 | requester-only/read-all 二次权限、事实/推断/建议结构、提示词/模型/工具/人工修改审计 | 冻结候选本地通过 / 真实模型未验收 | 供应商、数据处理、预算、质量样本和停用开关批准 |
+| 官网与电竞教育 | 已完成 fiatlux.gg 公开业务/内容审计、内部教育筹备页和成年人 4–6 周试点课程草案 | 已实现 / 待业务与专业复核 | 修复 7 篇模板占位、地域/时态/见证/隐私投诉问题；九项事实问卷及合同、隐私、版权、退款、健康和内容安全批准 |
 
-## 3. 合规知识库
+## 3. 初始化、恢复身份与后台幂等
+
+| 验收项 | 当前实现与证据 | 状态 | 最终 V1 闸门 |
+| --- | --- | --- | --- |
+| fresh bootstrap | 空卷 bootstrap、重跑失败关闭、首次 owner 强制改密、登录和旧密码/会话负向验证 | 冻结候选本地通过 | 目标内网使用真实初始身份复演 |
+| 既有组织 metadata seed | legacy 升级验证不改变组织/用户/membership/assignment/权限，只收敛允许的 metadata | 冻结候选本地通过 | 目标 legacy 副本对账 |
+| 系统角色维护 | active owner、原因、批准引用、requestId、逐项审计、重复/非 owner/回滚边界 | 冻结候选本地通过 | 真实责任人批准后演练 |
+| 版本化角色分配审批 | membership 版本快照、幂等重放、并发分配/移除和最后 owner 竞态 | 冻结候选本地通过 | 两人流程与单人补偿控制操作验收 |
+| 离线 owner 恢复 | stdin secret、精确身份、生产确认、批准引用、会话撤销、强制改密和无密码审计 | 冻结候选本地通过 | 受控生产主机演练；它不是自助忘记密码或 SSO/MFA 替代物 |
+| advisor 原子 claim | 重复投递只调用一次模型；状态/版本 CAS；过期 claim failed + `lease_expired` | 冻结候选本地通过 | 操作员演练人工调查，不得自动重放模型 |
+| workflow 原子 claim 与 checkpoint | 重复投递只创建一组子资源；partial checkpoint、排队失败和 legacy 快照失败关闭 | 冻结候选本地通过 | 操作员演练人工补偿 |
+| backup 原子 claim | 重复投递只运行一次命令；长租约过期转人工复核失败 | 冻结候选本地通过 | 目标真实备份介质、监控和 partial 清理演练 |
+
+lease 到期不等于“安全重试”。操作员必须查看审计、partial output、对象/归档和外部副作用，随后创建一个有明确原因的新运行；不得静默复用失败记录。
+
+## 4. 合规知识库
 
 | 验收项 | 当前证据 | 状态 | 剩余工作 |
 | --- | --- | --- | --- |
-| 官方来源数据集 | `content/compliance/official-sources.json` 共 72 条，覆盖中国、广东、广州官方来源 | 本地候选已验证 | 最终 Git SHA 校验条数、URL 与元数据哈希 |
-| 人工复核状态 | 72 条全部保持 `reviewStatus=pending`、`contentHashStatus=pending_fetch`、业务 `status=draft` | 正确保持未复核 | 必须逐条由可识别人员复核；不得批量改为 reviewed/active |
-| 适用条件 | 法域、适用条件、更新时间和复核字段可维护 | 已实现 / 待专业复核 | 公司事实、教育模式、人员与数据流由负责人填写，并取得必要法务/财税意见 |
-| 易变政策 | 来源数据与状态工作流避免把结论永久硬编码 | 已实现 / 待运营 | 建立真实监控、正文快照、哈希差异和复核负责人 |
-| 顾问使用边界 | 只有 reviewed 且 active 的来源进入法律顾问事实语境；pending 来源被 withheld | 本地候选已验证 | 真实模型启用后重新验证引用和越权边界 |
+| 官方来源数据集 | `content/compliance/official-sources.json` 共 72 条，覆盖中国、广东、广州官方来源 | 已实现 | 最终 SHA 校验文件、URL、元数据与导入结果 |
+| 人工复核状态 | 72 条尚未完成可识别专业人员的适用性复核 | 正确保持未批准 | 按风险逐条复核正文、公司事实、适用条件、更新时间和下次复核日；不得批量伪造 reviewed/active |
+| 易变政策 | 来源元数据、机器哈希、人工状态和业务状态分离；变化可标 stale/uncertain | 已实现 / 待运营 | 目标环境完成首次抓取、变化监控、证据快照、负责人和纠错流程 |
+| 来源与履行凭证 | `sourceId`/`evidenceFileId` 分离、跨组织/未上传拒绝、被引用凭证归档拒绝和 linked-source withheld 已覆盖 | 冻结候选本地通过 | 人工核对凭证充分性 |
+| 顾问使用边界 | 未复核、过期或不活动来源不会进入法务顾问确定事实 | 定向候选已验证 | 真实模型启用后重新验证引用、权限、过期与越权边界 |
 
-这些来源不是专业合规批准，也不证明任何结论适用于公司。
+这些来源不是专业合规批准，也不证明任何结论适用于耀光或电竞教育业务。
 
-## 4. 工程质量与失败历史
+## 5. 当前工程测试状态
 
-以下历史失败不得删除；右列记录同日后续复测。
-
-| 检查 | 原始失败 | 最新候选复测 | 状态 |
-| --- | --- | --- | --- |
-| Biome | 50 errors、6 warnings | 118 个纳入 Biome 的源码与配置文件检查通过；gitignored 的 backups/data/screenshots/tmp 运行数据与证据目录按设计排除 | 本地候选已验证；GitHub CI 待复现 |
-| 类型检查 | 两处 API 集成测试 response header 类型错误 | 7 个工作区全部通过 | 本地候选已验证；最终 Git SHA 重跑 |
-| 聚合测试 | Vitest 曾错误收集 Playwright 文件 | 修正聚合范围并新增核心链后完整复跑 77 passed、0 failed、0 skipped | 本地候选已验证；GitHub CI 待复现 |
-| 数据库包测试脚本 | 曾因没有测试文件失败 | 已修正测试覆盖/脚本语义，纳入 46 个单元与聚合复测 | 本地候选已验证；最终 Git SHA 重跑 |
-| Playwright 端口 | 首次默认端口 4173 连接到无关应用 | 改用隔离端口 4174；19 passed、1 个桌面项目预期条件 skip | 本地候选已验证；不得再使用 4173 |
-
-最新候选测试清单：
-
-| 层级 | 结果 | 说明 |
+| 层级 | 当前发布状态 | 最终证据要求 |
 | --- | --- | --- |
-| 静态检查 | 118 个纳入 Biome 的源码与配置文件通过 | gitignored 的运行数据与证据目录不属于源码检查范围 |
-| 类型检查 | 7 个工作区通过 | 所有工作区脚本 |
-| 单元测试 | 46 passed | 0 failed |
-| 真实集成测试 | 31 passed、0 skipped | API 25、worker 4、MinIO/S3 2；新增核心链用例已单独通过 |
-| 聚合测试 | 77 passed | 新增核心链后完整实跑，0 failed、0 skipped |
-| Playwright | 19 passed、1 expected conditional skip | 10 个测试定义，不是 19 个独立业务闭环 |
-| PWA 构建 | 9 项 precache | manifest 与 service worker 已生成 |
-| 生产依赖审计 | 0 vulnerabilities | 使用 pnpm 官方 registry；GitHub 安全工作流待复现 |
+| Biome / ShellCheck / Actionlint / 类型 | **本地通过** | 186 个 Biome 文件、全 shell、3 个 workflow、7 个 TS 项目；GitHub CI 复现 |
+| 单元/聚合 | **本地通过** | 150/150 单元与完整 workspace 聚合通过；原始日志不进 Git |
+| API / worker / PostgreSQL / pg-boss | **本地通过** | API 16 files/80 tests、worker 5 files/23 tests；10 个 migration、fresh/legacy、权限、事务、并发/CAS、审计和失败边界通过 |
+| MinIO / S3 | **本地通过** | 2 项真实私有桶/字节/权限/校验和集成及恢复对象核对通过 |
+| Web / Playwright / PWA | **本地通过，有真机边界** | mock 44 passed/6 条件 skip；real 2 passed；独立浏览器、离线壳、SW active、390 px 通过；真机待验收 |
+| 全 workspace / 七镜像构建 | **本地通过，有 registry 边界** | production build、PWA 9 precache/560.08 KiB、七个 arm64 镜像、六常驻服务重启持久性通过；GHCR 双平台待发布 |
+| 安全/供应链 | **本地通过，有 GitHub 边界** | Gitleaks、Semgrep+canary、`audit --prod` 0、IaC、七镜像 Trivy 0、7 SPDX、真实 BuildKit provenance fixture 通过；GitHub CodeQL/安全 workflow 待运行 |
 
-## 5. 部署、运维与安全
+七镜像的本地 arm64 content ID、SPDX 和扫描证据不是 GHCR 双平台 root digest 或签名。全依赖只余 dev-only `drizzle-kit -> esbuild` 1 个 moderate，生产依赖为 0；CI 不启动其 dev server，作为非阻断升级项跟踪。
+
+## 6. 部署、运维与安全
 
 | 验收项 | 当前证据 | 状态 | 最终闸门 |
 | --- | --- | --- | --- |
-| Compose 与迁移 | 最终本地 content digest 已强制重建并部署；2 个迁移、37 张表、ready、重启和数据持久性通过 | 本地候选已验证 | 目标办公内网从空卷验证 |
-| HTTPS 与 CSP | Caddy internal CA 下 `https://choice.localhost:18443` 冒烟、浏览器与 CSP 验证通过 | 本地候选已验证 | 目标内网 DNS、CA 分发、防火墙和真实 HTTPS 仍待执行 |
-| 六个候选镜像 | API、worker、web、gateway、MinIO、backup 均已构建、运行并记录 digest；逐镜像为 0 个可修复 HIGH/CRITICAL | 本地候选已验证 / 有边界 | 严格报告仍有 API 21、worker 22、MinIO 6 个无公开修复版本项；MinIO 风险须迁移、供应商修复或负责人限期接受 |
-| 文件系统与依赖安全 | Trivy 文件系统 0 个可修复 HIGH/CRITICAL；生产依赖审计 0 vulnerabilities | 本地候选已验证 | 最终暂存内容 Gitleaks、Git 历史和 GitHub CodeQL/安全工作流 |
-| GitHub Actions | workflow 配置存在，第三方 Actions 已固定到 commit SHA | 已实现 / 待运行 | 目标私有仓库最终提交上的 CI、Trivy、Gitleaks、SBOM 通过；CodeQL 须实际通过，entitlement 不可用时记录“未运行”并补经批准的等效 SAST，不得把 skip 记为通过 |
-| 数据库备份 | worker/Web 备份 ID `f8749e09-ed0c-4b81-84c0-ba009fc7ee0e`，224825 bytes，SHA-256 `59221f15f88938ef9acd24f01feb547b902961e29b1a27cc7e4ca2e1733e43bb`，age 加密，`pg_restore --list` 368 项 | 本地候选已验证 | 目标内网建立异介质副本和周期恢复 |
-| 全量备份与恢复 | `final-rc-20260718T115003Z.tar.gz.age`，SHA-256 `59e251fb1176a4afca5496b3153f61e206c2e6ed9830f7cd17e7bbdcb1b289f1`；新随机项目/卷恢复 37 表、4 对象、迁移与 readiness，实测 16 秒 | 本地候选已验证 | 业务负责人批准 RPO/RTO；目标内网和异介质复演 |
-| 升级与回滚 | 临时本机 OCI Registry 的 `qa-rc-a`/`qa-rc-b` 实际演练；升级 35 秒、升级 35 秒、应用回滚 33 秒，全部 ready | 本地候选已验证 | 标签内容相同，只验证运维机制；真实 schema 变更仍需 expand/contract 专项演练 |
-| 目标内网 | 尚未在耀光广州办公内网部署 | 待执行 / 阻断 | 主机基线、DNS、CA、设备、备份介质、运行观察与批准 |
-| GitHub 交付 | 目标为私有 `LiuXiu233/fiatlux-choice`；当前仍无可引用的最终提交、PR 和绿色 CI | 待执行 / 阻断 | 最终审阅、secret scan、提交、推送、PR/合并和 CI 证据 |
+| Compose 与迁移 | 最新 production-like Compose：38 表、10 个迁移、pg-boss 24、ready、六服务重启和持久性通过 | 冻结候选本地通过 | GitHub SHA 与目标内网复现 |
+| HTTPS、PWA 与浏览器 | 受信 SAN `choice-final.localhost`、CSP/HSTS、desktop/mobile、PWA offline 和独立 browser 抽查通过 | 冻结候选本地通过 | 目标 DNS、CA、防火墙和真实设备 |
+| PostgreSQL 身份 | PostgreSQL 17.10；bootstrap/migrator/runtime/backup/restore 分离；fresh/legacy 正负向 ACL 和审计权限通过 | 冻结候选本地通过 | 目标凭据复演 |
+| MinIO 四身份 | root/bootstrap/app/backup/restore 最小权限、旧 key 显式撤销边界和真实 S3 集成通过 | 冻结候选本地通过 | 若目标更换 access-key ID，root 删除旧用户并用旧凭据验证失败 |
+| formatVersion 2 恢复 | 一次隔离 drill：归档 SHA `bcfd6c59…b6ba`、38 表/10 迁移/pg-boss 24、1 对象 56 B、RPO 2s、RTO 75s、七镜像稳定、资源清理通过 | 冻结候选本地通过 / 范围受限 | `production_restore_entrypoint_executed=false`；目标内网/异介质与经审批生产入口待演练 |
+| 旧 v1 恢复与升级 | 2026-07-18 的 v1 归档、37 表/4 对象/16 秒和同内容标签升级回滚均早于 formatVersion 2 与最新代码 | 历史证据 | 不能计入当前门禁；最终 SHA 需用真实版本变化重做升级/回滚 |
+| 归档与维护安全 | archive guard、资源上限、scratch、preflight、maintenance lock 及对应安全测试通过 | 冻结候选本地通过 | 经审批生产 `restore.sh` 破坏性入口仍待目标演练 |
+| 七镜像与供应链 | arm64 七镜像 Trivy 四口径均 0；7 SPDX；真实 BuildKit 双平台 fixture；API/worker amd64 原生件补偿验证 | 冻结候选本地通过 / GHCR 待发布 | 最终 SHA 的双平台 registry digest、GitHub workflow 和残余风险批准 |
+| GitHub 交付 | 目标为私有 `LiuXiu233/fiatlux-choice`；尚无最终提交、PR 和绿色 CI | 待执行 / 阻断 | 最终审阅、secret scan、提交、推送、PR/合并、CI 与制品链接 |
+| 目标办公内网 | 尚未在耀光广州办公内网部署 | 待执行 / 阻断 | 主机基线、DNS、CA、设备、备份介质、运行观察和批准 |
 
-候选镜像 ID 与最终 Git SHA 不是同一概念。最终 Git SHA、CI run 和 registry digest 仍须在发布后补录；本地镜像 digest、备份 ID 和恢复报告只作为可追踪的候选证据保留。
-
-## 6. 核心场景状态
+## 7. 核心场景状态
 
 | 场景 | 当前证据 | 仍需完成 |
 | --- | --- | --- |
-| 待审批成员 | 登录 403、无会话 | 最终 Git SHA 验证批准后角色生效、拒绝与单人补偿 |
-| RBAC 与拒绝审计 | API 集成和 HTTPS QA 已覆盖；核心链验证跨组织拒绝和审计不可经 API 篡改，409 审计不保存请求体 | 最终 Git SHA 复跑并抽查跨组织数据 |
-| 目标—项目—任务—决策 | 页面/API 可操作，目标→项目→任务有类型化关联 | 决策缺少类型化关联；不能声明完整 typed chain |
-| 产品—机会—项目 | 三类记录可操作 | 缺少类型化关联；补实现或批准人工关联边界 |
-| 合规 | 未复核来源被法律顾问 withheld；核心链证明 pending 来源可被义务/事件引用 | 72 条均未人工复核；pending 引用不是适用性批准，不能制造 reviewed 场景作为合规批准 |
-| 文件 | 最终运行栈的 68 字节 MinIO 和核心链的 70 字节 S3/SHA 均通过；最终全量恢复核对 4 对象 | 目标内网复核对象、元数据和异介质副本 |
-| 高风险外部动作 | 银行 HTTPS 冒烟保持 pending_approval/manual；核心链中签署、银行、红冲 manual 只到 approved、不进入 confirmed | 内部批准不能证明真实银行/签章/发票平台完成；仍需人工外部回执 |
-| 七类顾问 | mock 七类均 completed，调用审计可追溯 | 真实 LLM 质量和数据处理尚未验证 |
-| 工作流 | completed 并创建真实任务 | 最终 Git SHA 复跑失败和重试证据 |
-| 桌面、移动与 PWA | 本机桌面 Chromium 与 iPhone 14 Chromium 仿真通过，离线恢复通过 | 目标真实手机与受管设备安装 |
-| 部署与恢复 | 本机 production-like HTTPS、最终隔离恢复和实际升级/回滚通过 | 目标内网部署、真实受管设备和批准 |
+| owner 首登与成员生命周期 | 首次改密、pending/active/inactive/offboarded、会话撤销和最后 owner 保护回归通过 | 目标内网用真实身份 E2E |
+| 归档角色即时失权 | 已有会话 403、新登录拒绝、恢复与多角色组合通过 | 目标权限抽查 |
+| 版本化角色分配审批 | 版本快照、幂等重放、陈旧申请、并发分配/移除和最后 owner 竞态通过 | 两人/单人补偿流程操作验收 |
+| 目标—项目—任务—决策 | typed refs 已实现并限制同组织活动记录 | decision 三字段同链一致性仍未强制 |
+| 产品—机会—项目 | typed refs 已实现并限制同组织活动记录 | opportunity.project 与 product.project 一致性仍未强制 |
+| GitHub 技术情报刷新 | expectedVersion/CAS、重复 job、并发编辑、失败审计和仓库身份绑定回归通过 | 真实最小权限只读凭据另行批准 |
+| 通知与工作流 | queued-only、投递失败、定义并发修改、snapshot、legacy failure 和 partial checkpoint 通过 | 操作员人工补偿演练 |
+| 高风险外部动作 | 八类人工批准、取消/驳回解链、幂等/CAS、manual/mock 外部回执边界通过 | 每类真实责任人批准和外部回执验收 |
+| 七类顾问 | requester-only/read-all、上下文二次权限、越权 404、工具/模型/人工编辑审计通过 | 真实 LLM 质量、隐私、成本、停用和供应商审批 |
+| advisor/workflow/backup 后台任务 | 原子 claim、CAS、lease-expired 审计和 partial checkpoint 通过 | 目标真实备份命令和人工补偿演练 |
+| 合规 | 未复核来源受限；source/evidence 跨组织/上传/归档/withheld 边界通过 | 72 条专业复核与目标环境首次抓取 |
+| 官网与教育 | 官网审计、内部教育页和成人试点草案已形成 | 内容清理、权利/事实核验及九项业务/专业闸门批准 |
+| 桌面、移动与 PWA | mock/real E2E、独立浏览器、SW active、offline shell 和 390 px 布局通过 | 真实受管手机安装/升级 |
+| 部署与恢复 | 最新 Compose、38 表/10 迁移、一次独立恢复 RPO 2s/RTO 75s 通过 | 真实升级/回滚、生产恢复入口、目标内网与 RPO/RTO 批准 |
 
-## 7. 当前结论
+## 8. 当前结论
 
-该仓库已超过脚手架、静态仪表盘和数据库模型阶段。本地候选的主要工程测试、真实 PostgreSQL/MinIO/pg-boss、本机 HTTPS、权限/审计、PWA 离线边界和隔离恢复演练均有通过证据。
+该仓库已经超过脚手架、静态仪表盘和数据库模型阶段。核心业务、首次改密与成员生命周期、归档角色即时失权、八类人工批准、typed refs、可追溯顾问、后台原子 claim 和 formatVersion 2 恢复路径均有实现与候选证据。
 
-当前仍只能称为**受控候选**。本地候选验证、最终恢复和实际升级/回滚演练已完成；在 GitHub 提交/CI、安全历史扫描、MinIO OSS 剩余风险决策、耀光目标办公内网与真实设备、专业合规复核和业务批准完成前，不得宣布“V1 已完成”，也不得用于无人监督的生产关键操作。
+当前仍只能称为**受控候选**。冻结工作树的全量测试、生产构建、最新 Compose、桌面/移动浏览器、本地供应链扫描和一次底层独立恢复已经通过；不可变 SHA/GitHub CI/GHCR、真实相邻版本升级回滚、生产恢复入口、目标办公内网、真机、真实 LLM/GitHub、72 条专业复核、残余风险决策和业务批准仍未完成。在这些门禁全部关闭前，不得宣布“V1 已完成”，也不得用于无人监督的生产关键操作。
 
-## 8. 最终 SHA 与目标环境必须补录
+## 9. 最终 SHA 与目标环境必须补录
 
 | 字段 | 当前值 | 要求 |
 | --- | --- | --- |
-| 完整 Git SHA / tag | **待创建** | 记录不可变 SHA 与 tag |
-| GitHub PR / CI / 安全 run | **待执行** | 链接最终提交对应的绿色运行 |
-| 六镜像 digest | **候选值，待替换** | 从最终 SHA 重建并记录 digest |
-| 最终测试报告 | **本地已实跑** | 118 静态、7 类型、46 单元、31 集成、77 聚合、19+1 E2E 与构建；GitHub CI 待复现 |
-| 最终备份 ID / SHA-256 | **本地已生成并验证** | 见本矩阵第 5 节；目标内网仍需异介质策略 |
-| 最终恢复报告 / RPO / RTO | **本地已重跑** | 37 表、4 对象、16 秒；业务 RPO/RTO 批准待完成 |
-| 目标办公内网 | **未部署** | 记录主机、DNS、CA、设备、网络和批准人 |
-| 业务/安全/法务/财税批准 | **未取得** | 由真实责任人签署，不得由系统代填 |
+| 完整 Git SHA / tag | **待创建** | 记录不可变 SHA 与受保护 tag |
+| GitHub PR / CI / 安全 run | **待执行** | 链接最终提交对应的绿色运行；未运行/skip 单列 |
+| 38 表 / 10 migrations（`0000`–`0009`）证据 | **冻结工作树本地通过** | GitHub SHA 与目标环境复现 fresh/legacy、pg-boss 和权限 |
+| 七镜像 digest / SBOM / provenance | **本地 arm64/SPDX/fixture 通过** | 从最终 SHA 生成并记录 GHCR 双平台 registry digest |
+| 最终测试报告 | **冻结工作树本地通过** | 提交后记录不可变 SHA 与 GitHub run；源码漂移则重跑 |
+| 最终 formatVersion 2 备份与恢复 | **底层独立 drill 通过** | 归档 SHA `bcfd6c59…b6ba`、RPO 2s/RTO 75s；生产入口、目标/异介质待验收 |
+| 最终升级/回滚 | **待重做** | 使用真实版本变化，验证 expand/contract 和恢复点 |
+| 目标办公内网 / 真机 | **未完成** | 记录主机、DNS、CA、设备、网络、PWA 和批准人 |
+| 真实 LLM / GitHub | **未完成** | 最小权限、数据处理、质量和停用/撤销证据 |
+| 合规、风险与业务批准 | **未取得** | 由真实责任人签署，不得由系统代填 |

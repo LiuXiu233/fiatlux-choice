@@ -1,15 +1,23 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Archive,
+  CheckCheck,
   ChevronLeft,
   ChevronRight,
   Download,
+  Eye,
+  History,
   MoreHorizontal,
   Pencil,
   Play,
   Plus,
+  RefreshCw,
   Search,
+  ShieldCheck,
   Upload,
+  UserCheck,
+  UserMinus,
+  UserX,
 } from "lucide-react";
 import { type FormEvent, useEffect, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
@@ -25,40 +33,46 @@ import {
 } from "../components/ui";
 import { ApiError, api, apiUrl, normalizeMeta, queryString } from "../lib/api";
 import { useAuth } from "../lib/auth";
+import { formatChinaDateInput, formatChinaDateTimeInput } from "../lib/china-time";
 import { formatDateTime, recordLabel } from "../lib/format";
+import { buildResourcePayload } from "../lib/resource-form";
 import { type FieldConfig, getResourceConfig } from "../lib/resources";
 import type { ApiEnvelope, BusinessRecord } from "../lib/types";
 
 const MAX_FILE_SIZE_BYTES = 50_000_000;
+type MembershipLifecycleAction = "deactivate" | "offboard" | "reactivate";
+
+export interface ComplianceSnapshotRecord {
+  id: string;
+  sourceId: string;
+  requestedUrl: string;
+  finalUrl: string;
+  httpStatus: number;
+  contentType: string | null;
+  sizeBytes: number;
+  rawHash: string | null;
+  normalizedHash: string | null;
+  previousContentHash: string | null;
+  normalizedExcerpt: string | null;
+  changed: boolean;
+  notModified: boolean;
+  fetcherVersion: string;
+  fetchedAt: string;
+}
 
 function valueForInput(value: unknown): string {
   if (value === null || value === undefined) return "";
-  if (typeof value === "string" && value.includes("T")) return value.slice(0, 16);
   return String(value);
 }
 
 function valueForField(field: FieldConfig, value: unknown): string {
   if (value === null || value === undefined) return "";
   if (field.key.endsWith("Cents") && typeof value === "number") return String(value / 100);
-  if (field.kind === "date") return String(value).slice(0, 10);
-  if (field.kind === "datetime-local") return String(value).slice(0, 16);
+  if (field.kind === "date") return formatChinaDateInput(value);
+  if (field.kind === "datetime-local") return formatChinaDateTimeInput(value);
   if (field.kind === "json")
     return typeof value === "string" ? value : JSON.stringify(value, null, 2);
   return valueForInput(value);
-}
-
-function fieldPayload(field: FieldConfig, value: string): unknown {
-  if (value === "") return null;
-  if (field.kind === "number") {
-    const parsed = Number(value);
-    return field.key.endsWith("Cents") ? Math.round(parsed * 100) : parsed;
-  }
-  if (field.kind === "date" || field.kind === "datetime-local") {
-    return new Date(value).toISOString();
-  }
-  if (field.kind === "boolean") return value === "true";
-  if (field.kind === "json") return JSON.parse(value) as unknown;
-  return value === "" ? null : value;
 }
 
 export function ResourcePage() {
@@ -75,9 +89,31 @@ export function ResourcePage() {
   const [editing, setEditing] = useState<BusinessRecord | null>(null);
   const [creating, setCreating] = useState(false);
   const [archiving, setArchiving] = useState<BusinessRecord | null>(null);
+  const [snapshotSource, setSnapshotSource] = useState<BusinessRecord | null>(null);
+  const [lifecycleRequest, setLifecycleRequest] = useState<{
+    record: BusinessRecord;
+    action: MembershipLifecycleAction;
+  } | null>(null);
+  const [roleMember, setRoleMember] = useState<BusinessRecord | null>(null);
   const canCreate = Boolean(config && !config.readOnly && auth.can(`${config.permission}:create`));
   const canUpdate = Boolean(config && !config.readOnly && auth.can(`${config.permission}:update`));
+  const canArchive = Boolean(
+    config && config.archivable !== false && auth.can(`${config.permission}:delete`),
+  );
+  const canDownloadFile = Boolean(config?.key === "files" && auth.can("files:read"));
+  const canManageRoles = Boolean(
+    config?.key === "users" && auth.can("roles:read") && auth.can("role-assignments:create"),
+  );
   const canRunWorkflow = Boolean(config?.key === "workflows" && auth.can("workflow-runs:create"));
+  const canMonitorCompliance = Boolean(
+    config?.key === "compliance-items" && auth.can("compliance-items:update"),
+  );
+  const canViewComplianceSnapshots = Boolean(
+    config?.key === "compliance-items" && auth.can("compliance-items:read"),
+  );
+  const canMarkNotificationRead = Boolean(
+    config?.key === "notifications" && auth.can("notifications:read"),
+  );
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -96,6 +132,9 @@ export function ResourcePage() {
     setStatus("");
     setEditing(null);
     setCreating(false);
+    setSnapshotSource(null);
+    setLifecycleRequest(null);
+    setRoleMember(null);
   }, [currentResource]);
 
   useEffect(() => {
@@ -145,6 +184,33 @@ export function ResourcePage() {
     },
     onError: (error) =>
       toast.push(error instanceof ApiError ? error.message : "无法运行工作流", "error"),
+  });
+
+  const monitorComplianceMutation = useMutation({
+    mutationFn: (source: BusinessRecord) =>
+      api.post<{ sourceId: string; jobId: string; status: "queued" }>(
+        `/compliance-items/${source.id}/monitor`,
+        { reason: "从合规知识库人工触发官方来源检查" },
+      ),
+    onSuccess: async () => {
+      toast.push("官方来源检查已进入受控后台队列", "success");
+      await queryClient.invalidateQueries({ queryKey: ["resource", "compliance-items"] });
+    },
+    onError: (error) =>
+      toast.push(error instanceof ApiError ? error.message : "无法触发官方来源检查", "error"),
+  });
+
+  const markNotificationReadMutation = useMutation({
+    mutationFn: (notification: BusinessRecord) =>
+      api.post<BusinessRecord>(`/notifications/${notification.id}/read`, {
+        expectedVersion: Number(notification.version ?? 1),
+      }),
+    onSuccess: async () => {
+      toast.push("通知已标记为已读", "success");
+      await queryClient.invalidateQueries({ queryKey: ["resource", "notifications"] });
+    },
+    onError: (error) =>
+      toast.push(error instanceof ApiError ? error.message : "无法标记通知", "error"),
   });
 
   const meta = normalizeMeta(listQuery.data?.meta, listQuery.data?.data.length ?? 0);
@@ -256,18 +322,60 @@ export function ResourcePage() {
                     );
                   })}
                   <td className="row-actions">
-                    {canUpdate || (canRunWorkflow && record.enabled !== false) ? (
+                    {canUpdate ||
+                    canArchive ||
+                    canManageRoles ||
+                    (canDownloadFile && record.uploadStatus === "uploaded") ||
+                    canMonitorCompliance ||
+                    canViewComplianceSnapshots ||
+                    (canMarkNotificationRead && !record.readAt) ||
+                    (canRunWorkflow && record.enabled !== false) ? (
                       <RowMenu
                         {...(canUpdate ? { onEdit: () => setEditing(record) } : {})}
                         {...(canRunWorkflow && record.enabled !== false
                           ? { onRun: () => runWorkflowMutation.mutate(record) }
                           : {})}
-                        {...(config.key === "files" && record.uploadStatus === "uploaded"
+                        {...(canMonitorCompliance
+                          ? { onMonitor: () => monitorComplianceMutation.mutate(record) }
+                          : {})}
+                        {...(canViewComplianceSnapshots
+                          ? { onViewSnapshots: () => setSnapshotSource(record) }
+                          : {})}
+                        {...(config.key === "notifications"
+                          ? { onView: () => setEditing(record) }
+                          : {})}
+                        {...(canMarkNotificationRead &&
+                        !record.readAt &&
+                        record.channel === "in_app" &&
+                        ["queued", "sent"].includes(String(record.status))
+                          ? {
+                              onMarkRead: () => markNotificationReadMutation.mutate(record),
+                            }
+                          : {})}
+                        {...(canDownloadFile && record.uploadStatus === "uploaded"
                           ? { downloadHref: apiUrl(`/files/${record.id}/download`) }
                           : {})}
-                        {...(config.archivable === false
-                          ? {}
-                          : { onArchive: () => setArchiving(record) })}
+                        {...(canArchive ? { onArchive: () => setArchiving(record) } : {})}
+                        {...(canManageRoles ? { onManageRoles: () => setRoleMember(record) } : {})}
+                        {...(config.key === "users" &&
+                        canUpdate &&
+                        record.membershipStatus === "active" &&
+                        !record.pendingLifecycleAction
+                          ? {
+                              onDeactivate: () =>
+                                setLifecycleRequest({ record, action: "deactivate" }),
+                              onOffboard: () => setLifecycleRequest({ record, action: "offboard" }),
+                            }
+                          : {})}
+                        {...(config.key === "users" &&
+                        canUpdate &&
+                        record.membershipStatus === "inactive" &&
+                        !record.pendingLifecycleAction
+                          ? {
+                              onReactivate: () =>
+                                setLifecycleRequest({ record, action: "reactivate" }),
+                            }
+                          : {})}
                       />
                     ) : (
                       <button
@@ -319,14 +427,30 @@ export function ResourcePage() {
       {config.key === "workflows" ? <WorkflowRunHistory /> : null}
 
       <Modal open={creating} onClose={() => setCreating(false)} title={`新建${config.singular}`}>
-        <ResourceForm config={config} onClose={() => setCreating(false)} />
+        {config.key === "workflows" ? (
+          <WorkflowDefinitionForm onClose={() => setCreating(false)} />
+        ) : (
+          <ResourceForm config={config} onClose={() => setCreating(false)} />
+        )}
+      </Modal>
+      <Modal
+        open={Boolean(roleMember)}
+        onClose={() => setRoleMember(null)}
+        title={`管理角色：${roleMember ? recordLabel(roleMember) : ""}`}
+        size="small"
+      >
+        {roleMember ? (
+          <RoleAssignmentForm member={roleMember} onClose={() => setRoleMember(null)} />
+        ) : null}
       </Modal>
       <Modal
         open={Boolean(editing)}
         onClose={() => setEditing(null)}
         title={`${canUpdate ? "编辑" : "查看"}${config.singular}`}
       >
-        {editing ? (
+        {editing && config.key === "workflows" && canUpdate ? (
+          <WorkflowDefinitionForm record={editing} onClose={() => setEditing(null)} />
+        ) : editing ? (
           <ResourceForm
             config={config}
             record={editing}
@@ -352,19 +476,209 @@ export function ResourcePage() {
           />
         ) : null}
       </Modal>
+      <Modal
+        open={Boolean(snapshotSource)}
+        onClose={() => setSnapshotSource(null)}
+        title={`来源快照：${snapshotSource ? recordLabel(snapshotSource) : ""}`}
+        size="large"
+      >
+        {snapshotSource ? <ComplianceSnapshotHistory source={snapshotSource} /> : null}
+      </Modal>
+      <Modal
+        open={Boolean(lifecycleRequest)}
+        onClose={() => setLifecycleRequest(null)}
+        title={
+          lifecycleRequest?.action === "deactivate"
+            ? "申请停用成员"
+            : lifecycleRequest?.action === "offboard"
+              ? "申请成员离职"
+              : "申请重新启用成员"
+        }
+        size="small"
+      >
+        {lifecycleRequest ? (
+          <MemberLifecycleForm
+            record={lifecycleRequest.record}
+            action={lifecycleRequest.action}
+            onClose={() => setLifecycleRequest(null)}
+          />
+        ) : null}
+      </Modal>
     </>
   );
 }
 
+function WorkflowDefinitionForm({
+  record,
+  onClose,
+}: {
+  record?: BusinessRecord;
+  onClose: () => void;
+}) {
+  const firstNotifyStep = Array.isArray(record?.steps)
+    ? record.steps.find(
+        (step) =>
+          typeof step === "object" &&
+          step !== null &&
+          "type" in step &&
+          step.type === "notify" &&
+          "config" in step &&
+          typeof step.config === "object" &&
+          step.config !== null,
+      )
+    : undefined;
+  const notifyConfig =
+    firstNotifyStep && "config" in firstNotifyStep
+      ? (firstNotifyStep.config as Record<string, unknown>)
+      : {};
+  const [name, setName] = useState(String(record?.name ?? ""));
+  const [enabled, setEnabled] = useState(record?.enabled === false ? "false" : "true");
+  const [recipientId, setRecipientId] = useState(String(notifyConfig.recipientId ?? ""));
+  const [title, setTitle] = useState(String(notifyConfig.title ?? ""));
+  const [body, setBody] = useState(String(notifyConfig.body ?? ""));
+  const queryClient = useQueryClient();
+  const toast = useToast();
+  const mutation = useMutation({
+    mutationFn: () => {
+      const payload = {
+        name,
+        trigger: "manual",
+        enabled: enabled === "true",
+        steps: [
+          {
+            type: "notify",
+            config: { recipientId, title, body, channel: "in_app", status: "queued" },
+          },
+        ],
+      };
+      return record
+        ? api.patch<BusinessRecord>(`/workflow-definitions/${record.id}`, {
+            ...payload,
+            expectedVersion: Number(record.version ?? 1),
+          })
+        : api.post<BusinessRecord>("/workflow-definitions", payload);
+    },
+    onSuccess: async () => {
+      toast.push(record ? "手动通知工作流已更新" : "手动通知工作流已创建", "success");
+      await queryClient.invalidateQueries({ queryKey: ["resource", "workflows"] });
+      onClose();
+    },
+    onError: (error) =>
+      toast.push(error instanceof ApiError ? error.message : "无法保存工作流", "error"),
+  });
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    mutation.mutate();
+  };
+
+  return (
+    <form className="resource-form" onSubmit={submit}>
+      <p className="confirm-description">
+        V1 工作流仅支持人工运行。步骤会在每次点击运行时冻结，后续编辑不会改变已排队任务。
+      </p>
+      <div className="form-grid">
+        <div className="form-field full-width">
+          <label htmlFor="workflow-name">工作流名称</label>
+          <input
+            id="workflow-name"
+            required
+            maxLength={200}
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+          />
+        </div>
+        <div className="form-field">
+          <label htmlFor="workflow-enabled">启用</label>
+          <select
+            id="workflow-enabled"
+            value={enabled}
+            onChange={(event) => setEnabled(event.target.value)}
+          >
+            <option value="true">是</option>
+            <option value="false">否</option>
+          </select>
+        </div>
+        <div className="form-field">
+          <label htmlFor="workflow-recipient">通知接收人</label>
+          <ReferenceSelect
+            id="workflow-recipient"
+            field={{
+              key: "recipientId",
+              label: "通知接收人",
+              kind: "reference",
+              required: true,
+              referenceEndpoint: "/users",
+              referenceLabelKey: "displayName",
+            }}
+            value={recipientId}
+            onChange={setRecipientId}
+          />
+        </div>
+        <div className="form-field full-width">
+          <label htmlFor="workflow-notification-title">通知主题</label>
+          <input
+            id="workflow-notification-title"
+            required
+            maxLength={300}
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
+          />
+        </div>
+        <div className="form-field full-width">
+          <label htmlFor="workflow-notification-body">通知内容</label>
+          <textarea
+            id="workflow-notification-body"
+            required
+            maxLength={10_000}
+            rows={5}
+            value={body}
+            onChange={(event) => setBody(event.target.value)}
+          />
+        </div>
+      </div>
+      <div className="form-actions">
+        <button type="button" className="button secondary" onClick={onClose}>
+          取消
+        </button>
+        <button
+          type="submit"
+          className="button primary"
+          disabled={
+            mutation.isPending || !name.trim() || !recipientId || !title.trim() || !body.trim()
+          }
+        >
+          {mutation.isPending ? "正在保存…" : "保存"}
+        </button>
+      </div>
+    </form>
+  );
+}
+
 function RowMenu({
+  onView,
   onEdit,
   onRun,
+  onMonitor,
+  onViewSnapshots,
   onArchive,
+  onDeactivate,
+  onOffboard,
+  onReactivate,
+  onMarkRead,
+  onManageRoles,
   downloadHref,
 }: {
+  onView?: () => void;
   onEdit?: () => void;
   onRun?: () => void;
+  onMonitor?: () => void;
+  onViewSnapshots?: () => void;
   onArchive?: () => void;
+  onDeactivate?: () => void;
+  onOffboard?: () => void;
+  onReactivate?: () => void;
+  onMarkRead?: () => void;
+  onManageRoles?: () => void;
   downloadHref?: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -381,6 +695,18 @@ function RowMenu({
       </button>
       {open ? (
         <div className="row-menu-popover">
+          {onView ? (
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                onView();
+              }}
+            >
+              <Eye aria-hidden="true" />
+              查看
+            </button>
+          ) : null}
           {downloadHref ? (
             <a href={downloadHref} onClick={() => setOpen(false)}>
               <Download aria-hidden="true" />
@@ -399,6 +725,42 @@ function RowMenu({
               运行
             </button>
           ) : null}
+          {onMonitor ? (
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                onMonitor();
+              }}
+            >
+              <RefreshCw aria-hidden="true" />
+              检查官方来源
+            </button>
+          ) : null}
+          {onViewSnapshots ? (
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                onViewSnapshots();
+              }}
+            >
+              <History aria-hidden="true" />
+              查看监控快照
+            </button>
+          ) : null}
+          {onMarkRead ? (
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                onMarkRead();
+              }}
+            >
+              <CheckCheck aria-hidden="true" />
+              标记已读
+            </button>
+          ) : null}
           {onEdit ? (
             <button
               type="button"
@@ -409,6 +771,56 @@ function RowMenu({
             >
               <Pencil aria-hidden="true" />
               编辑
+            </button>
+          ) : null}
+          {onManageRoles ? (
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                onManageRoles();
+              }}
+            >
+              <ShieldCheck aria-hidden="true" />
+              管理角色
+            </button>
+          ) : null}
+          {onReactivate ? (
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                onReactivate();
+              }}
+            >
+              <UserCheck aria-hidden="true" />
+              申请重新启用
+            </button>
+          ) : null}
+          {onDeactivate ? (
+            <button
+              type="button"
+              className="danger-text"
+              onClick={() => {
+                setOpen(false);
+                onDeactivate();
+              }}
+            >
+              <UserMinus aria-hidden="true" />
+              申请停用
+            </button>
+          ) : null}
+          {onOffboard ? (
+            <button
+              type="button"
+              className="danger-text"
+              onClick={() => {
+                setOpen(false);
+                onOffboard();
+              }}
+            >
+              <UserX aria-hidden="true" />
+              申请离职
             </button>
           ) : null}
           {onArchive ? (
@@ -427,6 +839,365 @@ function RowMenu({
         </div>
       ) : null}
     </div>
+  );
+}
+
+interface RoleOption extends BusinessRecord {
+  name: string;
+  systemKey?: string | null;
+}
+
+function RoleAssignmentForm({ member, onClose }: { member: BusinessRecord; onClose: () => void }) {
+  const currentRoles = Array.isArray(member.roles)
+    ? (member.roles.filter(
+        (role): role is RoleOption =>
+          typeof role === "object" && role !== null && "id" in role && "name" in role,
+      ) as RoleOption[])
+    : [];
+  const [mode, setMode] = useState<"assign" | "remove">("assign");
+  const [roleId, setRoleId] = useState("");
+  const [reason, setReason] = useState("");
+  const [idempotencyKey] = useState(() => crypto.randomUUID());
+  const queryClient = useQueryClient();
+  const toast = useToast();
+  const roleQuery = useQuery({
+    queryKey: ["roles"],
+    queryFn: async () => (await api.get<RoleOption[]>("/roles")).data,
+  });
+  const currentRoleIds = new Set(currentRoles.map((role) => role.id));
+  const availableRoles = (roleQuery.data ?? []).filter((role) =>
+    mode === "assign" ? !currentRoleIds.has(role.id) : currentRoleIds.has(role.id),
+  );
+  const mutation = useMutation({
+    mutationFn: () =>
+      api.post<BusinessRecord>("/role-assignments", {
+        membershipId: member.membershipId,
+        roleId,
+        mode,
+        reason,
+        expectedVersion: Number(member.version ?? 1),
+        idempotencyKey,
+      }),
+    onSuccess: async () => {
+      toast.push("角色变更已提交人工审批，当前权限尚未改变", "success");
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["resource", "users"] }),
+        queryClient.invalidateQueries({ queryKey: ["approvals"] }),
+      ]);
+      onClose();
+    },
+    onError: (error) =>
+      toast.push(error instanceof ApiError ? error.message : "无法提交角色变更", "error"),
+  });
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    mutation.mutate();
+  };
+
+  return (
+    <form className="resource-form" onSubmit={submit}>
+      <p className="confirm-description">
+        当前角色：{currentRoles.map((role) => role.name).join("、") || "无角色"}
+        。审批完成前，成员权限不会改变。
+      </p>
+      <div className="form-grid">
+        <div className="form-field">
+          <label htmlFor="role-assignment-mode">变更方式</label>
+          <select
+            id="role-assignment-mode"
+            value={mode}
+            onChange={(event) => {
+              setMode(event.target.value as "assign" | "remove");
+              setRoleId("");
+            }}
+          >
+            <option value="assign">新增角色</option>
+            <option value="remove">移除角色</option>
+          </select>
+        </div>
+        <div className="form-field">
+          <label htmlFor="role-assignment-role">角色</label>
+          <select
+            id="role-assignment-role"
+            value={roleId}
+            required
+            disabled={roleQuery.isLoading || roleQuery.isError || availableRoles.length === 0}
+            onChange={(event) => setRoleId(event.target.value)}
+          >
+            <option value="">
+              {roleQuery.isLoading
+                ? "正在加载…"
+                : roleQuery.isError
+                  ? "角色加载失败"
+                  : availableRoles.length === 0
+                    ? "没有可选角色"
+                    : "请选择"}
+            </option>
+            {availableRoles.map((role) => (
+              <option key={role.id} value={role.id}>
+                {role.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="form-field full-width">
+          <label htmlFor="role-assignment-reason">申请理由</label>
+          <textarea
+            id="role-assignment-reason"
+            required
+            maxLength={5000}
+            rows={4}
+            value={reason}
+            onChange={(event) => setReason(event.target.value)}
+            placeholder="说明业务需要、权限最小化依据和复核安排"
+          />
+        </div>
+      </div>
+      <div className="form-actions">
+        <button type="button" className="button secondary" onClick={onClose}>
+          取消
+        </button>
+        <button
+          type="submit"
+          className="button primary"
+          disabled={mutation.isPending || !roleId || !reason.trim()}
+        >
+          {mutation.isPending ? "正在提交…" : "提交审批"}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function MemberLifecycleForm({
+  record,
+  action,
+  onClose,
+}: {
+  record: BusinessRecord;
+  action: MembershipLifecycleAction;
+  onClose: () => void;
+}) {
+  const [reason, setReason] = useState("");
+  const [idempotencyKey] = useState(() => crypto.randomUUID());
+  const queryClient = useQueryClient();
+  const toast = useToast();
+  const actionLabel =
+    action === "deactivate" ? "停用" : action === "offboard" ? "离职" : "重新启用";
+  const mutation = useMutation({
+    mutationFn: () =>
+      api.post<BusinessRecord>(`/users/${record.id}/lifecycle`, {
+        action,
+        reason,
+        expectedVersion: Number(record.version ?? 1),
+        idempotencyKey,
+      }),
+    onSuccess: async () => {
+      toast.push(`${actionLabel}申请已进入人工审批，成员状态尚未改变`, "success");
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["resource", "users"] }),
+        queryClient.invalidateQueries({ queryKey: ["approvals"] }),
+      ]);
+      onClose();
+    },
+    onError: (error) =>
+      toast.push(error instanceof ApiError ? error.message : `无法提交${actionLabel}申请`, "error"),
+  });
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    mutation.mutate();
+  };
+
+  return (
+    <form onSubmit={submit} className="resource-form">
+      <p className="confirm-description">
+        {action === "reactivate" ? (
+          `申请批准前，“${recordLabel(record)}”仍保持“已停用”。批准后系统才会重新启用本组织成员关系；旧会话保持撤销，成员必须重新登录生成新会话，其他组织不会受影响。`
+        ) : (
+          <>
+            申请批准前，“{recordLabel(record)}”仍保持有效。批准后系统才会将本组织成员状态改为
+            {action === "deactivate" ? "“已停用”" : "“已离职”"}
+            ，并撤销该成员在本组织的全部会话；其他组织不会受影响。
+          </>
+        )}
+      </p>
+      <div className="form-grid">
+        <div className="form-field full-width">
+          <label htmlFor="membership-lifecycle-reason">
+            申请理由<b aria-hidden="true">*</b>
+          </label>
+          <textarea
+            id="membership-lifecycle-reason"
+            rows={4}
+            required
+            maxLength={5000}
+            value={reason}
+            onChange={(event) => setReason(event.target.value)}
+            placeholder={
+              action === "deactivate"
+                ? "说明停用原因、预计复核时间和业务交接安排"
+                : action === "offboard"
+                  ? "说明离职日期、交接完成情况和外部权限回收安排"
+                  : "说明身份复核、重新授权依据和恢复访问的业务需要"
+            }
+          />
+        </div>
+      </div>
+      <div className="form-actions">
+        <button
+          type="button"
+          className="button secondary"
+          onClick={onClose}
+          disabled={mutation.isPending}
+        >
+          取消
+        </button>
+        <button
+          type="submit"
+          className={`button ${action === "reactivate" ? "primary" : "danger"}`}
+          disabled={mutation.isPending}
+        >
+          {mutation.isPending ? "正在提交…" : `提交${actionLabel}审批`}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function snapshotState(snapshot: ComplianceSnapshotRecord) {
+  if (snapshot.changed) return "内容已变化";
+  if (snapshot.notModified) return "HTTP 未修改";
+  return "已抓取";
+}
+
+export function ComplianceSnapshotHistory({ source }: { source: BusinessRecord }) {
+  const [page, setPage] = useState(1);
+  const snapshots = useQuery({
+    queryKey: ["compliance-snapshots", source.id, page],
+    queryFn: async () =>
+      api.get<ComplianceSnapshotRecord[]>(
+        `/compliance-items/${source.id}/snapshots?page=${page}&pageSize=10`,
+      ),
+  });
+  const meta = normalizeMeta(snapshots.data?.meta, snapshots.data?.data.length ?? 0);
+  const pageCount = meta.totalPages ?? meta.pageCount ?? 1;
+
+  if (snapshots.isLoading) {
+    return (
+      <div className="resource-loading" role="status" aria-label="正在加载来源快照">
+        <Spinner />
+      </div>
+    );
+  }
+  if (snapshots.isError) {
+    return (
+      <ErrorState
+        message={snapshots.error instanceof ApiError ? snapshots.error.message : "无法读取来源快照"}
+        onRetry={() => void snapshots.refetch()}
+      />
+    );
+  }
+  if (!snapshots.data?.data.length) {
+    return (
+      <EmptyState
+        title="尚无来源快照"
+        detail="首次后台检查成功后会在这里显示哈希、HTTP 元数据和规范化摘录。"
+      />
+    );
+  }
+
+  return (
+    <section className="compliance-snapshot-history" aria-label="官方来源快照历史">
+      <p className="compliance-snapshot-boundary">
+        此处保存哈希、HTTP 元数据和最多 100,000 UTF-8 字节的规范化摘录；不代表完整原始 HTML/PDF
+        已归档。人工复核必须同时查看官方原文。
+      </p>
+      <div className="compliance-snapshot-list">
+        {snapshots.data.data.map((snapshot) => (
+          <article className="compliance-snapshot-card" key={snapshot.id}>
+            <header>
+              <strong>{snapshotState(snapshot)}</strong>
+              <time className="compliance-snapshot-time" dateTime={snapshot.fetchedAt}>
+                {formatDateTime(snapshot.fetchedAt)}
+              </time>
+            </header>
+            <dl className="compliance-snapshot-meta">
+              <div>
+                <dt>HTTP 状态</dt>
+                <dd>{snapshot.httpStatus}</dd>
+              </div>
+              <div>
+                <dt>内容类型</dt>
+                <dd>{snapshot.contentType ?? "未声明"}</dd>
+              </div>
+              <div>
+                <dt>响应长度</dt>
+                <dd>{snapshot.sizeBytes.toLocaleString("zh-CN")} 字节</dd>
+              </div>
+              <div>
+                <dt>抓取器</dt>
+                <dd>{snapshot.fetcherVersion}</dd>
+              </div>
+            </dl>
+            <dl className="compliance-snapshot-hashes">
+              <div>
+                <dt>规范化哈希</dt>
+                <dd>
+                  <code>{snapshot.normalizedHash ?? "未提供（例如 HTTP 304）"}</code>
+                </dd>
+              </div>
+              <div>
+                <dt>前一内容哈希</dt>
+                <dd>
+                  <code>{snapshot.previousContentHash ?? "首次快照，无前一哈希"}</code>
+                </dd>
+              </div>
+              <div>
+                <dt>原始响应哈希</dt>
+                <dd>
+                  <code>{snapshot.rawHash ?? "未提供（例如 HTTP 304）"}</code>
+                </dd>
+              </div>
+            </dl>
+            <p>
+              最终地址：
+              <a href={snapshot.finalUrl} target="_blank" rel="noreferrer">
+                {snapshot.finalUrl}
+              </a>
+            </p>
+            <div>
+              <h3>规范化摘录</h3>
+              <pre className="record-json compliance-snapshot-excerpt">
+                {snapshot.normalizedExcerpt ?? "本次快照没有正文摘录。"}
+              </pre>
+            </div>
+          </article>
+        ))}
+      </div>
+      {pageCount > 1 ? (
+        <nav className="pagination" aria-label="来源快照分页">
+          <button
+            type="button"
+            className="button secondary"
+            disabled={page <= 1}
+            onClick={() => setPage((current) => Math.max(1, current - 1))}
+          >
+            上一页
+          </button>
+          <span>
+            第 {page} / {pageCount} 页
+          </span>
+          <button
+            type="button"
+            className="button secondary"
+            disabled={page >= pageCount}
+            onClick={() => setPage((current) => current + 1)}
+          >
+            下一页
+          </button>
+        </nav>
+      ) : null}
+    </section>
   );
 }
 
@@ -499,6 +1270,12 @@ function ResourceForm({
   const queryClient = useQueryClient();
   const toast = useToast();
   const fields = record && config.updateFields ? config.updateFields : config.fields;
+  const initialValues = Object.fromEntries(
+    fields.map((field) => [
+      field.key,
+      record ? valueForField(field, record[field.key]) : (field.defaultValue ?? ""),
+    ]),
+  );
   const [values, setValues] = useState<Record<string, string>>(() =>
     Object.fromEntries(
       fields.map((field) => [
@@ -535,8 +1312,11 @@ function ResourceForm({
         if (!uploadResponse.ok) throw new ApiError("文件内容上传失败", uploadResponse.status);
         return api.post<BusinessRecord>(`${config.endpoint}/${ticket.data.file.id}/complete`);
       }
-      const payload = Object.fromEntries(
-        fields.map((field) => [field.key, fieldPayload(field, values[field.key] ?? "")]),
+      const payload = buildResourcePayload(
+        fields,
+        values,
+        record ? "update" : "create",
+        initialValues,
       );
       return record
         ? api.patch<BusinessRecord>(`${config.endpoint}/${record.id}`, {
@@ -707,28 +1487,38 @@ function ReferenceSelect({
     queryFn: async () =>
       (
         await api.get<BusinessRecord[]>(
-          `${field.referenceEndpoint}${queryString({ pageSize: 100 })}`,
+          `${field.referenceEndpoint}${field.referenceEndpoint?.includes("?") ? "&" : "?"}pageSize=100`,
         )
       ).data,
     enabled: Boolean(field.referenceEndpoint),
   });
   return (
-    <select
-      id={id}
-      value={value}
-      onChange={(event) => onChange(event.target.value)}
-      required={field.required}
-      disabled={options.isLoading}
-    >
-      <option value="">{options.isLoading ? "正在加载…" : "未指定"}</option>
-      {options.data?.map((option) => (
-        <option key={option.id} value={option.id}>
-          {String(
-            option[field.referenceLabelKey ?? "name"] ?? option.title ?? option.name ?? option.id,
-          )}
+    <div className="reference-select">
+      <select
+        id={id}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        required={field.required}
+        disabled={options.isLoading || options.isError}
+        aria-describedby={options.isError ? `${id}-error` : undefined}
+      >
+        <option value="">
+          {options.isLoading ? "正在加载…" : options.isError ? "选项加载失败" : "未指定"}
         </option>
-      ))}
-    </select>
+        {options.data?.map((option) => (
+          <option key={option.id} value={option.id}>
+            {String(
+              option[field.referenceLabelKey ?? "name"] ?? option.title ?? option.name ?? option.id,
+            )}
+          </option>
+        ))}
+      </select>
+      {options.isError ? (
+        <p id={`${id}-error`} className="form-error" role="alert">
+          引用选项加载失败，请重试或稍后再保存。
+        </p>
+      ) : null}
+    </div>
   );
 }
 

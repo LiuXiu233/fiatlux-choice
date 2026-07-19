@@ -3,10 +3,13 @@ import type { Database } from "@fiatlux/db";
 import { DomainError } from "@fiatlux/domain";
 import { sql } from "drizzle-orm";
 
+export type ReferenceValidationExecutor = Pick<Database, "execute">;
+
 interface ReferenceRule {
   field: string;
   table?: string;
   userMembership?: boolean;
+  uploadedFile?: boolean;
 }
 
 const referenceRules: Partial<Record<ResourceName, readonly ReferenceRule[]>> = {
@@ -19,23 +22,39 @@ const referenceRules: Partial<Record<ResourceName, readonly ReferenceRule[]>> = 
     { field: "projectId", table: "projects" },
     { field: "assigneeId", userMembership: true },
   ],
+  decisions: [
+    { field: "objectiveId", table: "objectives" },
+    { field: "projectId", table: "projects" },
+    { field: "taskId", table: "tasks" },
+  ],
   obligations: [
     { field: "ownerId", userMembership: true },
     { field: "sourceId", table: "compliance_items" },
+    { field: "evidenceFileId", table: "files", uploadedFile: true },
   ],
   "compliance-events": [
     { field: "sourceId", table: "compliance_items" },
+    { field: "evidenceFileId", table: "files", uploadedFile: true },
     { field: "ownerId", userMembership: true },
   ],
   risks: [{ field: "ownerId", userMembership: true }],
   contracts: [
-    { field: "fileId", table: "files" },
+    { field: "fileId", table: "files", uploadedFile: true },
     { field: "ownerId", userMembership: true },
   ],
-  "financial-entries": [{ field: "externalActionId", table: "external_actions" }],
-  invoices: [{ field: "fileId", table: "files" }],
-  products: [{ field: "ownerId", userMembership: true }],
-  opportunities: [{ field: "ownerId", userMembership: true }],
+  // externalActionId is a system-managed relationship.  It is intentionally
+  // not accepted as a normal resource reference: only the bank-payment
+  // approval workflow may bind/unbind it after validating its target snapshot.
+  invoices: [{ field: "fileId", table: "files", uploadedFile: true }],
+  products: [
+    { field: "projectId", table: "projects" },
+    { field: "ownerId", userMembership: true },
+  ],
+  opportunities: [
+    { field: "productId", table: "products" },
+    { field: "projectId", table: "projects" },
+    { field: "ownerId", userMembership: true },
+  ],
   notifications: [{ field: "recipientId", userMembership: true }],
   "workflow-runs": [
     { field: "definitionId", table: "workflow_definitions" },
@@ -48,7 +67,7 @@ function isMissing(result: Iterable<unknown>) {
 }
 
 export async function assertResourceReferences(
-  db: Database,
+  db: ReferenceValidationExecutor,
   orgId: string,
   resource: ResourceName,
   input: Record<string, unknown>,
@@ -67,13 +86,16 @@ export async function assertResourceReferences(
         WHERE org_id = ${orgId} AND user_id = ${referenceId}
           AND status = 'active' AND archived_at IS NULL
         LIMIT 1
+        FOR SHARE
       `);
     } else {
       if (!rule.table) throw new Error(`Reference rule ${rule.field} has no target table`);
+      const uploadedFilter = rule.uploadedFile ? sql` AND upload_status = 'uploaded'` : sql``;
       result = await db.execute(sql`
         SELECT 1 FROM ${sql.identifier(rule.table)}
-        WHERE org_id = ${orgId} AND id = ${referenceId} AND archived_at IS NULL
+        WHERE org_id = ${orgId} AND id = ${referenceId} AND archived_at IS NULL${uploadedFilter}
         LIMIT 1
+        FOR SHARE
       `);
     }
     if (isMissing(result)) {

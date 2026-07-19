@@ -47,6 +47,21 @@ describe("API config", () => {
     expect(config.TRUST_PROXY).toBe(true);
   });
 
+  it("normalizes default HTTPS ports to the browser Origin serialization", () => {
+    const defaultHttps = apiConfigSchema.parse({
+      DATABASE_URL: "postgresql://user:password@localhost:5432/database",
+      JWT_SECRET: "a-secure-test-secret-that-is-long-enough",
+      WEB_ORIGIN: "https://choice.internal.example:443",
+    });
+    const nonDefaultHttps = apiConfigSchema.parse({
+      DATABASE_URL: "postgresql://user:password@localhost:5432/database",
+      JWT_SECRET: "a-secure-test-secret-that-is-long-enough",
+      WEB_ORIGIN: "https://choice.internal.example:8443",
+    });
+    expect(defaultHttps.WEB_ORIGIN).toBe("https://choice.internal.example");
+    expect(nonDefaultHttps.WEB_ORIGIN).toBe("https://choice.internal.example:8443");
+  });
+
   it("requires credentials only for the compatible LLM driver", () => {
     expect(() =>
       apiConfigSchema.parse({
@@ -62,5 +77,28 @@ describe("API config", () => {
         LLM_DRIVER: "mock",
       }).LLM_DRIVER,
     ).toBe("mock");
+  });
+
+  it("requires HTTPS for a compatible LLM endpoint", () => {
+    const compatibleConfig = {
+      NODE_ENV: "production",
+      DATABASE_URL: "postgresql://user:password@localhost:5432/database",
+      JWT_SECRET: "a-secure-test-secret-that-is-long-enough",
+      LLM_DRIVER: "compatible",
+      LLM_API_KEY: "test-provider-key",
+    } as const;
+
+    expect(() =>
+      apiConfigSchema.parse({
+        ...compatibleConfig,
+        LLM_BASE_URL: "http://llm.example.test",
+      }),
+    ).toThrow(/LLM_BASE_URL must use HTTPS/);
+    expect(
+      apiConfigSchema.parse({
+        ...compatibleConfig,
+        LLM_BASE_URL: "https://llm.example.test",
+      }).LLM_BASE_URL,
+    ).toBe("https://llm.example.test");
   });
 });

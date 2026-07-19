@@ -14,10 +14,13 @@ import {
   advisorRuns,
   advisorToolCalls,
   auditEvents,
+  complianceItems,
   promptVersions,
 } from "@fiatlux/db";
 import {
   ADVISORS,
+  type AdvisorContextCandidate,
+  advisorContextSizeBytes,
   assertAdvisorEvidenceAllowed,
   canAdvisorRead,
   confidenceBasisPoints,
@@ -25,8 +28,10 @@ import {
   filterAdvisorContext,
   getAdvisor,
   hasPermission,
+  MAX_ADVISOR_CONTEXT_BYTES,
 } from "@fiatlux/domain";
-import { and, desc, eq, ilike, isNull, sql } from "drizzle-orm";
+import { sanitizeIntegrationError } from "@fiatlux/integrations";
+import { and, desc, eq, ilike, inArray, isNull, sql } from "drizzle-orm";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 
@@ -36,7 +41,7 @@ import type { AppDependencies, RequestAuditContext } from "./types.js";
 
 const idParamsSchema = z.object({ id: idSchema });
 const advisorParamsSchema = z.object({ key: advisorKeySchema });
-const promptVersionCreateSchema = z.object({
+export const promptVersionCreateSchema = z.object({
   systemPrompt: z.string().trim().min(100).max(50_000),
   toolPolicy: z
     .record(z.string(), z.unknown())
@@ -44,7 +49,13 @@ const promptVersionCreateSchema = z.object({
   dataScopes: z.array(z.string().min(1).max(100)).min(1).max(50),
 });
 
-function canReadAdvisorRun(run: typeof advisorRuns.$inferSelect, permissions: readonly string[]) {
+function canReadAdvisorRun(
+  run: typeof advisorRuns.$inferSelect,
+  userId: string,
+  permissions: readonly string[],
+) {
+  const canReadAll = permissions.includes("*") || permissions.includes("advisor-runs:read-all");
+  if (run.requestedBy !== userId && !canReadAll) return false;
   const advisorKey = advisorKeySchema.safeParse(run.advisorKey);
   if (!advisorKey.success) return false;
   const advisor = getAdvisor(advisorKey.data);
@@ -60,9 +71,10 @@ function canReadAdvisorRun(run: typeof advisorRuns.$inferSelect, permissions: re
 
 function assertCanReadAdvisorRun(
   run: typeof advisorRuns.$inferSelect,
+  userId: string,
   permissions: readonly string[],
 ) {
-  if (!canReadAdvisorRun(run, permissions)) {
+  if (!canReadAdvisorRun(run, userId, permissions)) {
     throw new DomainError("NOT_FOUND", "Advisor run not found", 404);
   }
 }
@@ -96,14 +108,7 @@ function auditValue(
 const advisorQueueFailureMessage = "Background queue dispatch failed";
 
 function safeQueueError(error: unknown, fallback = advisorQueueFailureMessage) {
-  const raw = error instanceof Error ? error.message : fallback;
-  const sanitized = raw
-    .replace(/((?:password|secret|token|api[_-]?key)\s*[:=]\s*)["']?[^,\s"'&}]+/gi, "$1[REDACTED]")
-    .replace(/bearer\s+[A-Za-z0-9._~-]+/gi, "bearer [REDACTED]")
-    .replace(/[\r\n\t]+/g, " ")
-    .trim()
-    .slice(0, 500);
-  return sanitized || fallback;
+  return sanitizeIntegrationError(error, fallback, { maxLength: 500 });
 }
 
 async function markAdvisorQueueFailed(
@@ -306,7 +311,7 @@ export function registerAdvisorRoutes(
           .from(advisorRuns)
           .where(where)
           .orderBy(desc(advisorRuns.createdAt))
-      ).filter((run) => canReadAdvisorRun(run, request.auth.permissions));
+      ).filter((run) => canReadAdvisorRun(run, request.auth.userId, request.auth.permissions));
       const total = authorized.length;
       const items = authorized.slice(
         (query.page - 1) * query.pageSize,
@@ -359,11 +364,7 @@ export function registerAdvisorRoutes(
         throw new DomainError("CONFLICT", "No active prompt version exists for this advisor", 409);
       const promptDataScopes = z.array(z.string()).parse(prompt.dataScopes);
 
-      const candidates: Array<{
-        resourceType: string;
-        resourceId: string;
-        record: Record<string, unknown>;
-      }> = [];
+      const candidates: AdvisorContextCandidate[] = [];
       for (const reference of input.context) {
         if (!canAdvisorRead(input.advisor, reference.resourceType)) {
           throw new DomainError(
@@ -421,8 +422,67 @@ export function registerAdvisorRoutes(
           record,
         });
       }
+
+      const complianceSourceIds = [
+        ...new Set(
+          candidates.flatMap((candidate) => {
+            if (
+              candidate.resourceType !== "compliance-events" &&
+              candidate.resourceType !== "obligations"
+            ) {
+              return [];
+            }
+            return typeof candidate.record.sourceId === "string" ? [candidate.record.sourceId] : [];
+          }),
+        ),
+      ];
+      const complianceSourceReviews =
+        complianceSourceIds.length > 0
+          ? await dependencies.db
+              .select({
+                resourceId: complianceItems.id,
+                status: complianceItems.status,
+                reviewStatus: complianceItems.reviewStatus,
+                nextReviewAt: complianceItems.nextReviewAt,
+              })
+              .from(complianceItems)
+              .where(
+                and(
+                  eq(complianceItems.orgId, request.auth.orgId),
+                  inArray(complianceItems.id, complianceSourceIds),
+                  isNull(complianceItems.archivedAt),
+                ),
+              )
+          : [];
+      const complianceSourceReviewById = new Map(
+        complianceSourceReviews.map((source) => [source.resourceId, source]),
+      );
+      for (const candidate of candidates) {
+        if (
+          candidate.resourceType !== "compliance-events" &&
+          candidate.resourceType !== "obligations"
+        ) {
+          continue;
+        }
+        const sourceId = candidate.record.sourceId;
+        if (sourceId !== undefined && sourceId !== null) {
+          candidate.complianceSourceReview =
+            typeof sourceId === "string"
+              ? (complianceSourceReviewById.get(sourceId) ?? null)
+              : null;
+        }
+      }
       const filteredContext = filterAdvisorContext(candidates);
       const contextSnapshot = filteredContext.modelContext;
+      const contextSizeBytes = advisorContextSizeBytes(contextSnapshot);
+      if (contextSizeBytes > MAX_ADVISOR_CONTEXT_BYTES) {
+        throw new DomainError(
+          "PAYLOAD_TOO_LARGE",
+          "Advisor context exceeds the 512 KB model-input safety limit; select fewer or smaller records",
+          413,
+          { contextSizeBytes, maxContextSizeBytes: MAX_ADVISOR_CONTEXT_BYTES },
+        );
+      }
 
       const runId = randomUUID();
       const context = requestAuditContext(request);
@@ -449,16 +509,29 @@ export function registerAdvisorRoutes(
                   candidate.resourceId === reference.resourceId &&
                   candidate.resourceType === reference.resourceType,
               );
+              const withheld = filteredContext.withheld.find(
+                (candidate) =>
+                  candidate.resourceId === reference.resourceId &&
+                  candidate.resourceType === reference.resourceType,
+              );
+              const modelContext = contextSnapshot.find(
+                (candidate) =>
+                  candidate.resourceId === reference.resourceId &&
+                  candidate.resourceType === reference.resourceType,
+              );
               return {
                 orgId: request.auth.orgId,
                 runId,
                 toolName: "company_data.read",
                 input: reference,
-                output: accepted ?? {
-                  withheld: true,
-                  reason: "Compliance source is not active and reviewed",
-                },
-                status: accepted ? "completed" : "withheld",
+                output:
+                  accepted && modelContext
+                    ? modelContext
+                    : {
+                        withheld: true,
+                        reasons: withheld?.reasons ?? ["compliance_review_policy_failed_closed"],
+                      },
+                status: accepted && modelContext ? "completed" : "withheld",
               };
             }),
           );
@@ -481,7 +554,9 @@ export function registerAdvisorRoutes(
             metadata: {
               promptVersionId: prompt.id,
               contextCount: input.context.length,
+              contextSizeBytes,
               withheldComplianceCount: filteredContext.withheldComplianceCount,
+              withheldComplianceReasonCounts: filteredContext.withheldReasonCounts,
             },
           }),
         );
@@ -521,7 +596,7 @@ export function registerAdvisorRoutes(
         )
         .limit(1);
       if (!run) throw new DomainError("NOT_FOUND", "Advisor run not found", 404);
-      assertCanReadAdvisorRun(run, request.auth.permissions);
+      assertCanReadAdvisorRun(run, request.auth.userId, request.auth.permissions);
       const [modelCalls, toolCalls, citations, edits] = await Promise.all([
         dependencies.db
           .select()
@@ -574,7 +649,13 @@ export function registerAdvisorRoutes(
         )
         .limit(1);
       if (!current) throw new DomainError("NOT_FOUND", "Advisor run not found", 404);
-      assertCanReadAdvisorRun(current, request.auth.permissions);
+      assertCanReadAdvisorRun(current, request.auth.userId, request.auth.permissions);
+      if (input.expectedVersion !== current.version) {
+        throw new DomainError("CONFLICT", "Advisor run changed concurrently", 409, {
+          expectedVersion: input.expectedVersion,
+          actualVersion: current.version,
+        });
+      }
       if (current.status !== "completed")
         throw new DomainError("CONFLICT", "Only completed advisor output can be edited", 409);
       try {
@@ -596,7 +677,7 @@ export function registerAdvisorRoutes(
           .set({
             output: input.output,
             confidence: confidenceBasisPoints(input.output),
-            version: current.version + 1,
+            version: sql`${advisorRuns.version} + 1`,
             updatedAt: new Date(),
           })
           .where(and(eq(advisorRuns.id, id), eq(advisorRuns.version, input.expectedVersion)))

@@ -36,4 +36,26 @@ describe("worker config", () => {
       }),
     ).toThrow(/LLM_DRIVER=compatible/);
   });
+
+  it("requires HTTPS for a compatible LLM endpoint", () => {
+    const compatibleConfig = {
+      NODE_ENV: "production",
+      DATABASE_URL: "postgresql://user:password@localhost:5432/database",
+      LLM_DRIVER: "compatible",
+      LLM_API_KEY: "test-provider-key",
+    } as const;
+
+    expect(() =>
+      workerConfigSchema.parse({
+        ...compatibleConfig,
+        LLM_BASE_URL: "http://llm.example.test",
+      }),
+    ).toThrow(/LLM_BASE_URL must use HTTPS/);
+    expect(
+      workerConfigSchema.parse({
+        ...compatibleConfig,
+        LLM_BASE_URL: "https://llm.example.test",
+      }).LLM_BASE_URL,
+    ).toBe("https://llm.example.test");
+  });
 });

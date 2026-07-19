@@ -9,6 +9,10 @@ const optionalSecret = z.preprocess(
   (value) => (value === "" ? undefined : value),
   z.string().min(1).optional(),
 );
+const originUrl = z
+  .string()
+  .url()
+  .transform((value) => new URL(value).origin);
 
 export const apiConfigSchema = z
   .object({
@@ -16,7 +20,7 @@ export const apiConfigSchema = z
     API_HOST: z.string().default("0.0.0.0"),
     API_PORT: z.coerce.number().int().min(1).max(65_535).default(3001),
     DATABASE_URL: z.string().url(),
-    WEB_ORIGIN: z.string().url().default("http://localhost:3000"),
+    WEB_ORIGIN: originUrl.default("http://localhost:3000"),
     JWT_SECRET: z.string().min(32),
     JWT_TTL_SECONDS: z.coerce.number().int().min(300).max(604_800).default(28_800),
     COOKIE_SECURE: booleanString.default("false"),
@@ -42,6 +46,17 @@ export const apiConfigSchema = z
         code: z.ZodIssueCode.custom,
         message: "LLM_DRIVER=compatible requires LLM_BASE_URL and LLM_API_KEY",
         path: ["LLM_DRIVER"],
+      });
+    }
+    if (
+      config.LLM_DRIVER === "compatible" &&
+      config.LLM_BASE_URL &&
+      new URL(config.LLM_BASE_URL).protocol !== "https:"
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "LLM_BASE_URL must use HTTPS when LLM_DRIVER=compatible",
+        path: ["LLM_BASE_URL"],
       });
     }
   });

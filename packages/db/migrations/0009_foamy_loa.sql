@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "financial_entries_org_external_action_uq" ON "financial_entries" USING btree ("org_id","external_action_id");

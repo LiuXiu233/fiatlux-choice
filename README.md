@@ -2,7 +2,7 @@
 
 耀光（广州）电子竞技有限公司及类似中国境内 1–2 人团队的内部公司治理与运营 Web App。
 
-当前状态：**受控候选，尚未宣布或批准 V1 完成**。仓库已经包含实质业务实现、PWA、API、worker、数据库、内网部署和恢复资产。2026-07-18 的本地候选验证已通过静态检查、类型检查、单元/真实集成/聚合/E2E、生产构建、本机 production-like HTTPS 冒烟、最终 age 加密备份、独立恢复以及两个候选标签之间的实际升级/回滚。尚未完成的闸门是不可变 Git/GitHub CI 证据、耀光目标办公内网与真实受管设备、真实 LLM/GitHub 适配器、MinIO OSS 未修复漏洞风险决策和专业合规/业务批准。详情见[V1 验收矩阵](docs/delivery/v1-acceptance-matrix.md)和[受控候选交付报告](docs/delivery/final-delivery-report.md)。
+当前状态：**受控候选，尚未宣布或批准 V1 完成**。仓库已经包含实质业务实现、PWA、API、worker、38 张业务表与 10 个迁移（`0000`–`0009`）、内网部署和恢复资产。2026-07-19 冻结工作树已通过静态/类型/单元/集成/E2E/生产构建、最新 production-like Compose、桌面与移动浏览器、七个本地 arm64 镜像供应链检查和一次底层 formatVersion 2 独立恢复；这些仍是本地候选证据。尚未完成的闸门包括不可变 Git SHA/GitHub CI/GHCR、真实相邻版本升级回滚、经审批生产恢复入口、耀光目标办公内网与真实受管设备、真实 LLM/GitHub 适配器、MinIO 长期维护/支持风险决策和专业合规/业务批准。详情见[V1 验收矩阵](docs/delivery/v1-acceptance-matrix.md)和[受控候选交付报告](docs/delivery/final-delivery-report.md)。
 
 ## 能力
 
@@ -16,7 +16,17 @@
 - Docker Compose 内网拓扑、Caddy TLS、迁移、健康检查、CI、安全扫描、备份恢复和升级回滚资产。
 - 72 条中国、广东、广州官方合规来源及人工复核工作流。
 
-高风险动作不会被自动执行。付款、报税、发票红冲、正式签署、人事处分、关键权限修改和对外法律承诺默认需要人工批准；manual/mock 不会伪造外部成功。
+高风险动作不会被自动执行。银行付款、税务申报、发票红冲、合同正式签署、合同终止、人事处分、关键权限修改和对外法律承诺共八类动作必须人工批准；创建请求只接受 `manual` 或 `mock`，`real` 会被拒绝。`manual` 必须凭外部回执推进，`mock` 只能得到 simulated/cancelled，不能伪造外部成功；合同签署、合同终止和发票红冲只有在 confirmed 时才与目标合同/发票状态原子更新。
+
+关键一致性边界：
+
+- 通知创建时只能是 `queued`；客户端不能直接写入 sent/failed，投递 worker 将根据真实结果推进状态。
+- GitHub 刷新在排队时固定 `expectedVersion`，worker 以 CAS 写回；人工或其他任务先修改记录时，陈旧网络结果不得覆盖新数据。
+- 工作流运行创建时保存定义版本和不可变步骤快照；之后编辑工作流定义不会改写已排队运行。
+- 已关联草稿支出的银行付款若在受支持状态取消，或人工审批驳回，系统在同一事务解除台账关联并增加版本，使修正后的新申请可重新关联。
+- 顾问运行默认只对发起人可见；只有具有 `advisor-runs:read-all` 或全局权限的用户才可读取他人运行，且仍必须拥有该顾问入口和所有上下文资源的读权限。
+- 义务和合规日历将法规来源 `sourceId` 与完成凭证 `evidenceFileId` 分开维护；凭证必须是本组织已完成上传的文件，关联来源本身不等于规则已经人工判定适用。
+- 角色分配/移除审批保存 membership 的 `expectedVersion` 与幂等键；等待审批期间成员或角色关系已变更时，旧审批冲突失败，不会在新版本上静默执行。
 
 ## 架构
 
@@ -49,14 +59,45 @@ cp .env.example .env
 先修改 .env 中的开发密码，不要在共享环境使用示例值，然后：
 
 ~~~sh
-./scripts/compose.sh up -d --build --wait
-./scripts/compose.sh run --rm api node packages/db/dist/seed-cli.js
+./scripts/compose.sh build
+./scripts/bootstrap-database.sh
+./scripts/compose.sh up -d --wait
+SEED_MODE=bootstrap ./scripts/compose.sh run --rm seed
 ./scripts/compose.sh ps
 ~~~
 
 访问 http://localhost:8080。初始账号来自 INITIAL_ADMIN_EMAIL 和 INITIAL_ADMIN_PASSWORD。
 
-`seed-cli` 是显式初始化步骤，不会随普通启动自动执行；重复运行会把引导 owner 的密码重置为当前环境变量中的值。首次登录后应在“设置 → 登录密码”立即改为新的独立密码，确认其他会话已撤销，并停止分发引导密码。生产步骤和重跑限制见[内网部署手册](docs/admin/intranet-deployment.md#5-首次启动与初始化)。
+`bootstrap-database.sh` 先创建独立的 migration/runtime/backup/restore 身份，再迁移业务与 pg-boss schema；常驻 API/worker 没有 DDL。`seed` 是**非日常运维命令**，不得加入普通启动、重启、升级或定时任务。首次空组织必须显式使用 `SEED_MODE=bootstrap`；它创建组织、bootstrap user、active membership、owner assignment、四个内置角色及其权限基线，遇到既有组织 slug 会失败关闭，不会自动转成重跑。只有该模式接受并读取 admin name/password。首次 owner 和后台新建成员都带 `mustChangePassword`；首次改密前只能访问 `me`、`change-password` 和 `logout`，成功后保留当前会话并撤销其他会话。
+
+既有组织必须显式选择 `SEED_MODE=metadata-only`；该模式不接受也不读取 admin name/password，不更新组织或人员字段，不创建/修改 membership、assignment、系统角色或权限，只补齐缺失的内置顾问提示词 v1，并按官方来源文件导入或更新合规来源元数据。每个实际新建的提示词版本都会写 system actor、seed mode、版本信息和提示词 SHA-256 的追加审计，CLI 输出对应 metadata requestId；既有提示词不被覆盖。来源元数据变化会保留人工复核证据并按规则标记 stale/uncertain。要补充新版 `SYSTEM_ROLE_PERMISSIONS`，必须取得关键权限变更的人工批准，显式选择 `SEED_MODE=system-role-maintenance`，并提供本组织 active owner 的 `SEED_MAINTENANCE_OPERATOR_EMAIL`、`SEED_MAINTENANCE_REASON`、`SEED_MAINTENANCE_APPROVAL_REFERENCE` 和唯一 `SEED_MAINTENANCE_REQUEST_ID`；该模式同样拒绝 admin name/password。维护模式只补缺失的内置角色/权限，并为每项 before/after 写追加审计；即使开启也绝不创建 membership 或恢复 owner assignment。生产步骤见[内网部署手册](docs/admin/intranet-deployment.md#5-首次启动与初始化)与[数据库角色手册](docs/admin/database-roles.md)。
+
+### 唯一 owner 离线恢复
+
+系统不提供公开或 API 密码恢复端点。唯一 active owner 忘记密码时，只能在完成线下身份核验和人工批准后，由受控生产主机运行一次性 CLI。CLI 要求精确的小写组织 slug 与 owner email、固定生产确认值、reason、批准/变更编号和唯一 requestId；目标必须仍是该组织未归档的 active owner。临时密码只能从 stdin 或重定向的 secret 文件读取，不能放入参数、环境变量、日志或文件命令行，且须为 14–256 字符并与旧密码不同。
+
+生产 Compose one-off 示例（先在隐藏输入中读取临时密码，命令结束立即清除变量）：
+
+~~~sh
+read -r -s -p 'New temporary owner password: ' OWNER_RECOVERY_TEMPORARY_PASSWORD
+printf '\n'
+printf '%s\n' "$OWNER_RECOVERY_TEMPORARY_PASSWORD" | \
+  docker compose --env-file /etc/fiatlux-choice/production.env \
+    -f compose.yml -f compose.prod.yml --profile operations \
+    run --rm -T --no-deps \
+    -e OWNER_RECOVERY_ORG_SLUG=fiat-lux \
+    -e OWNER_RECOVERY_EMAIL=owner@example.com \
+    -e OWNER_RECOVERY_PRODUCTION_CONFIRMATION=RESET_ACTIVE_OWNER_PASSWORD_AND_REVOKE_ALL_SESSIONS \
+    -e OWNER_RECOVERY_REASON='Approved offline identity recovery' \
+    -e OWNER_RECOVERY_APPROVAL_REFERENCE=CHANGE-2026-0043 \
+    -e OWNER_RECOVERY_REQUEST_ID=owner-recovery-2026-0043 \
+    seed node packages/db/dist/owner-recovery-cli.js
+recovery_status=$?
+unset OWNER_RECOVERY_TEMPORARY_PASSWORD
+test "$recovery_status" -eq 0
+~~~
+
+成功时同一数据库事务写入 Argon2id 临时密码、设置 `mustChangePassword=true`、撤销该用户在所有组织的全部未撤销会话并追加不含密码的审计。owner 用临时密码登录后仍只能访问 `me`、`change-password`、`logout`，必须立即设置新的独立密码。slug/email 不匹配、非 owner、inactive/archived membership 或 owner role、缺少批准控制、重复 requestId及同旧密码都会整体失败，不产生部分恢复。
 
 停止服务：
 
@@ -92,8 +133,10 @@ pnpm check 必须全部通过才能发布。不要因为单独的 build 通过�
 
 ~~~sh
 pnpm db:migrate
-pnpm db:seed
+SEED_MODE=bootstrap pnpm db:seed
 ~~~
+
+`pnpm db:seed` 同样只用于上述三种显式模式，不是开发服务器的日常启动命令。bootstrap 完成后应清除引导密码；metadata-only 和 system-role-maintenance 如果收到 `INITIAL_ADMIN_*` 或 `BOOTSTRAP_ADMIN_*` 身份字段会拒绝运行，不能使用任意占位密码。
 
 ## 仓库结构
 
@@ -117,6 +160,8 @@ pnpm db:seed
 
 - [产品范围](docs/product/product-scope.md)
 - [电竞教育在线业务策略](docs/product/esports-education-strategy.md)
+- [成人电竞教育试点课程包](docs/product/adult-esports-pilot-curriculum.md)
+- [fiatlux.gg 公开业务与内容盘点](docs/research/fiatlux-gg-public-business-audit.md)
 - [角色与权限](docs/user/roles-and-permissions.md)
 - [核心业务操作](docs/user/core-workflows.md)
 - [AI 顾问与审计](docs/user/ai-advisors-and-audit.md)
@@ -135,6 +180,7 @@ pnpm db:seed
 - [部署验证](docs/admin/deployment-verification.md)
 - [备份与恢复](docs/admin/backup-restore.md)
 - [升级与回滚](docs/admin/upgrade-rollback.md)
+- [PostgreSQL 最小权限角色](docs/admin/database-roles.md)
 - [安全加固](docs/security/hardening.md)
 - [安全威胁模型](docs/security/threat-model.md)
 - [事件响应](docs/security/incident-response.md)
@@ -153,14 +199,17 @@ pnpm db:seed
 
 API 基础路径是 /api/v1，使用组织作用域的 HttpOnly 会话 Cookie。健康端点为 /health/live 和 /health/ready。
 
-Swagger 当前以路由、标签和摘要为主，部分 Zod 请求/响应结构尚未完整进入 OpenAPI。集成前请阅读[API 指南](docs/api/api-guide.md)和 `packages/contracts/src/index.ts`；文件上传必须依次完成元数据声明、二进制 PUT 和 `POST /files/:id/complete`。
+当前生成 OAS 3.1 候选文档；冻结工作树已用标准 parser 和运行时清单对账 74 个 path、138 个 operation，并校验认证、参数、请求和响应 schema。发布前仍要在不可变 SHA 复现，并建立兼容性 diff、弃用策略和受支持 SDK 生成交付。集成前请阅读[API 指南](docs/api/api-guide.md)；文件上传必须依次完成元数据声明、二进制 PUT 和 `POST /files/:id/complete`。
 
 ## 安全与数据
 
 - 不要提交 .env、生产数据库、附件、备份、Cookie、LLM/GitHub token 或 age 私钥。
 - 生产只通过 Caddy 暴露 HTTPS，数据库和 MinIO 不发布到办公网。
 - 默认 LLM_DRIVER=mock、GITHUB_INTEGRATION_MODE=manual；启用真实适配器前完成权限、供应商和数据处理复核。
-- 合规来源默认 pending/draft。只有 reviewed 且 active 的记录才可进入顾问事实上下文。
+- 合规来源默认 pending/draft。只有 reviewed、active 且 `nextReviewAt` 尚未到期的记录才可进入顾问事实上下文；空复核日与过期来源 fail closed。
+- 类型化关系已覆盖决策到目标/项目/任务、产品到项目、机会到产品/项目；当前仍不强制决策三条引用的链级一致，也不强制机会项目等于所选产品的项目。
+- member/viewer 只能读取本人通知并通过专用 read 端点标记已读；admin/owner 可跨收件人创建、查看和归档，通知内容对所有角色都不可 PATCH。
+- 合同或发票只能引用同组织、已 uploaded、未归档的文件；被合同或发票引用的文件不能归档，引用与归档检查由事务锁串行化。
 - 备份只有在独立恢复演练通过后才有效。
 
 安全问题按[事件响应流程](docs/security/incident-response.md)处理，不在公开 issue 中粘贴凭据或公司数据。

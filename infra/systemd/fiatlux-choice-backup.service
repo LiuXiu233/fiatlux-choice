@@ -18,4 +18,4 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=read-only
-ReadWritePaths=-/var/backups/fiatlux-choice
+ReadWritePaths=-/var/backups/fiatlux-choice -/var/lib/fiatlux-choice/pre-restore-backups -/var/lib/fiatlux-choice/restore-drill-reports -/var/lib/fiatlux-choice/backup-scratch -/var/lib/fiatlux-choice/restore-scratch -/var/lib/fiatlux-choice/maintenance

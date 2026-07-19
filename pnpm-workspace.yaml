@@ -12,3 +12,6 @@ minimumReleaseAgeExclude:
 allowBuilds:
   argon2: true
   esbuild: true
+
+overrides:
+  "workbox-build>glob": 11.1.0

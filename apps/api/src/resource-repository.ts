@@ -6,6 +6,8 @@ import { sql } from "drizzle-orm";
 
 import type { RequestAuditContext } from "./types.js";
 
+export type ResourceWriteGuard = (executor: Pick<Database, "execute">) => Promise<void>;
+
 const resourceTableNames: Record<ResourceName, string> = {
   objectives: "objectives",
   projects: "projects",
@@ -48,7 +50,14 @@ const resourceSearchColumns: Record<ResourceName, string> = {
   "workflow-runs": "status",
 };
 
-const jsonColumns = new Set(["payload", "steps", "input", "output"]);
+const jsonColumns = new Set([
+  "payload",
+  "steps",
+  "steps_snapshot",
+  "input",
+  "output",
+  "source_metadata",
+]);
 
 function snakeCase(value: string): string {
   return value.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
@@ -116,6 +125,7 @@ export class ResourceRepository {
       search?: string;
       status?: string;
       category?: string;
+      recipientId?: string;
     },
   ) {
     const table = tableIdentifier(resource);
@@ -125,25 +135,31 @@ export class ResourceRepository {
       : sql``;
     const statusFilter = input.status ? sql` AND status = ${input.status}` : sql``;
     const categoryFilter = input.category ? sql` AND category = ${input.category}` : sql``;
+    const recipientFilter =
+      resource === "notifications" && input.recipientId
+        ? sql` AND recipient_id = ${input.recipientId}`
+        : sql``;
     const offset = (input.page - 1) * input.pageSize;
     const result = await this.#db.execute(sql`
       SELECT * FROM ${table}
-      WHERE org_id = ${input.orgId} AND archived_at IS NULL${searchFilter}${statusFilter}${categoryFilter}
+      WHERE org_id = ${input.orgId} AND archived_at IS NULL${searchFilter}${statusFilter}${categoryFilter}${recipientFilter}
       ORDER BY created_at DESC
       LIMIT ${input.pageSize} OFFSET ${offset}
     `);
     const countResult = await this.#db.execute(sql`
       SELECT COUNT(*)::integer AS total FROM ${table}
-      WHERE org_id = ${input.orgId} AND archived_at IS NULL${searchFilter}${statusFilter}${categoryFilter}
+      WHERE org_id = ${input.orgId} AND archived_at IS NULL${searchFilter}${statusFilter}${categoryFilter}${recipientFilter}
     `);
     const countRows = rows(countResult);
     return { items: rows(result), total: Number(countRows[0]?.total ?? 0) };
   }
 
-  async get(resource: ResourceName, orgId: string, id: string) {
+  async get(resource: ResourceName, orgId: string, id: string, recipientId?: string) {
+    const recipientFilter =
+      resource === "notifications" && recipientId ? sql` AND recipient_id = ${recipientId}` : sql``;
     const result = await this.#db.execute(sql`
       SELECT * FROM ${tableIdentifier(resource)}
-      WHERE org_id = ${orgId} AND id = ${id} AND archived_at IS NULL
+      WHERE org_id = ${orgId} AND id = ${id} AND archived_at IS NULL${recipientFilter}
       LIMIT 1
     `);
     const record = rows(result)[0];
@@ -158,6 +174,7 @@ export class ResourceRepository {
     orgId: string,
     input: Record<string, unknown>,
     context: RequestAuditContext,
+    guard?: ResourceWriteGuard,
   ) {
     const id = randomUUID();
     const entries = Object.entries(input).filter(([, value]) => value !== undefined);
@@ -173,6 +190,7 @@ export class ResourceRepository {
     ];
 
     return this.#db.transaction(async (tx) => {
+      if (guard) await guard(tx);
       const result = await tx.execute(sql`
         INSERT INTO ${tableIdentifier(resource)} (${sql.join(columns, sql`, `)})
         VALUES (${sql.join(values, sql`, `)})
@@ -199,16 +217,33 @@ export class ResourceRepository {
     patch: Record<string, unknown>,
     expectedVersion: number,
     context: RequestAuditContext,
+    guard?: ResourceWriteGuard,
   ) {
-    const previous = await this.get(resource, orgId, id);
     const entries = Object.entries(patch).filter(([, value]) => value !== undefined);
-    if (entries.length === 0) return previous;
     const assignments = entries.map(([key, value]) => {
       const column = snakeCase(key);
       return sql`${sql.identifier(column)} = ${valueExpression(column, value)}`;
     });
 
     return this.#db.transaction(async (tx) => {
+      const previousResult = await tx.execute(sql`
+        SELECT * FROM ${tableIdentifier(resource)}
+        WHERE org_id = ${orgId} AND id = ${id} AND archived_at IS NULL
+        LIMIT 1
+        FOR UPDATE
+      `);
+      const previous = rows(previousResult)[0];
+      if (!previous) {
+        throw new DomainError("NOT_FOUND", `${resource} record not found`, 404);
+      }
+      if (Number(previous.version) !== expectedVersion) {
+        throw new DomainError("CONFLICT", "The record changed since it was loaded", 409, {
+          expectedVersion,
+          actualVersion: previous.version,
+        });
+      }
+      if (guard) await guard(tx);
+      if (entries.length === 0) return previous;
       const result = await tx.execute(sql`
         UPDATE ${tableIdentifier(resource)}
         SET ${sql.join(assignments, sql`, `)}, updated_at = NOW(), version = version + 1
@@ -240,9 +275,26 @@ export class ResourceRepository {
     id: string,
     expectedVersion: number,
     context: RequestAuditContext,
+    guard?: ResourceWriteGuard,
   ) {
-    const previous = await this.get(resource, orgId, id);
     return this.#db.transaction(async (tx) => {
+      const previousResult = await tx.execute(sql`
+        SELECT * FROM ${tableIdentifier(resource)}
+        WHERE org_id = ${orgId} AND id = ${id} AND archived_at IS NULL
+        LIMIT 1
+        FOR UPDATE
+      `);
+      const previous = rows(previousResult)[0];
+      if (!previous) {
+        throw new DomainError("NOT_FOUND", `${resource} record not found`, 404);
+      }
+      if (Number(previous.version) !== expectedVersion) {
+        throw new DomainError("CONFLICT", "The record changed since it was loaded", 409, {
+          expectedVersion,
+          actualVersion: previous.version,
+        });
+      }
+      if (guard) await guard(tx);
       const result = await tx.execute(sql`
         UPDATE ${tableIdentifier(resource)}
         SET archived_at = NOW(), updated_at = NOW(), version = version + 1

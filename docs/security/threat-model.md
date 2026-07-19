@@ -27,18 +27,22 @@ CI 运行器 -- GHCR/SBOM -- 内网生产主机
 | 威胁 | 示例 | 预防/检测控制 | 剩余风险与责任人 |
 | --- | --- | --- | --- |
 | 账户接管 | 弱密码、会话窃取 | Argon2、HttpOnly/Secure/SameSite cookie、会话过期、登录限流、TLS、审计 | 极小团队应启用第二管理员恢复机制；产品负责人 |
+| 引导凭据常驻 | 首次 seed 密码留在日常容器环境或被误重跑 | 独立一次性 seed 服务；API/worker 不接收引导密码；首次改密后清空配置，缺失密码时 seed 失败关闭 | 获批密码恢复仍需临时凭据和双重核对；系统管理员 |
 | 越权与 IDOR | 普通成员读取合同或财务 | 服务端 RBAC、按公司作用域查询、默认拒绝、拒绝测试与审计 | 代码新增资源时需补权限矩阵；研发负责人 |
 | 高风险自动执行 | LLM 发起付款、签署或处罚 | 工作流停在人工批准；适配器默认 manual/mock；不伪报成功 | 人工可能误批；审批人复核依据与金额 |
 | Prompt injection | 文件或 GitHub 内容诱导顾问泄密/调用工具 | 外部内容标记不可信、工具白名单、按权限取数、输出事实/推断分离、全链路审计 | 模型仍可能给出错误建议；业务责任人复核 |
-| 隐私外传 | 将个人信息发送给 LLM | 数据最小化、字段脱敏、模型供应商白名单、调用前授权、日志脱敏 | 供应商侧处理风险；信息安全与合规负责人 |
-| 恶意上传 | 脚本、超大文件、路径穿越 | 大小/MIME/扩展名限制、随机对象键、私有桶、下载时权限与安全响应头 | 病毒查杀适配器尚需部署；管理员 |
+| 隐私外传 | 将个人信息或过量公司记录发送给 LLM | 数据最小化、递归字段/常见标识符脱敏、模型上下文 512 KB UTF-8 硬上限、工具审计只保存实际脱敏输出、供应商白名单、调用前授权 | 语义文本仍可能含未识别敏感信息；信息安全与合规负责人 |
+| 恶意上传 | 脚本、超大文件、路径穿越、危险双扩展 | 大小限制；扩展名与声明 MIME 精确匹配；基于 NFKC 规范化检查路径/点段/控制字符/保留名；拒绝脚本、HTML/SVG、可执行、宏或 ODF 格式、generic octet-stream 和危险双扩展；随机对象键、私有桶、完成时大小/SHA-256 复核、下载权限、attachment 与 `nosniff` | allowlist 不能识别伪装内容或恶意 PDF/Office；Markdown/JSON 也只是非可信附件；尚无 magic 检测、反病毒、内容安全扫描或 DLP；管理员 |
 | SQL/命令注入 | 搜索、报表、脚本参数 | 参数化 ORM、输入 schema、脚本名称白名单、不拼接 shell 密钥 | 复杂报表需专项测试；研发负责人 |
-| 审计篡改 | 管理员删除不利记录 | 应用无更新/删除审计接口、数据库权限分离、异机备份、异常告警 | Docker 主机管理员仍可篡改；公司负责人双人复核 |
+| 官方来源抓取 SSRF/内容投毒/资源耗尽 | 恶意 URL、DNS 重绑定、私网重定向、压缩炸弹、超大正文 | 精确官方主机白名单、每跳 DNS 公网校验并固定连接地址、最终 HTTPS、GET-only、15 秒/2 MiB 上限、拒绝意外压缩、组织+来源租约 | 官方站自身被入侵或内容误发仍需人工复核；信息安全与合规负责人 |
+| 审计篡改 | 管理员删除不利记录 | 应用无更新/删除审计接口；runtime 无 UPDATE/DELETE/TRUNCATE/TRIGGER、不是所有者且无法 SET ROLE；触发器 ENABLE ALWAYS；异机备份与异常告警 | migrator/bootstrap 或 Docker 主机管理员仍可显式绕过；公司负责人双人复核 |
+| 数据库常驻高权 | API/worker 被攻陷后执行 DDL、建库、建角色或禁用触发器 | bootstrap/migrator/runtime/backup/restore 分离；常驻服务仅 runtime；pg-boss migrate=false；部署验证查询实际 role flags 与对象权限 | runtime 对多数业务表仍有模块化单体所需 DML，应用组织隔离依赖服务端 RBAC；研发与运维负责人 |
 | 服务暴露 | DB/MinIO 监听办公网 | 只有 Caddy 发布端口、backend internal 网络、主机防火墙、部署验证 | Docker 配置变更可重新暴露；运维负责人 |
 | 绕过安全网关 | 直接暴露 Web/API，缺失 CSP 或 TLS 边界 | 生产 Compose 只发布 Caddy；Caddy 注入 CSP/HSTS；浏览器验证响应头 | Fastify Helmet 单独关闭 CSP，绕过 Caddy 就没有同等保证；运维负责人 |
+| 恶意或伪造备份 | 路径穿越、symlink/hardlink/device/FIFO、展开炸弹，或攻击者用公开 age recipient 生成替换密文 | 独立受审归档 SHA-256；同一 Go parser 先全量检查再安全提取；仅目录/普通文件；成员数/展开大小/逐文件完整覆盖清单 | 尚无备份数字签名；审批渠道或 Docker 主机失陷仍可绕过；公司与安全负责人 |
 | 备份不可恢复 | 文件存在但损坏或无密钥 | manifest、age、每日备份、每月独立恢复演练、RPO/RTO 记录 | 同城灾害需异地介质；公司负责人 |
-| 供应链攻击 | 恶意依赖/Action/镜像 | lockfile、第三方 Actions 固定完整 commit SHA、依赖审计、CodeQL、Trivy、Gitleaks、SBOM、来源证明、不可变 tag | 固定 SHA 仍需 Dependabot/人工更新；最终 GitHub 工作流和发布 provenance 尚未运行；研发负责人 |
-| PWA 缓存泄漏 | 共用设备离线看到旧公司数据 | service worker 不缓存 API/私有页面、退出清缓存、设备锁屏和磁盘加密 | 浏览器自身缓存仍需响应头约束；前端负责人 |
+| 供应链攻击 | 恶意依赖、mutable 源码 tag、Action/镜像 tag 被替换 | lockfile、第三方 Actions 完整 commit SHA、MinIO/mc commit+tarball SHA-256、依赖审计、CodeQL、Trivy、Gitleaks、SBOM、BuildKit provenance、七组件受审 digest 清单 | provenance 不是签名；尚无 cosign/Sigstore；固定 SHA 仍需 Dependabot/人工更新；研发负责人 |
+| PWA 缓存泄漏 | 共用设备离线看到旧公司数据 | service worker 不缓存 API/私有页面；所有 `/api/*` 响应统一 `Cache-Control: no-store`；退出清缓存、设备锁屏和磁盘加密 | 受管设备仍需限制浏览器配置、下载文件和截图；前端负责人 |
 | 日志泄密 | token、身份证号进入日志 | 字段白名单、日志脱敏、轮转、访问控制、外发前人工复核 | 异常堆栈可能含输入；运维负责人 |
 
 ## 滥用场景
@@ -46,8 +50,8 @@ CI 运行器 -- GHCR/SBOM -- 内网生产主机
 1. 顾问读取上传合同中的恶意指令并尝试调用 GitHub 或付款工具。预期：文档内容仅作为不可信事实来源；未授权工具不可见；高风险动作只能生成待审批建议。
 2. 成员修改请求中的 `companyId` 访问另一公司数据。预期：服务端从会话作用域确定公司，拒绝并写审计。
 3. 管理员误把 MinIO 控制台发布到 `0.0.0.0`。预期：生产 Compose 无 MinIO ports；部署验证发现非网关宿主端口。
-4. 升级迁移破坏旧版兼容性。预期：升级前加密备份；expand/contract；应用回滚不执行数据库降级，不兼容时完整恢复。
-5. 攻击者取得加密备份但没有 age 身份。预期：无法读取；身份独立离线保存。若生产主机与身份同时失陷，需按数据泄露事件处理。
+4. 升级迁移、PostgreSQL binary 或 MinIO 跨版本破坏兼容性。预期：升级前加密备份；expand/contract；七组件一致切换但不执行数据库 schema 降级；常规流程禁止 PostgreSQL major 变化，minor 回退要求独立人工兼容复核；应用 schema、数据库数据目录或 MinIO 数据格式不兼容时停止并完整恢复。
+5. 攻击者取得加密备份但没有 age 身份。预期：无法读取；身份独立离线保存。若生产主机与身份同时失陷，需按数据泄露事件处理。反向场景中，知道公开 age recipient 的攻击者能生成另一份有效密文，因此恢复仍必须匹配独立受审 SHA-256。
 
 ## 明确不覆盖
 
