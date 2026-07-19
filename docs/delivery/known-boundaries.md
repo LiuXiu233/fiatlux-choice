@@ -15,9 +15,9 @@
 
 ## 2. 工程验证状态
 
-2026-07-18 的旧测试、六镜像、v1 恢复和同内容标签升级数字只保留为历史背景。2026-07-19 冻结工作树已完成 lint/ShellCheck/Actionlint、7 项类型检查、150/150 单元与聚合、API/worker/PostgreSQL/pg-boss/MinIO 集成、mock 44+6 与 real 2 项 Playwright、PWA/构建、最新 production-like Compose、桌面/移动浏览器、七镜像扫描/SPDX/provenance fixture，以及一次底层 formatVersion 2 独立恢复。
+2026-07-18 的旧测试、六镜像、v1 恢复和同内容标签升级数字只保留为历史背景。2026-07-19 冻结工作树已完成 lint/ShellCheck/Actionlint、7 项类型检查、162/162 单元与聚合、API 17 files/83 tests、worker 5 files/23 tests、PostgreSQL/pg-boss/MinIO 集成、mock 44+6 与 real 2 项 Playwright、PWA/构建、最新 production-like Compose、桌面/移动浏览器、七镜像扫描/SPDX/provenance fixture、一次底层 formatVersion 2 独立恢复，以及一次本地 synthetic bridge 真实 schema/镜像差异升级与应用回滚。
 
-当前 schema 为 38 张业务表和 10 个迁移（`0000`–`0009`）。上述结果仍是本地冻结候选而非不可变提交、GitHub runner、GHCR 双平台、耀光办公内网、真实设备或生产批准证据。真实相邻版本升级/回滚和经审批的破坏性 `restore.sh` 生产入口没有实跑。GitHub CI、目标内网、真实设备、MinIO 长期维护/支持风险处置和责任人批准仍是发布闸门，以[验收矩阵](./v1-acceptance-matrix.md)为准。
+当前 schema 为 38 张业务表和 10 个迁移（`0000`–`0009`）。上述结果仍是本地冻结候选而非 GitHub runner、GHCR 双平台、耀光办公内网、真实设备或生产批准证据。本地 synthetic bridge 已实跑真实差异升级/回滚，但历史生产 N−1、目标发布复演和经审批的破坏性 `restore.sh` 生产入口没有实跑。GitHub CI、目标内网、真实设备、MinIO 长期维护/支持风险处置和责任人批准仍是发布闸门，以[验收矩阵](./v1-acceptance-matrix.md)为准。
 
 ## 3. 身份与权限
 
@@ -112,12 +112,14 @@
 - age 加密不认证备份来源。恢复现在强制匹配独立受审的归档 SHA-256，并通过只允许目录/普通文件的归档守卫；相邻 `.sha256` sidecar 不能自动充当批准记录。当前没有备份数字签名，无法建立独立审批渠道时属于生产恢复阻断项。
 - 备份恢复是破坏性管理员操作，不提供普通 Web 恢复按钮。
 - 冻结候选只执行一次底层 formatVersion 2 隔离恢复：`finalqa-isolated-v2-20260719T042309Z.tar.gz.age`，SHA-256 `bcfd6c59d9e66f7319ab2b55e6e711e2adfe2732f2c3a928b02eb82a3768b6ba`，`sourceId=fiatlux-finalqa-isolated`；核对 38 表、10 migration SQL SHA、pg-boss 24、1 对象/56 bytes、ready、数据库/对象 ACL，RPO 2 秒、drill RTO 75 秒，随后删除归档、identity、容器、卷和明文 workspace。`production_restore_entrypoint_executed=false`，因此不能表述为 `restore.sh` 生产审批入口已实跑。
-- 2026-07-18 formatVersion 1 的 `final-rc-...`、37 表/4 对象/16 秒，以及同内容标签的 35/35/33 秒升级回滚只保留为历史证据，不能作为当前发布结论。release-transition、维护锁、归档 guard、镜像来源、PostgreSQL major/minor 门禁和 N−1 工具链的安全测试已在冻结候选通过，但真实相邻版本的 schema/镜像升级与应用回滚仍未演练。
+- 2026-07-18 formatVersion 1 的 `final-rc-...`、37 表/4 对象/16 秒，以及同内容标签的 35/35/33 秒升级回滚只保留为历史证据，不能作为当前发布结论。
+- 首轮新演练虽完成升级和回滚脚本，但回滚后的常驻 API 在 idle 后连续两次登录 `CONNECT_TIMEOUT`/HTTP 500，任务 CRUD 未执行，因此正确 BLOCKED。连接恢复修复提交 `859841f…` 经 162 单元、API 83、worker 23、暖连接/断链/黑洞同句柄恢复与生产构建复验。
+- 第二轮以 N 10 migrations、synthetic bridge 9 migrations 和七个全异 digest 完成真实 registry push/pull、46 秒升级、43 秒应用回滚及双 formatVersion 2 恢复点；回滚后同一 API 启动 308.138 秒登录 200，任务 CRUD/审计通过，日志无 `CONNECT_TIMEOUT`。该证据仅证明本地相邻兼容，不是历史生产 N−1、GHCR 或目标内网。
 - 新升级/回滚入口强制校验严格七组件发布清单和独立批准的清单 SHA-256，并在 pull 后、迁移前及启动后核对本地 RepoDigest；切换时一致重建 PostgreSQL、MinIO 与应用，并核对六个常驻容器 image ID 后才写全局版本，避免任一常驻组件延迟切换。backup 保持按需。BuildKit provenance 与 SBOM 不是签名；当前未集成 cosign/Sigstore，不能声称镜像已由发布者签名。
 - 尚未完成的目标验证包括耀光办公内网主机、DNS、CA 分发、防火墙、seed/owner 首登改密、真实设备、异介质恢复和运行观察。
 - Caddy internal CA 需要逐台受控分发；它不是成熟企业 PKI。
-- 实现基线 `16f4481c5bfa81d8f183f869ed93dbd1b1cc0636` 已推送私有 `LiuXiu233/fiatlux-choice` 并创建 Draft PR #12。首次 CI/Security run 的所有 job 均为 `runner_id=0`、`steps=[]`，annotation 明确提示近期账户付款失败或 Actions spending limit 不足；因此没有 workflow step 被执行，不能声称 GitHub CI、安全扫描、合并或发布已完成。修复 Billing & plans 后必须重跑。
-- 实现基线 commit 在 GitHub 上为 `verified=false, reason=unsigned`；当前仓库没有把 Git commit/tag 签名作为已验证控制。它不影响本地测试事实，但不能充当发布者签名；生产 tag 前必须确定并执行签名政策，或由有权负责人记录替代控制与风险决定。
+- 连接恢复实现基线 `859841f79efc68fd75757b6f3232ba4eaa56cb3a` 已对应私有 `LiuXiu233/fiatlux-choice` 的 Draft PR #12 候选分支。既有 CI/Security run 的所有 job 均为 `runner_id=0`、`steps=[]`，annotation 明确提示近期账户付款失败或 Actions spending limit 不足；因此没有 workflow step 被执行，不能声称 GitHub CI、安全扫描、合并或发布已完成。文档 head 推送后仍须复核新 run；修复 Billing & plans 后必须重跑。
+- 当前仓库没有把 Git commit/tag 签名作为已验证控制。本地测试事实不能充当发布者签名；生产 tag 前必须确定并执行签名政策，或由有权负责人记录替代控制与风险决定。
 
 ## 11. 安全剩余风险
 

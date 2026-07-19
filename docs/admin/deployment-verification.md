@@ -73,3 +73,5 @@ docker system df
 ```
 
 最后两条默认 dry-run。第一版交付报告必须记录实际执行命令、退出码、时间、环境、失败修复与证据路径；不能用“配置看起来正确”替代实际验证。
+
+本地相邻版本演练还必须覆盖低频人工请求窗口：记录回滚后 API `StartedAt` 和 restartCount，在超过数据库 idle 阈值及批准的回归窗口后，经正式 Caddy HTTPS 登录并完成任务 create/read/update/archive/归档后 404；同时扫描常驻 API 日志中的 `CONNECT_TIMEOUT`/依赖错误并核对四个 runtime `application_name`。one-shot 数据库连接成功不能代替该业务验证。2026-07-19 的 synthetic bridge 已在 308 秒窗口通过，但目标内网和最终受审 N−1 仍需复演。

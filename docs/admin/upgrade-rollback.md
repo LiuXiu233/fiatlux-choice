@@ -6,6 +6,8 @@
 
 Git tag、GHCR semver tag、绿色 release workflow 和完整清单只表示形成了**不可变候选制品**，不等于获准部署生产。仓库当前没有可由代码证明的 GitHub production environment 审批；部署前仍须完成本章的 CI、安全、未修复漏洞处置、恢复演练、目标环境和真实责任人批准，并由部署操作人通过独立渠道取得受审 Git SHA 与清单 SHA-256。不得把候选 tag 的存在写成“已上线”或“已批准生产”。
 
+2026-07-19 的本地验证使用 N 10 migrations 与 synthetic bridge 9 migrations、七个内容全异镜像和本机固定 digest registry，完成真实 push/pull、46 秒升级、43 秒应用回滚、双 formatVersion 2 恢复点及回滚后 308 秒 HTTPS CRUD。首轮曾因 idle 后 `CONNECT_TIMEOUT` 正确 BLOCKED，修复后同一 API 进程复验通过。该结果证明脚本和连接修复的本地兼容性，不是历史生产 N−1、GHCR、目标办公内网或批准记录；生产仍须用最终受审制品和真实回滚目标重复本章门禁。
+
 发布工作流的 BuildKit provenance 记录构建输入与过程，**不是发布者数字签名，也不是生产批准**。`release-manifest.tsv.sha256` 与清单位于同一 artifact，只用于传输完整性；审批人必须从受控的 GitHub 工作流/审批记录核对版本、完整 Git SHA、七个 digest 和清单 SHA-256，并把 Git SHA 与清单 SHA-256 通过独立渠道交给部署操作人。执行脚本要求本地 checkout 的 HEAD 精确等于受审 SHA，且 tracked 与非忽略 untracked 状态均为空，从而约束 Compose、升级/恢复脚本及 bind-mounted PostgreSQL/MinIO 策略；秘密和运行数据必须位于 `.gitignore` 覆盖的外部路径。当前未集成 cosign/Sigstore 或企业签名密钥；无法取得独立批准值时，升级和回滚失败关闭。
 
 ### 部分镜像 tag 失败处置

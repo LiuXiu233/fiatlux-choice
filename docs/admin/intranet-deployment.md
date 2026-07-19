@@ -203,4 +203,4 @@ systemd 单元默认每日备份、每月在独立卷恢复演练。首次启用
 
 任何一项缺失，都只能标记为“待验证”，不能声明生产部署完成。
 
-此前版本曾取得本机 production-like、age 加密备份、隔离恢复，以及 formatVersion 1／同内容标签升级回滚的历史演练证据；这些结果早于当前严格七组件清单、N−1 工具链和最新代码，不能证明当前真实相邻版本升级／回滚路径，也不能绑定最终 Git SHA 或替代目标办公内网证据。当前严格发布路径的真实相邻版本演练、目标办公内网部署与恢复、最终 GitHub CI 和业务批准均仍待完成，不得预填为通过。
+此前的 formatVersion 1／同内容标签升级回滚只保留为历史证据。2026-07-19 首轮严格七组件相邻演练在回滚后 idle 登录暴露 postgres.js `CONNECT_TIMEOUT` 并正确阻断；修复后第二轮以 10 migrations 的 N 与 9 migrations 的本地 synthetic bridge、七个内容全异镜像，完成真实 registry push/pull、46 秒升级、43 秒应用回滚、双 formatVersion 2 恢复点和同一 API 进程启动 308 秒后的 HTTPS CRUD。它证明本地工程路径与缺陷修复，不是历史生产 N−1、GHCR、目标办公内网或经批准生产发布。目标办公内网部署与恢复、最终 GitHub CI/GHCR、受审 N−1 和业务批准仍待完成，不得预填为通过。

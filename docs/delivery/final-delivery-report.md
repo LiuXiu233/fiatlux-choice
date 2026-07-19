@@ -12,7 +12,7 @@
 | --- | --- | --- |
 | 产品版本 | V1 受控候选 | 所有阻断闸门关闭并取得业务负责人批准后才能改为 V1 完成 |
 | 目标仓库 | 私有 `LiuXiu233/fiatlux-choice`；候选分支已推送；[Draft PR #12](https://github.com/LiuXiu233/fiatlux-choice/pull/12) | 解除 Actions 计费阻断，取得绿色 CI/security；批准后再合并 |
-| Git SHA / tag | 实现基线 `16f4481c5bfa81d8f183f869ed93dbd1b1cc0636`；GitHub verification 为 `unsigned`；未创建发布 tag | 本报告状态回写为后续纯文档提交；生产发布仍须确定 commit/tag 签名政策，并绑定受保护 tag、GHCR digest、测试和恢复点 |
+| Git SHA / tag | 连接恢复实现基线 `859841f79efc68fd75757b6f3232ba4eaa56cb3a`；未创建发布 tag | 本报告状态回写为后续纯文档提交；生产发布仍须确定 commit/tag 签名政策，并绑定受保护 tag、GHCR digest、测试和恢复点 |
 | GitHub PR / CI | [CI run 29674559169](https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29674559169) 与 [Security run 29674559116](https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29674559116) **均在 runner 启动前失败** | GitHub annotation 明确为近期账户付款失败或 Actions spending limit 不足；`runner_id=0`、`steps=[]`，没有任何 workflow step 实际运行。修复 Billing & plans 后重跑；不得把本地通过或这次 failure 写成 GitHub CI 通过 |
 | 数据库 | PostgreSQL 17.10；38 张业务表；10 个业务迁移 `0000`–`0009`；fresh 与 legacy 升级、pg-boss 24 和五职责权限均本地通过 | 最终提交后由 GitHub CI 复现；目标内网重新执行 |
 | 候选 QA 环境 | 最新冻结工作树的本机 production-like Compose：`https://choice-final.localhost:19443`，受信 TLS SAN `choice-final.localhost` | 不得改写成耀光广州办公内网生产环境 |
@@ -42,7 +42,7 @@
 | 通知、顾问与工作流 | in-app 通知、失败可见的 email/webhook 边界、七类顾问、四类工作流步骤 | 通知 queued-only、工作流不可变快照/partial checkpoint、advisor/workflow/backup 原子 claim 和 lease 边界均已在冻结候选回归覆盖 |
 | AI 可追溯 | 总经理、财务、法务合规、产品研发、市场机会、人力行政、信息安全；提示词/模型/工具/引用/人工编辑审计 | 运行默认只对发起人可见；`advisor-runs:read-all`/全局权限只扩大候选可见集，读者仍必须拥有顾问入口及全部上下文资源读权限；mock 不代表真实模型质量 |
 | PWA | 响应式导航、manifest、service worker、离线壳和恢复会话 | 冻结构建生成 9 个 precache 条目（560.08 KiB）；真实栈 desktop/mobile、离线壳、SW active 和 390 px 无溢出通过；真机安装/升级仍待执行 |
-| 部署与灾备 | Compose、Caddy、迁移、健康检查、日志、最小权限数据库/MinIO、备份恢复、升级回滚工具 | 最新 Compose、六常驻服务重启持久性、部署验证和一次底层 formatVersion 2 隔离恢复均通过；真实相邻版本升级/回滚与目标内网仍待执行 |
+| 部署与灾备 | Compose、Caddy、迁移、健康检查、日志、最小权限数据库/MinIO、备份恢复、升级回滚工具 | 最新 Compose、六常驻服务重启持久性、部署验证、一次底层 formatVersion 2 隔离恢复，以及一次本地 synthetic bridge 真实 schema/镜像差异升级与应用回滚均通过；历史生产 N−1、GHCR 和目标内网仍待执行 |
 
 ## 3. 最终冻结测试状态
 
@@ -50,16 +50,16 @@
 
 | 层级 | 当前发布口径 | 最终要求 |
 | --- | --- | --- |
-| Biome / ShellCheck / Actionlint / 类型 | **本地通过** | Biome 186 个文件；全 `scripts/`/`infra/` shell；3 个 workflow；7 个 TypeScript 项目 |
-| 单元/聚合测试 | **本地通过** | 150/150 单元测试；完整 workspace 聚合通过；最终精确集成计数见同次测试日志 |
-| API/worker/PostgreSQL/pg-boss/MinIO 集成 | **本地通过** | API 16 files/80 tests、worker 5 files/23 tests、fresh/legacy PostgreSQL、pg-boss 24、权限/事务/并发/CAS/审计以及 2 项真实 MinIO/S3 集成通过 |
+| Biome / ShellCheck / Actionlint / 类型 | **本地通过** | Biome 190 个文件；全 `scripts/`/`infra/` shell；3 个 workflow；7 个 TypeScript 项目 |
+| 单元/聚合测试 | **本地通过** | 162/162 单元测试；完整 workspace 聚合通过；最终精确集成计数见同次测试日志 |
+| API/worker/PostgreSQL/pg-boss/MinIO 集成 | **本地通过** | API 17 files/83 tests、worker 5 files/23 tests、fresh/legacy PostgreSQL、pg-boss 24、权限/事务/并发/CAS/审计、连接恢复以及 2 项真实 MinIO/S3 集成通过 |
 | Playwright / 视觉 / PWA | **本地通过，有外部边界** | mock 全套 44 passed、6 个设计内条件 skip；真实栈 desktop/mobile 2 项通过；独立浏览器抽查、PWA 离线壳和 390 px 移动布局通过；受管真机另行验收 |
 | 全 workspace 与七镜像构建 | **本地通过，有发布边界** | production build 通过；七个本地 arm64 镜像、六常驻服务健康/重启持久性和按需 backup 通过；GHCR 双平台 root digest 待 GitHub release workflow |
 | 安全/供应链 | **本地通过，有外部边界** | Gitleaks、Semgrep 1.170.0+canary、生产依赖审计、IaC、七镜像 Trivy 0.70.0、七份 SPDX 和真实 BuildKit 0.31.2 provenance fixture 通过；GitHub CodeQL/安全 workflow 待运行 |
 
 生产依赖 `pnpm audit --prod` 为 0。全依赖扫描只剩 `drizzle-kit -> esbuild` 的 1 个 moderate，属于不进入生产镜像、CI 不启动其 dev server 的开发期依赖；列为非阻断升级项，不应表述为“全依赖零漏洞”。未运行、设计内 skip 和目标环境缺失继续分列。
 
-失败历史没有删除：API 集成首次按文件并行运行时，在本机 2 CPU/4 GB 的 seed/Argon2 峰值出现 PostgreSQL `CONNECT_TIMEOUT`，得到 13 passed、4 failed、63 skipped；数据库全程 healthy、RestartCount 0、连接数未耗尽，且无业务断言失败。将 root/API/worker 的 `test` 与 `test:integration` 标准入口固定为 unit→workspace 串行、API/worker `--no-file-parallelism --maxWorkers=1` 后，API 独立复跑 80/80（190.68 秒）、worker 独立复跑 23/23（16.31 秒）均通过；更新后的根级 `pnpm test:integration` 再以 65.93 秒 exit 0，完整 `pnpm check` 也在实际测试 PostgreSQL 上 exit 0。未配置 S3 时 integrations 2 项按设计 skip；真实 S3 两项由单独带凭据的 MinIO 门禁 2/2 通过，不能把 skip 记作通过。
+失败历史没有删除：API 集成首次按文件并行运行时，在本机 2 CPU/4 GB 的 seed/Argon2 峰值出现 PostgreSQL `CONNECT_TIMEOUT`，得到 13 passed、4 failed、63 skipped；数据库全程 healthy、RestartCount 0、连接数未耗尽，且无业务断言失败。将 root/API/worker 的 `test` 与 `test:integration` 标准入口固定为 unit→workspace 串行、API/worker `--no-file-parallelism --maxWorkers=1` 后，旧基线 API 80/80、worker 23/23 和根级集成均通过。连接恢复修复后的最新复跑为 162/162 单元、API 83/83、worker 23/23；其中 malformed-JSON 单测曾在宿主 load 83 时唯一超时，在正常负载下同一测试 140 ms 通过，未删除该环境事件。未配置 S3 时 integrations 2 项按设计 skip；真实 S3 两项由单独带凭据的 MinIO 门禁 2/2 通过，不能把 skip 记作通过。
 
 ## 4. 权限、后台任务与数据一致性证据
 
@@ -129,11 +129,21 @@
 | 范围边界 | `production_restore_entrypoint_executed=false`：这是底层格式的独立恢复演练，不冒充经审批的破坏性 `restore.sh` 生产入口；该转换入口由 release-transition 安全测试覆盖 |
 | 清理 | 来源/恢复容器、卷、明文 workspace、归档和临时 age identity 已删除；ignored 报告不提交 Git |
 
-该证据证明冻结候选的底层 formatVersion 2 独立恢复、数据库/对象一致性、权限和 readiness 可用，并给出本机实测 RPO/RTO。它仍未证明目标办公内网、异介质保管、业务批准的 RPO/RTO、生产审批入口或真实相邻版本升级/回滚；这些保持发布闸门。
+该证据证明冻结候选的底层 formatVersion 2 独立恢复、数据库/对象一致性、权限和 readiness 可用，并给出本机实测 RPO/RTO。它仍未证明目标办公内网、异介质保管、业务批准的 RPO/RTO 或生产审批入口；这些保持发布闸门。
 
-2026-07-18 的 v1 归档、37 表/4 对象、16 秒恢复以及同内容标签升级/回滚属于**已被安全格式升级取代的历史证据**。它们早于 formatVersion 2 来源 metadata、资源上限、独立恢复凭据、N−1 backup image 选择和最新代码，不能计作当前或最终恢复门禁。最新完整代码的升级/回滚也必须重新演练。
+2026-07-18 的 v1 归档、37 表/4 对象、16 秒恢复以及同内容标签升级/回滚属于**已被安全格式升级取代的历史证据**。它们早于 formatVersion 2 来源 metadata、资源上限、独立恢复凭据、N−1 backup image 选择和最新代码，不能计作当前或最终恢复门禁。新的本地 synthetic bridge 复验见下一节，但它仍不能冒充历史生产 N−1 或目标环境发布演练。
 
-## 8. 已知结构与运行边界
+## 8. 本地相邻版本升级／应用回滚证据
+
+- 首轮隔离演练的升级和回滚脚本均 exit 0，但回滚后的常驻 API 在旧 20 秒 idle 阈值之后连续两次登录返回 HTTP 500，底层为 postgres.js `CONNECT_TIMEOUT`，所以任务 CRUD 未执行且报告正确标记为 BLOCKED。该脱敏报告 SHA-256 为 `f1e286108cd1aa3e731abaf7b766e591bb6ee9aa63591b45ee59d51f133210dd`。
+- 实现提交 `859841f…` 保持 Drizzle 暖连接和 keepalive，统一四个命名小池与建连 deadline，使 API ready 有界、并发且 single-flight，使 worker 同时探测 pg-boss/Drizzle，并区分建连失败和中途断连；非幂等写不会在结果未知时自动重放。TCP 黑洞后同句柄恢复、主动终止 PostgreSQL backend 后同句柄恢复及首次 connect timeout 后第二次查询恢复均通过。
+- 复验使用本机固定 digest Distribution registry；N `v1.0.1` 为 10 个迁移，synthetic bridge `v1.0.1-bridge.1` 为 9 个迁移，七个组件 digest 全部不同。N/bridge 都完成唯一 build/push、删除本地 tag 后真实 pull、RepoDigest/manifest SHA 正负向门禁。
+- 真实升级 46 秒、应用回滚 43 秒；两次都生成 mode 600、formatVersion 2、`backupRelease=v1.0.1` 的 age 恢复点并只读核对，未执行 restore。回滚不做 down migration，最终仍为 38 表、10 个迁移、pg-boss 24，并保留 `0009` 唯一索引、N 写入的数据库/对象和审计。
+- 回滚后同一 bridge API 进程保持 restartCount 0；启动 308.138 秒后正式 HTTPS 登录 200，随后 objective 再更新及 task create/read/update/archive/归档后 404 全部通过。API 日志中 `CONNECT_TIMEOUT` 和数据库依赖错误均为 0，四个 runtime `application_name` 齐全。
+- 新脱敏报告 SHA-256 为 `552a64a33a44d40a41f8548633892509a0255e4d3a328dd9b0f070be9ae4b1bf`。隔离容器、卷、网络、registry、14 个版本镜像、worktree、口令、identity、备份与 scratch 已删除；finalqa 容器/卷/镜像/12 份恢复证据 before/after 哈希一致。
+- 结论范围仅为“本地 synthetic bridge 的真实 schema/镜像差异和首轮缺陷复验通过”。它不是历史生产 N−1、GHCR 双平台制品、广州办公内网或经批准生产发布。
+
+## 9. 已知结构与运行边界
 
 - decision 的 `objectiveId`、`projectId`、`taskId` 均为 typed refs，但服务端尚不校验三者属于同一 objective→project→task 链；用户仍需人工核对。
 - product 与 opportunity 已有 project/product typed refs，但尚不强制 `opportunity.projectId` 等于其 `product.projectId`；不应宣称数据库已验证完整产品→机会→交付闭环。
@@ -147,7 +157,7 @@
 
 完整列表见[已知边界](./known-boundaries.md)。
 
-## 9. 最终提交与发布清单
+## 10. 最终提交与发布清单
 
 以下全部完成前，本报告结论不得升级为“V1 完成”：
 
@@ -157,18 +167,18 @@
 - [x] 首次强制改密、成员生命周期、版本化角色审批、归档角色即时失权、通知 queued-only、GitHub 刷新 CAS、工作流不可变快照、付款取消/驳回解链、顾问 requester-only/read-all、合规 source/evidence、typed refs 和文件并发场景已在分层测试覆盖。
 - [x] fresh/legacy 数据库、PostgreSQL 五职责和 MinIO 四身份的正/负向最小权限验证通过；目标凭据仍须重新执行。
 - [x] 冻结候选只执行一次底层 formatVersion 2 独立恢复并核对数据库、对象、迁移、pg-boss、权限、运行镜像、RPO/RTO 和清理；生产 `restore.sh` 审批入口、目标内网和异介质复演待执行。
-- [ ] 用真实版本变化完成升级/回滚演练；不得用 2026-07-18 同内容标签机制演练替代。
+- [x] 本地 synthetic bridge 使用真实 schema 与七镜像差异完成升级、双恢复点、应用回滚和 idle 后 HTTPS CRUD；历史生产 N−1、GHCR 和目标内网复演仍待执行，不得把本地结果升级为生产证明。
 - [x] 本地完成 Gitleaks、生产依赖审计、Semgrep+canary、Trivy、七镜像 SPDX/provenance fixture 和 arm64 content ID；GitHub/GHCR 双平台 digest、CodeQL/等效 SAST 与剩余风险批准待执行。
 - [ ] 在真实受管手机完成 PWA 安装/升级和移动浏览器验证。
-- [x] 实现基线已推送私有目标仓库并创建 Draft PR #12；远端 SHA 与本地一致。
+- [x] 连接修复实现基线已纳入候选分支并对应 Draft PR #12；文档提交后仍须核对远端 head 和不可变 SHA。
 - [ ] 修复 GitHub Actions 账户付款/spending limit 阻断，重跑 PR CI 与 Security；取得绿色 run、CodeQL 或经批准等效 SAST、制品证据，批准后再合并。
 - [ ] 在耀光广州办公内网验证主机、DNS、CA、防火墙、显式 seed、owner 首登改密、设备、备份介质和运行观察。
 - [ ] 完成真实 LLM/GitHub 最小权限验收，或明确保持 disabled/manual 且不宣称外部集成完成。
 - [ ] 对 72 条来源完成适用范围内的专业人工复核；关闭官网/电竞教育事实、权利、合同、隐私和内容安全闸门。
 - [ ] 由公司、运维安全、风险、法务合规和财税真实责任人完成适用范围内的批准。
 
-## 10. 交付结论
+## 11. 交付结论
 
 FIAT LUX CHOICE 已形成可运行的模块化单体候选，不是脚手架、静态仪表盘或仅有数据库模型。身份、权限、审计、业务模块、八类人工批准、七类顾问、后台任务、PWA、最小权限、七镜像供应链和 formatVersion 2 独立恢复路径均有冻结工作树的分层实证。
 
-本地全量测试、生产构建、最新 Compose、桌面/移动浏览器、安全扫描和一次独立恢复已经通过，实现基线也已推送并形成 Draft PR。GitHub CI/security 因账户付款或 spending limit 在 runner 启动前被平台阻断，并非绿色；GHCR、真实相邻版本升级/回滚、破坏性生产恢复审批入口、耀光目标办公内网和真实受管手机、真实 LLM/GitHub、72 条专业复核、MinIO 长期支持风险决策以及业务和专业责任人批准也未完成。因此本报告的唯一合法结论仍是：**受控候选，尚不可宣布 V1 已完成或已批准生产上线。**
+本地全量测试、生产构建、最新 Compose、桌面/移动浏览器、安全扫描、一次独立恢复，以及一次有真实 schema/镜像差异的本地 synthetic bridge 升级与应用回滚已经通过，实现基线已形成 Draft PR。GitHub CI/security 因账户付款或 spending limit 在 runner 启动前被平台阻断，并非绿色；GHCR 双平台制品、历史生产 N−1/目标发布复演、破坏性生产恢复审批入口、耀光目标办公内网和真实受管手机、真实 LLM/GitHub、72 条专业复核、MinIO 长期支持风险决策以及业务和专业责任人批准也未完成。因此本报告的唯一合法结论仍是：**受控候选，尚不可宣布 V1 已完成或已批准生产上线。**

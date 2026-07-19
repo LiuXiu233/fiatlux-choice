@@ -15,7 +15,7 @@
 | 边界 / 待决策 | 实现有明确能力边界，需补控制或由有权负责人决定是否阻断 V1 |
 | 待执行 / 阻断 | 未完成前不能宣布 V1 完成 |
 
-本矩阵严格区分代码存在、冻结工作树本地测试、本地恢复、GitHub CI、耀光目标办公内网、真实设备和真实外部集成。最新本机 Compose 不是广州办公内网生产部署；本地 arm64 image ID 也不是 GHCR 双平台 root digest。最终证据必须绑定同一个完整 Git SHA，旧 v1 恢复和同内容标签升级数字不能滚入当前通过口径。
+本矩阵严格区分代码存在、冻结工作树本地测试、本地恢复、本地 synthetic bridge 演练、GitHub CI、耀光目标办公内网、真实设备和真实外部集成。最新本机 Compose 不是广州办公内网生产部署；本地 arm64 image ID 也不是 GHCR 双平台 root digest。最终证据必须绑定同一个完整 Git SHA，旧 v1 恢复和同内容标签升级数字不能滚入当前通过口径；synthetic bridge 也不能冒充历史生产 N−1。
 
 ## 2. 产品与治理能力
 
@@ -69,9 +69,9 @@ lease 到期不等于“安全重试”。操作员必须查看审计、partial 
 
 | 层级 | 当前发布状态 | 最终证据要求 |
 | --- | --- | --- |
-| Biome / ShellCheck / Actionlint / 类型 | **本地通过** | 186 个 Biome 文件、全 shell、3 个 workflow、7 个 TS 项目；GitHub CI 复现 |
-| 单元/聚合 | **本地通过** | 150/150 单元与完整 workspace 聚合通过；原始日志不进 Git |
-| API / worker / PostgreSQL / pg-boss | **本地通过** | API 16 files/80 tests、worker 5 files/23 tests；10 个 migration、fresh/legacy、权限、事务、并发/CAS、审计和失败边界通过 |
+| Biome / ShellCheck / Actionlint / 类型 | **本地通过** | 190 个 Biome 文件、全 shell、3 个 workflow、7 个 TS 项目；GitHub CI 复现 |
+| 单元/聚合 | **本地通过** | 162/162 单元与完整 workspace 聚合通过；原始日志不进 Git |
+| API / worker / PostgreSQL / pg-boss | **本地通过** | API 17 files/83 tests、worker 5 files/23 tests；10 个 migration、fresh/legacy、权限、事务、连接恢复、并发/CAS、审计和失败边界通过 |
 | MinIO / S3 | **本地通过** | 2 项真实私有桶/字节/权限/校验和集成及恢复对象核对通过 |
 | Web / Playwright / PWA | **本地通过，有真机边界** | mock 44 passed/6 条件 skip；real 2 passed；独立浏览器、离线壳、SW active、390 px 通过；真机待验收 |
 | 全 workspace / 七镜像构建 | **本地通过，有 registry 边界** | production build、PWA 9 precache/560.08 KiB、七个 arm64 镜像、六常驻服务重启持久性通过；GHCR 双平台待发布 |
@@ -89,9 +89,10 @@ lease 到期不等于“安全重试”。操作员必须查看审计、partial 
 | MinIO 四身份 | root/bootstrap/app/backup/restore 最小权限、旧 key 显式撤销边界和真实 S3 集成通过 | 冻结候选本地通过 | 若目标更换 access-key ID，root 删除旧用户并用旧凭据验证失败 |
 | formatVersion 2 恢复 | 一次隔离 drill：归档 SHA `bcfd6c59…b6ba`、38 表/10 迁移/pg-boss 24、1 对象 56 B、RPO 2s、RTO 75s、七镜像稳定、资源清理通过 | 冻结候选本地通过 / 范围受限 | `production_restore_entrypoint_executed=false`；目标内网/异介质与经审批生产入口待演练 |
 | 旧 v1 恢复与升级 | 2026-07-18 的 v1 归档、37 表/4 对象/16 秒和同内容标签升级回滚均早于 formatVersion 2 与最新代码 | 历史证据 | 不能计入当前门禁；最终 SHA 需用真实版本变化重做升级/回滚 |
+| synthetic bridge 相邻版本 | N `859841f…`/10 migrations 与本地 bridge `b44a8d1…`/9 migrations；七 digest 全异，真实 push/pull，升级 46s、回滚 43s、双 v2 恢复点；回滚后 308s 登录与 CRUD 通过 | 冻结候选本地通过 / 范围受限 | 不是历史生产 N−1、GHCR 或目标内网；经批准生产候选仍须复演 |
 | 归档与维护安全 | archive guard、资源上限、scratch、preflight、maintenance lock 及对应安全测试通过 | 冻结候选本地通过 | 经审批生产 `restore.sh` 破坏性入口仍待目标演练 |
 | 七镜像与供应链 | arm64 七镜像 Trivy 四口径均 0；7 SPDX；真实 BuildKit 双平台 fixture；API/worker amd64 原生件补偿验证 | 冻结候选本地通过 / GHCR 待发布 | 最终 SHA 的双平台 registry digest、GitHub workflow 和残余风险批准 |
-| GitHub 交付 | 实现基线 `16f4481c…` 已推送，Draft PR #12 已创建；CI/Security run 在 runner 启动前因账户付款失败或 spending limit 不足被 GitHub 阻断，未执行任何 step | 部分完成 / 外部计费阻断 | 修复 Billing & plans 后重跑并取得绿色 CI/security、制品和批准；再合并 |
+| GitHub 交付 | 连接修复实现基线 `859841f…`，Draft PR #12 已创建；既有 CI/Security run 在 runner 启动前因账户付款失败或 spending limit 不足被 GitHub 阻断，未执行任何 step | 部分完成 / 外部计费阻断 | 推送文档 head 后复核远端；修复 Billing & plans 后重跑并取得绿色 CI/security、制品和批准；再合并 |
 | 目标办公内网 | 尚未在耀光广州办公内网部署 | 待执行 / 阻断 | 主机基线、DNS、CA、设备、备份介质、运行观察和批准 |
 
 ## 7. 核心场景状态
@@ -111,25 +112,25 @@ lease 到期不等于“安全重试”。操作员必须查看审计、partial 
 | 合规 | 未复核来源受限；source/evidence 跨组织/上传/归档/withheld 边界通过 | 72 条专业复核与目标环境首次抓取 |
 | 官网与教育 | 官网审计、内部教育页和成人试点草案已形成 | 内容清理、权利/事实核验及九项业务/专业闸门批准 |
 | 桌面、移动与 PWA | mock/real E2E、独立浏览器、SW active、offline shell 和 390 px 布局通过 | 真实受管手机安装/升级 |
-| 部署与恢复 | 最新 Compose、38 表/10 迁移、一次独立恢复 RPO 2s/RTO 75s 通过 | 真实升级/回滚、生产恢复入口、目标内网与 RPO/RTO 批准 |
+| 部署与恢复 | 最新 Compose、38 表/10 迁移、一次独立恢复 RPO 2s/RTO 75s，以及本地 synthetic bridge 真实差异升级/应用回滚通过 | 历史生产 N−1/目标发布复演、生产恢复入口、目标内网与 RPO/RTO 批准 |
 
 ## 8. 当前结论
 
 该仓库已经超过脚手架、静态仪表盘和数据库模型阶段。核心业务、首次改密与成员生命周期、归档角色即时失权、八类人工批准、typed refs、可追溯顾问、后台原子 claim 和 formatVersion 2 恢复路径均有实现与候选证据。
 
-当前仍只能称为**受控候选**。冻结工作树的全量测试、生产构建、最新 Compose、桌面/移动浏览器、本地供应链扫描和一次底层独立恢复已经通过，实现基线也已推送并创建 Draft PR；GitHub CI/security 因账户计费在 runner 前被阻断，GHCR、真实相邻版本升级回滚、生产恢复入口、目标办公内网、真机、真实 LLM/GitHub、72 条专业复核、残余风险决策和业务批准仍未完成。在这些门禁全部关闭前，不得宣布“V1 已完成”，也不得用于无人监督的生产关键操作。
+当前仍只能称为**受控候选**。冻结工作树的全量测试、生产构建、最新 Compose、桌面/移动浏览器、本地供应链扫描、一次底层独立恢复和一次本地 synthetic bridge 真实差异升级/应用回滚已经通过，候选分支已创建 Draft PR；GitHub CI/security 因账户计费在 runner 前被阻断，GHCR、历史生产 N−1/目标发布复演、生产恢复入口、目标办公内网、真机、真实 LLM/GitHub、72 条专业复核、残余风险决策和业务批准仍未完成。在这些门禁全部关闭前，不得宣布“V1 已完成”，也不得用于无人监督的生产关键操作。
 
 ## 9. 最终 SHA 与目标环境必须补录
 
 | 字段 | 当前值 | 要求 |
 | --- | --- | --- |
-| 完整 Git SHA / tag | 实现基线 `16f4481c5bfa81d8f183f869ed93dbd1b1cc0636`；GitHub 标为 unsigned；tag 未创建 | 确定 commit/tag 签名政策，生产发布记录受保护 tag；本报告回写为后续纯文档提交 |
+| 完整 Git SHA / tag | 连接修复实现基线 `859841f79efc68fd75757b6f3232ba4eaa56cb3a`；tag 未创建 | 推送文档 head 后记录完整 SHA；确定 commit/tag 签名政策，生产发布记录受保护 tag |
 | GitHub PR / CI / 安全 run | Draft PR #12；CI `29674559169`、Security `29674559116` 均被账户付款/spending limit 在 runner 前阻断 | 修复 Billing & plans 后重跑；只有实际 step 执行且绿色才能关闭门禁 |
 | 38 表 / 10 migrations（`0000`–`0009`）证据 | **冻结工作树本地通过** | GitHub SHA 与目标环境复现 fresh/legacy、pg-boss 和权限 |
 | 七镜像 digest / SBOM / provenance | **本地 arm64/SPDX/fixture 通过** | 从最终 SHA 生成并记录 GHCR 双平台 registry digest |
 | 最终测试报告 | **冻结工作树本地通过** | 提交后记录不可变 SHA 与 GitHub run；源码漂移则重跑 |
 | 最终 formatVersion 2 备份与恢复 | **底层独立 drill 通过** | 归档 SHA `bcfd6c59…b6ba`、RPO 2s/RTO 75s；生产入口、目标/异介质待验收 |
-| 最终升级/回滚 | **待重做** | 使用真实版本变化，验证 expand/contract 和恢复点 |
+| 最终升级/回滚 | **本地 synthetic bridge 通过 / 生产范围待完成** | 使用最终 GHCR 制品、经批准 N−1 和目标环境复演 expand/contract、双恢复点与 idle 后业务链 |
 | 目标办公内网 / 真机 | **未完成** | 记录主机、DNS、CA、设备、网络、PWA 和批准人 |
 | 真实 LLM / GitHub | **未完成** | 最小权限、数据处理、质量和停用/撤销证据 |
 | 合规、风险与业务批准 | **未取得** | 由真实责任人签署，不得由系统代填 |

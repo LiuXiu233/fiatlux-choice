@@ -31,11 +31,12 @@
 - 通知创建为 queued-only；GitHub 刷新保存 `expectedVersion` 并以 CAS 防止陈旧写回；workflow 保存不可变定义版本/步骤快照和 partial checkpoint；advisor/workflow/backup 使用原子 claim、CAS 与 `lease_expired` 人工复核边界。
 - 银行付款取消或审批驳回会原子解除草稿支出关联；顾问运行默认 requester-only，管理员的 `advisor-runs:read-all` 仍受顾问入口和上下文读权限限制；角色分配审批保存 membership 版本快照并在批准时重验。
 - 义务/合规日历已分开 `sourceId` 与 `evidenceFileId`，凭证必须是同组织已上传文件；来源关联不自动等于适用性复核。
-- 2026-07-19 冻结工作树已通过 Biome/ShellCheck/Actionlint、7 项类型检查、150/150 单元与聚合、API/worker/PostgreSQL/pg-boss/MinIO 集成、mock 44+6 与 real 2 项 Playwright、PWA/生产构建、最新 Compose、独立桌面/移动浏览器和六服务重启持久性。
+- 2026-07-19 冻结工作树已通过 Biome 190 files、ShellCheck/Actionlint、7 项类型检查、162/162 单元与聚合、API 17 files/83 tests、worker 5 files/23 tests、PostgreSQL/pg-boss/MinIO 集成、mock 44+6 与 real 2 项 Playwright、PWA/生产构建、最新 Compose、独立桌面/移动浏览器和六服务重启持久性。
 - 七个最终本地 arm64 镜像、Trivy 0.70.0 四口径零 HIGH/CRITICAL、七份 SPDX、真实 BuildKit 0.31.2 双平台 provenance fixture，以及 API/worker amd64 原生件补偿验证均通过；GHCR 双平台 root digest 仍待最终提交后的 release workflow。
 - 底层 formatVersion 2 只执行一次最终隔离恢复：归档 SHA-256 `bcfd6c59d9e66f7319ab2b55e6e711e2adfe2732f2c3a928b02eb82a3768b6ba`、`sourceId=fiatlux-finalqa-isolated`，恢复并核对 38 表、10 migrations、pg-boss 24 和 1 个 56-byte 对象，实测 RPO 2 秒、drill RTO 75 秒，临时资源和密钥已清理。该演练没有执行破坏性的生产 `restore.sh` 审批入口。
 - 2026-07-18 的旧测试总数、镜像 digest、v1 归档、37 表/4 对象/16 秒恢复和同内容标签升级回滚均为历史证据，不能作为当前通过或发布门禁。
-- 真实相邻版本升级/回滚、经审批生产恢复入口、不可变 Git SHA/GitHub CI/GHCR、目标内网、真实受管手机、真实 LLM/GitHub、72 条合规来源的专业人工复核、MinIO 长期支持风险处置和业务批准仍未完成。
+- 首轮本地相邻演练在回滚后 idle 登录暴露 `CONNECT_TIMEOUT` 并正确阻断；修复后以 N 10 migrations、synthetic bridge 9 migrations 和七个全异镜像完成真实 registry push/pull、46 秒升级、43 秒应用回滚、双 formatVersion 2 恢复点和回滚后 308 秒 HTTPS CRUD，数据、审计、索引和对象均保留。该结果不是历史生产 N−1、GHCR 或目标内网证据。
+- 经审批生产恢复入口、最终不可变 Git SHA/绿色 GitHub CI/GHCR、历史生产 N−1 和目标发布复演、目标内网、真实受管手机、真实 LLM/GitHub、72 条合规来源的专业人工复核、MinIO 长期支持风险处置和业务批准仍未完成。
 
 ### 2026-07-19 官网与教育内容基线
 
@@ -52,7 +53,7 @@
 - 为 decision 的 objective/project/task 增加同链一致性校验，并为 opportunity.project 与 product.project 定义一致性规则；若 V1 不补，必须在界面、文档和批准记录中明确人工核对边界。
 - 对 notification queued-only、GitHub refresh expectedVersion/CAS、workflow 不可变快照与 partial checkpoint、付款取消/驳回解链、advisor requester-only/read-all、合规 source/evidence、角色版本审批，以及 advisor/workflow/backup 并发 claim/lease-expired 建立最终测试与操作演练证据；禁止把旧运行静默重放。
 - 在最终 SHA 发布并校验 OpenAPI，冻结高频端点请求/响应 schema 和兼容性规则。
-- 在目标内网和异介质上生成新的 formatVersion 2 age 归档并独立恢复；使用真实 schema/镜像变化演练升级/回滚，不能沿用旧 v1 或同内容标签证据。
+- 在目标内网和异介质上生成新的 formatVersion 2 age 归档并独立恢复；使用最终 GHCR 制品与经批准 N−1 复演真实 schema/镜像变化，不能用本地 synthetic bridge、旧 v1 或同内容标签证据替代。
 - 保持 MinIO root/bootstrap、app、backup、restore 四身份最小权限。若改变 access-key ID，使用 root-only 运维显式删除旧用户，并以旧凭据负向验证；bootstrap 不会枚举未知旧 ID。
 - 迁移到有安全维护承诺的 S3 兼容存储、取得受支持的修复版，或在 internal-network 补偿控制下形成有期限的负责人风险接受与退出计划。
 - 运行 GitHub CI、安全扫描、SBOM 和 secret history scan。
@@ -85,7 +86,7 @@
 - [ ] fresh/legacy seed、首次改密、归档角色即时失权和离线 owner 恢复演练全部通过；没有身份或权限被 seed 静默恢复。
 - [ ] advisor/workflow/backup 并发投递只执行一次，lease-expired 与 partial output 均能由操作员完成调查和显式补偿。
 - [ ] MinIO/S3 四身份最小权限通过；所有已更换 access-key ID 的旧用户均有 root 删除与旧凭据失败证据。
-- [ ] 真实版本变化的升级和应用回滚均通过；不使用旧 v1 或同内容标签历史结果替代。
+- [ ] 最终 GHCR 制品、经批准 N−1 和目标环境的升级与应用回滚均通过；本地 synthetic bridge 只作为前置工程证据。
 - [ ] 电竞教育九项事实问卷和首期上线闸门完成人工批准。
 - [ ] 7 篇模板占位文不再公开可索引，团队、赛事、见证和素材权利均有负责人核验结果。
 - [ ] 首批 4 篇基础内容完成作者、专业复核、版本、来源、最近复核日和纠错入口。
