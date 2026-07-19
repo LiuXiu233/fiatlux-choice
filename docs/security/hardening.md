@@ -45,7 +45,7 @@
 
 - `pnpm-lock.yaml` 必须提交，CI 使用 `--frozen-lockfile`。
 - PR 必须通过格式、类型、单元、集成、E2E、迁移和生产构建。
-- Gitleaks、依赖审计、Semgrep SAST 和实际运行的 CodeQL 发现阻断项时必须阻断发布。仓库内版本化 Semgrep OSS 规则覆盖 TypeScript/Node.js 的高信号注入、命令与动态执行、SSRF、不安全 TLS、弱密码学、硬编码秘密和敏感日志；CI 固定 CLI 镜像版本与 digest，负向 canary 证明规则触发，正常源码 finding 失败，并保存 JSON/SARIF 普通 artifact。私有仓库因 GitHub entitlement 不具备 CodeQL 能力时只能明确记录为“未运行”，不能记为通过；Semgrep 尚未获得安全负责人书面批准为等效 SAST，因此不能称为 CodeQL 已通过，生产发布前仍须启用 CodeQL 能力或完成等效性批准并留存结果。
+- Gitleaks、依赖审计、Semgrep SAST 和实际运行的 CodeQL 发现阻断项时必须阻断发布。仓库内版本化 Semgrep OSS 规则覆盖 TypeScript/Node.js 的高信号注入、命令与动态执行、SSRF、不安全 TLS、弱密码学、硬编码秘密和敏感日志；CI 固定 CLI 镜像版本与 digest，负向 canary 证明规则触发，正常源码 finding 失败，并保存 JSON/SARIF 普通 artifact。故意脆弱的 `security/semgrep/canary/**` 只由隔离 canary gate 扫描，并通过版本化 CodeQL config 从正式 CodeQL 分析排除；其他源码和测试不因此排除。私有仓库因 GitHub entitlement 不具备 CodeQL 能力时只能明确记录为“未运行”，不能记为通过；Semgrep 尚未获得安全负责人书面批准为等效 SAST，因此不能称为 CodeQL 已通过，生产发布前仍须启用 CodeQL 能力或完成等效性批准并留存结果。
 - Trivy 对最终发布的七个镜像运行 `ignore-unfixed=false` 严格扫描，保存包含无公开修复版本项的完整 JSON 报告。自动闸门阻断所有 HIGH/CRITICAL 且 `FixedVersion` 非空的发现；闸门通过只证明可修复项为零，不证明总数为零。无修复项仍须在完整报告中逐项人工判断；PR 文件系统 SARIF 扫描不能替代这份完整发布报告，也不得通过忽略未修复项制造“零高危”结论。
 - 没有公开修复版本的 HIGH/CRITICAL 必须逐项记录受影响资产、适用性、补偿控制、责任人、复核期限和退出条件，并在生产发布前完成修复、迁移到受支持实现，或由有权负责人正式限期接受风险。风险接受到期、适用性变化或修复版本发布时必须重新打开处置。
 - 此前 MinIO OSS 候选镜像的 6 个 HIGH/CRITICAL 是旧镜像历史计数；冻结候选重建后的本地 arm64 完整报告为 HIGH/CRITICAL/fixable/unfixed 全部 0，旧数不得继续写成当前发现。最终 GHCR 双平台镜像仍要按上一条独立扫描。即使扫描为 0，MinIO OSS 的长期维护/支持和退出路径仍需生产决策；internal network、不发布宿主端口、最小权限和不透传用户 S3 请求头是补偿控制，不是供应商支持承诺。

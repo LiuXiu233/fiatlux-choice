@@ -2,7 +2,7 @@
 
 耀光（广州）电子竞技有限公司及类似中国境内 1–2 人团队的内部公司治理与运营 Web App。
 
-当前状态：**受控候选，尚未宣布或批准 V1 完成**。仓库已经包含实质业务实现、PWA、API、worker、38 张业务表与 10 个迁移（`0000`–`0009`）、内网部署和恢复资产。2026-07-19 冻结工作树已通过静态/类型/单元/集成/E2E/生产构建、最新 production-like Compose、桌面与移动浏览器、七个本地 arm64 镜像供应链检查和一次底层 formatVersion 2 独立恢复；这些仍是本地候选证据。尚未完成的闸门包括不可变 Git SHA/GitHub CI/GHCR、真实相邻版本升级回滚、经审批生产恢复入口、耀光目标办公内网与真实受管设备、真实 LLM/GitHub 适配器、MinIO 长期维护/支持风险决策和专业合规/业务批准。详情见[V1 验收矩阵](docs/delivery/v1-acceptance-matrix.md)和[受控候选交付报告](docs/delivery/final-delivery-report.md)。
+当前状态：**受控候选，尚未宣布或批准 V1 完成**。仓库已经包含实质业务实现、PWA、API、worker、38 张业务表与 10 个迁移（`0000`–`0009`）、内网部署和恢复资产。2026-07-19 冻结工作树已通过静态/类型/单元/集成/E2E/生产构建、最新 production-like Compose、桌面与移动浏览器、七个本地 arm64 镜像供应链检查和一次底层 formatVersion 2 独立恢复；实现基线 `16f4481c…` 已推送并创建 Draft PR #12。GitHub CI/Security 因账户付款失败或 Actions spending limit 不足在 runner 启动前被平台阻断，尚未执行 workflow step。其余未完成闸门包括 GHCR、真实相邻版本升级回滚、经审批生产恢复入口、耀光目标办公内网与真实受管设备、真实 LLM/GitHub 适配器、MinIO 长期维护/支持风险决策和专业合规/业务批准。详情见[V1 验收矩阵](docs/delivery/v1-acceptance-matrix.md)和[受控候选交付报告](docs/delivery/final-delivery-report.md)。
 
 ## 能力
 

@@ -2,7 +2,7 @@
 
 报告日期：2026-07-19
 
-报告状态：**受控候选记录，不是 V1 已完成、已批准上线或已完成 GitHub 交付的声明**
+报告状态：**受控候选记录，不是 V1 已完成、已批准上线或 GitHub CI 已通过的声明**
 
 本报告区分“代码已实现”“2026-07-19 冻结工作树本地验证”“本地隔离恢复演练”“最终 Git SHA / GitHub CI”和“目标办公内网验收”。本地候选已经完成工程、浏览器、部署、供应链和恢复收口，但本地结果不能自动升级为生产批准。最终发布还必须按[最终交付报告模板](./final-delivery-report-template.md)补齐不可变 Git/GitHub、目标内网、风险决策和真实责任人签署。
 
@@ -11,9 +11,9 @@
 | 字段 | 当前值 | 仍需完成 |
 | --- | --- | --- |
 | 产品版本 | V1 受控候选 | 所有阻断闸门关闭并取得业务负责人批准后才能改为 V1 完成 |
-| 目标仓库 | 私有 `LiuXiu233/fiatlux-choice`；候选分支 `codex/v1-acceptance-hardening` | 将受审范围提交、推送，取得 Draft PR、CI 与可访问 URL |
-| Git SHA / tag | **当前工作树尚未形成可交付不可变 SHA** | 审阅并创建最终提交，绑定完整 SHA、受保护 tag、镜像、测试和恢复点 |
-| GitHub PR / CI | **本地门禁通过，GitHub run 待执行** | 推送后补 CI、安全 workflow、双平台 GHCR digest 与发布制品；不得把未运行或 skip 记为通过 |
+| 目标仓库 | 私有 `LiuXiu233/fiatlux-choice`；候选分支已推送；[Draft PR #12](https://github.com/LiuXiu233/fiatlux-choice/pull/12) | 解除 Actions 计费阻断，取得绿色 CI/security；批准后再合并 |
+| Git SHA / tag | 实现基线 `16f4481c5bfa81d8f183f869ed93dbd1b1cc0636`；GitHub verification 为 `unsigned`；未创建发布 tag | 本报告状态回写为后续纯文档提交；生产发布仍须确定 commit/tag 签名政策，并绑定受保护 tag、GHCR digest、测试和恢复点 |
+| GitHub PR / CI | [CI run 29674559169](https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29674559169) 与 [Security run 29674559116](https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29674559116) **均在 runner 启动前失败** | GitHub annotation 明确为近期账户付款失败或 Actions spending limit 不足；`runner_id=0`、`steps=[]`，没有任何 workflow step 实际运行。修复 Billing & plans 后重跑；不得把本地通过或这次 failure 写成 GitHub CI 通过 |
 | 数据库 | PostgreSQL 17.10；38 张业务表；10 个业务迁移 `0000`–`0009`；fresh 与 legacy 升级、pg-boss 24 和五职责权限均本地通过 | 最终提交后由 GitHub CI 复现；目标内网重新执行 |
 | 候选 QA 环境 | 最新冻结工作树的本机 production-like Compose：`https://choice-final.localhost:19443`，受信 TLS SAN `choice-final.localhost` | 不得改写成耀光广州办公内网生产环境 |
 | 目标办公内网 | **未部署** | 补主机、OS、架构、DNS、CA、防火墙、受管设备和运行观察 |
@@ -160,7 +160,8 @@
 - [ ] 用真实版本变化完成升级/回滚演练；不得用 2026-07-18 同内容标签机制演练替代。
 - [x] 本地完成 Gitleaks、生产依赖审计、Semgrep+canary、Trivy、七镜像 SPDX/provenance fixture 和 arm64 content ID；GitHub/GHCR 双平台 digest、CodeQL/等效 SAST 与剩余风险批准待执行。
 - [ ] 在真实受管手机完成 PWA 安装/升级和移动浏览器验证。
-- [ ] 推送私有目标仓库，取得 PR、主分支 CI、安全工作流和制品证据。
+- [x] 实现基线已推送私有目标仓库并创建 Draft PR #12；远端 SHA 与本地一致。
+- [ ] 修复 GitHub Actions 账户付款/spending limit 阻断，重跑 PR CI 与 Security；取得绿色 run、CodeQL 或经批准等效 SAST、制品证据，批准后再合并。
 - [ ] 在耀光广州办公内网验证主机、DNS、CA、防火墙、显式 seed、owner 首登改密、设备、备份介质和运行观察。
 - [ ] 完成真实 LLM/GitHub 最小权限验收，或明确保持 disabled/manual 且不宣称外部集成完成。
 - [ ] 对 72 条来源完成适用范围内的专业人工复核；关闭官网/电竞教育事实、权利、合同、隐私和内容安全闸门。
@@ -170,4 +171,4 @@
 
 FIAT LUX CHOICE 已形成可运行的模块化单体候选，不是脚手架、静态仪表盘或仅有数据库模型。身份、权限、审计、业务模块、八类人工批准、七类顾问、后台任务、PWA、最小权限、七镜像供应链和 formatVersion 2 独立恢复路径均有冻结工作树的分层实证。
 
-本地全量测试、生产构建、最新 Compose、桌面/移动浏览器、安全扫描和一次独立恢复已经通过。仍未完成的是不可变提交上的 GitHub CI/GHCR、真实相邻版本升级/回滚、破坏性生产恢复审批入口、耀光目标办公内网和真实受管手机、真实 LLM/GitHub、72 条专业复核、MinIO 长期支持风险决策以及业务和专业责任人批准。因此本报告的唯一合法结论仍是：**受控候选，尚不可宣布 V1 已完成或已批准生产上线。**
+本地全量测试、生产构建、最新 Compose、桌面/移动浏览器、安全扫描和一次独立恢复已经通过，实现基线也已推送并形成 Draft PR。GitHub CI/security 因账户付款或 spending limit 在 runner 启动前被平台阻断，并非绿色；GHCR、真实相邻版本升级/回滚、破坏性生产恢复审批入口、耀光目标办公内网和真实受管手机、真实 LLM/GitHub、72 条专业复核、MinIO 长期支持风险决策以及业务和专业责任人批准也未完成。因此本报告的唯一合法结论仍是：**受控候选，尚不可宣布 V1 已完成或已批准生产上线。**

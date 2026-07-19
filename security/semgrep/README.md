@@ -8,6 +8,8 @@ CI 固定使用 Semgrep OSS 1.170.0 及镜像 digest，并关闭遥测和远程�
 `export type *`，因此还排除了只包含三个 re-export、没有可执行逻辑的 `apps/api/src/index.ts`；
 其实际导出模块仍全部扫描，升级引擎时必须复核并移除此例外。`verify-canary.sh` 只扫描故意脆弱的 fixture，
 要求每条规则至少命中一次且 Semgrep 以 finding 状态退出，从而证明规则没有被空配置或排除参数架空。
+`.github/codeql-config.yml` 同样只把该故意脆弱 canary 从 CodeQL 排除；启用 CodeQL 后，其余源码与测试仍按
+CodeQL 默认范围分析，不能把 canary finding 或路径排除误写成生产源码已通过。
 本地验证命令与 workflow 相同：
 
 ```sh
