@@ -25,13 +25,17 @@ import {
   type Database,
   githubInsights,
   lockReferenceChain,
+  membershipRoles,
   memberships,
   notifications,
   obligations,
   organizations,
   projects,
   promptVersions,
+  rolePermissions,
+  roles,
   tasks,
+  users,
   workflowRuns,
 } from "@fiatlux/db";
 import {
@@ -49,7 +53,7 @@ import {
   OfficialSourceReader,
   sanitizeIntegrationError,
 } from "@fiatlux/integrations";
-import { and, eq, inArray, isNull, lt, lte, or, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, lt, lte, or, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import type { WorkerConfig } from "./config.js";
@@ -867,8 +871,93 @@ function truncateComplianceTaskText(value: string, maxLength: number) {
   return `${value.slice(0, Math.max(0, maxLength - 1))}…`;
 }
 
+type ComplianceCoordinatorStrategy =
+  | "initiator"
+  | "primary_active_owner"
+  | "unassigned_no_active_owner";
+
+async function resolveComplianceCoordinator(
+  db: Pick<Database, "select">,
+  input: { orgId: string; initiatedBy?: string },
+): Promise<{ userId: string | null; strategy: ComplianceCoordinatorStrategy }> {
+  if (input.initiatedBy) {
+    const [initiator] = await db
+      .select({ userId: memberships.userId })
+      .from(memberships)
+      .innerJoin(users, eq(users.id, memberships.userId))
+      .innerJoin(
+        membershipRoles,
+        and(
+          eq(membershipRoles.orgId, memberships.orgId),
+          eq(membershipRoles.membershipId, memberships.id),
+        ),
+      )
+      .innerJoin(
+        roles,
+        and(eq(roles.orgId, membershipRoles.orgId), eq(roles.id, membershipRoles.roleId)),
+      )
+      .innerJoin(
+        rolePermissions,
+        and(
+          eq(rolePermissions.orgId, membershipRoles.orgId),
+          eq(rolePermissions.roleId, membershipRoles.roleId),
+        ),
+      )
+      .where(
+        and(
+          eq(memberships.orgId, input.orgId),
+          eq(memberships.userId, input.initiatedBy),
+          eq(memberships.status, "active"),
+          isNull(memberships.archivedAt),
+          eq(users.status, "active"),
+          isNull(roles.archivedAt),
+          inArray(rolePermissions.permission, [
+            "*",
+            "compliance-items:*",
+            "compliance-items:update",
+          ]),
+        ),
+      )
+      .limit(1)
+      .for("share");
+    if (initiator) return { userId: initiator.userId, strategy: "initiator" };
+  }
+
+  const [owner] = await db
+    .select({ userId: memberships.userId })
+    .from(memberships)
+    .innerJoin(users, eq(users.id, memberships.userId))
+    .innerJoin(
+      membershipRoles,
+      and(
+        eq(membershipRoles.orgId, memberships.orgId),
+        eq(membershipRoles.membershipId, memberships.id),
+      ),
+    )
+    .innerJoin(
+      roles,
+      and(eq(roles.orgId, membershipRoles.orgId), eq(roles.id, membershipRoles.roleId)),
+    )
+    .where(
+      and(
+        eq(memberships.orgId, input.orgId),
+        eq(memberships.status, "active"),
+        isNull(memberships.archivedAt),
+        eq(users.status, "active"),
+        eq(roles.systemKey, "owner"),
+        isNull(roles.archivedAt),
+      ),
+    )
+    .orderBy(asc(memberships.createdAt), asc(memberships.userId))
+    .limit(1)
+    .for("share");
+  return owner
+    ? { userId: owner.userId, strategy: "primary_active_owner" }
+    : { userId: null, strategy: "unassigned_no_active_owner" };
+}
+
 async function createComplianceReviewTask(
-  db: Pick<Database, "insert">,
+  db: Pick<Database, "insert" | "select" | "update">,
   input: {
     orgId: string;
     source: Pick<
@@ -882,6 +971,10 @@ async function createComplianceReviewTask(
   },
 ) {
   const reasonCopy = complianceReviewReasonCopy[input.reason];
+  const coordinator = await resolveComplianceCoordinator(db, {
+    orgId: input.orgId,
+    ...(input.initiatedBy ? { initiatedBy: input.initiatedBy } : {}),
+  });
   const descriptionLines = [
     "系统监测已建立人工复核任务；本任务不表示法规已完成复核、仍然有效或问题已经解决。",
     `来源 ID：${input.source.id}`,
@@ -903,7 +996,7 @@ async function createComplianceReviewTask(
     description: truncateComplianceTaskText(descriptionLines.join("\n"), 20_000),
     status: "todo",
     priority: "high",
-    assigneeId: null,
+    assigneeId: coordinator.userId,
     dueAt: input.dueAt.toISOString(),
   });
   const [record] = await db
@@ -915,6 +1008,35 @@ async function createComplianceReviewTask(
     })
     .returning();
   if (!record) throw new Error("Failed to create compliance review task");
+
+  let deliveredNotification: typeof notifications.$inferSelect | null = null;
+  let queuedNotification: typeof notifications.$inferSelect | null = null;
+  if (coordinator.userId) {
+    const notification = notificationCreateSchema.parse({
+      recipientId: coordinator.userId,
+      title: `合规人工复核待处理：${reasonCopy.label}`,
+      body: truncateComplianceTaskText(
+        [
+          "系统已为你分配一项高优先级合规协调任务。",
+          `任务：${record.title}`,
+          `来源：${input.source.title}`,
+          `触发原因：${reasonCopy.label}`,
+          `截止时间：${input.dueAt.toISOString()}`,
+          "请核对事实、证据和专业人员安排；本通知不表示法规有效、适用或已经完成专业复核。",
+        ].join("\n"),
+        10_000,
+      ),
+      channel: "in_app",
+      status: "queued",
+    });
+    const [createdNotification] = await db
+      .insert(notifications)
+      .values({ orgId: input.orgId, ...notification })
+      .returning();
+    if (!createdNotification) throw new Error("Failed to create compliance review notification");
+    queuedNotification = createdNotification;
+  }
+
   await appendSystemAudit(db, {
     orgId: input.orgId,
     action: "create",
@@ -926,9 +1048,71 @@ async function createComplianceReviewTask(
       complianceSourceId: input.source.id,
       escalationReason: input.reason,
       initiatedBy: input.initiatedBy ?? null,
+      assigneeId: coordinator.userId,
+      assignmentStrategy: coordinator.strategy,
+      notificationId: queuedNotification?.id ?? null,
     },
   });
-  return record;
+
+  if (queuedNotification) {
+    await appendSystemAudit(db, {
+      orgId: input.orgId,
+      action: "create",
+      resourceType: "notification",
+      resourceId: queuedNotification.id,
+      after: queuedNotification,
+      metadata: {
+        trigger: "compliance_source_monitor",
+        complianceSourceId: input.source.id,
+        escalationReason: input.reason,
+        taskId: record.id,
+        initiatedBy: input.initiatedBy ?? null,
+        assignmentStrategy: coordinator.strategy,
+      },
+    });
+    const deliveredAt = new Date();
+    const [sentNotification] = await db
+      .update(notifications)
+      .set({
+        status: "sent",
+        sentAt: deliveredAt,
+        failureReason: null,
+        updatedAt: deliveredAt,
+        version: sql`${notifications.version} + 1`,
+      })
+      .where(
+        and(
+          eq(notifications.id, queuedNotification.id),
+          eq(notifications.orgId, input.orgId),
+          eq(notifications.status, "queued"),
+          eq(notifications.version, queuedNotification.version),
+        ),
+      )
+      .returning();
+    if (!sentNotification) throw new Error("Failed to deliver compliance review notification");
+    deliveredNotification = sentNotification;
+    await appendSystemAudit(db, {
+      orgId: input.orgId,
+      action: "deliver",
+      resourceType: "notification",
+      resourceId: deliveredNotification.id,
+      before: queuedNotification,
+      after: deliveredNotification,
+      metadata: {
+        trigger: "compliance_source_monitor",
+        complianceSourceId: input.source.id,
+        escalationReason: input.reason,
+        taskId: record.id,
+        deliveryMode: "atomic_in_app",
+      },
+    });
+  }
+
+  return {
+    task: record,
+    notificationId: deliveredNotification?.id ?? null,
+    assignmentStrategy: coordinator.strategy,
+  };
 }
 
 function nextMonitorAt(now: Date, cadenceDays: number, failed = false) {
@@ -976,7 +1160,7 @@ async function expireOverdueComplianceReviews(
         .returning();
       if (!expired) continue;
       expiredIds.push(expired.id);
-      const escalationTask = await createComplianceReviewTask(tx, {
+      const escalation = await createComplianceReviewTask(tx, {
         orgId,
         source,
         reason: "review_expired",
@@ -997,7 +1181,13 @@ async function expireOverdueComplianceReviews(
           status: expired.status,
           nextReviewAt: expired.nextReviewAt,
         },
-        metadata: { trigger: "schedule", escalationTaskId: escalationTask.id },
+        metadata: {
+          trigger: "schedule",
+          escalationTaskId: escalation.task.id,
+          escalationNotificationId: escalation.notificationId,
+          escalationAssigneeId: escalation.task.assigneeId,
+          assignmentStrategy: escalation.assignmentStrategy,
+        },
       });
     }
     return expiredIds;
@@ -1258,7 +1448,7 @@ export async function handleComplianceSourceMonitor(
         )
         .returning();
       if (!record) throw new Error("Compliance source changed concurrently during monitoring");
-      const escalationTask = changed
+      const escalation = changed
         ? await createComplianceReviewTask(tx, {
             orgId: payload.orgId,
             source,
@@ -1294,7 +1484,10 @@ export async function handleComplianceSourceMonitor(
           finalHost: new URL(snapshot.finalUrl).hostname,
           fetcherVersion: snapshot.fetcherVersion,
           notModified: snapshot.notModified,
-          escalationTaskId: escalationTask?.id ?? null,
+          escalationTaskId: escalation?.task.id ?? null,
+          escalationNotificationId: escalation?.notificationId ?? null,
+          escalationAssigneeId: escalation?.task.assigneeId ?? null,
+          assignmentStrategy: escalation?.assignmentStrategy ?? null,
         },
       });
       return record;
@@ -1329,7 +1522,7 @@ export async function handleComplianceSourceMonitor(
         )
         .returning();
       if (!failed) return false;
-      const escalationTask =
+      const escalation =
         failureCount === 3
           ? await createComplianceReviewTask(tx, {
               orgId: payload.orgId,
@@ -1361,7 +1554,10 @@ export async function handleComplianceSourceMonitor(
           error: message,
           initiatedBy: payload.requestedBy ?? null,
           trigger: payload.requestedBy ? "manual" : "schedule",
-          escalationTaskId: escalationTask?.id ?? null,
+          escalationTaskId: escalation?.task.id ?? null,
+          escalationNotificationId: escalation?.notificationId ?? null,
+          escalationAssigneeId: escalation?.task.assigneeId ?? null,
+          assignmentStrategy: escalation?.assignmentStrategy ?? null,
         },
       });
       return true;

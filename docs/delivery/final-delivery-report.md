@@ -57,7 +57,9 @@
 | 全 workspace 与七镜像构建 | **不可变实现提交本地通过** | `101d2f0…` production build、七个 arm64 镜像、全新 Compose、六服务和重启持久性通过；GHCR 双平台待发布 |
 | 安全/供应链 | **不可变实现提交本地通过 / GitHub 待运行** | Gitleaks、Semgrep+canary、生产依赖 0；`101d2f0…` 七镜像 Trivy 0.70.0 HIGH/CRITICAL 0、7 份 Syft 1.42.3 SPDX；GitHub CodeQL/安全 workflow 待运行 |
 
-本证据工作树再次完整运行 `pnpm check`：Biome 207 个文件、ShellCheck、7 项类型检查、177/177 单元、API 89/89、worker 25/25、真实 MinIO 2/2和生产构建均通过；Actionlint 1.7.12、Gitleaks 当前树/完整历史与 canary、Semgrep 1.170.0 配置/10 条 canary/87 个生产目标、发布/恢复安全脚本也分别通过。生产依赖 `pnpm audit --prod` 为 0。全依赖扫描只剩 `drizzle-kit -> esbuild` 的 1 个 moderate，属于不进入生产镜像、CI 不启动其 dev server 的开发期依赖；列为非阻断升级项，不应表述为“全依赖零漏洞”。未运行、设计内 skip 和目标环境缺失继续分列。
+当前后继工作树再次完整运行 `pnpm check`：Biome 207 个文件、ShellCheck、7 项类型检查、177/177 单元、API 89/89、worker 28/28、真实 MinIO 2/2 和生产构建均通过；Actionlint 1.7.12、Gitleaks 当前树/完整历史与 canary、Semgrep 1.170.0 配置/10 条 canary/87 个生产目标也分别通过。生产依赖 `pnpm audit --prod` 为 0。全依赖扫描只剩 `drizzle-kit -> esbuild` 的 1 个 moderate，属于不进入生产镜像、CI 不启动其 dev server 的开发期依赖；列为非阻断升级项，不应表述为“全依赖零漏洞”。未运行、设计内 skip 和目标环境缺失继续分列。
+
+本增量还复现并修正了构建环境漂移：CI 与 release 的验证 job 为测试阶段全局使用 `NODE_ENV=test`，原构建步骤会继承该值，使 Web 生成 979.63 KiB precache 并重新出现 500 kB 主块警告。两个 workflow 的构建步骤现在都显式覆盖为 `NODE_ENV=production`；Actionlint 1.7.12 通过，等价本地生产构建恢复为 128.19 kB 教育路由块、423.59 kB 主块和 10 条/700.30 KiB PWA precache。该本地验证不替代 GitHub runner 实际执行。
 
 失败历史没有删除：API 集成首次按文件并行运行时，在本机 2 CPU/4 GB 的 seed/Argon2 峰值出现 PostgreSQL `CONNECT_TIMEOUT`，得到 13 passed、4 failed、63 skipped；数据库全程 healthy、RestartCount 0、连接数未耗尽，且无业务断言失败。将 root/API/worker 的 `test` 与 `test:integration` 标准入口固定为 unit→workspace 串行、API/worker `--no-file-parallelism --maxWorkers=1` 后，旧基线 API 80/80、worker 23/23 和根级集成均通过。连接恢复修复后曾复跑 162/162 单元、API 83/83、worker 23/23；其中 malformed-JSON 单测曾在宿主 load 83 时唯一超时，在正常负载下同一测试 140 ms 通过，未删除该环境事件。引用链一致性加固后的最新复跑为 162/162 单元、API 85/85、worker 25/25。未配置 S3 时 integrations 2 项按设计 skip；真实 S3 两项由单独带凭据的 MinIO 门禁 2/2 通过，不能把 skip 记作通过。
 
@@ -65,7 +67,7 @@
 
 电竞教育内容增量在同日完成 167/167 单元、API 85/85、worker 25/25、mock Playwright 44 passed/6 条件 skip 和真实栈 desktop/mobile 2/2；独立 Python Playwright 在 1440×1000 与 390×844 下均无横向溢出或控制台错误。隔离 PostgreSQL 的 22 个完整 bootstrap 组织均精确导入 73 条来源，隔离真实栈单组织同样为 73 条且新增健康来源精确 1 条。生产构建将教育内容拆为 128.19 kB 路由块，消除 500 kB 主块告警；独立 Web Compose 容器以 UID 10001、只读根、cap-drop ALL、no-new-privileges 健康运行，Trivy 0.70.0 对该新 Web 镜像扫描 HIGH/CRITICAL 为 0。Gitleaks 当前树/历史和 Semgrep 固定规则扫描均为 0 finding。隔离容器和网络验证后已删除；该证据仍不替代最终 SHA、七镜像重建、GHCR、目标内网或专业内容批准。
 
-合规监测人工升级增量在独立 PostgreSQL 17 容器迁移后完成目标文件 7/7 与完整 worker integration 5 files/25 tests。验证人工复核到期、正文变化和连续第三次失败都在来源状态事务内精确创建一条同组织 `todo/high` 任务及任务审计；重复扫描、同一哈希、第四次失败和陈旧并发结果不会重复或虚假建任务，失败错误在来源、任务和审计中均保持脱敏。专用数据库容器测试后已删除；负责人自动分配、邮件/企业协作通知和目标环境实际处置仍未验收。
+合规监测低人力协调增量在自动销毁的 PostgreSQL 17.10 容器迁移后完成目标文件 10/10 与完整 worker integration 5 files/28 tests。验证人工复核到期、正文变化和连续第三次失败都在来源状态事务内精确创建一条同组织 `todo/high` 任务：执行时仍有效且仍有来源更新权限的人工触发者优先负责协调，否则确定性选择最早加入的有效 owner；触发者已停用或失权时正确回退，无有效 owner 的 legacy 异常则保持未指派且不跨组织猜测。系统在同一事务原子完成站内通知 `queued → sent`、任务/通知 create/deliver 与来源关联审计；重复扫描、同一哈希、第四次失败和陈旧并发结果不会重复或虚假建任务/通知，失败错误保持脱敏。协调责任人不等于专业复核人；邮件/企业协作和目标环境实际处置仍未验收。
 
 文件真实内容门禁增量新增 6 项单元测试并把全工作区单元提高到 173/173；独立 PostgreSQL 17 上目标 API 文件 19/19、完整 API 17 files/86 tests 通过，真实 MinIO 私有桶往返/错误摘要删除 2/2 通过。伪装 PDF 在对象写入前返回 400，文件保持 `pending/version=1`，对象不存在，拒绝审计不含 body；压缩 OOXML 正/负向覆盖 DOCX/XLSX/PPTX 主部件、类型清单、宏、ActiveX、嵌入、加密和路径穿越。隔离 PostgreSQL/MinIO 容器均在测试后删除。该门禁不是反病毒、沙箱、完整格式语义解析或 DLP，不能把测试通过写成附件无恶意内容。
 
@@ -117,7 +119,7 @@
 - 合规结论保存在可维护记录中；专用复核要求复核人、角色、机构/内部组织、胜任依据、适用条件、摘要、缺失信息、证据、结论、期限和理由，并锁定来源版本、哈希与站内登记人。通用写入和 seed 不能伪造 reviewed 或 `active|superseded|repealed`，政策变化不永久硬编码。
 - 义务和合规日历可分别保存 `sourceId` 与 `evidenceFileId`。当前及历史专业复核引用过的证据也不可归档；需要更正时只能上传新文件并追加新意见。系统不验证资质真伪或意见正确性。
 - 未复核、legacy 不完整 provenance、过期或不活动来源不会作为法务顾问事实；关联义务/日历还要求来源结论为 `applicable`，`not_applicable` 会失败关闭关联内容。自动抓取、哈希一致或 pending 引用都不等于专业复核。
-- 人工复核到期、正文哈希变化和连续第三次监测失败会各创建一条立即到期、未分配的高优先级人工任务，并在来源事件与任务创建审计间保存关联；任务完成不会自动把来源写成已复核，邮件/企业协作通知仍未配置。
+- 人工复核到期、正文哈希变化和连续第三次监测失败会各创建一条立即到期的高优先级人工任务；执行时仍有效且仍有来源更新权限的人工触发者优先协调，否则选择最早加入的有效 owner，并在同一事务送达站内通知。来源事件通过任务、通知、协调人和选择策略 ID 与 create/deliver 审计关联；协调和任务完成都不会自动把来源写成已复核，邮件/企业协作通知仍未配置。
 - 当前真实 LLM 尚未完成供应商、数据处理、预算和质量验收。定向 mock 流程只证明权限、结构、审计、withheld 和后台运行边界。
 - 当前 GitHub 集成仍为 manual/read-only 边界，没有真实凭据验收。
 - 八类高风险动作必须人工批准；manual/mock 不构成银行、税务、发票、签章、人事或法律平台已经成功执行。

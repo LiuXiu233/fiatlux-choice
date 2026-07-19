@@ -5,7 +5,12 @@ import {
   complianceItems,
   complianceSourceSnapshots,
   createDatabase,
+  membershipRoles,
+  memberships,
+  notifications,
+  roles,
   tasks,
+  users,
 } from "@fiatlux/db";
 import { importOfficialComplianceSources, seedDatabase } from "@fiatlux/db/seed";
 import type {
@@ -46,6 +51,7 @@ describe.skipIf(!databaseUrl)("compliance source monitoring PostgreSQL integrati
   let firstOrgId: string;
   let secondOrgId: string;
   let firstUserId: string;
+  let firstMemberId: string;
   const queuedJobs: Array<{ name: string; data: unknown }> = [];
 
   beforeAll(async () => {
@@ -71,6 +77,36 @@ describe.skipIf(!databaseUrl)("compliance source monitoring PostgreSQL integrati
     firstOrgId = first.organization.id;
     secondOrgId = second.organization.id;
     firstUserId = first.user.id;
+    const [member] = await dbHandle.db
+      .insert(users)
+      .values({
+        email: `compliance-monitor-member-${randomUUID().slice(0, 8)}@example.test`,
+        displayName: "Compliance Monitor Member",
+        passwordHash: first.user.passwordHash,
+      })
+      .returning({ id: users.id });
+    if (!member) throw new Error("Failed to create compliance monitor member");
+    await dbHandle.db.insert(memberships).values({
+      orgId: firstOrgId,
+      userId: member.id,
+      status: "active",
+    });
+    const [memberMembership] = await dbHandle.db
+      .select({ id: memberships.id })
+      .from(memberships)
+      .where(and(eq(memberships.orgId, firstOrgId), eq(memberships.userId, member.id)));
+    const [adminRole] = await dbHandle.db
+      .select({ id: roles.id })
+      .from(roles)
+      .where(and(eq(roles.orgId, firstOrgId), eq(roles.systemKey, "admin")));
+    if (!memberMembership || !adminRole)
+      throw new Error("Failed to resolve compliance monitor member role");
+    await dbHandle.db.insert(membershipRoles).values({
+      orgId: firstOrgId,
+      membershipId: memberMembership.id,
+      roleId: adminRole.id,
+    });
+    firstMemberId = member.id;
   }, 60_000);
 
   afterAll(async () => {
@@ -124,7 +160,32 @@ describe.skipIf(!databaseUrl)("compliance source monitoring PostgreSQL integrati
             ),
           )
       : [];
-    return { audits, records };
+    const notificationAuditRows = await dbHandle.db
+      .select()
+      .from(auditEvents)
+      .where(
+        and(
+          eq(auditEvents.orgId, firstOrgId),
+          inArray(auditEvents.action, ["create", "deliver"]),
+          eq(auditEvents.resourceType, "notification"),
+        ),
+      );
+    const notificationAudits = notificationAuditRows.filter((audit) => {
+      const metadata = audit.metadata as Record<string, unknown> | null;
+      return (
+        metadata?.complianceSourceId === sourceId && metadata.escalationReason === escalationReason
+      );
+    });
+    const notificationIds = [...new Set(notificationAudits.map((audit) => audit.resourceId))];
+    const notificationRecords = notificationIds.length
+      ? await dbHandle.db
+          .select()
+          .from(notifications)
+          .where(
+            and(eq(notifications.orgId, firstOrgId), inArray(notifications.id, notificationIds)),
+          )
+      : [];
+    return { audits, records, notificationAudits, notificationRecords };
   }
 
   it("imports JSON freshness and next-review metadata into PostgreSQL", async () => {
@@ -179,7 +240,7 @@ describe.skipIf(!databaseUrl)("compliance source monitoring PostgreSQL integrati
     await handleComplianceSourceMonitor(deps, {
       orgId: secondOrgId,
       sourceId: source.id,
-      requestedBy: firstUserId,
+      requestedBy: firstMemberId,
     });
     expect(fetch).not.toHaveBeenCalled();
     expect((await complianceEscalations(source.id, "content_changed")).records).toHaveLength(0);
@@ -187,7 +248,7 @@ describe.skipIf(!databaseUrl)("compliance source monitoring PostgreSQL integrati
     await handleComplianceSourceMonitor(deps, {
       orgId: firstOrgId,
       sourceId: source.id,
-      requestedBy: firstUserId,
+      requestedBy: firstMemberId,
     });
     const [initial] = await dbHandle.db
       .select()
@@ -205,7 +266,7 @@ describe.skipIf(!databaseUrl)("compliance source monitoring PostgreSQL integrati
     await handleComplianceSourceMonitor(deps, {
       orgId: firstOrgId,
       sourceId: source.id,
-      requestedBy: firstUserId,
+      requestedBy: firstMemberId,
     });
     const [changed] = await dbHandle.db
       .select()
@@ -248,7 +309,7 @@ describe.skipIf(!databaseUrl)("compliance source monitoring PostgreSQL integrati
       );
     expect(changeAudit?.metadata).toMatchObject({
       actorType: "system",
-      initiatedBy: firstUserId,
+      initiatedBy: firstMemberId,
       trigger: "manual",
       finalHost: "www.gov.cn",
     });
@@ -259,7 +320,7 @@ describe.skipIf(!databaseUrl)("compliance source monitoring PostgreSQL integrati
       orgId: firstOrgId,
       status: "todo",
       priority: "high",
-      assigneeId: null,
+      assigneeId: firstMemberId,
     });
     expect(changeEscalation.records[0]?.title).toContain("官方正文哈希发生变化");
     expect(changeEscalation.records[0]?.description).toContain(`来源 ID：${source.id}`);
@@ -269,18 +330,262 @@ describe.skipIf(!databaseUrl)("compliance source monitoring PostgreSQL integrati
       trigger: "compliance_source_monitor",
       complianceSourceId: source.id,
       escalationReason: "content_changed",
-      initiatedBy: firstUserId,
+      initiatedBy: firstMemberId,
+      assigneeId: firstMemberId,
+      assignmentStrategy: "initiator",
+      notificationId: changeEscalation.notificationRecords[0]?.id,
     });
+    expect(changeEscalation.notificationRecords).toHaveLength(1);
+    expect(changeEscalation.notificationRecords[0]).toMatchObject({
+      orgId: firstOrgId,
+      recipientId: firstMemberId,
+      channel: "in_app",
+      status: "sent",
+      readAt: null,
+    });
+    expect(changeEscalation.notificationRecords[0]?.sentAt).toBeInstanceOf(Date);
+    expect(changeEscalation.notificationRecords[0]?.body).toContain(
+      "不表示法规有效、适用或已经完成专业复核",
+    );
+    expect(changeEscalation.notificationAudits.map((audit) => audit.action).sort()).toEqual([
+      "create",
+      "deliver",
+    ]);
+    expect(changeEscalation.notificationAudits).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          metadata: expect.objectContaining({
+            taskId: changeEscalation.records[0]?.id,
+            deliveryMode: "atomic_in_app",
+          }),
+        }),
+      ]),
+    );
     expect(changeAudit?.metadata).toMatchObject({
       escalationTaskId: changeEscalation.records[0]?.id,
+      escalationNotificationId: changeEscalation.notificationRecords[0]?.id,
+      escalationAssigneeId: firstMemberId,
+      assignmentStrategy: "initiator",
     });
 
     await handleComplianceSourceMonitor(deps, {
       orgId: firstOrgId,
       sourceId: source.id,
-      requestedBy: firstUserId,
+      requestedBy: firstMemberId,
     });
-    expect((await complianceEscalations(source.id, "content_changed")).records).toHaveLength(1);
+    const deduplicatedChange = await complianceEscalations(source.id, "content_changed");
+    expect(deduplicatedChange.records).toHaveLength(1);
+    expect(deduplicatedChange.notificationRecords).toHaveLength(1);
+  });
+
+  it("falls back to an active owner when the manual initiator is no longer authorized", async () => {
+    const [memberMembership] = await dbHandle.db
+      .select({ id: memberships.id })
+      .from(memberships)
+      .where(and(eq(memberships.orgId, firstOrgId), eq(memberships.userId, firstMemberId)));
+    if (!memberMembership) throw new Error("Failed to resolve compliance monitor member");
+    await dbHandle.db
+      .delete(membershipRoles)
+      .where(
+        and(
+          eq(membershipRoles.orgId, firstOrgId),
+          eq(membershipRoles.membershipId, memberMembership.id),
+        ),
+      );
+    const baselineHash = "1".repeat(64);
+    const changedHash = "2".repeat(64);
+    const [source] = await dbHandle.db
+      .insert(complianceItems)
+      .values({
+        orgId: firstOrgId,
+        title: "触发者已失权的来源",
+        category: "company_governance",
+        issuingAuthority: "国务院",
+        sourceUrl: "https://www.gov.cn/unauthorized-initiator",
+        contentHash: baselineHash,
+        contentHashStatus: "current",
+        reviewStatus: "reviewed",
+        status: "active",
+        lastVerifiedAt: new Date(),
+      })
+      .returning();
+    if (!source) throw new Error("Failed to create unauthorized-initiator source");
+
+    await handleComplianceSourceMonitor(
+      dependencies({ fetch: async () => snapshot(changedHash) }),
+      {
+        orgId: firstOrgId,
+        sourceId: source.id,
+        requestedBy: firstMemberId,
+      },
+    );
+
+    const escalation = await complianceEscalations(source.id, "content_changed");
+    expect(escalation.records).toHaveLength(1);
+    expect(escalation.records[0]?.assigneeId).toBe(firstUserId);
+    expect(escalation.notificationRecords).toHaveLength(1);
+    expect(escalation.notificationRecords[0]).toMatchObject({
+      recipientId: firstUserId,
+      status: "sent",
+      channel: "in_app",
+    });
+    expect(escalation.audits[0]?.metadata).toMatchObject({
+      initiatedBy: firstMemberId,
+      assigneeId: firstUserId,
+      assignmentStrategy: "primary_active_owner",
+      notificationId: escalation.notificationRecords[0]?.id,
+    });
+  });
+
+  it("falls back to an active owner when the manual initiator user is disabled", async () => {
+    const [disabledUser] = await dbHandle.db
+      .insert(users)
+      .values({
+        email: `disabled-compliance-monitor-${randomUUID().slice(0, 8)}@example.test`,
+        displayName: "Disabled Compliance Monitor",
+        passwordHash: "not-used-by-this-worker-integration-test",
+        status: "inactive",
+      })
+      .returning({ id: users.id });
+    if (!disabledUser) throw new Error("Failed to create disabled compliance monitor user");
+    const [disabledMembership] = await dbHandle.db
+      .insert(memberships)
+      .values({
+        orgId: firstOrgId,
+        userId: disabledUser.id,
+        status: "active",
+      })
+      .returning({ id: memberships.id });
+    const [adminRole] = await dbHandle.db
+      .select({ id: roles.id })
+      .from(roles)
+      .where(and(eq(roles.orgId, firstOrgId), eq(roles.systemKey, "admin")));
+    if (!disabledMembership || !adminRole)
+      throw new Error("Failed to resolve disabled compliance monitor role");
+    await dbHandle.db.insert(membershipRoles).values({
+      orgId: firstOrgId,
+      membershipId: disabledMembership.id,
+      roleId: adminRole.id,
+    });
+
+    const baselineHash = "3".repeat(64);
+    const changedHash = "4".repeat(64);
+    const [source] = await dbHandle.db
+      .insert(complianceItems)
+      .values({
+        orgId: firstOrgId,
+        title: "触发者已停用的来源",
+        category: "company_governance",
+        issuingAuthority: "国务院",
+        sourceUrl: "https://www.gov.cn/disabled-initiator",
+        contentHash: baselineHash,
+        contentHashStatus: "current",
+        reviewStatus: "reviewed",
+        status: "active",
+        lastVerifiedAt: new Date(),
+      })
+      .returning();
+    if (!source) throw new Error("Failed to create disabled-initiator source");
+
+    await handleComplianceSourceMonitor(
+      dependencies({ fetch: async () => snapshot(changedHash) }),
+      {
+        orgId: firstOrgId,
+        sourceId: source.id,
+        requestedBy: disabledUser.id,
+      },
+    );
+
+    const escalation = await complianceEscalations(source.id, "content_changed");
+    expect(escalation.records).toHaveLength(1);
+    expect(escalation.records[0]?.assigneeId).toBe(firstUserId);
+    expect(escalation.notificationRecords).toHaveLength(1);
+    expect(escalation.notificationRecords[0]).toMatchObject({
+      recipientId: firstUserId,
+      status: "sent",
+      channel: "in_app",
+    });
+    expect(escalation.audits[0]?.metadata).toMatchObject({
+      initiatedBy: disabledUser.id,
+      assigneeId: firstUserId,
+      assignmentStrategy: "primary_active_owner",
+      notificationId: escalation.notificationRecords[0]?.id,
+    });
+  });
+
+  it("keeps the task unassigned without guessing across tenants when no active owner exists", async () => {
+    const [ownerMembership] = await dbHandle.db
+      .select({ id: memberships.id })
+      .from(memberships)
+      .where(and(eq(memberships.orgId, firstOrgId), eq(memberships.userId, firstUserId)));
+    if (!ownerMembership) throw new Error("Failed to resolve compliance monitor owner");
+    await dbHandle.db
+      .update(memberships)
+      .set({ status: "inactive" })
+      .where(and(eq(memberships.orgId, firstOrgId), eq(memberships.id, ownerMembership.id)));
+
+    try {
+      const baselineHash = "5".repeat(64);
+      const changedHash = "6".repeat(64);
+      const [source] = await dbHandle.db
+        .insert(complianceItems)
+        .values({
+          orgId: firstOrgId,
+          title: "没有有效 owner 的 legacy 来源",
+          category: "company_governance",
+          issuingAuthority: "国务院",
+          sourceUrl: "https://www.gov.cn/no-active-owner",
+          contentHash: baselineHash,
+          contentHashStatus: "current",
+          reviewStatus: "reviewed",
+          status: "active",
+          lastVerifiedAt: new Date(),
+        })
+        .returning();
+      if (!source) throw new Error("Failed to create no-active-owner source");
+
+      await handleComplianceSourceMonitor(
+        dependencies({ fetch: async () => snapshot(changedHash) }),
+        { orgId: firstOrgId, sourceId: source.id },
+      );
+
+      const escalation = await complianceEscalations(source.id, "content_changed");
+      expect(escalation.records).toHaveLength(1);
+      expect(escalation.records[0]).toMatchObject({
+        orgId: firstOrgId,
+        status: "todo",
+        priority: "high",
+        assigneeId: null,
+      });
+      expect(escalation.notificationRecords).toHaveLength(0);
+      expect(escalation.notificationAudits).toHaveLength(0);
+      expect(escalation.audits[0]?.metadata).toMatchObject({
+        assigneeId: null,
+        assignmentStrategy: "unassigned_no_active_owner",
+        notificationId: null,
+      });
+      const [changeAudit] = await dbHandle.db
+        .select()
+        .from(auditEvents)
+        .where(
+          and(
+            eq(auditEvents.orgId, firstOrgId),
+            eq(auditEvents.resourceId, source.id),
+            eq(auditEvents.action, "monitor_change_detected"),
+          ),
+        );
+      expect(changeAudit?.metadata).toMatchObject({
+        escalationTaskId: escalation.records[0]?.id,
+        escalationNotificationId: null,
+        escalationAssigneeId: null,
+        assignmentStrategy: "unassigned_no_active_owner",
+      });
+    } finally {
+      await dbHandle.db
+        .update(memberships)
+        .set({ status: "active" })
+        .where(and(eq(memberships.orgId, firstOrgId), eq(memberships.id, ownerMembership.id)));
+    }
   });
 
   it("redacts failures, retains the last good hash and requires review after three attempts", async () => {
@@ -358,7 +663,7 @@ describe.skipIf(!databaseUrl)("compliance source monitoring PostgreSQL integrati
       orgId: firstOrgId,
       status: "todo",
       priority: "high",
-      assigneeId: null,
+      assigneeId: firstUserId,
     });
     expect(failureEscalation.records[0]?.description).toContain(`来源 ID：${source.id}`);
     expect(failureEscalation.records[0]?.description).toContain("国家互联网信息办公室");
@@ -372,6 +677,20 @@ describe.skipIf(!databaseUrl)("compliance source monitoring PostgreSQL integrati
     );
     expect(thirdFailureAudit?.metadata).toMatchObject({
       escalationTaskId: failureEscalation.records[0]?.id,
+      escalationNotificationId: failureEscalation.notificationRecords[0]?.id,
+      escalationAssigneeId: firstUserId,
+      assignmentStrategy: "primary_active_owner",
+    });
+    expect(failureEscalation.audits[0]?.metadata).toMatchObject({
+      assigneeId: firstUserId,
+      assignmentStrategy: "primary_active_owner",
+      notificationId: failureEscalation.notificationRecords[0]?.id,
+    });
+    expect(failureEscalation.notificationRecords).toHaveLength(1);
+    expect(failureEscalation.notificationRecords[0]).toMatchObject({
+      recipientId: firstUserId,
+      channel: "in_app",
+      status: "sent",
     });
 
     await expect(
@@ -381,7 +700,9 @@ describe.skipIf(!databaseUrl)("compliance source monitoring PostgreSQL integrati
         claimToken: "failure-retry-claim",
       }),
     ).rejects.toThrow("upstream timeout");
-    expect((await complianceEscalations(source.id, "monitor_failed")).records).toHaveLength(1);
+    const deduplicatedFailure = await complianceEscalations(source.id, "monitor_failed");
+    expect(deduplicatedFailure.records).toHaveLength(1);
+    expect(deduplicatedFailure.notificationRecords).toHaveLength(1);
   });
 
   it("atomically expires overdue human reviews and forces a source check", async () => {
@@ -445,12 +766,26 @@ describe.skipIf(!databaseUrl)("compliance source monitoring PostgreSQL integrati
       orgId: firstOrgId,
       status: "todo",
       priority: "high",
-      assigneeId: null,
+      assigneeId: firstUserId,
     });
     expect(expiryEscalation.records[0]?.description).toContain(`来源 ID：${source.id}`);
     expect(expiryEscalation.records[0]?.description).toContain("人工复核日期已到期");
     expect(audit?.metadata).toMatchObject({
       escalationTaskId: expiryEscalation.records[0]?.id,
+      escalationNotificationId: expiryEscalation.notificationRecords[0]?.id,
+      escalationAssigneeId: firstUserId,
+      assignmentStrategy: "primary_active_owner",
+    });
+    expect(expiryEscalation.audits[0]?.metadata).toMatchObject({
+      assigneeId: firstUserId,
+      assignmentStrategy: "primary_active_owner",
+      notificationId: expiryEscalation.notificationRecords[0]?.id,
+    });
+    expect(expiryEscalation.notificationRecords).toHaveLength(1);
+    expect(expiryEscalation.notificationRecords[0]).toMatchObject({
+      recipientId: firstUserId,
+      channel: "in_app",
+      status: "sent",
     });
 
     await handleComplianceSourceMonitor(
@@ -461,7 +796,9 @@ describe.skipIf(!databaseUrl)("compliance source monitoring PostgreSQL integrati
       }),
       { orgId: firstOrgId },
     );
-    expect((await complianceEscalations(source.id, "review_expired")).records).toHaveLength(1);
+    const deduplicatedExpiry = await complianceEscalations(source.id, "review_expired");
+    expect(deduplicatedExpiry.records).toHaveLength(1);
+    expect(deduplicatedExpiry.notificationRecords).toHaveLength(1);
   });
 
   it("deduplicates concurrent handlers without creating a false failure", async () => {

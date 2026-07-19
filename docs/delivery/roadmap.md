@@ -31,7 +31,7 @@
 - 通知创建为 queued-only；GitHub 刷新保存 `expectedVersion` 并以 CAS 防止陈旧写回；workflow 保存不可变定义版本/步骤快照和 partial checkpoint；advisor/workflow/backup 使用原子 claim、CAS 与 `lease_expired` 人工复核边界。
 - 银行付款取消或审批驳回会原子解除草稿支出关联；顾问运行默认 requester-only，管理员的 `advisor-runs:read-all` 仍受顾问入口和上下文读权限限制；角色分配审批保存 membership 版本快照并在批准时重验。
 - 义务/合规日历已分开 `sourceId` 与 `evidenceFileId`；专业复核专用入口要求实名、机构、胜任依据、缺失信息、已上传证据，锁定来源版本/哈希/站内登记人并追加历史。通用提升、legacy 部分状态和不适用来源会在顾问侧失败关闭。
-- 合规来源人工复核到期、正文哈希变化和连续第三次失败已在状态事务内自动建立未分配的高优先级人工任务；同一事件去重、错误脱敏、组织隔离和陈旧并发丢弃由真实 PostgreSQL 集成覆盖，邮件/企业协作通知和负责人自动分配仍待批准适配器。
+- 合规来源人工复核到期、正文哈希变化和连续第三次失败已在状态事务内自动建立高优先级任务；执行时仍有效且仍有来源更新权限的人工触发者优先协调，否则确定性选择最早加入的有效 owner，并原子送达站内通知。同一事件去重、错误脱敏、组织隔离、触发者停用/失权回退和陈旧并发丢弃由真实 PostgreSQL 集成覆盖；协调不等于专业复核，邮件/企业协作通知仍待批准适配器。
 - 2026-07-20 不可变实现提交 `101d2f0938adfa0caa8ed576f6587a5c78ae74a5` 已通过 Biome 206 files、ShellCheck/Actionlint、7 项类型检查、177/177 单元、API 18 files/89 tests、worker 5 files/25 tests、真实 MinIO 2/2、mock 46+6、隔离 real 4/4、fresh/legacy 迁移、fresh/legacy 最小权限和生产构建；同一提交的全新 production-like Compose 又通过 38 表/11 migration、六服务、重启持久性、桌面/390×844 mobile、PWA/offline 和 73 条来源保守状态验证。
 - `101d2f0…` 七个本地 arm64 镜像由固定 Trivy 0.70.0 digest 扫描，HIGH/CRITICAL/fixable/unfixed 均为 0；七份 Syft 1.42.3 SPDX 通过，真实 BuildKit 0.31.2 双平台 provenance fixture 及 API/worker amd64 补偿证据仍有效；GHCR 双平台 root digest 仍待 release workflow。
 - 旧底层 formatVersion 2 演练归档 SHA-256 `bcfd6c59d…b6ba`，核对 38 表、10 migrations、pg-boss 24 和 1 个 56-byte 对象，实测 RPO 2 秒、drill RTO 75 秒；它早于 Ed25519 来源签名门禁，只保留为历史恢复证据。
@@ -105,7 +105,7 @@
 
 - 每日/每周经营摘要、逾期分级和 13 周现金预警。
 - 经批准的邮件或企业协作通知适配器，保留站内为事实源。
-- 为现有合规来源变更监控、哈希差异和复核任务接入经批准的负责人规则及邮件/企业协作通知；站内任务与审计继续作为事实源。
+- 为现有合规来源变更监控和复核任务接入经批准的邮件/企业协作通知；保留当前确定性协调责任人、站内通知、任务与审计作为事实源，不让外部渠道回执改写专业复核状态。
 - 审计导出、管理层月报、风险接受到期提醒，以及 `lease_expired`/partial run 的人工处理看板。
 - 第一个成人团队赛训或竞技基础小班，从机会、合同、交付到退款/复盘闭环。
 - 课程内容版本、讲师授权、学员告知和删除期限台账。

@@ -313,7 +313,10 @@ jobs:
         run: ./scripts/test-restored-object-verification.sh
       - run: pnpm db:migrate
       - run: pnpm test:integration
-      - run: pnpm build
+      - name: Build production applications
+        env:
+          NODE_ENV: production
+        run: pnpm build
       - run: pnpm --filter @fiatlux/web exec playwright install --with-deps chromium
       - name: Run isolated mock UI E2E
         run: pnpm test:e2e:mock

@@ -152,7 +152,7 @@ curl --request POST \
 
 POST 使用对应 create schema。PATCH 使用 create schema 的部分字段，并强制 expectedVersion。DELETE 使用查询参数 expectedVersion，并执行软归档。
 
-通知不是普通全量 CRUD。`POST /notifications` 只允许创建 `status=queued` 的记录（省略时也默认为 `queued`），客户端不能创建 `sent`/`failed` 来伪造投递结果。member/viewer 的 `GET /notifications` 和 `GET /notifications/:id` 只返回当前用户作为 recipient 的记录，跨收件人读取表现为 404；标记本人站内通知已读必须使用 `POST /notifications/:id/read` 并提交 `expectedVersion`。只有具有 `notifications:manage` 的 admin/owner 能跨收件人创建、查看和归档通知；任何角色都不能用 `PATCH /notifications/:id` 改写标题、正文、收件人或投递事实，只有投递 worker 能把 `queued` 更新为 `sent` 或 `failed`。
+通知不是普通全量 CRUD。`POST /notifications` 只允许创建 `status=queued` 的记录（省略时也默认为 `queued`），客户端不能创建 `sent`/`failed` 来伪造投递结果。member/viewer 的 `GET /notifications` 和 `GET /notifications/:id` 只返回当前用户作为 recipient 的记录，跨收件人读取表现为 404；标记本人站内通知已读必须使用 `POST /notifications/:id/read` 并提交 `expectedVersion`。只有具有 `notifications:manage` 的 admin/owner 能跨收件人创建、查看和归档通知；任何角色都不能用 `PATCH /notifications/:id` 改写标题、正文、收件人或投递事实，只有 worker 能把 `queued` 更新为 `sent` 或 `failed`。合规监控 worker 已在处理来源的同一事务中原子完成其系统站内通知的 `queued → sent`，不代表外部邮件或企业协作渠道送达。
 
 `POST /notifications` 和 `POST /workflow-runs` 除写入记录外还会投递后台任务；队列不可用时 API 返回 503 并尽力把新记录标为 failed。201 只说明记录已创建并成功入队，不能解释为通知已经送达或工作流已经完成。
 
@@ -177,7 +177,7 @@ POST 使用对应 create schema。PATCH 使用 create schema 的部分字段，�
 
 OAS 3.1 是当前候选的机器可读接口清单；运行时 Zod/领域校验仍是实际执行边界。发现文档与运行时不一致时应作为契约缺陷处理并阻断兼容性发布，不能在客户端静默猜测。
 
-合规来源监控响应包含 `sourceId`、`jobId` 和 `status=queued`。同一组织、同一来源已有有效租约时，重复请求复用在途 job，不会二次抓取。实际成功、变化、失败或陈旧结果丢弃必须查看来源字段与审计事件，不能把 HTTP 202 当作官方网页已抓取或政策已人工复核。人工复核到期、已有正文哈希变化和连续第三次失败会由 worker 在来源更新事务中创建一条未分配的 `todo/high` 任务；来源事件 metadata 的 `escalationTaskId` 指向该任务。任务出现仍只表示需要人工处理，不表示来源已经复核或问题已经解决。
+合规来源监控响应包含 `sourceId`、`jobId` 和 `status=queued`。同一组织、同一来源已有有效租约时，重复请求复用在途 job，不会二次抓取。实际成功、变化、失败或陈旧结果丢弃必须查看来源字段与审计事件，不能把 HTTP 202 当作官方网页已抓取或政策已人工复核。人工复核到期、已有正文哈希变化和连续第三次失败会由 worker 在来源更新事务中创建一条 `todo/high` 任务：执行时仍为有效成员且仍有 `compliance-items:update` 或通配权限的人工触发者优先成为协调责任人，否则确定性选择最早加入的有效 owner；同时原子送达一条站内通知。来源事件 metadata 的 `escalationTaskId`、`escalationNotificationId`、`escalationAssigneeId` 和 `assignmentStrategy` 分别指向任务、通知、协调人和选择策略。任务或通知出现仍只表示需要人工处理，不表示协调人具有专业资质、来源已经复核或问题已经解决。
 
 专业复核不能走通用 `POST/PATCH /compliance-items`。专用 POST 必须提交当前 `expectedVersion`、结论、来源生命周期、复核人姓名/角色/机构、胜任依据、同组织 `uploaded` 证据文件、适用条件、摘要、缺失信息、下一复核日和登记原因。例如：
 

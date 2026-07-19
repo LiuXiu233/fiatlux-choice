@@ -9,6 +9,7 @@
 | 状态 | 含义 |
 | --- | --- |
 | 不可变实现提交本地通过 | 在完整 Git SHA `101d2f0…` 上完成对应全量、真实栈、镜像或恢复验证，但尚未取得 GitHub/GHCR 或目标环境证据 |
+| 当前增量本地通过 | 在 `101d2f0…` 后续增量上完成定向和完整回归，但仍须绑定提交并复现受影响的 Compose、浏览器、安全与交付证据 |
 | 本地演练已验证 | 在本地隔离环境完成真实数据库、对象存储、队列或恢复演练，但不是目标办公内网验收 |
 | 历史证据 | 结果在当时真实，但其后源码、迁移、镜像或备份格式已有变化，不能作为当前发布证据 |
 | GitHub/目标环境待复现 | 不可变实现提交已在本地通过，仍缺 GitHub runner、GHCR、目标内网或真机证据 |
@@ -59,7 +60,7 @@ lease 到期不等于“安全重试”。操作员必须查看审计、partial 
 | --- | --- | --- | --- |
 | 官方来源数据集 | `content/compliance/official-sources.json` 共 73 条，覆盖中国、广东、广州官方来源；隔离数据库 22 个完整组织和真实栈单组织均精确导入 73 条 | 已实现 | 最终 SHA 校验文件、URL、元数据与导入结果 |
 | 人工复核状态 | 73 条尚未完成可识别专业人员的适用性复核；seed 即使收到 reviewed 输入也只保守导入 pending/stale，通用 POST/PATCH 不能提升 reviewed 或确定生命周期 | 正确保持未批准 | 按风险逐条上传真实意见并通过专用入口登记；不得把隔离 E2E 测试复核或批量操作冒充专业批准 |
-| 易变政策与人工升级 | 来源元数据、机器哈希、人工状态和业务状态分离；到期、正文变化和连续第三次失败会在状态事务内各建一条 `todo/high` 人工任务并关联双重审计，重复/第四次失败/陈旧并发不误建 | 不可变实现提交本地通过 / 待运营 | 目标环境完成首次抓取、任务处置、负责人分配和纠错流程；邮件/企业协作通知仍待批准适配器 |
+| 易变政策与人工升级 | 来源元数据、机器哈希、人工状态和业务状态分离；到期、正文变化和连续第三次失败会在状态事务内各建一条 `todo/high` 任务，执行时仍有效且仍有来源更新权限的触发者或最早加入的有效 owner 负责协调，站内通知原子送达并关联任务/通知/来源审计；重复、第四次失败、停用/失权触发者和陈旧并发均有真实 PostgreSQL 覆盖 | 当前协调增量本地通过 / 待目标运营 | 目标环境完成首次抓取、任务/站内通知处置和纠错流程；协调不等于专业复核，邮件/企业协作通知仍待批准适配器 |
 | 来源与履行凭证 | `sourceId`/`evidenceFileId` 分离、跨组织/未上传拒绝；当前与历史专业复核证据均不可归档；真实 PostgreSQL 与真实 MinIO 浏览器场景通过 | 不可变实现提交本地通过 | 人工核对凭证内容与复核人资质 |
 | 顾问使用边界 | 未复核、legacy 不完整 provenance、过期、不活动或不确定来源不会进入法务顾问事实；not_applicable 来源不能支持关联义务/日历 | 不可变实现提交定向通过 | 真实模型启用后重新验证引用、权限、过期、结论和越权边界 |
 
@@ -69,12 +70,12 @@ lease 到期不等于“安全重试”。操作员必须查看审计、partial 
 
 | 层级 | 当前发布状态 | 最终证据要求 |
 | --- | --- | --- |
-| Biome / ShellCheck / Actionlint / 类型 | **不可变实现提交本地通过** | `101d2f0…`：206 个 Biome 文件、全 shell、3 个 workflow、7 个 TS 项目；GitHub CI 复现 |
+| Biome / ShellCheck / Actionlint / 类型 | **不可变基线通过；当前 workflow 增量本地通过** | `101d2f0…`：206 个 Biome 文件、全 shell、3 个 workflow、7 个 TS 项目；当前后继工作树 Biome 207 个文件、ShellCheck、7 项类型和 Actionlint 1.7.12 通过，CI/release 构建显式覆盖 `NODE_ENV=production`；GitHub CI 复现 |
 | 单元/聚合 | **不可变实现提交本地通过** | `101d2f0…`：177/177 单元通过；本证据工作树全量复跑亦通过，GitHub CI 待复现 |
-| API / worker / PostgreSQL / pg-boss | **不可变实现提交本地通过** | `101d2f0…`：API 18 files/89 tests、worker 5 files/25 tests；11 个 migration，空库及 `0000`–`0009` legacy→`0010` 数据保留/幂等、fresh/legacy 最小权限、连接恢复、并发/CAS、审计和失败边界通过 |
+| API / worker / PostgreSQL / pg-boss | **不可变基线通过；当前协调增量本地通过** | `101d2f0…`：API 18 files/89 tests、worker 5 files/25 tests；当前后继工作树 API 89/89、worker 5 files/28 tests；11 个 migration，空库及 `0000`–`0009` legacy→`0010` 数据保留/幂等、fresh/legacy 最小权限、连接恢复、并发/CAS、审计和失败边界通过 |
 | MinIO / S3 | **本地通过** | 2 项真实私有桶/字节/权限/校验和集成及恢复对象核对通过 |
 | Web / Playwright / PWA | **不可变实现提交本地通过，有真机边界** | mock 46 passed/6 条件 skip、隔离 real 4 passed；新 Compose 原生 Python Playwright desktop/mobile/offline/installability 全通过；真机待验收 |
-| 全 workspace / 七镜像构建 | **不可变实现提交本地通过** | `101d2f0…` PWA 10 precache/700.30 KiB；七个 arm64 镜像从该 SHA 重建，独立 Compose/六服务/重启持久性通过 |
+| 全 workspace / 七镜像构建 | **不可变基线通过；当前源码生产构建通过** | `101d2f0…` 七个 arm64 镜像和独立 Compose/六服务/重启持久性通过；当前后继工作树显式生产构建为 PWA 10 precache/700.30 KiB，仍须从绑定增量 SHA 重建七镜像 |
 | 安全/供应链 | **不可变实现提交本地通过，有 GitHub 边界** | Gitleaks、Semgrep+canary、`audit --prod` 0、IaC；`101d2f0…` 七镜像 Trivy 0.70.0 HIGH/CRITICAL 0、7 份 Syft 1.42.3 SPDX；GitHub CodeQL/安全 workflow 待运行 |
 
 七镜像的本地 arm64 content ID、SPDX 和扫描证据不是 GHCR 双平台 root digest 或签名。全依赖只余 dev-only `drizzle-kit -> esbuild` 1 个 moderate，生产依赖为 0；CI 不启动其 dev server，作为非阻断升级项跟踪。
