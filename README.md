@@ -6,6 +6,8 @@
 
 后继不可变实现 `5eec8cc3f4cbd0b9a12372240bca9f56d65ae5f9` 已补齐合规升级任务的协调人选择、站内通知和任务/通知/来源审计链，并把 CI/release 构建显式固定为 production 语义。该提交完成 10/10 定向 PostgreSQL、完整 worker 28/28、全仓检查、独立七镜像 production-like Compose、真实 pg-boss 组织级 sweep、桌面/移动/PWA 和 worker 镜像安全验收；脱敏记录见[协调升级增量证据](docs/delivery/evidence/compliance-coordinator-acceptance-5eec8cc-20260720.json)。这项增量证据不替代 `101d2f0…` 的完整备份恢复证据，也不关闭 GitHub、GHCR、目标内网、真机、真实适配器或专业批准闸门。
 
+不可变容量保护增量 `51ebb28999319eaa220ac204f2a6a23bee0b4caa` 将新导入的 73 条来源分散到 7 个每日时间桶，并把每组织定时 sweep 默认限制为最早到期的 12 条。该提交完成 11/11 定向 PostgreSQL、182/182 单元、API 89/89、worker 29/29、真实 MinIO 2/2、生产构建、隔离 production Compose、桌面/移动/PWA 和安全复验；真实 pg-boss 积压断言得到 12 已领取、61 待后续、`hasMoreDue=true`，没有伪造抓取、任务、通知或专业复核。脱敏记录见[首次监控容量增量证据](docs/delivery/evidence/compliance-monitor-batch-acceptance-51ebb28-20260720.json)。它同样不替代完整恢复、GHCR、目标内网和专业批准证据。
+
 ## 能力
 
 - 用户、组织、数据库会话、四级 RBAC 和追加审计。

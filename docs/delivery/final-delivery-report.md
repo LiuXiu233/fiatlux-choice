@@ -4,7 +4,7 @@
 
 报告状态：**受控候选记录，不是 V1 已完成、已批准上线或 GitHub CI 已通过的声明**
 
-本报告区分“不可变基线实现 `101d2f0…` 的完整本地工程/Compose/镜像/恢复证据”“不可变协调增量实现 `5eec8cc…` 的受影响层复验”“最终 GitHub/GHCR”和“目标办公内网验收”。专业复核、38 表/11 migration、七镜像、desktop/mobile/PWA、最小权限和 age+Ed25519 隔离恢复均已绑定 `101d2f0…`；协调责任人、站内通知与构建环境加固则绑定 `5eec8cc3f4cbd0b9a12372240bca9f56d65ae5f9`。脱敏机器记录分别见[基线候选验收证据](./evidence/production-like-acceptance-101d2f0-20260720.json)和[协调升级增量证据](./evidence/compliance-coordinator-acceptance-5eec8cc-20260720.json)。证据文档后继提交不冒充镜像或运行环境 SHA；这些证据仍不是 GitHub runner、GHCR 双平台、经审批生产恢复、目标办公内网或业务/专业批准。最终发布还必须按[最终交付报告模板](./final-delivery-report-template.md)补齐这些外部证据和真实责任人签署。
+本报告区分“不可变基线实现 `101d2f0…` 的完整本地工程/Compose/镜像/恢复证据”“不可变协调增量实现 `5eec8cc…` 的受影响层复验”“不可变容量保护增量 `51ebb28…` 的首次监控分批复验”“最终 GitHub/GHCR”和“目标办公内网验收”。专业复核、38 表/11 migration、七镜像、desktop/mobile/PWA、最小权限和 age+Ed25519 隔离恢复均已绑定 `101d2f0…`；协调责任人、站内通知与构建环境加固绑定 `5eec8cc…`；七日初始分桶、每组织 12 条容量上限与积压审计绑定 `51ebb28999319eaa220ac204f2a6a23bee0b4caa`。脱敏机器记录分别见[基线候选验收证据](./evidence/production-like-acceptance-101d2f0-20260720.json)、[协调升级增量证据](./evidence/compliance-coordinator-acceptance-5eec8cc-20260720.json)和[首次监控容量增量证据](./evidence/compliance-monitor-batch-acceptance-51ebb28-20260720.json)。证据文档后继提交不冒充镜像或运行环境 SHA；这些证据仍不是 GitHub runner、GHCR 双平台、经审批生产恢复、目标办公内网或业务/专业批准。最终发布还必须按[最终交付报告模板](./final-delivery-report-template.md)补齐这些外部证据和真实责任人签署。
 
 ## 1. 候选身份与批准状态
 
@@ -12,10 +12,10 @@
 | --- | --- | --- |
 | 产品版本 | V1 受控候选 | 所有阻断闸门关闭并取得业务负责人批准后才能改为 V1 完成 |
 | 目标仓库 | 私有 `LiuXiu233/fiatlux-choice`；候选分支已推送；[Draft PR #12](https://github.com/LiuXiu233/fiatlux-choice/pull/12) | 解除 Actions 计费阻断，取得绿色 CI/security；批准后再合并 |
-| Git SHA / tag | 完整基线实现为 `101d2f0938adfa0caa8ed576f6587a5c78ae74a5`；协调升级实现为 `5eec8cc3f4cbd0b9a12372240bca9f56d65ae5f9`，增量机器证据显式绑定该父提交；未创建发布 tag | 生产发布仍须确定 commit/tag 签名政策，并统一最终 Git/GitHub/GHCR 身份 |
+| Git SHA / tag | 完整基线实现为 `101d2f0938adfa0caa8ed576f6587a5c78ae74a5`；协调升级实现为 `5eec8cc3f4cbd0b9a12372240bca9f56d65ae5f9`；容量保护实现为 `51ebb28999319eaa220ac204f2a6a23bee0b4caa`，增量机器证据显式绑定各自实现提交；未创建发布 tag | 生产发布仍须确定 commit/tag 签名政策，并统一最终 Git/GitHub/GHCR 身份 |
 | GitHub PR / CI | Draft PR #12；`101d2f0…` 已推送；PR Checks 是远端状态权威来源；历史最新已知 [CI run 29697701957](https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29697701957) 与 [Security run 29697701952](https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29697701952) 均在 runner 启动前失败 | 历史 job 为 `runner_id=0`、`steps=[]`，原因是账户付款或 Actions spending limit；文档推送自然触发的 run 只读核验，不反复盲目重跑 |
 | 数据库 | PostgreSQL 17.10；38 张业务表；11 个业务迁移 `0000`–`0010`；`101d2f0…` fresh、`0009→0010` 数据保留/幂等、fresh/legacy 五职责和签名恢复逐 migration hash 均本地通过 | GitHub CI、GHCR 与目标内网重新执行 |
-| 候选 QA 环境 | `101d2f0…` 使用独立新卷 `choice-review.localhost:20443` 完成完整基线和恢复；`5eec8cc…` 又使用独立新卷 `choice-coordinator.localhost:21443` 完成受影响层运行时、浏览器和安全验收；两套临时资源均已清理 | 本机环境不得改写成耀光广州办公内网；目标环境必须独立复现 |
+| 候选 QA 环境 | `101d2f0…` 使用独立新卷 `choice-review.localhost:20443` 完成完整基线和恢复；`5eec8cc…` 使用 `choice-coordinator.localhost:21443` 完成协调增量；`51ebb28…` 使用 `choice-batch.localhost:22443` 完成七日分桶、真实 pg-boss 容量、桌面/移动/PWA 与安全复验；临时资源均已清理 | 本机环境不得改写成耀光广州办公内网；目标环境必须独立复现 |
 | 目标办公内网 | **未部署** | 补主机、OS、架构、DNS、CA、防火墙、受管设备和运行观察 |
 | 业务、风险与运维批准 | **未取得** | 公司和安全/运维负责人基于终态证据签署 |
 | 法务合规/财税批准 | **未取得** | 专业人员说明资质、事实、范围、复核日期和有效期 |
@@ -70,6 +70,8 @@
 合规监测低人力协调增量在自动销毁的 PostgreSQL 17.10 容器迁移后完成目标文件 10/10 与完整 worker integration 5 files/28 tests。验证人工复核到期、正文变化和连续第三次失败都在来源状态事务内精确创建一条同组织 `todo/high` 任务：执行时仍有效且仍有来源更新权限的人工触发者优先负责协调，否则确定性选择最早加入的有效 owner；触发者已停用或失权时正确回退，无有效 owner 的 legacy 异常则保持未指派且不跨组织猜测。系统在同一事务原子完成站内通知 `queued → sent`、任务/通知 create/deliver 与来源关联审计；重复扫描、同一哈希、第四次失败和陈旧并发结果不会重复或虚假建任务/通知，失败错误保持脱敏。协调责任人不等于专业复核人；邮件/企业协作和目标环境实际处置仍未验收。
 
 同一增量又从 `5eec8cc…` 构建七个 `linux/arm64` 镜像和全新 production overlay，完成五职责数据库引导、38 表/11 migration、pg-boss 24、六服务健康及两次部署/MinIO 最小权限验证。明确标注“QA、非专业意见”的到期来源由真实组织级 pg-boss sweep 处理，生成指向最早有效 owner 的目标任务、`sent` 站内通知及 task create、notification create/deliver、source review_expired 关联审计；浏览器随后标记已读并写 `mark_read`。1440×1000 与 390×844 均精确找到该到期任务和通知、无横向溢出；PWA 1 个活动 service worker、10 条缓存、0 敏感路由缓存、0 installability error，离线隐藏业务内容并在恢复后重新验证会话。固定 Trivy 0.70.0 对实际变更的 worker 镜像 HIGH/CRITICAL 为 0，Syft 1.42.3 SPDX-2.3 为 225 packages。组织级 sweep 也按设计领取了首次启动时已到期的 seed 来源；实验室后续抓取失败产生的独立任务没有被用来冒充目标 `review_expired` 断言。原始截图、报告、age identity、容器、网络、卷和七个 QA 镜像标签均已删除。
+
+首次监控容量增量从干净 `51ebb28…` 再完成 Biome 209 files、ShellCheck、7 项类型、182/182 单元、API 89/89、worker 29/29、真实 MinIO 2/2 和 production build；Actionlint 1.7.12、Gitleaks、Semgrep 10/10 canary/87 生产目标 0 finding、生产依赖 0、worker Trivy HIGH/CRITICAL 0 与 Syft 225 packages 同步通过。独立 production overlay 精确 seed 73 条来源为 7 个时间桶 `11/11/11/10/10/10/10`；暂停常驻 worker 后，用同一候选镜像和真实 pg-boss 对隔离的 73 条到期 fixture 执行一次组织 sweep，审计为 `batchLimit=12`、`queuedCount=12`、`hasMoreDue=true`，数据库保留 61 条未领取，12 个子 job 均为 created，尚未执行时任务/通知为 0。桌面和移动合规页均显示 73 条、无溢出，`/sw.js` 激活且意外错误为 0。该 fixture 的管理员 SQL 只用于隔离容量断言，不冒充用户行为、抓取成功或专业复核；QA 数据与全部临时资源已删除。
 
 文件真实内容门禁增量新增 6 项单元测试并把全工作区单元提高到 173/173；独立 PostgreSQL 17 上目标 API 文件 19/19、完整 API 17 files/86 tests 通过，真实 MinIO 私有桶往返/错误摘要删除 2/2 通过。伪装 PDF 在对象写入前返回 400，文件保持 `pending/version=1`，对象不存在，拒绝审计不含 body；压缩 OOXML 正/负向覆盖 DOCX/XLSX/PPTX 主部件、类型清单、宏、ActiveX、嵌入、加密和路径穿越。隔离 PostgreSQL/MinIO 容器均在测试后删除。该门禁不是反病毒、沙箱、完整格式语义解析或 DLP，不能把测试通过写成附件无恶意内容。
 

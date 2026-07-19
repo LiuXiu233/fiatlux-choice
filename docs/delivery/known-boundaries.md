@@ -19,6 +19,8 @@
 
 不可变协调增量 `5eec8cc3f4cbd0b9a12372240bca9f56d65ae5f9` 又完成合规升级协调人、站内通知、关联审计和 CI/release production 构建修复的受影响层复验：定向 PostgreSQL 10/10、完整 worker 28/28、全仓检查、七镜像独立 Compose、真实组织级 sweep、desktop/mobile/PWA、源码安全门禁及 worker Trivy/SPDX 均通过，脱敏记录见[协调升级增量证据](./evidence/compliance-coordinator-acceptance-5eec8cc-20260720.json)。它没有重跑或替代基线备份恢复，也没有关闭 GitHub/GHCR、目标内网、真机、真实适配器、专业复核或责任人批准边界。
 
+不可变容量保护增量 `51ebb28999319eaa220ac204f2a6a23bee0b4caa` 把新目录分散到 7 个每日时间桶，并按 `nextMonitorAt + id` 将每组织定时 sweep 默认限制为 12 条。干净提交上的 11/11 定向 PostgreSQL、182/182 单元、API 89/89、worker 29/29、真实 MinIO、生产构建、源码/worker 镜像安全门禁和隔离 production Compose 均通过；真实 pg-boss 积压断言为 12 已领取、61 待后续、`hasMoreDue=true`，且子 job 执行前任务/通知均为 0。脱敏记录见[首次监控容量增量证据](./evidence/compliance-monitor-batch-acceptance-51ebb28-20260720.json)。它没有完成 73 条抓取或专业复核，也不替代基线恢复及外部门禁。
+
 当前 schema 为 38 张业务表和 11 个迁移（`0000`–`0010`）。专用迁移测试已证明 `0000`–`0009` 数据原样保留、不会为 legacy reviewed 记录发明专业 provenance；当前签名恢复又逐项匹配 11 个 migration SQL hash，但这仍不是 GitHub runner、生产副本或目标内网升级证明。本地 synthetic bridge 只覆盖旧 10 迁移基线，历史生产 N−1、目标发布复演和经审批的破坏性 `restore.sh` 生产入口没有实跑。GitHub CI、目标内网、真实设备、MinIO 长期维护/支持风险处置和责任人批准仍是发布闸门，以[验收矩阵](./v1-acceptance-matrix.md)为准。
 
 ## 3. 身份与权限

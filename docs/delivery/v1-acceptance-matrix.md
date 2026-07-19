@@ -60,7 +60,7 @@ lease 到期不等于“安全重试”。操作员必须查看审计、partial 
 | --- | --- | --- | --- |
 | 官方来源数据集 | `content/compliance/official-sources.json` 共 73 条，覆盖中国、广东、广州官方来源；隔离数据库 22 个完整组织和真实栈单组织均精确导入 73 条 | 已实现 | 最终 SHA 校验文件、URL、元数据与导入结果 |
 | 人工复核状态 | 73 条尚未完成可识别专业人员的适用性复核；seed 即使收到 reviewed 输入也只保守导入 pending/stale，通用 POST/PATCH 不能提升 reviewed 或确定生命周期 | 正确保持未批准 | 按风险逐条上传真实意见并通过专用入口登记；不得把隔离 E2E 测试复核或批量操作冒充专业批准 |
-| 易变政策与人工升级 | 来源元数据、机器哈希、人工状态和业务状态分离；到期、正文变化和连续第三次失败会在状态事务内各建一条 `todo/high` 任务，执行时仍有效且仍有来源更新权限的触发者或最早加入的有效 owner 负责协调，站内通知原子送达并关联任务/通知/来源审计；重复、第四次失败、停用/失权触发者和陈旧并发均有真实 PostgreSQL 覆盖；`5eec8cc…` production-like 组织 sweep、UI 处置和 mark_read 已验证 | 不可变协调增量本地通过 / 待目标运营 | 目标环境完成首次抓取、任务/站内通知处置和纠错流程；协调不等于专业复核，邮件/企业协作通知仍待批准适配器 |
+| 易变政策与人工升级 | 来源元数据、机器哈希、人工状态和业务状态分离；到期、正文变化和连续第三次失败会在状态事务内各建一条 `todo/high` 任务，执行时仍有效且仍有来源更新权限的触发者或最早加入的有效 owner 负责协调，站内通知原子送达并关联任务/通知/来源审计；重复、第四次失败、停用/失权触发者和陈旧并发均有真实 PostgreSQL 覆盖；`5eec8cc…` 已验证升级处置，`51ebb28…` 又验证新目录七日分桶及真实 pg-boss 每组织 12 条上限、61 条显式积压 | 不可变容量增量本地通过 / 待目标运营 | 目标环境完成首次抓取、积压巡检、任务/站内通知处置和纠错流程；协调不等于专业复核，邮件/企业协作通知仍待批准适配器 |
 | 来源与履行凭证 | `sourceId`/`evidenceFileId` 分离、跨组织/未上传拒绝；当前与历史专业复核证据均不可归档；真实 PostgreSQL 与真实 MinIO 浏览器场景通过 | 不可变实现提交本地通过 | 人工核对凭证内容与复核人资质 |
 | 顾问使用边界 | 未复核、legacy 不完整 provenance、过期、不活动或不确定来源不会进入法务顾问事实；not_applicable 来源不能支持关联义务/日历 | 不可变实现提交定向通过 | 真实模型启用后重新验证引用、权限、过期、结论和越权边界 |
 
@@ -70,13 +70,13 @@ lease 到期不等于“安全重试”。操作员必须查看审计、partial 
 
 | 层级 | 当前发布状态 | 最终证据要求 |
 | --- | --- | --- |
-| Biome / ShellCheck / Actionlint / 类型 | **不可变基线与协调增量本地通过** | `101d2f0…`：206 个 Biome 文件、全 shell、3 个 workflow、7 个 TS 项目；`5eec8cc…`：Biome 207 个文件、ShellCheck、7 项类型和 Actionlint 1.7.12 通过，CI/release 构建显式覆盖 `NODE_ENV=production`；GitHub CI 复现 |
-| 单元/聚合 | **不可变实现提交本地通过** | `101d2f0…`：177/177 单元通过；本证据工作树全量复跑亦通过，GitHub CI 待复现 |
-| API / worker / PostgreSQL / pg-boss | **不可变基线与协调增量本地通过** | `101d2f0…`：API 18 files/89 tests、worker 5 files/25 tests；`5eec8cc…`：API 89/89、worker 5 files/28 tests、目标监控文件 10/10，并以 production-like pg-boss 组织 sweep 验证目标任务/通知/审计；11 个 migration 与既有迁移、权限、连接和并发证据保持有效 |
+| Biome / ShellCheck / Actionlint / 类型 | **不可变基线与最新增量本地通过** | `51ebb28…`：Biome 209 个文件、ShellCheck、7 项类型和 Actionlint 1.7.12 通过；GitHub CI 复现 |
+| 单元/聚合 | **不可变实现提交本地通过** | `51ebb28…`：182/182 单元通过；GitHub CI 待复现 |
+| API / worker / PostgreSQL / pg-boss | **不可变基线与最新增量本地通过** | `51ebb28…`：API 18 files/89 tests、worker 5 files/29 tests、目标监控文件 11/11，并以 production-like pg-boss 组织 sweep 验证 12 条领取、61 条积压和审计；11 个 migration 与既有迁移、权限、连接和并发证据保持有效 |
 | MinIO / S3 | **本地通过** | 2 项真实私有桶/字节/权限/校验和集成及恢复对象核对通过 |
 | Web / Playwright / PWA | **不可变基线与协调增量本地通过，有真机边界** | 基线 mock 46 passed/6 条件 skip、隔离 real 4 passed；`5eec8cc…` 新 Compose 原生 Python Playwright 精确验证目标任务/通知、desktop/mobile/offline/installability、0 敏感缓存和 0 unexpected console/page/request error；真机待验收 |
-| 全 workspace / 七镜像构建 | **不可变基线与协调增量本地通过** | `101d2f0…` 完整七镜像/恢复；`5eec8cc…` 显式生产构建为 PWA 10 precache/700.30 KiB，并从干净 SHA 构建七个 arm64 标签、启动新卷 Compose、通过六服务和两次部署验证；GHCR 双平台待发布 |
-| 安全/供应链 | **不可变基线与协调增量本地通过，有 GitHub 边界** | Gitleaks、Semgrep+canary、`audit --prod` 0、IaC；`101d2f0…` 七镜像 Trivy/SPDX；`5eec8cc…` 复跑源码门禁并对实际变更 worker 镜像用固定 Trivy 0.70.0 得到 HIGH/CRITICAL 0、Syft 1.42.3 SPDX-2.3 225 packages；GitHub CodeQL/安全 workflow 待运行 |
+| 全 workspace / 镜像构建 | **不可变基线与最新增量本地通过** | `101d2f0…` 完整七镜像/恢复；`51ebb28…` 显式生产构建为 PWA 10 precache/700.30 KiB，重建受影响 API/worker 并复用已验收未变组件启动新卷 Compose；GHCR 双平台待发布 |
+| 安全/供应链 | **不可变基线与最新增量本地通过，有 GitHub 边界** | `51ebb28…`：Gitleaks、Semgrep 10/10 canary/87 生产目标 0、`audit --prod` 0，实际 worker 镜像固定 Trivy 0.70.0 HIGH/CRITICAL 0、Syft 1.42.3 SPDX-2.3 225 packages；GitHub CodeQL/安全 workflow 待运行 |
 
 七镜像的本地 arm64 content ID、SPDX 和扫描证据不是 GHCR 双平台 root digest 或签名。全依赖只余 dev-only `drizzle-kit -> esbuild` 1 个 moderate，生产依赖为 0；CI 不启动其 dev server，作为非阻断升级项跟踪。
 
