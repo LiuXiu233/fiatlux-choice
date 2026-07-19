@@ -36,7 +36,7 @@ docker info --format '{{.OSType}}/{{.Architecture}} {{.ServerVersion}}'
 
 不要安装或回退到已停止维护的 Compose v1，也不要把未经校验的二进制放入仓库。
 
-2026-07-19 最新冻结候选已在开发机以 production-like Compose 完成验证，入口为 `https://choice-final.localhost:19443`；桌面/移动仿真、PWA、重启持久性和部署检查均通过。这只证明本机 Docker、HTTPS 和依赖组合能够运行，不证明目标 Linux 主机、GHCR 多架构发布、广州办公内网 DNS/CA、防火墙或真实受管移动设备已经验证。
+2026-07-20 不可变实现提交 `101d2f0…` 已在开发机用全新卷和 `compose.prod.yml` 完成 production-like 复验：38 张业务表、11 个迁移、pg-boss 24、六常驻服务健康与重启持久性、部署/MinIO 最小权限检查、桌面/390×844 移动仿真、PWA、七镜像扫描/SPDX 和一次 age+Ed25519 隔离恢复均通过；脱敏证据见[当前候选验收记录](../delivery/evidence/production-like-acceptance-101d2f0-20260720.json)。这只证明本机 Docker Desktop arm64、HTTPS 和依赖组合能够运行，不证明目标 Linux 主机、GHCR 多架构发布、广州办公内网 DNS/CA、防火墙、独立备份审批渠道或真实受管移动设备已经验证。
 
 ## 3. 目录和账户
 

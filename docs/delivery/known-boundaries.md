@@ -15,9 +15,9 @@
 
 ## 2. 工程验证状态
 
-2026-07-18 的旧测试、六镜像、v1 恢复和同内容标签升级数字只保留为历史背景。2026-07-20 当前未提交工作树已完成 Biome 206 files、ShellCheck/Actionlint、7 项类型检查、177/177 单元、API 18 files/89 tests、worker 5 files/25 tests、PostgreSQL/pg-boss/真实 MinIO 集成、mock 46+6 与隔离 real 4 项 Playwright、PWA/生产构建，以及 fresh/上一版本迁移和 fresh/legacy 最小权限验证。新增层尚未绑定不可变 SHA，Compose、镜像、安全扫描和签名恢复仍必须在实现提交后重建；旧七镜像、六服务、Trivy/SPDX、10 迁移签名恢复和 synthetic bridge 结果不能上卷为当前通过。
+2026-07-18 的旧测试、六镜像、v1 恢复和同内容标签升级数字只保留为历史背景。2026-07-20 不可变实现提交 `101d2f0938adfa0caa8ed576f6587a5c78ae74a5` 已完成 Biome 206 files、ShellCheck/Actionlint、7 项类型检查、177/177 单元、API 18 files/89 tests、worker 5 files/25 tests、PostgreSQL/pg-boss/真实 MinIO 集成、mock 46+6 与隔离 real 4 项 Playwright、PWA/生产构建、fresh/上一版本迁移和 fresh/legacy 最小权限；同一提交又重建七镜像和全新 production-like Compose，完成真实 desktop/mobile/PWA、Trivy/SPDX 与 age+Ed25519 11 migration 隔离恢复。脱敏证据见[当前候选验收记录](./evidence/production-like-acceptance-101d2f0-20260720.json)。证据文档属于后续提交，本地 arm64/恢复结果也不能上卷为 GHCR、目标办公内网或生产批准。
 
-当前 schema 为 38 张业务表和 11 个迁移（`0000`–`0010`）。专用迁移测试已证明 `0000`–`0009` 数据原样保留、不会为 legacy reviewed 记录发明专业 provenance，并再次从空库得到 38 表；这仍不是 GitHub runner、生产副本或目标内网升级证明。本地 synthetic bridge 只覆盖旧 10 迁移基线，历史生产 N−1、目标发布复演和经审批的破坏性 `restore.sh` 生产入口没有实跑。GitHub CI、目标内网、真实设备、MinIO 长期维护/支持风险处置和责任人批准仍是发布闸门，以[验收矩阵](./v1-acceptance-matrix.md)为准。
+当前 schema 为 38 张业务表和 11 个迁移（`0000`–`0010`）。专用迁移测试已证明 `0000`–`0009` 数据原样保留、不会为 legacy reviewed 记录发明专业 provenance；当前签名恢复又逐项匹配 11 个 migration SQL hash，但这仍不是 GitHub runner、生产副本或目标内网升级证明。本地 synthetic bridge 只覆盖旧 10 迁移基线，历史生产 N−1、目标发布复演和经审批的破坏性 `restore.sh` 生产入口没有实跑。GitHub CI、目标内网、真实设备、MinIO 长期维护/支持风险处置和责任人批准仍是发布闸门，以[验收矩阵](./v1-acceptance-matrix.md)为准。
 
 ## 3. 身份与权限
 
@@ -40,7 +40,7 @@
 - 恢复源与输出已分离：归档通过 `RESTORE_SOURCE_DIR` 只读挂载，恢复前加密备份写到独立的 `RESTORE_PRE_BACKUP_DIR`。这解决了批准介质只读时无法生成 pre-restore 的路径冲突，但目录容量只提供安全下限而非成功保证；MinIO 内部卷格式/身份元数据不在归档中，跨版本兼容仍需人工确认。
 - 定期恢复演练的日志/恢复报告写入独立 `RESTORE_DRILL_REPORT_DIR`；未配置或不可写时演练失败关闭，不会把只读归档源重新挂成可写。
 - PWA 不缓存 API 数据，离线不能可靠查看或编辑公司记录。
-- 移动验证仅使用 Playwright/iPhone 14 Chromium 仿真；尚无真实 iPhone、Android 或受管移动设备证据。
+- 移动验证使用隔离 real Playwright 与 production-like Compose 原生 Python Playwright 的 390×844 Chromium 仿真；尚无真实 iPhone、Android 或受管移动设备证据。
 - 单主机 Compose 无主机级高可用，故障恢复依赖可用备份和可接受 RTO。
 
 ### 4.1 业务记录关联边界
@@ -97,7 +97,7 @@
 
 ## 9. API 与兼容性
 
-- OpenAPI 3.1 由代码生成；当前工作树已用标准 parser 校验 75 个 path、140 个实际 Fastify operation，并对账 operationId、认证、参数、请求和成功/错误响应 schema，机器 JSON 与 Swagger UI 均通过。尚未发布跨版本兼容性 diff、弃用窗口或生成客户端回归，因此不能把结构对账当作所有语义已批准。
+- OpenAPI 3.1 由代码生成；`101d2f0…` 已用标准 parser 校验 75 个 path、140 个实际 Fastify operation，并对账 operationId、认证、参数、请求和成功/错误响应 schema，机器 JSON 与 Swagger UI 均通过。尚未发布跨版本兼容性 diff、弃用窗口或生成客户端回归，因此不能把结构对账当作所有语义已批准。
 - API 版本为 /api/v1，但尚未发布兼容性、弃用窗口和客户端支持政策。
 - 通用 search/status/category 在不同资源的支持程度不完全一致。
 - 金额为整数分；旧集成若发送元或浮点数会产生严重金额错误。
@@ -106,21 +106,21 @@
 
 ## 10. 部署与恢复
 
-- 冻结工作树已在 production-like Compose 的受信 TLS SAN `choice-final.localhost` 验证 desktop/mobile、PWA active service worker、离线壳、390 px 无溢出、核心业务链和六常驻服务重启持久性；这仍不等于耀光广州办公内网或真实受管移动设备验收。
-- PostgreSQL 已成为第七发布组件。七个最终本地 `linux/arm64` 镜像的 Trivy 0.70.0 HIGH/CRITICAL/fixable/unfixed 均为 0，七份 Syft SPDX 和真实 BuildKit 0.31.2 双平台 provenance fixture 通过；API/worker 另有 amd64 原生件和工具验证。它们是本地 content ID，不是已发布 GHCR 双平台 root digest或签名。
+- `101d2f0…` 已在全新 production-like Compose 的 TLS SAN `choice-review.localhost` 验证 desktop/390×844 mobile、PWA active service worker、0 installability error、0 敏感路由缓存、离线内容隐藏、恢复会话、任务写读闭环和六常驻服务重启持久性；本地 CA 另由 curl 显式信任验证。这仍不等于耀光广州办公内网或真实受管移动设备验收。
+- PostgreSQL 已成为第七发布组件。`101d2f0…` 的七个本地 `linux/arm64` 镜像由固定 digest 的 Trivy 0.70.0 扫描，HIGH/CRITICAL/fixable/unfixed 均为 0；七份 Syft 1.42.3 SPDX 均通过结构/creator 校验，真实 BuildKit 0.31.2 双平台 provenance fixture 和 API/worker amd64 补偿证据仍有效。它们是本地 image ID，不是已发布 GHCR 双平台 root digest 或签名。
 - 旧报告中的 MinIO 6 项扫描结论已由最终镜像重建和当前 Trivy 0 取代。仍需决策的是 MinIO OSS 长期维护/支持与退出路径；internal network、无宿主端口和最小权限是补偿控制，不等于供应商支持承诺。
 - worker 内置备份降级只支持 database，不持有主机签名私钥且不构成完整灾备恢复点；files/full 必须配置受控 BACKUP_COMMAND 或运行 age+Ed25519 完整运维脚本。
 - 生产完整备份需要 age recipient 和主机 Ed25519 签名私钥；age identity、签名私钥与备份必须分离。在线签名私钥是受主机权限保护的普通文件，不是 HSM 或不可导出企业密钥。
 - age 加密不认证备份来源。当前备份会签署规范化 attestation，绑定密文 SHA/大小、来源、数据库/桶、backup tool release、创建时间和公钥 DER 指纹；生产恢复和演练同时强制匹配签名、独立批准的公钥指纹与归档 SHA-256，并通过只允许目录/普通文件的归档守卫。相邻 `.sha256`、公钥或指纹不能自动充当批准记录；无法建立独立审批渠道时仍属于生产恢复阻断项。错误公钥/指纹、篡改归档/attestation/signature、错误来源/版本、签名缺失/部分参数均有 fail-before-Compose 回归，但在线私钥或主机失陷仍是剩余风险。
 - 备份恢复是破坏性管理员操作，不提供普通 Web 恢复按钮。
-- 旧的 `finalqa-isolated-v2-20260719T042309Z.tar.gz.age` 演练早于 Ed25519 attestation，只保留为历史恢复证据。2026-07-20 不可变实现提交 `6545c18…` 的 age+Ed25519 一致性备份曾核对 38 表、10 migration SQL SHA、pg-boss 24、3 对象/132 bytes、RPO 20 秒与 drill RTO 45 秒；新增 `0010` 后它已不再证明当前 schema，必须在新的不可变实现提交上重做。其 `productionRestoreEntrypointExecuted=false`，也从未证明 `restore.sh` 生产审批入口、异介质或目标内网实跑。
+- `101d2f0…` 已暂停 caddy/API/worker 创建新的 age+Ed25519 一致性归档，签名绑定密文 SHA `07570954…3f09`、来源和 tool release；错误 S3 凭据在破坏前失败且数据库/桶 sentinel 不变，随机全新卷随后精确恢复 38 表、11 migration SQL SHA、pg-boss 24、五职责权限、worker/readiness 与 1 对象/94 bytes，完整 drill 为 23 秒。测试 identity、签名私钥、归档和源 sentinel 均已删除。该证据的 `productionRestoreEntrypointExecuted=false`，独立生产摘要/公钥批准、业务 RPO/RTO、异介质、目标内网和经审批破坏性 `restore.sh` 仍未完成；旧 `6545c18…` 的 10 migration 恢复只保留为历史证据。
 - 2026-07-18 formatVersion 1 的 `final-rc-...`、37 表/4 对象/16 秒，以及同内容标签的 35/35/33 秒升级回滚只保留为历史证据，不能作为当前发布结论。
 - 首轮新演练虽完成升级和回滚脚本，但回滚后的常驻 API 在 idle 后连续两次登录 `CONNECT_TIMEOUT`/HTTP 500，任务 CRUD 未执行，因此正确 BLOCKED。连接恢复修复提交 `859841f…` 经 162 单元、API 83、worker 23、暖连接/断链/黑洞同句柄恢复与生产构建复验。
 - 第二轮以 N 10 migrations、synthetic bridge 9 migrations 和七个全异 digest 完成真实 registry push/pull、46 秒升级、43 秒应用回滚及双 formatVersion 2 恢复点；回滚后同一 API 启动 308.138 秒登录 200，任务 CRUD/审计通过，日志无 `CONNECT_TIMEOUT`。该证据仅证明本地相邻兼容，不是历史生产 N−1、GHCR 或目标内网。
 - 新升级/回滚入口强制校验严格七组件发布清单和独立批准的清单 SHA-256，并在 pull 后、迁移前及启动后核对本地 RepoDigest；切换时一致重建 PostgreSQL、MinIO 与应用，并核对六个常驻容器 image ID 后才写全局版本，避免任一常驻组件延迟切换。backup 保持按需。BuildKit provenance 与 SBOM 不是签名；当前未集成 cosign/Sigstore，不能声称镜像已由发布者签名。
 - 尚未完成的目标验证包括耀光办公内网主机、DNS、CA 分发、防火墙、seed/owner 首登改密、真实设备、异介质恢复和运行观察。
 - Caddy internal CA 需要逐台受控分发；它不是成熟企业 PKI。
-- 当前文件真实内容门禁实现基线 `10d5edda0db53c3c6ca23118e3097ba1618ee447` 已推送到私有 `LiuXiu233/fiatlux-choice` 的 Draft PR #12 候选分支。该提交的 CI run `29694179547` 两个、Security run `29694179494` 四个首级失败 job 均为 `runner_id=0`、`steps=[]`，annotation 明确提示近期账户付款失败或 Actions spending limit 不足；因此没有 workflow step 被执行，不能声称 GitHub CI、安全扫描、合并或发布已完成。文档 head 推送后仍须复核最新 run，修复 Billing & plans 后必须重跑。
+- 当前专业复核实现 `101d2f0938adfa0caa8ed576f6587a5c78ae74a5` 已推送到私有 `LiuXiu233/fiatlux-choice` 的 Draft PR #12 候选分支。历史 CI/Security run 的首级失败 job 均为 `runner_id=0`、`steps=[]`，annotation 明确提示近期账户付款失败或 Actions spending limit 不足；因此不能声称 GitHub CI、安全扫描、合并或发布已完成。PR Checks 是远端状态权威来源；修复 Billing & plans 后必须重跑。
 - 当前仓库没有把 Git commit/tag 签名作为已验证控制。本地测试事实不能充当发布者签名；生产 tag 前必须确定并执行签名政策，或由有权负责人记录替代控制与风险决定。
 
 ## 11. 安全剩余风险

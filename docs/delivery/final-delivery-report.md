@@ -4,7 +4,7 @@
 
 报告状态：**受控候选记录，不是 V1 已完成、已批准上线或 GitHub CI 已通过的声明**
 
-本报告区分“当前工作树已实现/已测试”“旧不可变提交的 10 迁移签名恢复”“待创建的新实现提交”“最终 GitHub/GHCR”和“目标办公内网验收”。当前专业复核增量已完成代码、数据库、API、Web、desktop/mobile 真实栈和上一版本升级验证，但尚未提交，Compose、安全扫描和 11 迁移签名恢复尚未重做；旧 `6545c18…` 恢复不能证明新增 `0010`。最终发布还必须按[最终交付报告模板](./final-delivery-report-template.md)补齐最终 Git/GitHub、目标内网、风险决策和真实责任人签署。
+本报告区分“不可变实现提交 `101d2f0…` 的本地工程/Compose/镜像/恢复证据”“记录该实现的文档后继变更”“最终 GitHub/GHCR”和“目标办公内网验收”。专业复核增量、38 表/11 migration、七镜像、desktop/mobile/PWA、最小权限和 age+Ed25519 隔离恢复均已绑定 `101d2f0…`；脱敏机器记录见[当前候选验收证据](./evidence/production-like-acceptance-101d2f0-20260720.json)。文档后继提交不冒充镜像或运行环境 SHA；这些证据仍不是 GitHub runner、GHCR 双平台、经审批生产恢复、目标办公内网或业务/专业批准。最终发布还必须按[最终交付报告模板](./final-delivery-report-template.md)补齐这些外部证据和真实责任人签署。
 
 ## 1. 候选身份与批准状态
 
@@ -12,10 +12,10 @@
 | --- | --- | --- |
 | 产品版本 | V1 受控候选 | 所有阻断闸门关闭并取得业务负责人批准后才能改为 V1 完成 |
 | 目标仓库 | 私有 `LiuXiu233/fiatlux-choice`；候选分支已推送；[Draft PR #12](https://github.com/LiuXiu233/fiatlux-choice/pull/12) | 解除 Actions 计费阻断，取得绿色 CI/security；批准后再合并 |
-| Git SHA / tag | 远端分支当前为 `43a6007f642be815a1d9d83e2a6353a91d25b4a8`；专业复核实现尚未提交；未创建发布 tag | 创建实现提交后绑定测试、Compose、恢复点和后续文档提交；生产发布仍须确定 commit/tag 签名政策 |
-| GitHub PR / CI | Draft PR #12 的最新已知 [CI run 29697701957](https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29697701957) 与 [Security run 29697701952](https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29697701952) **均在 runner 启动前失败** | `runner_id=0`、`steps=[]`，仍是账户付款或 Actions spending limit 阻断，没有 workflow step 实际运行；新提交自然触发后只读核验，不反复盲目重跑 |
-| 数据库 | PostgreSQL 17.10；38 张业务表；11 个业务迁移 `0000`–`0010`；当前工作树 fresh、`0009→0010` 数据保留/幂等和 fresh/legacy 五职责权限均本地通过 | 新不可变提交、Compose、签名恢复、GitHub CI 与目标内网重新执行 |
-| 候选 QA 环境 | 旧 10 迁移 production-like Compose 仍运行于 `https://choice-final.localhost:19443` | 新 `0010` 提交后重建；任何本机环境都不得改写成耀光广州办公内网生产环境 |
+| Git SHA / tag | 专业复核与本地验收实现为 `101d2f0938adfa0caa8ed576f6587a5c78ae74a5`，已推送；本报告和机器证据属于文档后继变更；未创建发布 tag | 生产发布仍须确定 commit/tag 签名政策，并统一最终 Git/GitHub/GHCR 身份 |
+| GitHub PR / CI | Draft PR #12；`101d2f0…` 已推送；PR Checks 是远端状态权威来源；历史最新已知 [CI run 29697701957](https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29697701957) 与 [Security run 29697701952](https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29697701952) 均在 runner 启动前失败 | 历史 job 为 `runner_id=0`、`steps=[]`，原因是账户付款或 Actions spending limit；文档推送自然触发的 run 只读核验，不反复盲目重跑 |
+| 数据库 | PostgreSQL 17.10；38 张业务表；11 个业务迁移 `0000`–`0010`；`101d2f0…` fresh、`0009→0010` 数据保留/幂等、fresh/legacy 五职责和签名恢复逐 migration hash 均本地通过 | GitHub CI、GHCR 与目标内网重新执行 |
+| 候选 QA 环境 | `101d2f0…` 验证时使用独立新卷 `https://choice-review.localhost:20443`，六服务、重启、浏览器和恢复均通过 | 本机环境不得改写成耀光广州办公内网；临时环境和私密材料须在证据固化后清理 |
 | 目标办公内网 | **未部署** | 补主机、OS、架构、DNS、CA、防火墙、受管设备和运行观察 |
 | 业务、风险与运维批准 | **未取得** | 公司和安全/运维负责人基于终态证据签署 |
 | 法务合规/财税批准 | **未取得** | 专业人员说明资质、事实、范围、复核日期和有效期 |
@@ -41,23 +41,23 @@
 | 审批与外部动作 | 八类高风险人工批准、manual/mock 状态机、幂等与合同/发票/付款台账原子联动 | 没有外部回执时不报成功；已关联草稿支出的银行付款在取消或审批驳回时于同一事务解除台账关联并增加版本，避免草稿被废弃动作永久占用 |
 | 通知、顾问与工作流 | in-app 通知、失败可见的 email/webhook 边界、七类顾问、四类工作流步骤 | 通知 queued-only、工作流不可变快照/partial checkpoint、advisor/workflow/backup 原子 claim 和 lease 边界均已在冻结候选回归覆盖 |
 | AI 可追溯 | 总经理、财务、法务合规、产品研发、市场机会、人力行政、信息安全；提示词/模型/工具/引用/人工编辑审计 | 运行默认只对发起人可见；合规事实要求完整、未到期专业 provenance，关联义务还要求 applicable；legacy/不适用/过期内容失败关闭；mock 不代表真实模型质量 |
-| PWA | 响应式导航、manifest、service worker、离线壳和恢复会话 | 当前构建生成 10 个 precache 条目（700.30 KiB）；mock 46+6 与隔离真实栈 4/4 通过，专业复核 desktop/mobile 无溢出；真机安装/升级仍待执行 |
-| 部署与灾备 | Compose、Caddy、迁移、健康检查、日志、最小权限数据库/MinIO、age+Ed25519 备份恢复、升级回滚工具 | 工具与旧 10 迁移证据存在；新增 `0010` 后必须在新实现提交上重建 Compose 与签名恢复。生产入口、历史生产 N−1、GHCR 和目标内网仍待执行 |
+| PWA | 响应式导航、manifest、service worker、离线壳和恢复会话 | `101d2f0…` 构建生成 10 个 precache（700.30 KiB）；Compose 浏览器验证 0 installability error、0 敏感路由缓存、desktop/mobile 无溢出、离线内容隐藏和恢复会话；真机安装/升级仍待执行 |
+| 部署与灾备 | Compose、Caddy、迁移、健康检查、日志、最小权限数据库/MinIO、age+Ed25519 备份恢复、升级回滚工具 | `101d2f0…` 全新 Compose、七镜像和 11 migration 签名恢复已通过；经审批生产入口、历史生产 N−1、GHCR、目标内网/异介质和批准 RPO/RTO 仍待执行 |
 
 ## 3. 最终冻结测试状态
 
-以下结果属于当前未提交工作树，不能当作不可变发布证据。实现提交后必须重跑受影响的安全、Compose 和恢复门禁；原始日志、备份、私钥、Cookie 和运行数据保存在被忽略的本地证据目录，不进入 Git。
+以下结果绑定不可变实现提交 `101d2f0…`。原始日志、SBOM、备份和浏览器截图在验收期间只保存于被忽略的临时目录；固化脱敏事实与 SHA-256 后，age identity、Ed25519 私钥、加密归档、Cookie、运行数据和原始 QA 缓存均删除且不进入 Git。功能源码若在该实现后漂移，受影响层必须重跑。
 
 | 层级 | 当前发布口径 | 最终要求 |
 | --- | --- | --- |
-| Biome / ShellCheck / Actionlint / 类型 | **当前工作树本地通过** | Biome 206 个文件；全 `scripts/`/`infra/` shell；3 个 workflow；7 个 TypeScript 项目 |
-| 单元测试 | **当前工作树本地通过** | 177/177；最终不可变提交需聚合复跑 |
-| API/worker/PostgreSQL/pg-boss/MinIO 集成 | **当前工作树本地通过** | API 18 files/89 tests、worker 5 files/25 tests、真实 MinIO 2/2；11 迁移 fresh 与 `0009→0010`、fresh/legacy 权限、事务/并发/CAS/审计和连接恢复通过 |
-| Playwright / PWA | **当前工作树本地通过，有外部边界** | mock 46 passed、6 个设计内 skip；隔离真实栈 desktop/mobile 4/4；PWA production build 通过；受管真机另行验收 |
-| 全 workspace 与七镜像构建 | **源码 production build 通过 / 新镜像待重建** | 新增层尚无不可变 SHA 的七镜像、Compose、Trivy/SPDX 或 GHCR 证据 |
-| 安全/供应链 | **旧基线通过 / 当前改动待重跑** | 当前新增代码提交前仍须执行 Gitleaks、Semgrep+canary、依赖审计和相关镜像扫描；GitHub CodeQL/安全 workflow 待运行 |
+| Biome / ShellCheck / Actionlint / 类型 | **不可变实现提交本地通过** | `101d2f0…`：Biome 206 个文件；全 `scripts/`/`infra/` shell；3 个 workflow；7 个 TypeScript 项目 |
+| 单元测试 | **不可变实现提交本地通过** | `101d2f0…`：177/177；本证据工作树再次完整复跑通过，GitHub CI 仍待复现 |
+| API/worker/PostgreSQL/pg-boss/MinIO 集成 | **不可变实现提交本地通过** | `101d2f0…`：API 18 files/89 tests、worker 5 files/25 tests、真实 MinIO 2/2；11 迁移 fresh 与 `0009→0010`、fresh/legacy 权限、事务/并发/CAS、审计和连接恢复通过 |
+| Playwright / PWA | **不可变实现提交本地通过，有外部边界** | mock 46 passed、6 个设计内 skip；隔离真实栈 4/4；新 Compose 原生 Python Playwright desktop/mobile/PWA/offline 全通过；受管真机另行验收 |
+| 全 workspace 与七镜像构建 | **不可变实现提交本地通过** | `101d2f0…` production build、七个 arm64 镜像、全新 Compose、六服务和重启持久性通过；GHCR 双平台待发布 |
+| 安全/供应链 | **不可变实现提交本地通过 / GitHub 待运行** | Gitleaks、Semgrep+canary、生产依赖 0；`101d2f0…` 七镜像 Trivy 0.70.0 HIGH/CRITICAL 0、7 份 Syft 1.42.3 SPDX；GitHub CodeQL/安全 workflow 待运行 |
 
-生产依赖 `pnpm audit --prod` 为 0。全依赖扫描只剩 `drizzle-kit -> esbuild` 的 1 个 moderate，属于不进入生产镜像、CI 不启动其 dev server 的开发期依赖；列为非阻断升级项，不应表述为“全依赖零漏洞”。未运行、设计内 skip 和目标环境缺失继续分列。
+本证据工作树再次完整运行 `pnpm check`：Biome 207 个文件、ShellCheck、7 项类型检查、177/177 单元、API 89/89、worker 25/25、真实 MinIO 2/2和生产构建均通过；Actionlint 1.7.12、Gitleaks 当前树/完整历史与 canary、Semgrep 1.170.0 配置/10 条 canary/87 个生产目标、发布/恢复安全脚本也分别通过。生产依赖 `pnpm audit --prod` 为 0。全依赖扫描只剩 `drizzle-kit -> esbuild` 的 1 个 moderate，属于不进入生产镜像、CI 不启动其 dev server 的开发期依赖；列为非阻断升级项，不应表述为“全依赖零漏洞”。未运行、设计内 skip 和目标环境缺失继续分列。
 
 失败历史没有删除：API 集成首次按文件并行运行时，在本机 2 CPU/4 GB 的 seed/Argon2 峰值出现 PostgreSQL `CONNECT_TIMEOUT`，得到 13 passed、4 failed、63 skipped；数据库全程 healthy、RestartCount 0、连接数未耗尽，且无业务断言失败。将 root/API/worker 的 `test` 与 `test:integration` 标准入口固定为 unit→workspace 串行、API/worker `--no-file-parallelism --maxWorkers=1` 后，旧基线 API 80/80、worker 23/23 和根级集成均通过。连接恢复修复后曾复跑 162/162 单元、API 83/83、worker 23/23；其中 malformed-JSON 单测曾在宿主 load 83 时唯一超时，在正常负载下同一测试 140 ms 通过，未删除该环境事件。引用链一致性加固后的最新复跑为 162/162 单元、API 85/85、worker 25/25。未配置 S3 时 integrations 2 项按设计 skip；真实 S3 两项由单独带凭据的 MinIO 门禁 2/2 通过，不能把 skip 记作通过。
 
@@ -69,7 +69,7 @@
 
 文件真实内容门禁增量新增 6 项单元测试并把全工作区单元提高到 173/173；独立 PostgreSQL 17 上目标 API 文件 19/19、完整 API 17 files/86 tests 通过，真实 MinIO 私有桶往返/错误摘要删除 2/2 通过。伪装 PDF 在对象写入前返回 400，文件保持 `pending/version=1`，对象不存在，拒绝审计不含 body；压缩 OOXML 正/负向覆盖 DOCX/XLSX/PPTX 主部件、类型清单、宏、ActiveX、嵌入、加密和路径穿越。隔离 PostgreSQL/MinIO 容器均在测试后删除。该门禁不是反病毒、沙箱、完整格式语义解析或 DLP，不能把测试通过写成附件无恶意内容。
 
-证据型专业复核增量在当前工作树完成 177/177 单元、API 18 files/89 tests、worker 25/25、真实 MinIO 2/2、mock 46+6 和隔离真实栈 4/4。真实 desktop/mobile 场景只在专用 E2E 数据库创建明确标注“非专业意见”的来源，上传实际对象、登记 not_applicable 测试结论、查看追加审计并验证证据归档返回 409；它不冒充 73 条来源的真实复核。专用迁移验收从 `0000`–`0009` 保存 legacy reviewed 数据、应用 `0010`、确认未发明 provenance 且幂等，再从空库得到 38 表/11 迁移；fresh/legacy 五职责权限也通过。该增量尚未提交，安全、Compose 和签名恢复结论仍待新不可变实现提交。
+证据型专业复核增量在 `101d2f0…` 完成 177/177 单元、API 18 files/89 tests、worker 25/25、真实 MinIO 2/2、mock 46+6 和隔离真实栈 4/4。真实 desktop/mobile 场景只在专用 E2E 数据库创建明确标注“非专业意见”的来源，上传实际对象、登记 not_applicable 测试结论、查看追加审计并验证证据归档返回 409；它不冒充 73 条来源的真实复核。专用迁移验收从 `0000`–`0009` 保存 legacy reviewed 数据、应用 `0010`、确认未发明 provenance 且幂等，再从空库得到 38 表/11 迁移；fresh/legacy 五职责权限也通过。随后 production-like Compose 再确认真实 seed 的 73 条均为 pending/draft/pending_fetch、专业 provenance 为 0。
 
 ## 4. 权限、后台任务与数据一致性证据
 
@@ -86,30 +86,30 @@
 - 顾问列表、详情和人工编辑都执行同一可见性规则：默认只允许发起人；读取他人运行需 `advisor-runs:read-all` 或 `*`，并且仍要通过该顾问 requiredPermission 和快照中每种资源的 `:read` 检查；不可见时按 404 隐藏存在性。
 - 银行付款关联草稿支出后，在 pending_approval/approved/failed 等受支持状态取消，或对关联审批作出 rejected 决定时，台账关联与动作/审批在同一事务中解链并审计；并发变更导致版本不匹配时整笔冲突失败。
 
-以上语义已由冻结工作树的单元、集成、真实栈 E2E 或部署抽查组合验证；最终提交和 GitHub CI 仍需确认没有源码漂移，目标办公内网需独立复现。
+以上语义已由不可变实现提交 `101d2f0…` 的单元、集成、真实栈 E2E 或部署抽查组合验证；证据文档提交和 GitHub CI 仍需确认没有功能源码漂移，目标办公内网需独立复现。
 
 ## 5. 安全、最小权限与供应链
 
-- PostgreSQL 使用 bootstrap、migrator、runtime、backup、restore 五类分离身份；pg-boss DDL 只由一次性 migrator 执行，API/worker 的 runtime 身份无 DDL。38 张业务表、11 个迁移（`0000`–`0010`）、pg-boss 24、fresh 空卷与 legacy 单超级用户升级的正/负向权限探测均在当前工作树通过。
+- PostgreSQL 使用 bootstrap、migrator、runtime、backup、restore 五类分离身份；pg-boss DDL 只由一次性 migrator 执行，API/worker 的 runtime 身份无 DDL。38 张业务表、11 个迁移（`0000`–`0010`）、pg-boss 24、fresh 空卷与 legacy 单超级用户升级的正/负向权限探测均在 `101d2f0…` 通过，恢复环境再次验证同一姿态。
 - MinIO/S3 分离 root/bootstrap、app runtime、backup、restore 四类身份。root 只用于初始化和管理；app 不能读取备份，backup/restore 权限按职责收窄。
 - 保持 access-key ID 不变时可收敛轮换 secret；若更换 access-key ID，必须由 root-only 运维显式删除旧用户，并用旧凭据执行负向验证。bootstrap 无法枚举未知旧 ID，因此不能把“新 ID 可用”误写为“旧 ID 已撤销”。
 - 恢复脚本有 Ed25519 公钥类型/独立指纹/规范化 attestation/签名/来源/版本门禁，以及归档路径/链接/设备/FIFO/sparse/重复项/父子冲突/尾随数据与资源上限防护，使用受保护 scratch 和跨 backup/restore/upgrade/rollback 的 maintenance lock；陈旧锁、partial 或异常明文暂存必须人工调查。签名失败在任何 Compose 或数据动作前退出；在线文件私钥不是 HSM，仍需独立 SHA 与人工批准。
-- 冻结候选的七个 `linux/arm64` 本地镜像均由 Trivy 0.70.0 扫描；HIGH、CRITICAL、fixable 和 unfixed 四个汇总均为 0。API/worker 另完成 `linux/amd64` 实构、x64 Argon2id、worker `pg_dump 17.10`/age roundtrip 和 Trivy 0。Alpine/musl 与双架构原生件由这些补偿测试覆盖。
-- Syft 1.42.3 为七镜像生成 7 份结构化 SPDX，绑定清单 SHA-256 为 `5563cc9a3df2e9adf03845aa63b63c314e6584c847e0a1d150b0a9439650c900`；Trivy 七镜像汇总 SHA-256 为 `502c93dd081a29ae1d8051d4ff039d8b3f8ab4d66d788b6e5aab533700bf3335`；本地总证据清单 SHA-256 为 `298c6aea759759b0140c392eec085b4e0fefaecf52ff8b43e9eb38b9cf3310c3`。这些文件留在 ignored 本地目录，不提交业务或恢复数据。
+- `101d2f0…` 的七个 `linux/arm64` 本地镜像均由固定镜像 digest `aquasec/trivy@sha256:be1190…a41e`（0.70.0）扫描；HIGH、CRITICAL、fixable 和 unfixed 四个汇总均为 0。API/worker 另有 `linux/amd64` 实构、x64 Argon2id、worker `pg_dump 17.10`/age roundtrip 和 Trivy 0 的补偿证据。
+- 固定 digest `anchore/syft@sha256:5999d2…1d36`（1.42.3）为七镜像生成 7 份结构化 SPDX，包数分别为 API 204、worker 225、Web/gateway 各 176、MinIO 372、backup 178、PostgreSQL 47；每份 SPDX 和 Trivy 报告 SHA-256 记录在[机器证据](./evidence/production-like-acceptance-101d2f0-20260720.json)。原始报告在验收期间只留于 ignored 临时目录，固化哈希后删除，不提交业务或恢复数据。
 - Buildx `v0.35.0`、BuildKit `v0.31.2@sha256:2f5ada…`、QEMU/binfmt `qemu-v10.2.3@sha256:400a48…`、Trivy `v0.70.0` 和 Syft `v1.42.3` 固定到明确版本/摘要。真实 BuildKit 0.31.2 双平台 fixture 已通过，verifier 按 in-toto `https://in-toto.io/Statement/v1`、双平台 subject、来源 Git SHA、双平台 SPDX 与 sidecar 摘要做正/负向校验。
-- 以上 image ID 是本地 arm64 manifest-list 内容 ID，不是已发布 GHCR 多架构 root digest，也不是签名；冻结源码提交后的 release workflow 仍须构建和验证 registry 证据。
+- 以上 image ID 是本地 arm64 manifest-list 内容 ID，不是已发布 GHCR 多架构 root digest，也不是签名；最终 release workflow 仍须构建和验证 registry 证据。
 - 旧报告关于当前 MinIO 镜像“6 项 HIGH”的结论已被最终镜像重建和 Trivy 0 结果取代。剩余问题是 MinIO OSS 的长期维护/支持与迁移退出风险，而不是把旧扫描数继续当作当前漏洞；目标生产前仍须由负责人选择受支持实现或形成有期限的风险接受。
-- 预计暂存范围、当前树/完整历史 Gitleaks、自定义/default canary、精确 allowlist、大文件、symlink/submodule 和 ignored 证据边界已本地通过；提交后对 index/不可变 SHA 再复核，GitHub CI/SAST 和目标内网暴露面在推送及部署后分别验证。
+- 预计暂存范围、当前树/完整历史 Gitleaks、自定义/default canary、两个命名证据文件的公钥指纹精确 allowlist、大文件、symlink/submodule 和 ignored 证据边界已本地通过；GitHub CI/SAST 和目标内网暴露面仍须在推送及部署后分别验证。
 
-| 本地组件 | 冻结候选 arm64 image ID |
+| 本地组件 | `101d2f0…` arm64 image ID |
 | --- | --- |
-| postgres | `21f55d61458ac149cce46ed6e9cb753810aa2331244aaba3a495ea938dc97c72` |
-| api | `638412476f4aa142dd86f166e3a34bc1a8e54ce194f43cd295318306b4c73d14` |
-| worker | `c6aafe90375c82cd9236ab3187d6afa45c57502e5f71c7bb0f73b1c5fa1d1f1a` |
-| web | `e8926c92f89129afb5d9bfa83f7ebf24a3d070304acc33cfdf3e5c99be30caf5` |
-| gateway | `a245c2d28d0a078da7313101077a2fefd81544061dd8b796dead50eded935e86` |
-| minio | `74bd0fc3fa45b7eec2647b1f483847373c6a35dac8ec0f26782977c2a5569ef8` |
-| backup | `389be4c6e10554e2395a42be60b4cb6a811b478c5adbea10a4fd9c86948619cf` |
+| postgres | `6ac8e44d9bd98214f9c60459b71d43420e487e1751719c5bb87d83136b895eec` |
+| api | `df6ef7da0e206a34996d8baf9f9f24615ca37151f1e87f365fd7041163b78dd3` |
+| worker | `ac4b91bc2f87bf869fe51c5081e908caeccec92c0da2316d47890d9e114b6645` |
+| web | `06502c0c15a7157db13f5ae7b9a8c3073d827b0fdf96bc1d9ce355b7013274f1` |
+| gateway | `fadb10cd0dd0819d95fb9efa910f2725b0fcbafa04282a90cc78377066bdc14e` |
+| minio | `eaa26fb6ea35f092b07ce26f1df0ccb4bb96e9c1b12acf220a811c023f2c6cac` |
+| backup | `34f825a0a16f488651bb634230942560088bd038a8cb170ded793b4a36b8d238` |
 
 ## 6. 合规、AI 与官网/电竞教育边界
 
@@ -126,24 +126,26 @@
 - [成人电竞教育试点课程草案](../product/adult-esports-pilot-curriculum.md)限定中国境内成年人、小班、人工交付和 4–6 周试点。九项事实问卷、合同、隐私、退款、版权、健康提示、内容安全和事件响应未获批准前，不得扩展为公开招生或未成年人服务。
 - [首批电竞教育基础内容](../../content/education/README.md)已形成四篇可维护内部草案并接入产品页面；每篇均保留版本、对象、负责人/审阅角色、权利、来源、AI 披露、正文、模板、练习和复核问题。四篇当前均为 `pending`/`pending_clearance`/`not_published`，不能把页面可读或测试通过写成专业复核或 WordPress 发布成功。
 
-## 7. 历史 10 迁移 formatVersion 2 签名备份恢复证据
+## 7. 当前 11 迁移 production-like 与签名恢复证据
 
-2026-07-20（UTC 执行时间 `2026-07-19T17:45:28Z`）曾从不可变实现提交 `6545c186753b5b7ba9a84d41d20879e6197362aa` 构建 backup 镜像，执行真实 age+Ed25519 一致性备份及随机全新卷隔离恢复；脱敏机器可读记录见[旧签名恢复证据](./evidence/signed-backup-restore-drill-20260720.json)。新增 `0010` 后，该表仅为历史证据，不证明当前 schema：
+2026-07-20（UTC 执行窗口 `2026-07-19T19:41:52Z`–`20:06:30Z`）从不可变实现提交 `101d2f0938adfa0caa8ed576f6587a5c78ae74a5` 重建七镜像和全新 production-like Compose，随后执行真实 age+Ed25519 一致性备份及随机全新卷隔离恢复。脱敏机器记录见[当前候选验收证据](./evidence/production-like-acceptance-101d2f0-20260720.json)：
 
-| 项目 | 不可变实现提交本地证据 |
+| 项目 | `101d2f0…` 本地证据 |
 | --- | --- |
-| 归档身份 | SHA-256 `fa60a4392c6785c47d1700f440f87b6b448c899770245f018bab0a2f74cd0e85`；attestation SHA-256 `ef26e210955d5a5a16dbddf2603ac2ab13e9760801c2dbac68a94a39fe281cae`；`sourceId=fiatlux-finalqa-20260719` |
-| 签名信任 | Ed25519；公钥 DER 指纹 `0eec7ab6d5ad31606498e238cd146ac3a657ee1fa70f7209d5c2dc4aed301ba6`；数据与加密配置归档的 checksum sidecar 和 attestation 均直接验证；恢复报告 `signatureVerified=true` |
-| 负向门禁 | 错误 S3 恢复凭据保持数据库和桶 sentinel 不变；自动化回归另覆盖错误公钥/指纹、篡改归档/attestation/signature、错误来源/backup tool release、签名缺失/部分参数，并证明失败时无 Compose/备份/数据动作 |
-| 数据库 | 38 张业务表；10 个迁移 `0000`–`0009` 逐 SQL SHA 核对；pg-boss 24；五职责角色、运行时和审计 ACL 通过 |
-| 对象 | 3 个、132 bytes；对象清单 SHA-256 `020ea53def20c62445e52d4c9c867c95f84bf99f7e8ec7fa946122d9a3621421`；逐对象路径、字节和 SHA-256 读回一致 |
-| 可用性与时间 | `database`、`queue`、`objectStorage` 均 ready；worker healthy；一致性备份 26 秒、实测 RPO 20 秒、drill RTO 45 秒 |
-| 清理 | 临时签名私钥、归档、scratch、隔离容器/卷和临时 backup image tag 均删除；原 finalqa 六服务保持原容器 ID 且全部 healthy |
-| 范围边界 | backup 来源已绑定 `6545c18…`，本地镜像 ID 为 `sha256:7da0b0f…bd70` 且 Trivy 0.70.0 HIGH/CRITICAL 为 0；`productionRestoreEntrypointExecuted=false`，不冒充最终跨层 Git SHA、经审批破坏性 `restore.sh`、异介质或目标办公内网证据 |
+| 部署 | 新项目/新卷、生产 overlay、TLS `choice-review.localhost:20443`；六常驻服务 healthy；`verify-deployment.sh`、MinIO 最小权限、重启持久性和备份后复验均通过；只有网关发布宿主端口 |
+| 数据与合规保守状态 | 38 张业务表、11 migration、pg-boss 24；seed 精确导入 73 条来源，73 条全部 pending/draft/pending_fetch，专业 provenance 为 0；浏览器验收只新增 4 条 QA 任务，不把测试身份写为专业复核 |
+| 浏览器与 PWA | 1440×1000 desktop 与 390×844 mobile 无横向溢出；真实 UI 创建任务并在移动端读取；PWA 10 条 cache、0 installability error、0 敏感路由缓存；离线隐藏工作区内容，联网后重新验证会话；console/page error 均为 0 |
+| 七镜像供应链 | 固定 Trivy 0.70.0 digest 对 API、worker、Web、gateway、MinIO、backup、PostgreSQL 的 HIGH/CRITICAL/fixable/unfixed 均为 0；固定 Syft 1.42.3 digest 生成并验证七份 SPDX；本地 image ID/报告 hash 逐项记录 |
+| 归档身份 | 数据密文 SHA-256 `0757095401915bf90ab61f09e8ec478482d2aabbc9482fe3b21d0737e0203f09`，59,093 bytes；attestation SHA-256 `671f5a1d1c7758fa9af846c45ff40cd0f29374a2e33cb44f219bdb903743b0fd`；`sourceId=fiatlux-reviewqa-101d2f0`；加密配置归档也成功创建 |
+| 签名信任 | Ed25519；公钥 DER 指纹 `76b44bc56bbe365a01dabe1a290b898db8edbd81fd42e0874aa349dcddec5e24`；归档 SHA、规范化 attestation、签名、来源、数据库/桶和 backup tool release 均直接匹配 |
+| 负向门禁 | 随机恢复项目先写数据库/桶 sentinel；错误 S3 restore 凭据在任何替换前失败，两个 sentinel 保持原值；随后才执行正确恢复 |
+| 恢复数据库 | 38 张业务表；11 个迁移 `0000_dusty_wither`–`0010_aspiring_maverick` 逐 createdAt/SQL SHA 核对；pg-boss 24；bootstrap/migrator/runtime/backup/restore flags、membership、运行时与审计 ACL 全部通过 |
+| 恢复对象 | 1 个、94 bytes；对象清单 SHA-256 `f181878ee7cfc34cd9a74d253e24a4b3acd99beb0d2bf37e25ef811b2640f62a`；目标桶逐对象路径、字节和 SHA-256 读回一致 |
+| 可用性与时间 | 恢复后 `database`、`queue`、`objectStorage` 均 ready，worker healthy；从随机项目启动到完整权限/对象验收和自动清理为 23 秒。该数字不是业务负责人批准的生产 RTO，备份在暂停写入时生成，因此不据此发明生产 RPO |
+| 清理 | 随机恢复容器、网络和卷自动删除；age identity、Ed25519 私钥/公钥、数据/配置归档和源 sentinel 删除；源六服务复验 healthy；未提交密钥、归档、Cookie 或运行数据 |
+| 范围边界 | `productionRestoreEntrypointExecuted=false`；本地批准摘要不等于独立生产审批；未证明 GHCR 双平台、历史生产 N−1、异介质、目标办公内网或业务批准 RPO/RTO |
 
-该证据证明当时 10 迁移实现的签名创建、独立指纹/摘要、底层恢复、数据库/对象一致性、权限和 readiness；不证明当前 11 迁移候选。新实现提交必须重新生成签名归档并隔离恢复；目标办公内网、异介质保管、业务批准的 RPO/RTO 和生产审批入口继续保持发布闸门。
-
-2026-07-19 的旧 formatVersion 2 演练早于 Ed25519 attestation，2026-07-18 的 v1 归档、37 表/4 对象、16 秒恢复以及同内容标签升级/回滚则更早；两者都不能替代当前签名门禁或最终 SHA 复验。新的本地 synthetic bridge 复验见下一节，但它仍不能冒充历史生产 N−1 或目标环境发布演练。
+旧不可变提交 `6545c186753b5b7ba9a84d41d20879e6197362aa` 的 38 表/10 migration 恢复记录继续保留为[历史签名恢复证据](./evidence/signed-backup-restore-drill-20260720.json)，但不再承担当前 schema 门禁。2026-07-19 更早的无 Ed25519 v2 演练和 2026-07-18 的 v1/同内容标签数字同样只作历史背景。下一节的 synthetic bridge 证明本地相邻兼容，不能冒充历史生产 N−1 或目标环境发布演练。
 
 ## 8. 本地相邻版本升级／应用回滚证据
 
@@ -173,16 +175,16 @@
 
 以下全部完成前，本报告结论不得升级为“V1 完成”：
 
-- [x] 冻结工作树的预期范围、ignored 证据边界、当前树/完整历史 secret scan 和敏感数据已完成本地审计；仅纳入私有仓库的 6 张公开官网研究截图，公开或外发前仍需权利/个人信息复核；创建提交后还要在 GitHub 对不可变 SHA 复核。
-- [x] 当前工作树完成 lint、ShellCheck、Actionlint、全部类型检查、177 单元、API/worker/MinIO、mock/real E2E 和生产构建，并分列设计内 skip；实现提交后仍须最终聚合复跑。
-- [ ] 新 `0010` 实现提交的 production-like Compose 尚未重建；旧 10 迁移 HTTPS/PWA/六服务证据不能替代。
+- [x] `101d2f0…` 的预期范围、ignored 证据边界、当前树/完整历史 secret scan 和敏感数据已完成本地审计；仅纳入私有仓库的 6 张公开官网研究截图，公开或外发前仍需权利/个人信息复核；GitHub 仍须复核。
+- [x] `101d2f0…` 完成 lint、ShellCheck、Actionlint、全部类型检查、177 单元、API/worker/MinIO、mock/real E2E 和生产构建，并分列设计内 skip；本证据工作树又完成 207 文件 `pnpm check` 与独立安全门禁复跑。
+- [x] `101d2f0…` 的 production-like Compose 已在新卷完成 38 表/11 migration、HTTPS/PWA、六服务、最小权限和重启持久性验证；目标内网仍待复现。
 - [x] 首次强制改密、成员生命周期、版本化角色审批、归档角色即时失权、通知 queued-only、GitHub 刷新 CAS、工作流不可变快照、付款取消/驳回解链、顾问 requester-only/read-all、合规专业 provenance/source/evidence、typed refs 和文件并发场景已在分层测试覆盖。
 - [x] fresh/legacy 数据库、PostgreSQL 五职责和 MinIO 四身份的正/负向最小权限验证通过；目标凭据仍须重新执行。
-- [ ] `6545c18…` 只完成旧 10 迁移 age+Ed25519 恢复；新 11 迁移实现提交的签名独立恢复尚未执行。
+- [x] `101d2f0…` 已完成 age+Ed25519 一致性备份和随机全新卷 38 表/11 migration/对象隔离恢复；经审批生产 `restore.sh`、独立批准渠道、异介质和目标内网仍待执行。
 - [x] 本地 synthetic bridge 使用真实 schema 与七镜像差异完成升级、双恢复点、应用回滚和 idle 后 HTTPS CRUD；历史生产 N−1、GHCR 和目标内网复演仍待执行，不得把本地结果升级为生产证明。
-- [ ] 当前新增代码尚待实现提交前后完成 Gitleaks、生产依赖审计、Semgrep+canary、相关镜像 Trivy/SPDX；旧供应链证据不证明当前层。GitHub/GHCR 双平台 digest、CodeQL/等效 SAST 与剩余风险批准仍待执行。
+- [x] `101d2f0…` 已完成 Gitleaks、生产依赖审计、Semgrep+canary、七镜像 Trivy 0.70.0 与 Syft 1.42.3 SPDX；GitHub/GHCR 双平台 digest、CodeQL/等效 SAST 与剩余风险批准仍待执行。
 - [ ] 在真实受管手机完成 PWA 安装/升级和移动浏览器验证。
-- [ ] 专业复核实现尚未提交/推送；提交后须核对 Draft PR #12 远端 head 与自然触发的新 run。
+- [x] 专业复核实现 `101d2f0…` 已提交并推送；脱敏机器证据明确绑定该父实现 SHA，未把文档后继提交冒充镜像或运行环境 SHA。
 - [ ] 修复 GitHub Actions 账户付款/spending limit 阻断，重跑 PR CI 与 Security；取得绿色 run、CodeQL 或经批准等效 SAST、制品证据，批准后再合并。
 - [ ] 在耀光广州办公内网验证主机、DNS、CA、防火墙、显式 seed、owner 首登改密、设备、备份介质和运行观察。
 - [ ] 完成真实 LLM/GitHub 最小权限验收，或明确保持 disabled/manual 且不宣称外部集成完成。
@@ -193,4 +195,4 @@
 
 FIAT LUX CHOICE 已形成可运行的模块化单体候选，不是脚手架、静态仪表盘或仅有数据库模型。身份、权限、审计、业务模块、八类人工批准、七类顾问、后台任务、PWA、最小权限、七镜像供应链和 Ed25519 签名 formatVersion 2 独立恢复路径均有分层实证。
 
-当前工作树已完成专业复核增量的静态、单元、数据库、API/worker、MinIO、desktop/mobile 真实栈和生产构建验证，但尚未形成不可变实现提交，也尚未重建 Compose、安全扫描和 11 迁移签名恢复。GitHub CI/security 仍因账户付款或 spending limit 在 runner 前阻断；GHCR、历史生产 N−1/目标发布、生产恢复入口、耀光目标办公内网/真机、真实 LLM/GitHub、73 条真实专业复核、MinIO 支持风险决策及责任人批准均未完成。因此唯一合法结论仍是：**受控候选，尚不可宣布 V1 已完成或已批准生产上线。**
+不可变实现提交 `101d2f0…` 已完成专业复核增量的静态、单元、数据库、API/worker、MinIO、mock/real E2E、生产构建、全新 Compose、七镜像扫描/SPDX、desktop/mobile/PWA 和 11 migration age+Ed25519 隔离恢复；测试私钥、归档和恢复资源已清理，脱敏证据已经入库。GitHub CI/security 仍因账户付款或 spending limit 在 runner 前阻断；GHCR、历史生产 N−1/目标发布、经审批生产恢复入口、耀光目标办公内网/真机、真实 LLM/GitHub、73 条真实专业复核、MinIO 支持风险决策及责任人批准均未完成。因此唯一合法结论仍是：**受控候选，尚不可宣布 V1 已完成或已批准生产上线。**

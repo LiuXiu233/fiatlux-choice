@@ -2,7 +2,7 @@
 
 耀光（广州）电子竞技有限公司及类似中国境内 1–2 人团队的内部公司治理与运营 Web App。
 
-当前状态：**受控候选，尚未宣布或批准 V1 完成**。仓库已经包含实质业务实现、PWA、API、worker、38 张业务表与 11 个迁移（`0000`–`0010`）、内网部署和恢复资产。2026-07-20 当前未提交工作树已通过 Biome 206 文件、ShellCheck/Actionlint、7 项类型检查、177/177 单元、API 89/89、worker 25/25、真实 MinIO 2/2、mock 46+6、隔离真实栈 desktop/mobile 4/4、fresh 与上一版本升级迁移、数据库最小权限和生产构建；仍须在不可变实现提交上重跑 Compose、安全扫描及 11 迁移签名备份恢复，才能把这些结果绑定为新候选证据。旧备份签名实现提交 `6545c18…` 的 10 迁移恢复、旧七镜像供应链和 synthetic bridge 升级结果只保留为历史/分层证据。候选分支对应 Draft PR #12；GitHub CI/Security 仍因账户付款失败或 Actions spending limit 不足在 runner 启动前被平台阻断，尚未执行 workflow step。其余未完成闸门包括 GHCR 双平台发布与绿色 CI、经批准的生产候选/N−1 和目标环境复演、经审批生产恢复入口、耀光目标办公内网与真实受管设备、真实 LLM/GitHub 适配器、73 条真实专业复核、MinIO 长期维护/支持风险决策和专业合规/业务批准。详情见[V1 验收矩阵](docs/delivery/v1-acceptance-matrix.md)和[受控候选交付报告](docs/delivery/final-delivery-report.md)。
+当前状态：**受控候选，尚未宣布或批准 V1 完成**。仓库已经包含实质业务实现、PWA、API、worker、38 张业务表与 11 个迁移（`0000`–`0010`）、内网部署和恢复资产。2026-07-20 不可变实现提交 `101d2f0938adfa0caa8ed576f6587a5c78ae74a5` 已通过 Biome 206 文件、ShellCheck/Actionlint、7 项类型检查、177/177 单元、API 89/89、worker 25/25、真实 MinIO 2/2、mock 46+6、隔离真实栈 desktop/mobile 4/4、fresh/上一版本迁移、fresh/legacy 最小权限和生产构建；同一提交又重建七个 arm64 镜像和独立 production-like Compose，验证六服务健康、重启持久性、桌面/390×844 移动端、PWA 10 条缓存/0 安装性错误、73 条来源保持未复核、Trivy 0.70.0 HIGH/CRITICAL 0、7 份 Syft 1.42.3 SPDX，以及 age+Ed25519 一致性备份在随机全新卷精确恢复 38 表、11 migration、pg-boss 24 和逐对象 SHA。脱敏记录见[当前候选验收证据](docs/delivery/evidence/production-like-acceptance-101d2f0-20260720.json)。这些仍是本机 arm64 和底层恢复演练，不是 GHCR 双平台、经审批生产 `restore.sh`、耀光广州目标办公内网或真机证明。候选分支对应 Draft PR #12；GitHub CI/Security 仍因账户付款失败或 Actions spending limit 不足在 runner 启动前被平台阻断，尚未执行 workflow step。其余未完成闸门包括最终 Git/GitHub/GHCR 跨层身份统一与绿色 CI、经批准的生产候选/N−1 和目标环境复演、经审批生产恢复入口、耀光目标办公内网与真实受管设备、真实 LLM/GitHub 适配器、73 条真实专业复核、MinIO 长期维护/支持风险决策和专业合规/业务批准。详情见[V1 验收矩阵](docs/delivery/v1-acceptance-matrix.md)和[受控候选交付报告](docs/delivery/final-delivery-report.md)。
 
 ## 能力
 
@@ -205,7 +205,7 @@ SEED_MODE=bootstrap pnpm db:seed
 
 API 基础路径是 /api/v1，使用组织作用域的 HttpOnly 会话 Cookie。健康端点为 /health/live 和 /health/ready。
 
-当前生成 OAS 3.1 候选文档；当前工作树已用标准 parser 和运行时清单对账 75 个 path、140 个 operation，并校验认证、参数、请求和响应 schema。发布前仍要在不可变 SHA 复现，并建立兼容性 diff、弃用策略和受支持 SDK 生成交付。集成前请阅读[API 指南](docs/api/api-guide.md)；文件上传必须依次完成元数据声明、二进制 PUT 和 `POST /files/:id/complete`。
+当前生成 OAS 3.1 候选文档；不可变实现提交 `101d2f0…` 已用标准 parser 和运行时清单对账 75 个 path、140 个 operation，并校验认证、参数、请求和响应 schema。GitHub/目标环境仍要复现，并建立兼容性 diff、弃用策略和受支持 SDK 生成交付。集成前请阅读[API 指南](docs/api/api-guide.md)；文件上传必须依次完成元数据声明、二进制 PUT 和 `POST /files/:id/complete`。
 
 ## 安全与数据
 

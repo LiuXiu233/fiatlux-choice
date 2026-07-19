@@ -32,10 +32,10 @@
 - 银行付款取消或审批驳回会原子解除草稿支出关联；顾问运行默认 requester-only，管理员的 `advisor-runs:read-all` 仍受顾问入口和上下文读权限限制；角色分配审批保存 membership 版本快照并在批准时重验。
 - 义务/合规日历已分开 `sourceId` 与 `evidenceFileId`；专业复核专用入口要求实名、机构、胜任依据、缺失信息、已上传证据，锁定来源版本/哈希/站内登记人并追加历史。通用提升、legacy 部分状态和不适用来源会在顾问侧失败关闭。
 - 合规来源人工复核到期、正文哈希变化和连续第三次失败已在状态事务内自动建立未分配的高优先级人工任务；同一事件去重、错误脱敏、组织隔离和陈旧并发丢弃由真实 PostgreSQL 集成覆盖，邮件/企业协作通知和负责人自动分配仍待批准适配器。
-- 2026-07-20 当前工作树已通过 Biome 206 files、ShellCheck/Actionlint、7 项类型检查、177/177 单元、API 18 files/89 tests、worker 5 files/25 tests、真实 MinIO 2/2、mock 46+6、隔离 real 4/4、fresh/legacy 迁移、fresh/legacy 最小权限和生产构建；新增层尚未绑定不可变 SHA，Compose、镜像、安全扫描与 11 迁移签名恢复待实现提交后统一复现。
-- 七个最终本地 arm64 镜像、Trivy 0.70.0 四口径零 HIGH/CRITICAL、七份 SPDX、真实 BuildKit 0.31.2 双平台 provenance fixture，以及 API/worker amd64 原生件补偿验证均通过；GHCR 双平台 root digest 仍待最终提交后的 release workflow。
+- 2026-07-20 不可变实现提交 `101d2f0938adfa0caa8ed576f6587a5c78ae74a5` 已通过 Biome 206 files、ShellCheck/Actionlint、7 项类型检查、177/177 单元、API 18 files/89 tests、worker 5 files/25 tests、真实 MinIO 2/2、mock 46+6、隔离 real 4/4、fresh/legacy 迁移、fresh/legacy 最小权限和生产构建；同一提交的全新 production-like Compose 又通过 38 表/11 migration、六服务、重启持久性、桌面/390×844 mobile、PWA/offline 和 73 条来源保守状态验证。
+- `101d2f0…` 七个本地 arm64 镜像由固定 Trivy 0.70.0 digest 扫描，HIGH/CRITICAL/fixable/unfixed 均为 0；七份 Syft 1.42.3 SPDX 通过，真实 BuildKit 0.31.2 双平台 provenance fixture 及 API/worker amd64 补偿证据仍有效；GHCR 双平台 root digest 仍待 release workflow。
 - 旧底层 formatVersion 2 演练归档 SHA-256 `bcfd6c59d…b6ba`，核对 38 表、10 migrations、pg-boss 24 和 1 个 56-byte 对象，实测 RPO 2 秒、drill RTO 75 秒；它早于 Ed25519 来源签名门禁，只保留为历史恢复证据。
-- 2026-07-20 不可变实现提交 `6545c18…` 曾完成 38 表、10 migrations 的真实 age+Ed25519 一致性备份和全新卷隔离恢复；新增 `0010` 后该结果已降为历史 schema 证据，当前实现必须重新演练。它也没有执行破坏性的生产 `restore.sh` 审批入口、异介质或目标内网。
+- `101d2f0…` 已暂停写入完成真实 age+Ed25519 一致性备份；错误 S3 凭据负向路径未改变目标，随机全新卷精确恢复 38 表、11 migrations（到 `0010`）、pg-boss 24、五职责权限、worker/readiness 和 1 对象/94 bytes，完整 drill 23 秒。测试密钥/归档/源 sentinel 已删除；独立生产批准、业务 RPO/RTO、破坏性生产 `restore.sh`、异介质和目标内网仍未执行。旧 `6545c18…` 的 10 migration 结果只保留为历史证据。
 - 2026-07-18 的旧测试总数、镜像 digest、v1 归档、37 表/4 对象/16 秒恢复和同内容标签升级回滚均为历史证据，不能作为当前通过或发布门禁。
 - 首轮本地相邻演练在回滚后 idle 登录暴露 `CONNECT_TIMEOUT` 并正确阻断；修复后以 N 10 migrations、synthetic bridge 9 migrations 和七个全异镜像完成真实 registry push/pull、46 秒升级、43 秒应用回滚、双 formatVersion 2 恢复点和回滚后 308 秒 HTTPS CRUD，数据、审计、索引和对象均保留。该结果不是历史生产 N−1、GHCR 或目标内网证据。
 - 经审批生产恢复入口、最终不可变 Git SHA/绿色 GitHub CI/GHCR、历史生产 N−1 和目标发布复演、目标内网、真实受管手机、真实 LLM/GitHub、73 条合规来源的专业人工复核、MinIO 长期支持风险处置和业务批准仍未完成。
