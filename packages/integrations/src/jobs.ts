@@ -38,9 +38,28 @@ export interface JobPayloads {
 export type JobName = keyof JobPayloads;
 
 export interface JobQueueOptions {
+  applicationName?: string;
   migrate?: boolean;
   provisionQueues?: boolean;
+  connectTimeoutSeconds?: number;
+  maxConnections?: number;
   boss?: PgBoss;
+}
+
+function integerOption(name: string, value: number, minimum: number, maximum: number) {
+  if (!Number.isInteger(value) || value < minimum || value > maximum) {
+    throw new Error(`${name} must be an integer between ${minimum} and ${maximum}`);
+  }
+  return value;
+}
+
+function databaseApplicationName(value: string) {
+  if (!/^[A-Za-z0-9._-]{1,63}$/.test(value)) {
+    throw new Error(
+      "Queue database application name must contain 1-63 ASCII letters, numbers, dots, underscores or hyphens",
+    );
+  }
+  return value;
 }
 
 type JobQueueLifecycle = "created" | "started" | "stopping" | "stopped";
@@ -58,13 +77,31 @@ export class JobQueue {
 
   constructor(databaseUrl: string, options: JobQueueOptions = {}) {
     this.provisionQueues = options.provisionQueues ?? true;
+    const maxConnections = integerOption(
+      "Queue database max connections",
+      options.maxConnections ?? 5,
+      1,
+      50,
+    );
+    const connectTimeoutSeconds = integerOption(
+      "Queue database connect timeout",
+      options.connectTimeoutSeconds ?? 10,
+      1,
+      60,
+    );
+    const applicationName = databaseApplicationName(options.applicationName ?? "fiatlux-queue");
     this.#boss =
       options.boss ??
       new PgBoss({
+        application_name: applicationName,
         connectionString: databaseUrl,
+        // pg-boss forwards its database config to node-postgres. Its current public type omits
+        // this supported pg.Pool option, so keep the local intersection until upstream exposes it.
+        connectionTimeoutMillis: connectTimeoutSeconds * 1_000,
+        max: maxConnections,
         schema: "pgboss",
         migrate: options.migrate ?? true,
-      });
+      } as PgBoss.ConstructorOptions & { connectionTimeoutMillis: number });
     this.#boss.on("error", (error) => {
       if (this.#queueErrorHandlers.size === 0) {
         console.error(

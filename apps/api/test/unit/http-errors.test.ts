@@ -52,4 +52,64 @@ describe("HTTP error handling", () => {
       error: { code: "PAYLOAD_TOO_LARGE", message: "Request body is too large" },
     });
   });
+
+  it("maps a wrapped pre-connect database failure to a sanitized 503", async () => {
+    const app = Fastify({ logger: false });
+    apps.push(app);
+    app.get("/database", async () => {
+      const connectionError = Object.assign(new Error("private postgres endpoint"), {
+        code: "CONNECT_TIMEOUT",
+      });
+      throw new Error("wrapped query failed", { cause: connectionError });
+    });
+    registerErrorHandler(app);
+
+    const response = await app.inject({ method: "GET", url: "/database" });
+
+    expect(response.statusCode).toBe(503);
+    expect(response.json()).toMatchObject({
+      error: {
+        code: "DEPENDENCY_UNAVAILABLE",
+        message: "A required service is temporarily unavailable",
+      },
+    });
+    expect(response.body).not.toContain("private postgres endpoint");
+  });
+
+  it("marks a mid-query connection loss as outcome-unknown instead of safe-to-retry", async () => {
+    const app = Fastify({ logger: false });
+    apps.push(app);
+    app.post("/database", async () => {
+      throw Object.assign(new Error("private statement text"), { code: "EPIPE" });
+    });
+    registerErrorHandler(app);
+
+    const response = await app.inject({ method: "POST", url: "/database" });
+
+    expect(response.statusCode).toBe(503);
+    expect(response.json()).toMatchObject({
+      error: {
+        code: "DEPENDENCY_OUTCOME_UNKNOWN",
+        message: expect.stringMatching(/verify the request outcome/i),
+      },
+    });
+    expect(response.body).not.toContain("private statement text");
+  });
+
+  it("keeps queries attempted after application shutdown as an internal lifecycle error", async () => {
+    const app = Fastify({ logger: false });
+    apps.push(app);
+    app.get("/database", async () => {
+      throw Object.assign(new Error("database client already ended"), {
+        code: "CONNECTION_ENDED",
+      });
+    });
+    registerErrorHandler(app);
+
+    const response = await app.inject({ method: "GET", url: "/database" });
+
+    expect(response.statusCode).toBe(500);
+    expect(response.json()).toMatchObject({ error: { code: "INTERNAL_ERROR" } });
+    expect(response.body).not.toContain("database client already ended");
+  });
 });

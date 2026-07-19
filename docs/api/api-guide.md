@@ -397,7 +397,7 @@ POST /backups 的 scope 为 database、files 或 full。没有受控 BACKUP_COMM
 
 - /health：API 基本响应。
 - /health/live：进程存活，不证明依赖可用。
-- /health/ready：依次检查数据库、pg-boss 队列和对象存储；任一不可用返回 503。
+- /health/ready：并行检查常驻数据库连接、pg-boss 队列和对象存储；任一失败或超过协作式 deadline 返回 503。重复请求对尚未结束的探针保持 single-flight，不会无限堆叠依赖操作。
 
 部署探针和上线验收应使用 ready，不能只看 live。
 
@@ -406,6 +406,8 @@ POST /backups 的 scope 为 database、files 或 full。没有受控 BACKUP_COMM
 - 使用 Cookie 凭据并正确配置 Origin。
 - 不在日志输出 Cookie、密码、API key、文件内容或个人信息。
 - 对 401 重新登录，对 403 停止重试，对 409重新读取。
+- `DEPENDENCY_UNAVAILABLE` 表示建连阶段依赖不可用；GET 等幂等读取可在退避后重试。任何非幂等写均不得仅因 503 自动重放。
+- `DEPENDENCY_OUTCOME_UNKNOWN` 表示连接可能在请求送达依赖后中断。先用 `requestId`、资源状态和审计事件核对是否已生效，再由人工决定是否发起带新依据的重试；不得把“未收到响应”解释为“写入未发生”。
 - 使用 requestId 关联支持工单、审计和服务器日志。
 - 按整数分处理金额，按带时区 ISO 时间处理日期。
 - 只把 confirmed 且有证据的外部动作视为完成。

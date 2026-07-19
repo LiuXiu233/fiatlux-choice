@@ -88,9 +88,9 @@ done
 # else is an explicit runtime capability. This catches future anchor regressions that accidentally
 # hand session, object-storage, bootstrap, or integration credentials to the wrong service.
 assert_environment_allowlist api \
-  '^(PATH|NODE_VERSION|YARN_VERSION|NODE_ENV|API_HOST|API_PORT|WEB_ORIGIN|DATABASE_URL|JWT_SECRET|JWT_TTL_SECONDS|COOKIE_SECURE|S3_ENDPOINT|S3_REGION|S3_BUCKET|S3_ACCESS_KEY_ID|S3_SECRET_ACCESS_KEY|LLM_DRIVER|LLM_BASE_URL|LLM_API_KEY|LLM_MODEL|GITHUB_INTEGRATION_MODE|GITHUB_TOKEN|TRUST_PROXY)$'
+  '^(PATH|NODE_VERSION|YARN_VERSION|NODE_ENV|API_HOST|API_PORT|WEB_ORIGIN|DATABASE_URL|DATABASE_POOL_SIZE|DATABASE_CONNECT_TIMEOUT_SECONDS|READINESS_TIMEOUT_MS|JWT_SECRET|JWT_TTL_SECONDS|COOKIE_SECURE|S3_ENDPOINT|S3_REGION|S3_BUCKET|S3_ACCESS_KEY_ID|S3_SECRET_ACCESS_KEY|LLM_DRIVER|LLM_BASE_URL|LLM_API_KEY|LLM_MODEL|GITHUB_INTEGRATION_MODE|GITHUB_TOKEN|TRUST_PROXY)$'
 assert_environment_allowlist worker \
-  '^(PATH|NODE_VERSION|YARN_VERSION|NODE_ENV|DATABASE_URL|LLM_DRIVER|LLM_BASE_URL|LLM_API_KEY|LLM_MODEL|GITHUB_INTEGRATION_MODE|GITHUB_TOKEN|BACKUP_COMMAND|BACKUP_DIR|PGHOST|PGPORT|PGDATABASE|PGUSER|PGPASSWORD|BACKUP_AGE_RECIPIENT|BACKUP_REQUIRE_ENCRYPTION)$'
+  '^(PATH|NODE_VERSION|YARN_VERSION|NODE_ENV|DATABASE_URL|DATABASE_POOL_SIZE|DATABASE_CONNECT_TIMEOUT_SECONDS|LLM_DRIVER|LLM_BASE_URL|LLM_API_KEY|LLM_MODEL|GITHUB_INTEGRATION_MODE|GITHUB_TOKEN|BACKUP_COMMAND|BACKUP_DIR|PGHOST|PGPORT|PGDATABASE|PGUSER|PGPASSWORD|BACKUP_AGE_RECIPIENT|BACKUP_REQUIRE_ENCRYPTION)$'
 
 for service in api worker; do
   container_id=$("$COMPOSE" ps -q "$service")
@@ -130,7 +130,18 @@ runtime_database_posture=$(docker exec "$api_container_id" node --input-type=mod
         has_table_privilege(current_user, ${"public.audit_events"}, ${"UPDATE"}) AS audit_update,
         has_table_privilege(current_user, ${"public.audit_events"}, ${"DELETE"}) AS audit_delete,
         t.tgenabled AS trigger_mode,
-        pg_get_userbyid(c.relowner) AS audit_owner
+        pg_get_userbyid(c.relowner) AS audit_owner,
+        (
+          SELECT count(DISTINCT application_name) = 4
+          FROM pg_stat_activity
+          WHERE usename = current_user
+            AND application_name = ANY(ARRAY[
+              ${"fiatlux-api"},
+              ${"fiatlux-api-queue"},
+              ${"fiatlux-worker"},
+              ${"fiatlux-worker-queue"}
+            ])
+        ) AS named_runtime_clients
       FROM pg_roles r
       JOIN pg_trigger t ON t.tgname = ${"audit_events_prevent_update_delete"}
       JOIN pg_class c ON c.oid = t.tgrelid
@@ -147,12 +158,13 @@ runtime_database_posture=$(docker exec "$api_container_id" node --input-type=mod
       row.audit_delete,
       row.trigger_mode,
       row.audit_owner,
+      row.named_runtime_clients,
     ].join("|"));
   } finally {
     await sql.end();
   }
 ')
-if [[ "$runtime_database_posture" != 'fiatlux_runtime|false|false|false|false|false|false|false|A|fiatlux_migrator' ]]; then
+if [[ "$runtime_database_posture" != 'fiatlux_runtime|false|false|false|false|false|false|false|A|fiatlux_migrator|true' ]]; then
   printf '数据库运行时权限姿态不符合最小权限基线：%s\n' "$runtime_database_posture" >&2
   exit 4
 fi

@@ -31,11 +31,16 @@ import {
   openApiTransform,
   openApiTransformObject,
 } from "./openapi.js";
+import { createBoundedReadinessProbe } from "./readiness.js";
 import { registerResourceRoutes } from "./resource-routes.js";
 import type { AppDependencies } from "./types.js";
 
 export function createDefaultDependencies(config: ApiConfig): AppDependencies {
-  const { db, client } = createDatabase(config.DATABASE_URL);
+  const { db, client } = createDatabase(config.DATABASE_URL, {
+    applicationName: "fiatlux-api",
+    connectTimeoutSeconds: config.DATABASE_CONNECT_TIMEOUT_SECONDS,
+    maxConnections: config.DATABASE_POOL_SIZE,
+  });
   const storage =
     config.S3_ACCESS_KEY_ID && config.S3_SECRET_ACCESS_KEY
       ? new S3ObjectStorage({
@@ -61,7 +66,13 @@ export function createDefaultDependencies(config: ApiConfig): AppDependencies {
     db,
     closeDatabase: () => client.end(),
     storage,
-    queue: new JobQueue(config.DATABASE_URL, { migrate: false, provisionQueues: false }),
+    queue: new JobQueue(config.DATABASE_URL, {
+      applicationName: "fiatlux-api-queue",
+      connectTimeoutSeconds: config.DATABASE_CONNECT_TIMEOUT_SECONDS,
+      maxConnections: config.DATABASE_POOL_SIZE,
+      migrate: false,
+      provisionQueues: false,
+    }),
     llmProvider,
   };
 }
@@ -82,6 +93,21 @@ export async function buildApp(dependencies: AppDependencies) {
     requestIdHeader: "x-request-id",
     trustProxy: dependencies.config.TRUST_PROXY,
   });
+  const databaseReadiness = createBoundedReadinessProbe(
+    () => dependencies.db.execute(sql`SELECT 1`),
+    dependencies.config.READINESS_TIMEOUT_MS,
+  );
+  const queueReadiness = createBoundedReadinessProbe(
+    () =>
+      dependencies.queue
+        ? dependencies.queue.healthCheck()
+        : Promise.reject(new Error("queue unavailable")),
+    dependencies.config.READINESS_TIMEOUT_MS,
+  );
+  const objectStorageReadiness = createBoundedReadinessProbe(
+    () => dependencies.storage.healthCheck(),
+    dependencies.config.READINESS_TIMEOUT_MS,
+  );
 
   app.addContentTypeParser(
     "application/octet-stream",
@@ -159,17 +185,15 @@ export async function buildApp(dependencies: AppDependencies) {
     data: { status: "alive" },
   }));
   app.get("/health/ready", { schema: { tags: ["health"] } }, async (_request, reply) => {
-    const results = await Promise.allSettled([
-      dependencies.db.execute(sql`SELECT 1`),
-      dependencies.queue
-        ? dependencies.queue.healthCheck()
-        : Promise.reject(new Error("queue unavailable")),
-      dependencies.storage.healthCheck(),
+    const [database, queue, objectStorage] = await Promise.all([
+      databaseReadiness(),
+      queueReadiness(),
+      objectStorageReadiness(),
     ]);
     const checks = {
-      database: results[0]?.status === "fulfilled" ? "ready" : "unavailable",
-      queue: results[1]?.status === "fulfilled" ? "ready" : "unavailable",
-      objectStorage: results[2]?.status === "fulfilled" ? "ready" : "unavailable",
+      database,
+      queue,
+      objectStorage,
     };
     if (Object.values(checks).some((status) => status !== "ready")) {
       return reply.status(503).send({ data: { status: "not_ready", checks } });

@@ -88,6 +88,8 @@ openssl rand -hex 48
 
 前五个数据库值分别用于 `POSTGRES_BOOTSTRAP_PASSWORD`、`POSTGRES_MIGRATION_PASSWORD`、`POSTGRES_RUNTIME_PASSWORD`、`POSTGRES_BACKUP_PASSWORD`、`POSTGRES_RESTORE_PASSWORD`，随后用于 `MINIO_ROOT_PASSWORD` 和 `SESSION_SECRET`。另为 `INITIAL_ADMIN_PASSWORD` 生成独立、至少 14 位的随机引导密码；它只用于显式 seed。LLM 与 GitHub 凭据按最小权限配置；不启用时保持 mock/manual，不伪造外部调用成功。角色能力和旧卷升级步骤见[PostgreSQL 最小权限角色手册](./database-roles.md)。
 
+默认 `DATABASE_POOL_SIZE=5` 按单个数据库客户端计：API 与 worker 各有一个常驻 Drizzle/postgres.js 池和一个 pg-boss/node-postgres 池，分别使用 `fiatlux-api`、`fiatlux-api-queue`、`fiatlux-worker`、`fiatlux-worker-queue` 作为 PostgreSQL `application_name`，默认总上限为 20 条按需连接。Drizzle 池保持已打开的空闲连接，不再每 20 秒为低频人工请求重新建立 DNS/TCP/SCRAM 会话；pg-boss 池也使用同一连接数和建连 deadline。`DATABASE_CONNECT_TIMEOUT_SECONDS=10` 约束真实建连；`READINESS_TIMEOUT_MS=3000` 是 API ready 的应用层协作式 deadline，事件循环严重受压时 JavaScript timer 也可能延后，因此部署验收的 `curl --max-time 10` 仍是外部硬中止。API 容器自身 5 秒 health timeout 请求 bounded ready，依赖故障会使其显示 `unhealthy`，但 Docker 不会仅凭此状态自动重启；不要通过盲目重启或增大连接池、超时来掩盖宿主过载、DNS、凭据或数据库故障。调整前后都要记录 `pg_stat_activity`、ready 延迟和业务请求证据。
+
 在与生产服务器分离的管理员设备生成 age 身份：
 
 ```sh

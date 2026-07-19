@@ -2,11 +2,12 @@
 
 ## 健康语义
 
-- `/health/live`：只表示 API 进程仍能响应。失败时容器会被判定不健康。
-- `/health/ready`：应检查 PostgreSQL、pg-boss 与 MinIO。依赖不可用时返回 HTTP 503。
-- worker 只在本进程通过受控 `JobQueue.work` 注册了全部七类唯一订阅，且 pg-boss 自身连接能在 5 秒内读到全部声明队列后，才每 10 秒更新自身 `/tmp` tmpfs 私有心跳；任一订阅被受控取消、队列停止或探针持续失败时不会刷新，30 秒后判定不健康。它仍不能证明每个空闲订阅最近一次 fetch 或每项业务任务按时完成，不能替代失败任务、积压和租约监控。
+- `/health/live`：只表示 API 进程仍能响应，供诊断使用，不证明依赖可用。
+- `/health/ready`：并行检查常驻 Drizzle/PostgreSQL 客户端、pg-boss 与 MinIO。每项探针使用 `READINESS_TIMEOUT_MS` 作为应用层协作式 deadline；正常事件循环调度下超时或失败返回 HTTP 503，部署验收的 `curl --max-time 10` 是调度阻塞时的外部硬中止。API 容器健康检查请求 bounded ready，因此依赖持续失败会显示 `unhealthy`；Docker Compose 不会仅因 `unhealthy` 自动重启容器，值班人仍须按故障树处理。尚未结束的底层探针保持 single-flight，重复健康请求不会堆叠新的数据库或对象存储操作。
+- worker 只在本进程通过受控 `JobQueue.work` 注册了全部七类唯一订阅、pg-boss 能读到全部声明队列，且同一常驻 Drizzle 客户端能查询 PostgreSQL 后，才每 10 秒更新自身 `/tmp` tmpfs 私有心跳；任一订阅被受控取消、队列停止、数据库查询或组合探针持续失败时不会刷新，30 秒后判定不健康。它仍不能证明每个空闲订阅最近一次 fetch 或每项业务任务按时完成，不能替代失败任务、积压和租约监控。
 - Caddy 的容器健康检查同时请求 API live 与 Web 登录壳；其中任一路径不可达都不会保持 `healthy`。
 - 健康响应不得包含连接串、凭据、数据库版本细节、内部堆栈或公司数据。
+- 普通建连失败返回脱敏的 `DEPENDENCY_UNAVAILABLE`。若连接在查询过程中中断，API 返回 `DEPENDENCY_OUTCOME_UNKNOWN`；这意味着写入可能已经提交。不得自动重放非幂等请求，须先按 `requestId`、资源状态和审计事件核对结果，再人工决定后续动作。
 
 日常检查：
 

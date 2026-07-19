@@ -18,6 +18,17 @@ import {
 } from "../src/index.js";
 
 describe("job queue execution leases", () => {
+  it("validates queue database pool settings before opening a connection", () => {
+    const databaseUrl = "postgresql://user:password@127.0.0.1:5432/unused";
+    expect(() => new JobQueue(databaseUrl, { maxConnections: 0 })).toThrow(/max connections/);
+    expect(() => new JobQueue(databaseUrl, { connectTimeoutSeconds: 61 })).toThrow(
+      /connect timeout/,
+    );
+    expect(() => new JobQueue(databaseUrl, { applicationName: "queue with spaces" })).toThrow(
+      /application name/,
+    );
+  });
+
   it("expires backup jobs only after the worker stale-claim threshold", async () => {
     expect(BACKUP_JOB_EXPIRE_SECONDS).toBeGreaterThan(BACKUP_CLAIM_LEASE_SECONDS);
     expect(BACKUP_CLAIM_LEASE_SECONDS).toBeGreaterThan(60 * 60);

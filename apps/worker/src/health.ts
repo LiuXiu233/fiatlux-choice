@@ -116,7 +116,7 @@ export async function startWorkerHeartbeat(input: {
   };
 
   if (!(await checkNow())) {
-    throw new Error("Initial worker queue health probe failed");
+    throw new Error("Initial worker dependency health probe failed");
   }
   const timer = setInterval(() => void checkNow(), intervalMs);
   timer.unref();

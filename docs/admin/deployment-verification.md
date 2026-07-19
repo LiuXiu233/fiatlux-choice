@@ -58,7 +58,7 @@ docker compose ls
 docker system df
 ```
 
-`verify-deployment.sh` 要求 PostgreSQL、MinIO、API、worker、Web 和 Caddy 六个常驻服务都存在 Docker healthcheck 且实际为 `healthy`，并检查应用容器非 root、只读根文件系统、`no-new-privileges`、API/worker 不持有一次性 seed/bootstrap/migration/backup/restore 变量，以及除 Caddy 外无宿主端口。worker 只有在全部七类订阅经封装注册且 pg-boss 自身连接能读到全部声明队列时才刷新心跳；Caddy 健康检查同时覆盖 API live 与 Web 登录壳。脚本还从实际常驻容器确认 API/worker 都连接为 `fiatlux_runtime`，并查询该角色不是 SUPERUSER/CREATEDB/CREATEROLE/BYPASSRLS、无 public schema CREATE、无 audit UPDATE/DELETE，审计触发器为 ENABLE ALWAYS 且所有者是 migrator。检查不输出连接串或口令。
+`verify-deployment.sh` 要求 PostgreSQL、MinIO、API、worker、Web 和 Caddy 六个常驻服务都存在 Docker healthcheck 且实际为 `healthy`，并检查应用容器非 root、只读根文件系统、`no-new-privileges`、API/worker 不持有一次性 seed/bootstrap/migration/backup/restore 变量，以及除 Caddy 外无宿主端口。API 容器健康检查使用 bounded ready，同时覆盖 PostgreSQL、pg-boss 与 MinIO；worker 只有在全部七类订阅经封装注册、pg-boss 自身连接能读到全部声明队列且常驻 Drizzle 客户端能查询数据库时才刷新心跳。Caddy 健康检查覆盖代理后的 API live 与 Web 登录壳，而脚本另以外部硬超时请求代理后的 ready；Docker 的 `unhealthy` 状态本身不等于自动恢复。脚本还从实际常驻容器确认 API/worker 都连接为 `fiatlux_runtime`，并查询该角色不是 SUPERUSER/CREATEDB/CREATEROLE/BYPASSRLS、无 public schema CREATE、无 audit UPDATE/DELETE，审计触发器为 ENABLE ALWAYS 且所有者是 migrator。检查不输出连接串或口令。
 
 独立权限脚本在随机新卷上执行正向/负向测试：runtime 业务 DML/audit append/pg-boss 可用；DDL、建库、建角色、SET ROLE、replica bypass、禁用触发器和审计修改失败；backup 可 pg_dump 但不可写；restore 可在维护边界建库并 SET ROLE migrator、但不可建角色。第二次命令先模拟旧单超级用户拥有所有业务/pg-boss 对象，再验证所有权完整转移。
 

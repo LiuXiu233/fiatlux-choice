@@ -13,6 +13,8 @@ export const workerConfigSchema = z
   .object({
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
     DATABASE_URL: z.string().url(),
+    DATABASE_POOL_SIZE: z.coerce.number().int().min(1).max(50).default(5),
+    DATABASE_CONNECT_TIMEOUT_SECONDS: z.coerce.number().int().min(1).max(60).default(10),
     LLM_DRIVER: z.enum(["mock", "compatible", "disabled"]).default("disabled"),
     LLM_BASE_URL: optionalUrl,
     LLM_API_KEY: optionalSecret,

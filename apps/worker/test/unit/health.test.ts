@@ -198,6 +198,6 @@ describe("worker heartbeat", () => {
         },
         probeTimeoutMs: 10,
       }),
-    ).rejects.toThrow(/Initial worker queue health probe failed/);
+    ).rejects.toThrow(/Initial worker dependency health probe failed/);
   });
 });

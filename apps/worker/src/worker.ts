@@ -8,6 +8,7 @@ import {
   OfficialSourceReader,
   sanitizeIntegrationError,
 } from "@fiatlux/integrations";
+import { sql } from "drizzle-orm";
 
 import { readWorkerConfig } from "./config.js";
 import {
@@ -23,8 +24,18 @@ import {
 import { startWorkerHeartbeat } from "./health.js";
 
 const config = readWorkerConfig();
-const { db, client } = createDatabase(config.DATABASE_URL);
-const queue = new JobQueue(config.DATABASE_URL, { migrate: false, provisionQueues: false });
+const { db, client } = createDatabase(config.DATABASE_URL, {
+  applicationName: "fiatlux-worker",
+  connectTimeoutSeconds: config.DATABASE_CONNECT_TIMEOUT_SECONDS,
+  maxConnections: config.DATABASE_POOL_SIZE,
+});
+const queue = new JobQueue(config.DATABASE_URL, {
+  applicationName: "fiatlux-worker-queue",
+  connectTimeoutSeconds: config.DATABASE_CONNECT_TIMEOUT_SECONDS,
+  maxConnections: config.DATABASE_POOL_SIZE,
+  migrate: false,
+  provisionQueues: false,
+});
 const llmProvider = createLlmProvider({
   driver: config.LLM_DRIVER,
   ...(config.LLM_BASE_URL ? { baseUrl: config.LLM_BASE_URL } : {}),
@@ -88,10 +99,16 @@ await queue.schedule(
   { tz: "Asia/Shanghai" },
 );
 heartbeat = await startWorkerHeartbeat({
-  probe: () => queue.workerReadiness(),
+  probe: async () => {
+    const results = await Promise.allSettled([queue.workerReadiness(), db.execute(sql`SELECT 1`)]);
+    const failure = results.find(
+      (result): result is PromiseRejectedResult => result.status === "rejected",
+    );
+    if (failure) throw failure.reason;
+  },
   onProbeError: (error) => {
     console.error(
-      `FIAT LUX worker health probe failed: ${sanitizeIntegrationError(error, "Queue health probe failed", { maxLength: 500 })}`,
+      `FIAT LUX worker health probe failed: ${sanitizeIntegrationError(error, "Worker dependency health probe failed", { maxLength: 500 })}`,
     );
   },
 });

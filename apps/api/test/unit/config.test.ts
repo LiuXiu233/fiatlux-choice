@@ -22,6 +22,9 @@ describe("API config", () => {
     expect(config.LLM_MODEL).toBe("gpt-5-mini");
     expect(config.LLM_DRIVER).toBe("mock");
     expect(config.GITHUB_TOKEN).toBeUndefined();
+    expect(config.DATABASE_POOL_SIZE).toBe(5);
+    expect(config.DATABASE_CONNECT_TIMEOUT_SECONDS).toBe(10);
+    expect(config.READINESS_TIMEOUT_MS).toBe(3_000);
   });
 
   it("rejects short JWT secrets", () => {
@@ -31,6 +34,30 @@ describe("API config", () => {
         JWT_SECRET: "short",
       }),
     ).toThrow();
+  });
+
+  it("validates bounded database and readiness settings", () => {
+    const base = {
+      DATABASE_URL: "postgresql://user:password@localhost:5432/database",
+      JWT_SECRET: "a-secure-test-secret-that-is-long-enough",
+    };
+    expect(() => apiConfigSchema.parse({ ...base, DATABASE_POOL_SIZE: 0 })).toThrow();
+    expect(() =>
+      apiConfigSchema.parse({ ...base, DATABASE_CONNECT_TIMEOUT_SECONDS: 61 }),
+    ).toThrow();
+    expect(() => apiConfigSchema.parse({ ...base, READINESS_TIMEOUT_MS: 99 })).toThrow();
+    expect(
+      apiConfigSchema.parse({
+        ...base,
+        DATABASE_POOL_SIZE: 7,
+        DATABASE_CONNECT_TIMEOUT_SECONDS: 15,
+        READINESS_TIMEOUT_MS: 2_500,
+      }),
+    ).toMatchObject({
+      DATABASE_POOL_SIZE: 7,
+      DATABASE_CONNECT_TIMEOUT_SECONDS: 15,
+      READINESS_TIMEOUT_MS: 2_500,
+    });
   });
 
   it("accepts the root environment session aliases for direct local startup", () => {

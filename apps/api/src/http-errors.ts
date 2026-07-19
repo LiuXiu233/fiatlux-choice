@@ -32,6 +32,39 @@ function clientStatusCode(error: unknown) {
     : undefined;
 }
 
+const dependencyUnavailableCodes = new Set([
+  "CONNECT_TIMEOUT",
+  "ECONNREFUSED",
+  "EHOSTUNREACH",
+  "ENETUNREACH",
+  "ENOTFOUND",
+]);
+
+// These failures can occur after PostgreSQL received a write, so the caller must not infer that
+// the operation was rolled back merely because no response reached the API process.
+const dependencyOutcomeUnknownCodes = new Set([
+  "CONNECTION_CLOSED",
+  "CONNECTION_DESTROYED",
+  "ECONNRESET",
+  "EPIPE",
+  "ETIMEDOUT",
+]);
+
+type DependencyFailureKind = "outcome_unknown" | "unavailable";
+
+function dependencyFailureKind(error: unknown): DependencyFailureKind | undefined {
+  let current = error;
+  for (let depth = 0; depth < 5 && typeof current === "object" && current !== null; depth += 1) {
+    const candidate = current as { cause?: unknown; code?: unknown };
+    if (typeof candidate.code === "string") {
+      if (dependencyOutcomeUnknownCodes.has(candidate.code)) return "outcome_unknown";
+      if (dependencyUnavailableCodes.has(candidate.code)) return "unavailable";
+    }
+    current = candidate.cause;
+  }
+  return undefined;
+}
+
 async function appendRejectedRequestAudit(
   db: Database | undefined,
   request: FastifyRequest,
@@ -123,6 +156,24 @@ export function registerErrorHandler(app: FastifyInstance, db?: Database) {
       logUnauthenticatedLoginRejection(request, clientError.code, clientStatus);
       return reply.status(clientStatus).send({
         error: { ...clientError, requestId: request.id },
+      });
+    }
+
+    const dependencyFailure = dependencyFailureKind(error);
+    if (dependencyFailure) {
+      request.log.error({ err: error, requestId: request.id }, "request dependency unavailable");
+      return reply.status(503).send({
+        error: {
+          code:
+            dependencyFailure === "outcome_unknown"
+              ? "DEPENDENCY_OUTCOME_UNKNOWN"
+              : "DEPENDENCY_UNAVAILABLE",
+          message:
+            dependencyFailure === "outcome_unknown"
+              ? "A dependency connection was interrupted; verify the request outcome before retrying"
+              : "A required service is temporarily unavailable",
+          requestId: request.id,
+        },
       });
     }
 
