@@ -16,7 +16,7 @@ describe("compliance source monitoring UI configuration", () => {
     expect(
       Object.fromEntries(config?.fields.map((field) => [field.key, field]) ?? []),
     ).toMatchObject({
-      nextReviewAt: { kind: "date", label: "最迟人工复核日" },
+      nextReviewAt: { kind: "date", label: "计划专业复核截止" },
       monitoringCadenceDays: { kind: "number", defaultValue: "30" },
     });
   });

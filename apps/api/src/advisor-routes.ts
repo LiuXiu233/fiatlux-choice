@@ -441,8 +441,23 @@ export function registerAdvisorRoutes(
           ? await dependencies.db
               .select({
                 resourceId: complianceItems.id,
+                version: complianceItems.version,
                 status: complianceItems.status,
                 reviewStatus: complianceItems.reviewStatus,
+                contentHash: complianceItems.contentHash,
+                metadataHash: complianceItems.metadataHash,
+                reviewOutcome: complianceItems.reviewOutcome,
+                reviewerName: complianceItems.reviewerName,
+                reviewerRole: complianceItems.reviewerRole,
+                reviewerOrganization: complianceItems.reviewerOrganization,
+                reviewerQualification: complianceItems.reviewerQualification,
+                reviewMissingInformation: complianceItems.reviewMissingInformation,
+                reviewEvidenceFileId: complianceItems.reviewEvidenceFileId,
+                reviewedByUserId: complianceItems.reviewedByUserId,
+                reviewedAt: complianceItems.reviewedAt,
+                reviewedSourceVersion: complianceItems.reviewedSourceVersion,
+                reviewedContentHash: complianceItems.reviewedContentHash,
+                reviewedMetadataHash: complianceItems.reviewedMetadataHash,
                 nextReviewAt: complianceItems.nextReviewAt,
               })
               .from(complianceItems)

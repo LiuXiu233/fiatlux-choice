@@ -4,7 +4,13 @@ import { getTableConfig, PgTable } from "drizzle-orm/pg-core";
 import { describe, expect, it } from "vitest";
 
 import * as schema from "../src/schema.js";
-import { decisions, opportunities, products, resourceTables } from "../src/schema.js";
+import {
+  complianceItems,
+  decisions,
+  opportunities,
+  products,
+  resourceTables,
+} from "../src/schema.js";
 import { SYSTEM_ROLE_PERMISSIONS } from "../src/seed.js";
 
 const restoreAcceptance = JSON.parse(
@@ -37,10 +43,10 @@ describe("database schema invariants", () => {
     expect(restoreAcceptance.publicTables).toHaveLength(38);
   });
 
-  it("keeps the restore journal contiguous and backed by every 0000-0009 SQL file", () => {
-    expect(migrationJournal.entries).toHaveLength(10);
+  it("keeps the restore journal contiguous and backed by every 0000-0010 SQL file", () => {
+    expect(migrationJournal.entries).toHaveLength(11);
     expect(migrationJournal.entries.map((entry) => entry.idx)).toEqual(
-      Array.from({ length: 10 }, (_, index) => index),
+      Array.from({ length: 11 }, (_, index) => index),
     );
     for (const entry of migrationJournal.entries) {
       const prefix = entry.idx.toString().padStart(4, "0");
@@ -48,6 +54,37 @@ describe("database schema invariants", () => {
       expect(entry.when).toBeGreaterThan(0);
       expect(existsSync(new URL(`../migrations/${entry.tag}.sql`, import.meta.url))).toBe(true);
     }
+  });
+
+  it("keeps professional review evidence and recorder provenance first-class", () => {
+    const config = getTableConfig(complianceItems);
+    expect(getTableColumns(complianceItems)).toMatchObject({
+      reviewOutcome: expect.anything(),
+      reviewerName: expect.anything(),
+      reviewerQualification: expect.anything(),
+      reviewMissingInformation: expect.anything(),
+      reviewEvidenceFileId: expect.anything(),
+      reviewedByUserId: expect.anything(),
+      reviewedSourceVersion: expect.anything(),
+      reviewedContentHash: expect.anything(),
+    });
+    expect(
+      config.foreignKeys.find(
+        (candidate) => candidate.reference().columns[0]?.name === "review_evidence_file_id",
+      )?.onDelete,
+    ).toBe("restrict");
+    expect(
+      config.foreignKeys.find(
+        (candidate) => candidate.reference().columns[0]?.name === "reviewed_by_user_id",
+      )?.onDelete,
+    ).toBe("set null");
+    expect(
+      config.indexes.some((candidate) =>
+        candidate.config.columns.some(
+          (column) => "name" in column && column.name === "review_evidence_file_id",
+        ),
+      ),
+    ).toBe(true);
   });
 
   it("scopes every generic business resource to an organization", () => {

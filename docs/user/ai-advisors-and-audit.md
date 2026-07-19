@@ -40,8 +40,8 @@
 - API 验证 advisor-runs:create。
 - 验证用户具备顾问要求的权限。
 - 对每个上下文引用同时检查顾问范围、用户 read 权限、组织归属和资源类型。
-- 合规来源只有 `status=active`、`reviewStatus=reviewed`、`nextReviewAt` 非空且晚于当前时间时才进入模型上下文；空复核日、到期或其他状态只形成“存在复核缺口”的 withheld 提示。后台扫描是否及时运行不会放宽这个请求时 fail-closed 判断。
-- 对带 `sourceId` 的 obligations 或 compliance-events，系统还会读取被链接来源并继承同一 active/reviewed/未来复核日门禁；来源缺失、未复核、非 active、未安排复核或已过期时，该义务或事件内容会 withheld。没有 `sourceId` 的内部公司义务不因缺少来源自动被扣留；compliance-event 自身还必须为 reviewed。`evidenceFileId` 是完成凭证引用，不替代来源适用性复核。
+- 合规来源只有 `status=active`、`reviewStatus=reviewed`、`nextReviewAt` 尚未到期，并且同时存在确定结论、复核人姓名/角色/机构、胜任依据、明确缺失信息、已上传证据引用、站内登记人、登记时间和锁定来源版本时，才进入模型上下文。只有旧 `reviewed` 字样或部分字段的 legacy 记录会 withheld；后台扫描是否及时运行不会放宽请求时的 fail-closed 判断。
+- 对带 `sourceId` 的 obligations 或 compliance-events，系统还会读取被链接来源并继承完整 provenance、active/reviewed/未来复核日门禁；只有来源结论为 `applicable` 时，关联义务或事件才可进入上下文。`not_applicable` 来源本身可以作为被复核事实，但不能证明关联义务；来源缺失、未复核、非 active、无完整 provenance、结论不适用、未安排复核或已过期时，关联内容会 withheld。没有 `sourceId` 的内部公司义务不因缺少来源自动被扣留；compliance-event 自身还必须为 reviewed。`evidenceFileId` 是完成凭证引用，不替代来源适用性复核。
 - 固定本次 active 提示词版本，并保存上下文快照。
 
 ### 运行中

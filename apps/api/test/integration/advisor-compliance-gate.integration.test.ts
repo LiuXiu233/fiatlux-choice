@@ -1,6 +1,13 @@
 import { randomUUID } from "node:crypto";
 import type { AdvisorOutput } from "@fiatlux/contracts";
-import { advisorEdits, advisorRuns, auditEvents, createDatabase } from "@fiatlux/db";
+import {
+  advisorEdits,
+  advisorRuns,
+  auditEvents,
+  complianceItems,
+  createDatabase,
+  files,
+} from "@fiatlux/db";
 import { seedDatabase } from "@fiatlux/db/seed";
 import { type JobQueue, MemoryObjectStorage } from "@fiatlux/integrations";
 import { and, eq } from "drizzle-orm";
@@ -33,6 +40,8 @@ describe.skipIf(!databaseUrl)("advisor compliance derivation gate", () => {
   let dbHandle: ReturnType<typeof createDatabase>;
   let ownerCookie: string;
   let orgId: string;
+  let ownerUserId: string;
+  let reviewedFixtureIndex = 0;
   const suffix = randomUUID().slice(0, 8);
 
   beforeAll(async () => {
@@ -46,6 +55,7 @@ describe.skipIf(!databaseUrl)("advisor compliance derivation gate", () => {
       adminMustChangePassword: false,
     });
     orgId = seeded.organization.id;
+    ownerUserId = seeded.user.id;
     const config: ApiConfig = apiConfigSchema.parse({
       NODE_ENV: "test",
       DATABASE_URL: databaseUrl,
@@ -78,6 +88,57 @@ describe.skipIf(!databaseUrl)("advisor compliance derivation gate", () => {
     await app?.close();
     await dbHandle?.client.end();
   });
+
+  async function createReviewedSourceFixture(input: {
+    title: string;
+    category: string;
+    issuingAuthority: string;
+    sourceUrl: string;
+    nextReviewAt: string | null;
+    summary?: string;
+    sourceMetadata?: Record<string, unknown>;
+  }) {
+    reviewedFixtureIndex += 1;
+    const [evidence] = await dbHandle.db
+      .insert(files)
+      .values({
+        orgId,
+        storageKey: `advisor-review/${suffix}/${reviewedFixtureIndex}.txt`,
+        filename: `advisor-review-${reviewedFixtureIndex}.txt`,
+        contentType: "text/plain",
+        sizeBytes: 64,
+        checksumSha256: reviewedFixtureIndex.toString(16).padStart(64, "0"),
+        uploadStatus: "uploaded",
+        uploadedBy: ownerUserId,
+      })
+      .returning();
+    if (!evidence) throw new Error("Failed to create advisor review evidence fixture");
+    const reviewedAt = new Date("2026-07-01T00:00:00.000Z");
+    const [source] = await dbHandle.db
+      .insert(complianceItems)
+      .values({
+        orgId,
+        ...input,
+        nextReviewAt: input.nextReviewAt ? new Date(input.nextReviewAt) : null,
+        version: 2,
+        status: "active",
+        reviewStatus: "reviewed",
+        reviewOutcome: "applicable",
+        reviewerName: "Advisor Gate Professional Reviewer",
+        reviewerRole: "Legal compliance reviewer",
+        reviewerOrganization: "Advisor Gate Review Organization",
+        reviewerQualification: "Qualified to review the supplied legal compliance source",
+        reviewMissingInformation: "No known missing information for this test fixture",
+        reviewEvidenceFileId: evidence.id,
+        reviewedByUserId: ownerUserId,
+        reviewedAt,
+        reviewedSourceVersion: 1,
+        lastVerifiedAt: reviewedAt,
+      })
+      .returning();
+    if (!source) throw new Error("Failed to create reviewed compliance source fixture");
+    return source as JsonObject;
+  }
 
   it("withholds unreviewed source-derived records while preserving reviewed and internal chains", async () => {
     const promptResponse = await app.inject({
@@ -113,14 +174,11 @@ describe.skipIf(!databaseUrl)("advisor compliance derivation gate", () => {
       reviewStatus: "pending",
       summary: "PENDING-SOURCE-SUMMARY-SECRET",
     });
-    const reviewedSource = await createResource("compliance-items", {
+    const reviewedSource = await createReviewedSourceFixture({
       title: "Reviewed official source",
       category: "data",
       issuingAuthority: "Reviewed test authority",
       sourceUrl: `https://example.test/reviewed-source-${suffix}`,
-      status: "active",
-      reviewStatus: "reviewed",
-      lastVerifiedAt: new Date().toISOString(),
       nextReviewAt: "2030-01-01T00:00:00.000Z",
       summary: "Reviewed source summary",
       sourceMetadata: {
@@ -412,24 +470,19 @@ describe.skipIf(!databaseUrl)("advisor compliance derivation gate", () => {
       expect(response.statusCode, response.body).toBe(201);
       return body(response).data as JsonObject;
     };
-    const expiredSource = await createResource("compliance-items", {
+    const expiredSource = await createReviewedSourceFixture({
       title: "EXPIRED-REVIEW-SOURCE-CONTENTS",
       category: "tax",
       issuingAuthority: "Expired review authority",
       sourceUrl: `https://example.test/expired-review-${suffix}`,
-      status: "active",
-      reviewStatus: "reviewed",
-      lastVerifiedAt: "2025-01-01T00:00:00.000Z",
       nextReviewAt: "2025-02-01T00:00:00.000Z",
     });
-    const unscheduledSource = await createResource("compliance-items", {
+    const unscheduledSource = await createReviewedSourceFixture({
       title: "UNSCHEDULED-REVIEW-SOURCE-CONTENTS",
       category: "labor",
       issuingAuthority: "Unscheduled review authority",
       sourceUrl: `https://example.test/unscheduled-review-${suffix}`,
-      status: "active",
-      reviewStatus: "reviewed",
-      lastVerifiedAt: new Date().toISOString(),
+      nextReviewAt: null,
     });
     const expiredObligation = await createResource("obligations", {
       title: "EXPIRED-REVIEW-LINKED-OBLIGATION-CONTENTS",

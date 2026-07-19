@@ -307,6 +307,54 @@ export const complianceMonitorRequestSchema = z.object({
   reason: z.string().trim().min(1).max(2_000).optional(),
 });
 
+export const complianceReviewOutcomeSchema = z.enum([
+  "applicable",
+  "not_applicable",
+  "changes_required",
+  "insufficient_information",
+]);
+
+export const complianceProfessionalReviewSchema = z
+  .object({
+    expectedVersion: z.number().int().min(1),
+    reviewOutcome: complianceReviewOutcomeSchema,
+    resultingStatus: z.enum(["active", "superseded", "repealed", "uncertain"]),
+    reviewerName: z.string().trim().min(2).max(200),
+    reviewerRole: z.string().trim().min(2).max(200),
+    reviewerOrganization: z.string().trim().min(2).max(300),
+    reviewerQualification: z.string().trim().min(10).max(5_000),
+    evidenceFileId: idSchema,
+    applicability: z.string().trim().min(10).max(20_000),
+    summary: z.string().trim().min(10).max(30_000),
+    missingInformation: z.string().trim().min(5).max(20_000),
+    nextReviewAt: dateOrDateTimeSchema,
+    reason: z.string().trim().min(10).max(5_000),
+  })
+  .superRefine((input, context) => {
+    const unresolved = ["changes_required", "insufficient_information"].includes(
+      input.reviewOutcome,
+    );
+    if (unresolved && input.resultingStatus !== "uncertain") {
+      context.addIssue({
+        code: "custom",
+        path: ["resultingStatus"],
+        message: "Unresolved review outcomes must leave the source uncertain",
+      });
+    }
+    if (!unresolved && input.resultingStatus === "uncertain") {
+      context.addIssue({
+        code: "custom",
+        path: ["resultingStatus"],
+        message: "A conclusive review must record the source lifecycle status",
+      });
+    }
+  });
+
+export const complianceReviewListQuerySchema = listQuerySchema.pick({
+  page: true,
+  pageSize: true,
+});
+
 export const riskCreateSchema = z.object({
   title: z.string().trim().min(1).max(300),
   description: z.string().trim().min(1).max(20_000),

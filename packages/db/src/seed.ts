@@ -345,11 +345,13 @@ export async function importOfficialComplianceSources(
     const contentChanged = Boolean(
       existing?.metadataHash && existing.metadataHash !== metadataHash,
     );
-    const importedCanBeActive = item.reviewStatus === "reviewed" && Boolean(item.lastVerifiedAt);
-    const reviewStatus = contentChanged ? "stale" : (existing?.reviewStatus ?? item.reviewStatus);
+    const importedReviewStatus = item.reviewStatus === "stale" ? "stale" : "pending";
+    const reviewStatus = contentChanged
+      ? "stale"
+      : (existing?.reviewStatus ?? importedReviewStatus);
     const status = contentChanged
       ? "uncertain"
-      : (existing?.status ?? (importedCanBeActive ? "active" : "draft"));
+      : (existing?.status ?? (importedReviewStatus === "stale" ? "uncertain" : "draft"));
     const values = {
       title: item.title,
       category: item.category,

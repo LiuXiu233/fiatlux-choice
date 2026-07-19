@@ -4,7 +4,7 @@
 
 报告状态：**受控候选记录，不是 V1 已完成、已批准上线或 GitHub CI 已通过的声明**
 
-本报告区分“代码已实现”“2026-07-19 冻结基线本地验证”“2026-07-20 不可变实现提交签名隔离恢复”“最终跨层 Git SHA / GitHub CI”和“目标办公内网验收”。本地候选已经完成工程、浏览器、部署、供应链和签名恢复收口；签名恢复证据已绑定实现提交 `6545c18…`，但分层本地结果仍未统一绑定最终交付 SHA，也不能自动升级为生产批准。最终发布还必须按[最终交付报告模板](./final-delivery-report-template.md)补齐最终 Git/GitHub、目标内网、风险决策和真实责任人签署。
+本报告区分“当前工作树已实现/已测试”“旧不可变提交的 10 迁移签名恢复”“待创建的新实现提交”“最终 GitHub/GHCR”和“目标办公内网验收”。当前专业复核增量已完成代码、数据库、API、Web、desktop/mobile 真实栈和上一版本升级验证，但尚未提交，Compose、安全扫描和 11 迁移签名恢复尚未重做；旧 `6545c18…` 恢复不能证明新增 `0010`。最终发布还必须按[最终交付报告模板](./final-delivery-report-template.md)补齐最终 Git/GitHub、目标内网、风险决策和真实责任人签署。
 
 ## 1. 候选身份与批准状态
 
@@ -12,10 +12,10 @@
 | --- | --- | --- |
 | 产品版本 | V1 受控候选 | 所有阻断闸门关闭并取得业务负责人批准后才能改为 V1 完成 |
 | 目标仓库 | 私有 `LiuXiu233/fiatlux-choice`；候选分支已推送；[Draft PR #12](https://github.com/LiuXiu233/fiatlux-choice/pull/12) | 解除 Actions 计费阻断，取得绿色 CI/security；批准后再合并 |
-| Git SHA / tag | 文件真实内容门禁实现基线 `10d5edda0db53c3c6ca23118e3097ba1618ee447`；未创建发布 tag | 本报告状态回写为后续纯文档提交；生产发布仍须确定 commit/tag 签名政策，并绑定受保护 tag、GHCR digest、测试和恢复点 |
-| GitHub PR / CI | 实现基线的 [CI run 29694179547](https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29694179547) 与 [Security run 29694179494](https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29694179494) **均在 runner 启动前失败** | CI 两个、Security 四个首级失败 job 均为 `runner_id=0`、`steps=[]`，annotation 明确为近期账户付款失败或 Actions spending limit 不足，没有任何 workflow step 实际运行。推送文档 head 后继续只读检查；修复 Billing & plans 后重跑，不得把本地通过或平台 failure 写成 GitHub CI 通过 |
-| 数据库 | PostgreSQL 17.10；38 张业务表；10 个业务迁移 `0000`–`0009`；fresh 与 legacy 升级、pg-boss 24 和五职责权限均本地通过 | 最终提交后由 GitHub CI 复现；目标内网重新执行 |
-| 候选 QA 环境 | 最新冻结工作树的本机 production-like Compose：`https://choice-final.localhost:19443`，受信 TLS SAN `choice-final.localhost` | 不得改写成耀光广州办公内网生产环境 |
+| Git SHA / tag | 远端分支当前为 `43a6007f642be815a1d9d83e2a6353a91d25b4a8`；专业复核实现尚未提交；未创建发布 tag | 创建实现提交后绑定测试、Compose、恢复点和后续文档提交；生产发布仍须确定 commit/tag 签名政策 |
+| GitHub PR / CI | Draft PR #12 的最新已知 [CI run 29697701957](https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29697701957) 与 [Security run 29697701952](https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29697701952) **均在 runner 启动前失败** | `runner_id=0`、`steps=[]`，仍是账户付款或 Actions spending limit 阻断，没有 workflow step 实际运行；新提交自然触发后只读核验，不反复盲目重跑 |
+| 数据库 | PostgreSQL 17.10；38 张业务表；11 个业务迁移 `0000`–`0010`；当前工作树 fresh、`0009→0010` 数据保留/幂等和 fresh/legacy 五职责权限均本地通过 | 新不可变提交、Compose、签名恢复、GitHub CI 与目标内网重新执行 |
+| 候选 QA 环境 | 旧 10 迁移 production-like Compose 仍运行于 `https://choice-final.localhost:19443` | 新 `0010` 提交后重建；任何本机环境都不得改写成耀光广州办公内网生产环境 |
 | 目标办公内网 | **未部署** | 补主机、OS、架构、DNS、CA、防火墙、受管设备和运行观察 |
 | 业务、风险与运维批准 | **未取得** | 公司和安全/运维负责人基于终态证据签署 |
 | 法务合规/财税批准 | **未取得** | 专业人员说明资质、事实、范围、复核日期和有效期 |
@@ -34,28 +34,28 @@
 | 身份与权限 | 用户、组织、数据库会话、owner/admin/member/viewer、成员 pending/active/inactive/offboarded 生命周期、首次强制改密、最后 owner 保护和关键角色审批 | 首次改密前路由受限；改密撤销其他会话；归档角色后已有会话即时失权，唯一授权角色被归档时新登录不创建会话 |
 | 初始化与紧急恢复 | 显式 `bootstrap`、`metadata-only`、`system-role-maintenance` 三种 seed mode；离线 owner 密码恢复 CLI | 常规 metadata seed 不修改身份、成员、角色分配或权限；角色维护需 active owner、原因、批准引用和 requestId；恢复密钥仅从 stdin 读取并强制撤销会话、下次改密和审计 |
 | 审计与文件 | 追加审计、请求 ID、前后值、拒绝事件、私有 S3/MinIO 文件和并发完成锁 | 跨组织拒绝、不可经 API 篡改审计、拒绝请求体最小化、真实文件往返和并发冲突已本地验证；目标内网仍需复跑 |
-| 执行与治理 | 目标、项目、任务、决策、义务、合规日历、风险、合同及 typed refs | decision 可引用 objective/project/task 并强制已填写项属于同一活动链；product 可引用 project，opportunity 同时引用 product/project 时必须匹配产品所属活动项目。父关系变更和归档不能破坏活动下游引用；义务/合规日历分开关联来源 `sourceId` 与完成凭证 `evidenceFileId`，来源关联仍不等于已判定适用 |
+| 执行与治理 | 目标、项目、任务、决策、义务、合规日历、风险、合同、typed refs 和证据型专业复核 | 专业复核锁定实名/角色/机构/胜任依据/缺失信息/证据/来源版本与哈希/站内登记人，追加不可改历史；通用 reviewed/确定生命周期提升被拒，实质编辑自动 stale/uncertain，当前与历史证据均受归档保护 |
 | 财务 | 简易收支、发票、现金流、外部动作引用 | 金额使用整数分；正式外部状态仍依赖人工回执，不由内部批准伪造成功 |
 | 产品、市场与电竞教育 | 产品组合、市场机会、电竞教育筹备页、官网公开业务/内容审计、成人试点课程草案，以及 4 篇带 Schema、版本、来源、练习、模板、AI 披露和审阅状态的成年人基础内容 | 四篇均为待人工复核、权利待确认和 WordPress 未发布；教育页面是内部筹备工作台，不是招生、支付、直播、考试、证书或未成年人平台 |
 | GitHub 情报 | manual/read-only 集成边界与刷新队列 | 刷新任务在排队时保存当前 `expectedVersion`，worker 只在版本未变时以 CAS 写回，不用陈旧网络快照覆盖并发人工修改；真实 GitHub 凭据和最小权限读取验收未执行 |
 | 审批与外部动作 | 八类高风险人工批准、manual/mock 状态机、幂等与合同/发票/付款台账原子联动 | 没有外部回执时不报成功；已关联草稿支出的银行付款在取消或审批驳回时于同一事务解除台账关联并增加版本，避免草稿被废弃动作永久占用 |
 | 通知、顾问与工作流 | in-app 通知、失败可见的 email/webhook 边界、七类顾问、四类工作流步骤 | 通知 queued-only、工作流不可变快照/partial checkpoint、advisor/workflow/backup 原子 claim 和 lease 边界均已在冻结候选回归覆盖 |
-| AI 可追溯 | 总经理、财务、法务合规、产品研发、市场机会、人力行政、信息安全；提示词/模型/工具/引用/人工编辑审计 | 运行默认只对发起人可见；`advisor-runs:read-all`/全局权限只扩大候选可见集，读者仍必须拥有顾问入口及全部上下文资源读权限；mock 不代表真实模型质量 |
-| PWA | 响应式导航、manifest、service worker、离线壳和恢复会话 | 最新构建生成 10 个 precache 条目（688.29 KiB）；电竞教育 128.19 kB 路由块与 411.29 kB 主块分离，mock/隔离真实栈 desktop/mobile、离线壳、SW active 和 390 px 无溢出通过；真机安装/升级仍待执行 |
-| 部署与灾备 | Compose、Caddy、迁移、健康检查、日志、最小权限数据库/MinIO、age+Ed25519 备份恢复、升级回滚工具 | 最新 Compose、六常驻服务重启持久性、部署验证、一次不可变实现提交的签名 formatVersion 2 隔离恢复，以及一次本地 synthetic bridge 真实 schema/镜像差异升级与应用回滚均通过；最终跨层 SHA、生产恢复入口、历史生产 N−1、GHCR 和目标内网仍待执行 |
+| AI 可追溯 | 总经理、财务、法务合规、产品研发、市场机会、人力行政、信息安全；提示词/模型/工具/引用/人工编辑审计 | 运行默认只对发起人可见；合规事实要求完整、未到期专业 provenance，关联义务还要求 applicable；legacy/不适用/过期内容失败关闭；mock 不代表真实模型质量 |
+| PWA | 响应式导航、manifest、service worker、离线壳和恢复会话 | 当前构建生成 10 个 precache 条目（700.30 KiB）；mock 46+6 与隔离真实栈 4/4 通过，专业复核 desktop/mobile 无溢出；真机安装/升级仍待执行 |
+| 部署与灾备 | Compose、Caddy、迁移、健康检查、日志、最小权限数据库/MinIO、age+Ed25519 备份恢复、升级回滚工具 | 工具与旧 10 迁移证据存在；新增 `0010` 后必须在新实现提交上重建 Compose 与签名恢复。生产入口、历史生产 N−1、GHCR 和目标内网仍待执行 |
 
 ## 3. 最终冻结测试状态
 
-以下质量结果采用分层口径：最新文件内容门禁实现 `10d5edd…` 已重跑静态、类型、173 项单元、全部 API/worker 集成、真实 MinIO、生产构建和代码安全门禁；未修改的 Web/Compose 层沿用前一实现基线 `e582509…` 的 E2E、浏览器与新 Web 镜像证据；底层恢复和 synthetic bridge 仍按各自明确的更早基线分列。因此尚不存在把所有门禁绑定到同一个最终不可变 Git SHA 的证据。实现提交后只允许回写交付元数据，否则必须重跑受影响门禁。原始日志、备份、私钥、Cookie 和运行数据保存在被忽略的本地证据目录，不进入 Git。
+以下结果属于当前未提交工作树，不能当作不可变发布证据。实现提交后必须重跑受影响的安全、Compose 和恢复门禁；原始日志、备份、私钥、Cookie 和运行数据保存在被忽略的本地证据目录，不进入 Git。
 
 | 层级 | 当前发布口径 | 最终要求 |
 | --- | --- | --- |
-| Biome / ShellCheck / Actionlint / 类型 | **本地通过** | Biome 199 个文件；全 `scripts/`/`infra/` shell；3 个 workflow；7 个 TypeScript 项目 |
-| 单元/聚合测试 | **本地通过** | 173/173 单元测试；完整 workspace 聚合通过；最终精确集成计数见同次测试日志 |
-| API/worker/PostgreSQL/pg-boss/MinIO 集成 | **本地通过** | 最新 API 17 files/86 tests、worker 5 files/25 tests；fresh/legacy PostgreSQL、pg-boss 24、权限/事务/并发/CAS/审计、连接恢复以及 2 项真实 MinIO/S3 集成通过 |
-| Playwright / 视觉 / PWA | **本地通过，有外部边界** | mock 全套 44 passed、6 个设计内条件 skip；真实栈 desktop/mobile 2 项通过；独立浏览器抽查、PWA 离线壳和 390 px 移动布局通过；受管真机另行验收 |
-| 全 workspace 与七镜像构建 | **本地通过，有发布边界** | production build 通过；七个本地 arm64 镜像、六常驻服务健康/重启持久性和按需 backup 通过；GHCR 双平台 root digest 待 GitHub release workflow |
-| 安全/供应链 | **本地通过，有外部边界** | Gitleaks、Semgrep 1.170.0+canary、生产依赖审计、IaC、七镜像 Trivy 0.70.0、七份 SPDX 和真实 BuildKit 0.31.2 provenance fixture 通过；GitHub CodeQL/安全 workflow 待运行 |
+| Biome / ShellCheck / Actionlint / 类型 | **当前工作树本地通过** | Biome 206 个文件；全 `scripts/`/`infra/` shell；3 个 workflow；7 个 TypeScript 项目 |
+| 单元测试 | **当前工作树本地通过** | 177/177；最终不可变提交需聚合复跑 |
+| API/worker/PostgreSQL/pg-boss/MinIO 集成 | **当前工作树本地通过** | API 18 files/89 tests、worker 5 files/25 tests、真实 MinIO 2/2；11 迁移 fresh 与 `0009→0010`、fresh/legacy 权限、事务/并发/CAS/审计和连接恢复通过 |
+| Playwright / PWA | **当前工作树本地通过，有外部边界** | mock 46 passed、6 个设计内 skip；隔离真实栈 desktop/mobile 4/4；PWA production build 通过；受管真机另行验收 |
+| 全 workspace 与七镜像构建 | **源码 production build 通过 / 新镜像待重建** | 新增层尚无不可变 SHA 的七镜像、Compose、Trivy/SPDX 或 GHCR 证据 |
+| 安全/供应链 | **旧基线通过 / 当前改动待重跑** | 当前新增代码提交前仍须执行 Gitleaks、Semgrep+canary、依赖审计和相关镜像扫描；GitHub CodeQL/安全 workflow 待运行 |
 
 生产依赖 `pnpm audit --prod` 为 0。全依赖扫描只剩 `drizzle-kit -> esbuild` 的 1 个 moderate，属于不进入生产镜像、CI 不启动其 dev server 的开发期依赖；列为非阻断升级项，不应表述为“全依赖零漏洞”。未运行、设计内 skip 和目标环境缺失继续分列。
 
@@ -68,6 +68,8 @@
 合规监测人工升级增量在独立 PostgreSQL 17 容器迁移后完成目标文件 7/7 与完整 worker integration 5 files/25 tests。验证人工复核到期、正文变化和连续第三次失败都在来源状态事务内精确创建一条同组织 `todo/high` 任务及任务审计；重复扫描、同一哈希、第四次失败和陈旧并发结果不会重复或虚假建任务，失败错误在来源、任务和审计中均保持脱敏。专用数据库容器测试后已删除；负责人自动分配、邮件/企业协作通知和目标环境实际处置仍未验收。
 
 文件真实内容门禁增量新增 6 项单元测试并把全工作区单元提高到 173/173；独立 PostgreSQL 17 上目标 API 文件 19/19、完整 API 17 files/86 tests 通过，真实 MinIO 私有桶往返/错误摘要删除 2/2 通过。伪装 PDF 在对象写入前返回 400，文件保持 `pending/version=1`，对象不存在，拒绝审计不含 body；压缩 OOXML 正/负向覆盖 DOCX/XLSX/PPTX 主部件、类型清单、宏、ActiveX、嵌入、加密和路径穿越。隔离 PostgreSQL/MinIO 容器均在测试后删除。该门禁不是反病毒、沙箱、完整格式语义解析或 DLP，不能把测试通过写成附件无恶意内容。
+
+证据型专业复核增量在当前工作树完成 177/177 单元、API 18 files/89 tests、worker 25/25、真实 MinIO 2/2、mock 46+6 和隔离真实栈 4/4。真实 desktop/mobile 场景只在专用 E2E 数据库创建明确标注“非专业意见”的来源，上传实际对象、登记 not_applicable 测试结论、查看追加审计并验证证据归档返回 409；它不冒充 73 条来源的真实复核。专用迁移验收从 `0000`–`0009` 保存 legacy reviewed 数据、应用 `0010`、确认未发明 provenance 且幂等，再从空库得到 38 表/11 迁移；fresh/legacy 五职责权限也通过。该增量尚未提交，安全、Compose 和签名恢复结论仍待新不可变实现提交。
 
 ## 4. 权限、后台任务与数据一致性证据
 
@@ -88,7 +90,7 @@
 
 ## 5. 安全、最小权限与供应链
 
-- PostgreSQL 使用 bootstrap、migrator、runtime、backup、restore 五类分离身份；pg-boss DDL 只由一次性 migrator 执行，API/worker 的 runtime 身份无 DDL。38 张业务表、10 个迁移（`0000`–`0009`）、pg-boss 24、fresh 空卷与 legacy 单超级用户升级的正/负向权限探测均在冻结候选通过。
+- PostgreSQL 使用 bootstrap、migrator、runtime、backup、restore 五类分离身份；pg-boss DDL 只由一次性 migrator 执行，API/worker 的 runtime 身份无 DDL。38 张业务表、11 个迁移（`0000`–`0010`）、pg-boss 24、fresh 空卷与 legacy 单超级用户升级的正/负向权限探测均在当前工作树通过。
 - MinIO/S3 分离 root/bootstrap、app runtime、backup、restore 四类身份。root 只用于初始化和管理；app 不能读取备份，backup/restore 权限按职责收窄。
 - 保持 access-key ID 不变时可收敛轮换 secret；若更换 access-key ID，必须由 root-only 运维显式删除旧用户，并用旧凭据执行负向验证。bootstrap 无法枚举未知旧 ID，因此不能把“新 ID 可用”误写为“旧 ID 已撤销”。
 - 恢复脚本有 Ed25519 公钥类型/独立指纹/规范化 attestation/签名/来源/版本门禁，以及归档路径/链接/设备/FIFO/sparse/重复项/父子冲突/尾随数据与资源上限防护，使用受保护 scratch 和跨 backup/restore/upgrade/rollback 的 maintenance lock；陈旧锁、partial 或异常明文暂存必须人工调查。签名失败在任何 Compose 或数据动作前退出；在线文件私钥不是 HSM，仍需独立 SHA 与人工批准。
@@ -112,9 +114,9 @@
 ## 6. 合规、AI 与官网/电竞教育边界
 
 - 结构化数据集有 73 条中国、广东、广州官方来源；目前均未完成专业人工复核，不能据此宣称公司适用性结论已批准。
-- 合规结论保存在可维护记录中，包含来源、适用条件、更新时间、机器哈希状态和人工复核状态；政策变化不应永久硬编码。
-- 义务和合规日历可分别保存 `sourceId` 与 `evidenceFileId`：前者指向同组织未归档的合规来源，后者必须是同组织已 `uploaded` 的凭证文件。来源与凭证都可为空，因此记录成功不自动证明有法律依据或已完成履行；被引用凭证也不可在引用存续时归档。
-- 未复核或已过期来源不会作为法务顾问的确定事实；自动抓取、哈希一致或 pending 引用也不等于专业复核。
+- 合规结论保存在可维护记录中；专用复核要求复核人、角色、机构/内部组织、胜任依据、适用条件、摘要、缺失信息、证据、结论、期限和理由，并锁定来源版本、哈希与站内登记人。通用写入和 seed 不能伪造 reviewed 或 `active|superseded|repealed`，政策变化不永久硬编码。
+- 义务和合规日历可分别保存 `sourceId` 与 `evidenceFileId`。当前及历史专业复核引用过的证据也不可归档；需要更正时只能上传新文件并追加新意见。系统不验证资质真伪或意见正确性。
+- 未复核、legacy 不完整 provenance、过期或不活动来源不会作为法务顾问事实；关联义务/日历还要求来源结论为 `applicable`，`not_applicable` 会失败关闭关联内容。自动抓取、哈希一致或 pending 引用都不等于专业复核。
 - 人工复核到期、正文哈希变化和连续第三次监测失败会各创建一条立即到期、未分配的高优先级人工任务，并在来源事件与任务创建审计间保存关联；任务完成不会自动把来源写成已复核，邮件/企业协作通知仍未配置。
 - 当前真实 LLM 尚未完成供应商、数据处理、预算和质量验收。定向 mock 流程只证明权限、结构、审计、withheld 和后台运行边界。
 - 当前 GitHub 集成仍为 manual/read-only 边界，没有真实凭据验收。
@@ -124,9 +126,9 @@
 - [成人电竞教育试点课程草案](../product/adult-esports-pilot-curriculum.md)限定中国境内成年人、小班、人工交付和 4–6 周试点。九项事实问卷、合同、隐私、退款、版权、健康提示、内容安全和事件响应未获批准前，不得扩展为公开招生或未成年人服务。
 - [首批电竞教育基础内容](../../content/education/README.md)已形成四篇可维护内部草案并接入产品页面；每篇均保留版本、对象、负责人/审阅角色、权利、来源、AI 披露、正文、模板、练习和复核问题。四篇当前均为 `pending`/`pending_clearance`/`not_published`，不能把页面可读或测试通过写成专业复核或 WordPress 发布成功。
 
-## 7. formatVersion 2 签名备份恢复证据
+## 7. 历史 10 迁移 formatVersion 2 签名备份恢复证据
 
-2026-07-20（UTC 执行时间 `2026-07-19T17:45:28Z`）从不可变实现提交 `6545c186753b5b7ba9a84d41d20879e6197362aa` 构建 backup 镜像，执行一次真实 age+Ed25519 一致性备份及随机全新卷隔离恢复；脱敏机器可读记录见[签名恢复证据](./evidence/signed-backup-restore-drill-20260720.json)：
+2026-07-20（UTC 执行时间 `2026-07-19T17:45:28Z`）曾从不可变实现提交 `6545c186753b5b7ba9a84d41d20879e6197362aa` 构建 backup 镜像，执行真实 age+Ed25519 一致性备份及随机全新卷隔离恢复；脱敏机器可读记录见[旧签名恢复证据](./evidence/signed-backup-restore-drill-20260720.json)。新增 `0010` 后，该表仅为历史证据，不证明当前 schema：
 
 | 项目 | 不可变实现提交本地证据 |
 | --- | --- |
@@ -139,7 +141,7 @@
 | 清理 | 临时签名私钥、归档、scratch、隔离容器/卷和临时 backup image tag 均删除；原 finalqa 六服务保持原容器 ID 且全部 healthy |
 | 范围边界 | backup 来源已绑定 `6545c18…`，本地镜像 ID 为 `sha256:7da0b0f…bd70` 且 Trivy 0.70.0 HIGH/CRITICAL 为 0；`productionRestoreEntrypointExecuted=false`，不冒充最终跨层 Git SHA、经审批破坏性 `restore.sh`、异介质或目标办公内网证据 |
 
-该证据证明不可变实现提交的签名创建、独立指纹/摘要及两份 sidecar 验证、底层 formatVersion 2 恢复、数据库/对象一致性、权限和 readiness 可用。最终跨层候选仍需统一复现；目标办公内网、异介质保管、业务批准的 RPO/RTO 和生产审批入口继续保持发布闸门。
+该证据证明当时 10 迁移实现的签名创建、独立指纹/摘要、底层恢复、数据库/对象一致性、权限和 readiness；不证明当前 11 迁移候选。新实现提交必须重新生成签名归档并隔离恢复；目标办公内网、异介质保管、业务批准的 RPO/RTO 和生产审批入口继续保持发布闸门。
 
 2026-07-19 的旧 formatVersion 2 演练早于 Ed25519 attestation，2026-07-18 的 v1 归档、37 表/4 对象、16 秒恢复以及同内容标签升级/回滚则更早；两者都不能替代当前签名门禁或最终 SHA 复验。新的本地 synthetic bridge 复验见下一节，但它仍不能冒充历史生产 N−1 或目标环境发布演练。
 
@@ -172,15 +174,15 @@
 以下全部完成前，本报告结论不得升级为“V1 完成”：
 
 - [x] 冻结工作树的预期范围、ignored 证据边界、当前树/完整历史 secret scan 和敏感数据已完成本地审计；仅纳入私有仓库的 6 张公开官网研究截图，公开或外发前仍需权利/个人信息复核；创建提交后还要在 GitHub 对不可变 SHA 复核。
-- [x] 冻结工作树完成 lint、ShellCheck、Actionlint、全部类型检查、全量单元/集成/聚合、mock/real E2E 和生产构建，并分列设计内 skip。
-- [x] 最新 production-like Compose 已验证 HTTPS、38 张业务表、10 个业务迁移 `0000`–`0009`、pg-boss、PWA、六服务重启和持久性；目标内网复现待执行。
-- [x] 首次强制改密、成员生命周期、版本化角色审批、归档角色即时失权、通知 queued-only、GitHub 刷新 CAS、工作流不可变快照、付款取消/驳回解链、顾问 requester-only/read-all、合规 source/evidence、typed refs 和文件并发场景已在分层测试覆盖。
+- [x] 当前工作树完成 lint、ShellCheck、Actionlint、全部类型检查、177 单元、API/worker/MinIO、mock/real E2E 和生产构建，并分列设计内 skip；实现提交后仍须最终聚合复跑。
+- [ ] 新 `0010` 实现提交的 production-like Compose 尚未重建；旧 10 迁移 HTTPS/PWA/六服务证据不能替代。
+- [x] 首次强制改密、成员生命周期、版本化角色审批、归档角色即时失权、通知 queued-only、GitHub 刷新 CAS、工作流不可变快照、付款取消/驳回解链、顾问 requester-only/read-all、合规专业 provenance/source/evidence、typed refs 和文件并发场景已在分层测试覆盖。
 - [x] fresh/legacy 数据库、PostgreSQL 五职责和 MinIO 四身份的正/负向最小权限验证通过；目标凭据仍须重新执行。
-- [x] 不可变实现提交 `6545c18…` 已执行一次真实 age+Ed25519 签名 formatVersion 2 独立恢复，核对 checksum sidecar、签名报告、数据库、对象、迁移、pg-boss、权限、RPO/RTO 和清理；最终跨层提交、生产 `restore.sh` 审批入口、目标内网和异介质复演待执行。
+- [ ] `6545c18…` 只完成旧 10 迁移 age+Ed25519 恢复；新 11 迁移实现提交的签名独立恢复尚未执行。
 - [x] 本地 synthetic bridge 使用真实 schema 与七镜像差异完成升级、双恢复点、应用回滚和 idle 后 HTTPS CRUD；历史生产 N−1、GHCR 和目标内网复演仍待执行，不得把本地结果升级为生产证明。
-- [x] 本地完成 Gitleaks、生产依赖审计、Semgrep+canary、Trivy、七镜像 SPDX/provenance fixture 和 arm64 content ID；GitHub/GHCR 双平台 digest、CodeQL/等效 SAST 与剩余风险批准待执行。
+- [ ] 当前新增代码尚待实现提交前后完成 Gitleaks、生产依赖审计、Semgrep+canary、相关镜像 Trivy/SPDX；旧供应链证据不证明当前层。GitHub/GHCR 双平台 digest、CodeQL/等效 SAST 与剩余风险批准仍待执行。
 - [ ] 在真实受管手机完成 PWA 安装/升级和移动浏览器验证。
-- [x] 文件真实内容门禁实现基线 `10d5edda0db53c3c6ca23118e3097ba1618ee447` 已在候选分支提交并推送；文档提交和推送后仍须核对 Draft PR #12 远端 head 与新 run。
+- [ ] 专业复核实现尚未提交/推送；提交后须核对 Draft PR #12 远端 head 与自然触发的新 run。
 - [ ] 修复 GitHub Actions 账户付款/spending limit 阻断，重跑 PR CI 与 Security；取得绿色 run、CodeQL 或经批准等效 SAST、制品证据，批准后再合并。
 - [ ] 在耀光广州办公内网验证主机、DNS、CA、防火墙、显式 seed、owner 首登改密、设备、备份介质和运行观察。
 - [ ] 完成真实 LLM/GitHub 最小权限验收，或明确保持 disabled/manual 且不宣称外部集成完成。
@@ -191,4 +193,4 @@
 
 FIAT LUX CHOICE 已形成可运行的模块化单体候选，不是脚手架、静态仪表盘或仅有数据库模型。身份、权限、审计、业务模块、八类人工批准、七类顾问、后台任务、PWA、最小权限、七镜像供应链和 Ed25519 签名 formatVersion 2 独立恢复路径均有分层实证。
 
-本地全量测试、生产构建、最新 Compose、桌面/移动浏览器、安全扫描、一次不可变实现提交签名独立恢复，以及一次有真实 schema/镜像差异的本地 synthetic bridge 升级与应用回滚已经通过，实现基线已形成 Draft PR。分层证据尚未统一绑定最终跨层提交；GitHub CI/security 因账户付款或 spending limit 在 runner 启动前被平台阻断，并非绿色；GHCR 双平台制品、历史生产 N−1/目标发布复演、破坏性生产恢复审批入口、耀光目标办公内网和真实受管手机、真实 LLM/GitHub、73 条专业复核、MinIO 长期支持风险决策以及业务和专业责任人批准也未完成。因此本报告的唯一合法结论仍是：**受控候选，尚不可宣布 V1 已完成或已批准生产上线。**
+当前工作树已完成专业复核增量的静态、单元、数据库、API/worker、MinIO、desktop/mobile 真实栈和生产构建验证，但尚未形成不可变实现提交，也尚未重建 Compose、安全扫描和 11 迁移签名恢复。GitHub CI/security 仍因账户付款或 spending limit 在 runner 前阻断；GHCR、历史生产 N−1/目标发布、生产恢复入口、耀光目标办公内网/真机、真实 LLM/GitHub、73 条真实专业复核、MinIO 支持风险决策及责任人批准均未完成。因此唯一合法结论仍是：**受控候选，尚不可宣布 V1 已完成或已批准生产上线。**

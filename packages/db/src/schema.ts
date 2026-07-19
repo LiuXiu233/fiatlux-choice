@@ -317,9 +317,26 @@ export const complianceItems = pgTable(
     monitoringLeaseToken: text("monitoring_lease_token"),
     monitoringLeaseUntil: timestamp("monitoring_lease_until", { withTimezone: true }),
     monitoringJobId: text("monitoring_job_id"),
+    reviewOutcome: text("review_outcome"),
+    reviewerName: text("reviewer_name"),
+    reviewerRole: text("reviewer_role"),
+    reviewerOrganization: text("reviewer_organization"),
+    reviewerQualification: text("reviewer_qualification"),
+    reviewMissingInformation: text("review_missing_information"),
+    reviewEvidenceFileId: uuid("review_evidence_file_id").references(() => files.id, {
+      onDelete: "restrict",
+    }),
+    reviewedByUserId: uuid("reviewed_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    reviewedSourceVersion: integer("reviewed_source_version"),
+    reviewedContentHash: text("reviewed_content_hash"),
+    reviewedMetadataHash: text("reviewed_metadata_hash"),
   },
   (table) => [
     index("compliance_items_org_status_idx").on(table.orgId, table.status, table.reviewStatus),
+    index("compliance_items_org_review_evidence_idx").on(table.orgId, table.reviewEvidenceFileId),
     index("compliance_items_org_monitor_idx").on(
       table.orgId,
       table.contentHashStatus,

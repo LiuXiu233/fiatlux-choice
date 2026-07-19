@@ -169,6 +169,8 @@ POST 使用对应 create schema。PATCH 使用 create schema 的部分字段，�
 | POST /github-insights/:id/refresh | 仅在批准的 read-only GitHub 模式排队刷新；服务端保存当前版本快照，见下文 |
 | POST /compliance-items/:id/monitor | 有 `compliance-items:update` 权限者人工排队检查白名单官方来源；可选 body 为 `{ "reason": "..." }`，202 只代表已排队 |
 | GET /compliance-items/:id/snapshots | 读取该官方来源追加式监测快照历史 |
+| GET /compliance-items/:id/reviews | 按页读取追加式专业复核历史；需要 `compliance-items:read` |
+| POST /compliance-items/:id/reviews | 登记版本绑定、证据支持的专业复核；需要 `compliance-items:update` 与 `files:read` |
 | GET /settings/integrations、POST /settings/integrations/:id/test | 集成边界和连接探测 |
 | GET/POST /backups | 查看或排队备份任务 |
 | GET /advisors、提示词版本和 advisor-runs 路由 | 权限感知顾问与审计，详见第 11 节 |
@@ -176,6 +178,28 @@ POST 使用对应 create schema。PATCH 使用 create schema 的部分字段，�
 OAS 3.1 是当前候选的机器可读接口清单；运行时 Zod/领域校验仍是实际执行边界。发现文档与运行时不一致时应作为契约缺陷处理并阻断兼容性发布，不能在客户端静默猜测。
 
 合规来源监控响应包含 `sourceId`、`jobId` 和 `status=queued`。同一组织、同一来源已有有效租约时，重复请求复用在途 job，不会二次抓取。实际成功、变化、失败或陈旧结果丢弃必须查看来源字段与审计事件，不能把 HTTP 202 当作官方网页已抓取或政策已人工复核。人工复核到期、已有正文哈希变化和连续第三次失败会由 worker 在来源更新事务中创建一条未分配的 `todo/high` 任务；来源事件 metadata 的 `escalationTaskId` 指向该任务。任务出现仍只表示需要人工处理，不表示来源已经复核或问题已经解决。
+
+专业复核不能走通用 `POST/PATCH /compliance-items`。专用 POST 必须提交当前 `expectedVersion`、结论、来源生命周期、复核人姓名/角色/机构、胜任依据、同组织 `uploaded` 证据文件、适用条件、摘要、缺失信息、下一复核日和登记原因。例如：
+
+~~~json
+{
+  "expectedVersion": 3,
+  "reviewOutcome": "applicable",
+  "resultingStatus": "active",
+  "reviewerName": "真实复核人姓名",
+  "reviewerRole": "公司治理法律顾问",
+  "reviewerOrganization": "复核人所在机构或内部组织",
+  "reviewerQualification": "与本来源相关的执业、岗位、项目经验或内部授权依据",
+  "evidenceFileId": "00000000-0000-4000-8000-000000000000",
+  "applicability": "在已核对的主体、地域、行为和公司事实条件下适用。",
+  "summary": "已核对官方来源版本、效力线索和公司事实。",
+  "missingInformation": "暂无已知缺失信息；公司事实变化时必须重新复核。",
+  "nextReviewAt": "2027-01-20",
+  "reason": "登记本次可追溯专业意见，供后续义务和顾问上下文使用。"
+}
+~~~
+
+`applicable`/`not_applicable` 必须配合 `active|superseded|repealed`；`changes_required`/`insufficient_information` 必须保持 `uncertain`。复核日必须在当前时点之后且不超过 366 天。API 在单一事务锁定来源版本、内容/元数据哈希、证据和站内登记人，并追加 `professional_review` 审计；版本冲突返回 409。旧意见仍从 GET 历史读取，其证据即使不再是当前证据也禁止归档。201 只证明系统保存了某人登记的意见和证据，不证明资质、结论正确或外部机构批准。
 
 `obligations` 和 `compliance-events` 都可选填 `sourceId` 与 `evidenceFileId`。`sourceId` 必须指向同一组织内未归档的合规来源，但建立引用不代表该来源已经完成适用性、现行有效性或专业复核；`evidenceFileId` 必须指向同一组织内未归档且状态为 `uploaded` 的文件，被义务或合规日历引用后不能归档。证据为空不会自动阻止业务状态更新，调用方仍必须按人工复核流程确认完成事实并保存外部凭证。
 

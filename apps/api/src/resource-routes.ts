@@ -35,6 +35,24 @@ export const resourceArchiveQuerySchema = z.object({
 });
 
 const queueFailureMessage = "Background queue dispatch failed";
+const conclusiveComplianceLifecycleStatuses = new Set(["active", "superseded", "repealed"]);
+const complianceReviewSensitiveFields = new Set([
+  "title",
+  "category",
+  "issuingAuthority",
+  "sourceUrl",
+  "effectiveDate",
+  "jurisdiction",
+  "sourceTitle",
+  "sourcePublishedAt",
+  "sourceStatus",
+  "sourceMetadata",
+  "applicability",
+  "summary",
+  "contentHash",
+  "metadataHash",
+  "contentHashStatus",
+]);
 type ResourceQueueJobData =
   | { orgId: string; runId: string }
   | { orgId: string; notificationId: string };
@@ -206,6 +224,17 @@ export function registerResourceRoutes(
           throw new DomainError(
             "APPROVAL_REQUIRED",
             "Payment links can only be created by the controlled bank-payment workflow",
+            409,
+          );
+        }
+        if (
+          resource === "compliance-items" &&
+          (parsedInput.reviewStatus === "reviewed" ||
+            conclusiveComplianceLifecycleStatuses.has(String(parsedInput.status)))
+        ) {
+          throw new DomainError(
+            "PROFESSIONAL_REVIEW_REQUIRED",
+            "Reviewed or conclusive compliance lifecycle states must use the evidence-backed professional review action",
             409,
           );
         }
@@ -393,6 +422,42 @@ export function registerResourceRoutes(
             expectedVersion,
             actualVersion: current.version,
           });
+        }
+        if (resource === "compliance-items") {
+          if (
+            patch.reviewStatus === "reviewed" ||
+            conclusiveComplianceLifecycleStatuses.has(String(patch.status))
+          ) {
+            throw new DomainError(
+              "PROFESSIONAL_REVIEW_REQUIRED",
+              "Reviewed or conclusive compliance lifecycle states must use the evidence-backed professional review action",
+              409,
+            );
+          }
+          if (
+            current.reviewStatus === "reviewed" &&
+            ("nextReviewAt" in patch || "lastVerifiedAt" in patch)
+          ) {
+            throw new DomainError(
+              "PROFESSIONAL_REVIEW_REQUIRED",
+              "A reviewed source's verification dates can only change through a new professional review",
+              409,
+            );
+          }
+          if (current.reviewStatus === "reviewed" && "status" in patch) {
+            throw new DomainError(
+              "PROFESSIONAL_REVIEW_REQUIRED",
+              "A reviewed source's lifecycle status can only change through a new professional review",
+              409,
+            );
+          }
+          if (
+            current.reviewStatus === "reviewed" &&
+            Object.keys(patch).some((field) => complianceReviewSensitiveFields.has(field))
+          ) {
+            patch.reviewStatus = "stale";
+            patch.status = "uncertain";
+          }
         }
         if (
           resource === "compliance-items" &&

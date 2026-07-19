@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Archive,
+  BadgeCheck,
   CheckCheck,
   ChevronLeft,
   ChevronRight,
@@ -60,6 +61,44 @@ export interface ComplianceSnapshotRecord {
   fetchedAt: string;
 }
 
+export interface ComplianceReviewHistoryRecord {
+  id: string;
+  sourceId: string;
+  recordedByUserId: string | null;
+  recordedByDisplayName: string | null;
+  recordedAt: string;
+  reviewOutcome: "applicable" | "not_applicable" | "changes_required" | "insufficient_information";
+  resultingStatus: "active" | "superseded" | "repealed" | "uncertain";
+  reviewerName: string;
+  reviewerRole: string;
+  reviewerOrganization: string;
+  reviewerQualification: string;
+  evidenceFileId: string;
+  applicability: string;
+  summary: string;
+  missingInformation: string;
+  reason: string;
+  reviewedAt: string;
+  nextReviewAt: string;
+  reviewedSourceVersion: number;
+  reviewedContentHash: string | null;
+  reviewedMetadataHash: string | null;
+}
+
+const complianceReviewOutcomeLabels = {
+  applicable: "适用于当前业务",
+  not_applicable: "经复核不适用",
+  changes_required: "需要修改后复核",
+  insufficient_information: "信息不足",
+} satisfies Record<ComplianceReviewHistoryRecord["reviewOutcome"], string>;
+
+const complianceLifecycleStatusLabels = {
+  active: "现行",
+  superseded: "已被替代",
+  repealed: "已废止",
+  uncertain: "待确认",
+} satisfies Record<ComplianceReviewHistoryRecord["resultingStatus"], string>;
+
 function valueForInput(value: unknown): string {
   if (value === null || value === undefined) return "";
   return String(value);
@@ -90,6 +129,8 @@ export function ResourcePage() {
   const [creating, setCreating] = useState(false);
   const [archiving, setArchiving] = useState<BusinessRecord | null>(null);
   const [snapshotSource, setSnapshotSource] = useState<BusinessRecord | null>(null);
+  const [reviewSource, setReviewSource] = useState<BusinessRecord | null>(null);
+  const [reviewHistorySource, setReviewHistorySource] = useState<BusinessRecord | null>(null);
   const [lifecycleRequest, setLifecycleRequest] = useState<{
     record: BusinessRecord;
     action: MembershipLifecycleAction;
@@ -109,6 +150,14 @@ export function ResourcePage() {
     config?.key === "compliance-items" && auth.can("compliance-items:update"),
   );
   const canViewComplianceSnapshots = Boolean(
+    config?.key === "compliance-items" && auth.can("compliance-items:read"),
+  );
+  const canRecordComplianceReview = Boolean(
+    config?.key === "compliance-items" &&
+      auth.can("compliance-items:update") &&
+      auth.can("files:read"),
+  );
+  const canViewComplianceReviews = Boolean(
     config?.key === "compliance-items" && auth.can("compliance-items:read"),
   );
   const canMarkNotificationRead = Boolean(
@@ -133,6 +182,8 @@ export function ResourcePage() {
     setEditing(null);
     setCreating(false);
     setSnapshotSource(null);
+    setReviewSource(null);
+    setReviewHistorySource(null);
     setLifecycleRequest(null);
     setRoleMember(null);
   }, [currentResource]);
@@ -328,6 +379,8 @@ export function ResourcePage() {
                     (canDownloadFile && record.uploadStatus === "uploaded") ||
                     canMonitorCompliance ||
                     canViewComplianceSnapshots ||
+                    canRecordComplianceReview ||
+                    canViewComplianceReviews ||
                     (canMarkNotificationRead && !record.readAt) ||
                     (canRunWorkflow && record.enabled !== false) ? (
                       <RowMenu
@@ -340,6 +393,12 @@ export function ResourcePage() {
                           : {})}
                         {...(canViewComplianceSnapshots
                           ? { onViewSnapshots: () => setSnapshotSource(record) }
+                          : {})}
+                        {...(canRecordComplianceReview
+                          ? { onRecordReview: () => setReviewSource(record) }
+                          : {})}
+                        {...(canViewComplianceReviews
+                          ? { onViewReviews: () => setReviewHistorySource(record) }
                           : {})}
                         {...(config.key === "notifications"
                           ? { onView: () => setEditing(record) }
@@ -483,6 +542,24 @@ export function ResourcePage() {
         size="large"
       >
         {snapshotSource ? <ComplianceSnapshotHistory source={snapshotSource} /> : null}
+      </Modal>
+      <Modal
+        open={Boolean(reviewSource)}
+        onClose={() => setReviewSource(null)}
+        title={`登记专业复核：${reviewSource ? recordLabel(reviewSource) : ""}`}
+        size="large"
+      >
+        {reviewSource ? (
+          <ComplianceReviewForm source={reviewSource} onClose={() => setReviewSource(null)} />
+        ) : null}
+      </Modal>
+      <Modal
+        open={Boolean(reviewHistorySource)}
+        onClose={() => setReviewHistorySource(null)}
+        title={`专业复核记录：${reviewHistorySource ? recordLabel(reviewHistorySource) : ""}`}
+        size="large"
+      >
+        {reviewHistorySource ? <ComplianceReviewHistory source={reviewHistorySource} /> : null}
       </Modal>
       <Modal
         open={Boolean(lifecycleRequest)}
@@ -660,6 +737,8 @@ function RowMenu({
   onRun,
   onMonitor,
   onViewSnapshots,
+  onRecordReview,
+  onViewReviews,
   onArchive,
   onDeactivate,
   onOffboard,
@@ -673,6 +752,8 @@ function RowMenu({
   onRun?: () => void;
   onMonitor?: () => void;
   onViewSnapshots?: () => void;
+  onRecordReview?: () => void;
+  onViewReviews?: () => void;
   onArchive?: () => void;
   onDeactivate?: () => void;
   onOffboard?: () => void;
@@ -735,6 +816,30 @@ function RowMenu({
             >
               <RefreshCw aria-hidden="true" />
               检查官方来源
+            </button>
+          ) : null}
+          {onRecordReview ? (
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                onRecordReview();
+              }}
+            >
+              <BadgeCheck aria-hidden="true" />
+              登记专业复核
+            </button>
+          ) : null}
+          {onViewReviews ? (
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                onViewReviews();
+              }}
+            >
+              <History aria-hidden="true" />
+              查看专业复核
             </button>
           ) : null}
           {onViewSnapshots ? (
@@ -1061,6 +1166,446 @@ function MemberLifecycleForm({
         </button>
       </div>
     </form>
+  );
+}
+
+export function ComplianceReviewForm({
+  source,
+  onClose,
+}: {
+  source: BusinessRecord;
+  onClose: () => void;
+}) {
+  const [reviewOutcome, setReviewOutcome] = useState<
+    "" | ComplianceReviewHistoryRecord["reviewOutcome"]
+  >("");
+  const [resultingStatus, setResultingStatus] = useState<
+    "" | ComplianceReviewHistoryRecord["resultingStatus"]
+  >("");
+  const [reviewerName, setReviewerName] = useState("");
+  const [reviewerRole, setReviewerRole] = useState("");
+  const [reviewerOrganization, setReviewerOrganization] = useState("");
+  const [reviewerQualification, setReviewerQualification] = useState("");
+  const [evidenceFileId, setEvidenceFileId] = useState("");
+  const [applicability, setApplicability] = useState(String(source.applicability ?? ""));
+  const [summary, setSummary] = useState(String(source.summary ?? ""));
+  const [missingInformation, setMissingInformation] = useState("");
+  const [nextReviewAt, setNextReviewAt] = useState("");
+  const [reason, setReason] = useState("");
+  const queryClient = useQueryClient();
+  const toast = useToast();
+  const mutation = useMutation({
+    mutationFn: () =>
+      api.post<BusinessRecord>(`/compliance-items/${source.id}/reviews`, {
+        expectedVersion: Number(source.version ?? 1),
+        reviewOutcome,
+        resultingStatus,
+        reviewerName,
+        reviewerRole,
+        reviewerOrganization,
+        reviewerQualification,
+        evidenceFileId,
+        applicability,
+        summary,
+        missingInformation,
+        nextReviewAt,
+        reason,
+      }),
+    onSuccess: async () => {
+      toast.push("专业复核已写入追加审计；来源状态已按结论更新", "success");
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["resource", "compliance-items"] }),
+        queryClient.invalidateQueries({ queryKey: ["compliance-reviews", source.id] }),
+      ]);
+      onClose();
+    },
+    onError: (error) =>
+      toast.push(error instanceof ApiError ? error.message : "无法登记专业复核", "error"),
+  });
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    mutation.mutate();
+  };
+  const complete =
+    reviewOutcome &&
+    resultingStatus &&
+    reviewerName.trim() &&
+    reviewerRole.trim() &&
+    reviewerOrganization.trim() &&
+    reviewerQualification.trim() &&
+    evidenceFileId &&
+    applicability.trim() &&
+    summary.trim() &&
+    missingInformation.trim() &&
+    nextReviewAt &&
+    reason.trim();
+  const unresolvedOutcome =
+    reviewOutcome === "changes_required" || reviewOutcome === "insufficient_information";
+  const lifecycleOptions = Object.entries(complianceLifecycleStatusLabels).filter(([value]) =>
+    reviewOutcome ? (unresolvedOutcome ? value === "uncertain" : value !== "uncertain") : true,
+  );
+
+  return (
+    <form className="resource-form" onSubmit={submit}>
+      <p className="compliance-snapshot-boundary">
+        每次提交都会锁定来源版本、当前内容/元数据哈希、证据文件和站内登记人，并写入不可修改的审计历史。
+        系统不会判断复核人的专业资格，也不会批量把 73
+        条来源标记为已复核；请先核对官方原文和公司实际事实。
+      </p>
+      <div className="form-grid">
+        <div className="form-field">
+          <label htmlFor="compliance-review-outcome">
+            专业结论<b aria-hidden="true">*</b>
+          </label>
+          <select
+            id="compliance-review-outcome"
+            required
+            value={reviewOutcome}
+            onChange={(event) => {
+              const outcome = event.target.value as
+                | ""
+                | ComplianceReviewHistoryRecord["reviewOutcome"];
+              setReviewOutcome(outcome);
+              if (outcome === "changes_required" || outcome === "insufficient_information") {
+                setResultingStatus("uncertain");
+              } else if (resultingStatus === "uncertain") {
+                setResultingStatus("");
+              }
+            }}
+          >
+            <option value="">请选择</option>
+            {Object.entries(complianceReviewOutcomeLabels).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="form-field">
+          <label htmlFor="compliance-review-status">
+            来源生命周期<b aria-hidden="true">*</b>
+          </label>
+          <select
+            id="compliance-review-status"
+            required
+            value={resultingStatus}
+            onChange={(event) =>
+              setResultingStatus(
+                event.target.value as "" | ComplianceReviewHistoryRecord["resultingStatus"],
+              )
+            }
+          >
+            <option value="">请选择</option>
+            {lifecycleOptions.map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="form-field">
+          <label htmlFor="compliance-reviewer-name">
+            复核人姓名<b aria-hidden="true">*</b>
+          </label>
+          <input
+            id="compliance-reviewer-name"
+            required
+            maxLength={200}
+            value={reviewerName}
+            onChange={(event) => setReviewerName(event.target.value)}
+          />
+        </div>
+        <div className="form-field">
+          <label htmlFor="compliance-reviewer-role">
+            专业角色<b aria-hidden="true">*</b>
+          </label>
+          <input
+            id="compliance-reviewer-role"
+            required
+            maxLength={200}
+            value={reviewerRole}
+            onChange={(event) => setReviewerRole(event.target.value)}
+            placeholder="例如：劳动用工律师、税务顾问、隐私负责人"
+          />
+        </div>
+        <div className="form-field full-width">
+          <label htmlFor="compliance-reviewer-organization">
+            所在机构 / 内部组织<b aria-hidden="true">*</b>
+          </label>
+          <input
+            id="compliance-reviewer-organization"
+            required
+            maxLength={300}
+            value={reviewerOrganization}
+            onChange={(event) => setReviewerOrganization(event.target.value)}
+          />
+        </div>
+        <div className="form-field full-width">
+          <label htmlFor="compliance-reviewer-qualification">
+            胜任依据<b aria-hidden="true">*</b>
+          </label>
+          <textarea
+            id="compliance-reviewer-qualification"
+            required
+            minLength={10}
+            maxLength={5_000}
+            rows={3}
+            value={reviewerQualification}
+            onChange={(event) => setReviewerQualification(event.target.value)}
+            placeholder="记录与本条来源相关的执业、岗位、项目经验或内部授权依据；不要录入证件号码。"
+          />
+        </div>
+        <div className="form-field full-width">
+          <label htmlFor="compliance-review-evidence">
+            已上传复核证据<b aria-hidden="true">*</b>
+          </label>
+          <ReferenceSelect
+            id="compliance-review-evidence"
+            field={{
+              key: "evidenceFileId",
+              label: "已上传复核证据",
+              kind: "reference",
+              required: true,
+              referenceEndpoint: "/files?status=uploaded",
+              referenceLabelKey: "filename",
+            }}
+            value={evidenceFileId}
+            onChange={setEvidenceFileId}
+          />
+        </div>
+        <div className="form-field full-width">
+          <label htmlFor="compliance-review-applicability">
+            对耀光的适用条件<b aria-hidden="true">*</b>
+          </label>
+          <textarea
+            id="compliance-review-applicability"
+            required
+            minLength={10}
+            maxLength={20_000}
+            rows={4}
+            value={applicability}
+            onChange={(event) => setApplicability(event.target.value)}
+          />
+        </div>
+        <div className="form-field full-width">
+          <label htmlFor="compliance-review-summary">
+            复核摘要<b aria-hidden="true">*</b>
+          </label>
+          <textarea
+            id="compliance-review-summary"
+            required
+            minLength={10}
+            maxLength={30_000}
+            rows={5}
+            value={summary}
+            onChange={(event) => setSummary(event.target.value)}
+          />
+        </div>
+        <div className="form-field full-width">
+          <label htmlFor="compliance-review-missing-information">
+            缺失信息<b aria-hidden="true">*</b>
+          </label>
+          <textarea
+            id="compliance-review-missing-information"
+            required
+            minLength={5}
+            maxLength={20_000}
+            rows={4}
+            value={missingInformation}
+            onChange={(event) => setMissingInformation(event.target.value)}
+            placeholder="如无已知缺失信息，请明确填写“暂无已知缺失信息”；不要留空。"
+          />
+        </div>
+        <div className="form-field">
+          <label htmlFor="compliance-review-next-at">
+            下次专业复核日<b aria-hidden="true">*</b>
+          </label>
+          <input
+            id="compliance-review-next-at"
+            type="date"
+            required
+            value={nextReviewAt}
+            onChange={(event) => setNextReviewAt(event.target.value)}
+          />
+        </div>
+        <div className="form-field full-width">
+          <label htmlFor="compliance-review-reason">
+            本次登记原因<b aria-hidden="true">*</b>
+          </label>
+          <textarea
+            id="compliance-review-reason"
+            required
+            minLength={10}
+            maxLength={5_000}
+            rows={3}
+            value={reason}
+            onChange={(event) => setReason(event.target.value)}
+            placeholder={`说明为何在来源版本 ${Number(source.version ?? 1)} 上形成或暂缓结论。`}
+          />
+        </div>
+      </div>
+      <div className="form-actions">
+        <button type="button" className="button secondary" onClick={onClose}>
+          取消
+        </button>
+        <button type="submit" className="button primary" disabled={mutation.isPending || !complete}>
+          {mutation.isPending ? "正在登记…" : "登记专业复核"}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+export function ComplianceReviewHistory({ source }: { source: BusinessRecord }) {
+  const [page, setPage] = useState(1);
+  const auth = useAuth();
+  const reviews = useQuery({
+    queryKey: ["compliance-reviews", source.id, page],
+    queryFn: async () =>
+      api.get<ComplianceReviewHistoryRecord[]>(
+        `/compliance-items/${source.id}/reviews?page=${page}&pageSize=10`,
+      ),
+  });
+  const meta = normalizeMeta(reviews.data?.meta, reviews.data?.data.length ?? 0);
+  const pageCount = meta.totalPages ?? meta.pageCount ?? 1;
+
+  if (reviews.isLoading) {
+    return (
+      <div className="resource-loading" role="status" aria-label="正在加载专业复核记录">
+        <Spinner />
+      </div>
+    );
+  }
+  if (reviews.isError) {
+    return (
+      <ErrorState
+        message={reviews.error instanceof ApiError ? reviews.error.message : "无法读取专业复核记录"}
+        onRetry={() => void reviews.refetch()}
+      />
+    );
+  }
+  if (!reviews.data?.data.length) {
+    return (
+      <EmptyState
+        title="尚无专业复核记录"
+        detail="不能用通用编辑或批量操作代替专业复核；请先上传真实意见证据。"
+      />
+    );
+  }
+
+  return (
+    <section className="compliance-snapshot-history" aria-label="专业复核历史">
+      <p className="compliance-snapshot-boundary">
+        下列记录来自追加写审计，只证明谁在何时登记了哪份意见和证据，不自动证明复核人的资质、意见正确或外部机构已经批准。
+        来源内容变化或复核到期后，系统会继续把结论降为需更新。
+      </p>
+      <div className="compliance-snapshot-list">
+        {reviews.data.data.map((review) => (
+          <article className="compliance-snapshot-card" key={review.id}>
+            <header>
+              <strong>{complianceReviewOutcomeLabels[review.reviewOutcome]}</strong>
+              <time className="compliance-snapshot-time" dateTime={review.recordedAt}>
+                {formatDateTime(review.recordedAt)}
+              </time>
+            </header>
+            <dl className="compliance-snapshot-meta">
+              <div>
+                <dt>专业复核人</dt>
+                <dd>{review.reviewerName}</dd>
+              </div>
+              <div>
+                <dt>角色 / 机构</dt>
+                <dd>
+                  {review.reviewerRole}
+                  {` · ${review.reviewerOrganization}`}
+                </dd>
+              </div>
+              <div>
+                <dt>来源生命周期</dt>
+                <dd>{complianceLifecycleStatusLabels[review.resultingStatus]}</dd>
+              </div>
+              <div>
+                <dt>站内登记人</dt>
+                <dd>{review.recordedByDisplayName ?? "账号已删除或不可识别"}</dd>
+              </div>
+              <div>
+                <dt>锁定来源版本</dt>
+                <dd>v{review.reviewedSourceVersion}</dd>
+              </div>
+              <div>
+                <dt>下次专业复核</dt>
+                <dd>{formatDateTime(review.nextReviewAt)}</dd>
+              </div>
+            </dl>
+            <dl className="compliance-snapshot-hashes">
+              <div>
+                <dt>锁定内容哈希</dt>
+                <dd>
+                  <code>{review.reviewedContentHash ?? "当时没有可用的自动抓取哈希"}</code>
+                </dd>
+              </div>
+              <div>
+                <dt>锁定元数据哈希</dt>
+                <dd>
+                  <code>{review.reviewedMetadataHash ?? "当时没有元数据哈希"}</code>
+                </dd>
+              </div>
+            </dl>
+            <div>
+              <h3>胜任依据</h3>
+              <p>{review.reviewerQualification}</p>
+            </div>
+            <div>
+              <h3>适用条件</h3>
+              <p>{review.applicability}</p>
+            </div>
+            <div>
+              <h3>复核摘要</h3>
+              <p>{review.summary}</p>
+            </div>
+            <div>
+              <h3>缺失信息</h3>
+              <p>{review.missingInformation}</p>
+            </div>
+            <div>
+              <h3>登记原因</h3>
+              <p>{review.reason}</p>
+            </div>
+            <p>
+              证据文件：
+              {auth.can("files:read") ? (
+                <a href={apiUrl(`/files/${review.evidenceFileId}/download`)}>下载复核证据</a>
+              ) : (
+                "已记录；当前账号无文件读取权限"
+              )}
+            </p>
+          </article>
+        ))}
+      </div>
+      {pageCount > 1 ? (
+        <nav className="pagination" aria-label="专业复核分页">
+          <button
+            type="button"
+            className="button secondary"
+            disabled={page <= 1}
+            onClick={() => setPage((current) => Math.max(1, current - 1))}
+          >
+            上一页
+          </button>
+          <span>
+            第 {page} / {pageCount} 页
+          </span>
+          <button
+            type="button"
+            className="button secondary"
+            disabled={page >= pageCount}
+            onClick={() => setPage((current) => current + 1)}
+          >
+            下一页
+          </button>
+        </nav>
+      ) : null}
+    </section>
   );
 }
 

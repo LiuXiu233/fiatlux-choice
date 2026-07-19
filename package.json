@@ -22,6 +22,7 @@
     "test:unit": "pnpm -r --if-present test:unit",
     "test:integration": "pnpm -r --workspace-concurrency=1 --if-present test:integration",
     "test:database-privileges": "./scripts/test-database-privileges.sh",
+    "test:database-migrations": "pnpm --filter @fiatlux/db test:migrations",
     "test:e2e": "pnpm test:e2e:mock",
     "test:e2e:mock": "pnpm --filter @fiatlux/web test:e2e:mock",
     "test:e2e:real": "./scripts/e2e-real-stack.sh",

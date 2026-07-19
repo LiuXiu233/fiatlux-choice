@@ -10,6 +10,7 @@ import {
 import {
   auditEvents,
   complianceEvents,
+  complianceItems,
   contracts,
   files,
   invoices,
@@ -488,58 +489,89 @@ export function registerFileRoutes(
             actualVersion: current.version,
           });
         }
-        const [contractReferences, invoiceReferences, obligationReferences, eventReferences] =
-          await Promise.all([
-            tx
-              .select({ id: contracts.id })
-              .from(contracts)
-              .where(
-                and(
-                  eq(contracts.orgId, request.auth.orgId),
-                  eq(contracts.fileId, current.id),
-                  isNull(contracts.archivedAt),
-                ),
-              )
-              .limit(1),
-            tx
-              .select({ id: invoices.id })
-              .from(invoices)
-              .where(
-                and(
-                  eq(invoices.orgId, request.auth.orgId),
-                  eq(invoices.fileId, current.id),
-                  isNull(invoices.archivedAt),
-                ),
-              )
-              .limit(1),
-            tx
-              .select({ id: obligations.id })
-              .from(obligations)
-              .where(
-                and(
-                  eq(obligations.orgId, request.auth.orgId),
-                  eq(obligations.evidenceFileId, current.id),
-                  isNull(obligations.archivedAt),
-                ),
-              )
-              .limit(1),
-            tx
-              .select({ id: complianceEvents.id })
-              .from(complianceEvents)
-              .where(
-                and(
-                  eq(complianceEvents.orgId, request.auth.orgId),
-                  eq(complianceEvents.evidenceFileId, current.id),
-                  isNull(complianceEvents.archivedAt),
-                ),
-              )
-              .limit(1),
-          ]);
+        const [
+          contractReferences,
+          invoiceReferences,
+          obligationReferences,
+          eventReferences,
+          sourceReviewReferences,
+          historicalSourceReviewReferences,
+        ] = await Promise.all([
+          tx
+            .select({ id: contracts.id })
+            .from(contracts)
+            .where(
+              and(
+                eq(contracts.orgId, request.auth.orgId),
+                eq(contracts.fileId, current.id),
+                isNull(contracts.archivedAt),
+              ),
+            )
+            .limit(1),
+          tx
+            .select({ id: invoices.id })
+            .from(invoices)
+            .where(
+              and(
+                eq(invoices.orgId, request.auth.orgId),
+                eq(invoices.fileId, current.id),
+                isNull(invoices.archivedAt),
+              ),
+            )
+            .limit(1),
+          tx
+            .select({ id: obligations.id })
+            .from(obligations)
+            .where(
+              and(
+                eq(obligations.orgId, request.auth.orgId),
+                eq(obligations.evidenceFileId, current.id),
+                isNull(obligations.archivedAt),
+              ),
+            )
+            .limit(1),
+          tx
+            .select({ id: complianceEvents.id })
+            .from(complianceEvents)
+            .where(
+              and(
+                eq(complianceEvents.orgId, request.auth.orgId),
+                eq(complianceEvents.evidenceFileId, current.id),
+                isNull(complianceEvents.archivedAt),
+              ),
+            )
+            .limit(1),
+          tx
+            .select({ id: complianceItems.id })
+            .from(complianceItems)
+            .where(
+              and(
+                eq(complianceItems.orgId, request.auth.orgId),
+                eq(complianceItems.reviewEvidenceFileId, current.id),
+                isNull(complianceItems.archivedAt),
+              ),
+            )
+            .limit(1),
+          tx
+            .select({ id: auditEvents.id })
+            .from(auditEvents)
+            .where(
+              and(
+                eq(auditEvents.orgId, request.auth.orgId),
+                eq(auditEvents.resourceType, "compliance-items"),
+                eq(auditEvents.action, "professional_review"),
+                sql`${auditEvents.metadata} ->> 'evidenceFileId' = ${current.id}`,
+              ),
+            )
+            .limit(1),
+        ]);
         if (
           contractReferences[0] ||
           invoiceReferences[0] ||
           obligationReferences[0] ||
-          eventReferences[0]
+          eventReferences[0] ||
+          sourceReviewReferences[0] ||
+          historicalSourceReviewReferences[0]
         ) {
           throw new DomainError("CONFLICT", "Referenced business evidence cannot be archived", 409);
         }

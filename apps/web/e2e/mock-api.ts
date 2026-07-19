@@ -164,10 +164,13 @@ const complianceSource = {
   status: "uncertain",
   reviewStatus: "stale",
   contentHashStatus: "changed",
+  contentHash: "4".repeat(64),
+  metadataHash: "5".repeat(64),
   nextReviewAt: "2026-08-18T00:00:00Z",
   nextMonitorAt: "2026-07-25T00:00:00Z",
   version: 2,
 };
+const complianceReviews: Array<Record<string, unknown>> = [];
 const complianceSnapshots = [
   {
     id: "compliance-snapshot-2",
@@ -323,6 +326,71 @@ export async function installMockApi(
         data: complianceSnapshots,
         meta: { page: 1, pageSize: 10, total: 1, pageCount: 1 },
       });
+    }
+    if (path === "/compliance-items/compliance-source-1/reviews" && request.method() === "GET") {
+      return json(route, {
+        data: complianceReviews,
+        meta: { page: 1, pageSize: 10, total: complianceReviews.length, pageCount: 1 },
+      });
+    }
+    if (path === "/compliance-items/compliance-source-1/reviews" && request.method() === "POST") {
+      const input = request.postDataJSON() as Record<string, unknown>;
+      if (
+        input.expectedVersion !== complianceSource.version ||
+        !["applicable", "not_applicable", "changes_required", "insufficient_information"].includes(
+          String(input.reviewOutcome),
+        ) ||
+        !["active", "superseded", "repealed", "uncertain"].includes(
+          String(input.resultingStatus),
+        ) ||
+        !String(input.reviewerOrganization ?? "").trim() ||
+        !String(input.missingInformation ?? "").trim() ||
+        input.evidenceFileId !== evidenceFile.id
+      ) {
+        return json(route, { error: { message: "专业复核输入无效" } }, 400);
+      }
+      const reviewedAt = "2026-07-20T02:00:00.000Z";
+      const reviewId = `compliance-review-${complianceReviews.length + 1}`;
+      const unresolved = ["changes_required", "insufficient_information"].includes(
+        String(input.reviewOutcome),
+      );
+      const history = {
+        id: reviewId,
+        sourceId: complianceSource.id,
+        recordedByUserId: session.user.id,
+        recordedByDisplayName: session.user.displayName,
+        recordedAt: reviewedAt,
+        ...input,
+        reviewerOrganization: input.reviewerOrganization,
+        reviewedAt,
+        nextReviewAt: `${String(input.nextReviewAt)}T00:00:00+08:00`,
+        reviewedSourceVersion: complianceSource.version,
+        reviewedContentHash: complianceSource.contentHash,
+        reviewedMetadataHash: complianceSource.metadataHash,
+      };
+      complianceReviews.unshift(history);
+      Object.assign(complianceSource, {
+        status: input.resultingStatus,
+        reviewStatus: unresolved ? "stale" : "reviewed",
+        reviewOutcome: input.reviewOutcome,
+        reviewerName: input.reviewerName,
+        reviewerRole: input.reviewerRole,
+        reviewerOrganization: input.reviewerOrganization,
+        reviewerQualification: input.reviewerQualification,
+        reviewMissingInformation: input.missingInformation,
+        reviewEvidenceFileId: input.evidenceFileId,
+        reviewedByUserId: session.user.id,
+        reviewedAt,
+        reviewedSourceVersion: complianceSource.version,
+        reviewedContentHash: complianceSource.contentHash,
+        reviewedMetadataHash: complianceSource.metadataHash,
+        applicability: input.applicability,
+        summary: input.summary,
+        nextReviewAt: history.nextReviewAt,
+        contentHashStatus: unresolved ? complianceSource.contentHashStatus : "current",
+        version: complianceSource.version + 1,
+      });
+      return json(route, { data: complianceSource, meta: { reviewId } }, 201);
     }
     if (path === "/users" && request.method() === "GET") {
       return json(route, {

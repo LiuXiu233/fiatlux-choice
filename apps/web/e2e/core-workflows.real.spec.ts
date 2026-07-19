@@ -62,6 +62,118 @@ async function saveResource(dialog: Locator, expectedText: string, page: Page) {
   await expect(page.getByText(expectedText, { exact: true }).first()).toBeVisible();
 }
 
+test("@desktop-core @mobile-core 真实栈登记隔离的证据型专业复核并保护历史证据", async ({
+  page,
+}) => {
+  const suffix = Date.now().toString(36);
+  const sourceTitle = `[仅限E2E测试·非专业意见] 来源-${suffix}`;
+  const evidenceName = `专业复核自动化证据-${suffix}.txt`;
+  const evidenceBytes = Buffer.from(
+    `FIAT LUX isolated E2E professional-review evidence; not a legal opinion; ${suffix}\n`,
+    "utf8",
+  );
+  const missingInformation = "缺少任何真实公司事实与专业资格核验；本记录仅验证隔离测试流程。";
+
+  await loginThroughRealApi(page);
+
+  await page.goto("/resources/files");
+  await expect(page.getByRole("heading", { name: "文件", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "新建文件" }).first().click();
+  const fileDialog = page.getByRole("dialog", { name: "新建文件" });
+  await fileDialog.locator('input[type="file"]').setInputFiles({
+    name: evidenceName,
+    mimeType: "text/plain",
+    buffer: evidenceBytes,
+  });
+  await fileDialog.getByLabel("信息分类").selectOption("confidential");
+  await saveResource(fileDialog, evidenceName, page);
+
+  await page.goto("/resources/compliance-items");
+  await expect(page.getByRole("heading", { name: "合规知识库", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "新建合规条目" }).first().click();
+  const sourceDialog = page.getByRole("dialog", { name: "新建合规条目" });
+  await sourceDialog.getByLabel("主题").fill(sourceTitle);
+  await sourceDialog.getByLabel("领域").fill("e2e_isolated_test");
+  await sourceDialog.getByLabel("发布机关").fill("自动化验收虚拟机关（非真实机关）");
+  await sourceDialog
+    .getByLabel("官方来源")
+    .fill(`https://example.test/fiatlux-professional-review-${suffix}`);
+  await sourceDialog.getByLabel("待复核适用条件").fill("仅适用于隔离 E2E 流程验证。 ");
+  await sourceDialog.getByLabel("待复核工作摘要").fill("不构成法律、财税或合规专业意见。 ");
+  await saveResource(sourceDialog, sourceTitle, page);
+
+  const sourceRow = page.getByRole("row").filter({ hasText: sourceTitle });
+  await expect(sourceRow).toContainText("等待");
+  await sourceRow.getByRole("button", { name: "更多操作" }).click();
+  await page.getByRole("button", { name: "登记专业复核" }).click();
+  const reviewDialog = page.getByRole("dialog", { name: `登记专业复核：${sourceTitle}` });
+  await reviewDialog.getByLabel("专业结论").selectOption("not_applicable");
+  await reviewDialog.getByLabel("来源生命周期").selectOption("active");
+  await reviewDialog.getByLabel("复核人姓名").fill("E2E 自动化测试复核人");
+  await reviewDialog.getByLabel("专业角色").fill("自动化验收测试角色（非专业顾问）");
+  await reviewDialog.getByLabel("所在机构 / 内部组织").fill("FIAT LUX E2E 隔离环境");
+  await reviewDialog
+    .getByLabel("胜任依据")
+    .fill("仅具备本自动化流程的测试授权，不声明任何法律或合规专业资格。 ");
+  await reviewDialog.getByLabel("已上传复核证据").selectOption({ label: evidenceName });
+  await reviewDialog.getByLabel("对耀光的适用条件").fill("该虚拟来源不适用于耀光任何真实业务。 ");
+  await reviewDialog.getByLabel("复核摘要").fill("仅验证版本、证据、审计和权限闭环。 ");
+  await reviewDialog.getByLabel("缺失信息").fill(missingInformation);
+  const reviewDate = new Date(Date.now() + 90 * 24 * 60 * 60 * 1_000).toISOString().slice(0, 10);
+  await reviewDialog.getByLabel("下次专业复核日").fill(reviewDate);
+  await reviewDialog
+    .getByLabel("本次登记原因")
+    .fill("在专用隔离数据库中验证专业复核追溯能力，不形成生产事实。 ");
+  const reviewResponsePromise = page.waitForResponse(
+    (response) =>
+      /\/api\/v1\/compliance-items\/[^/]+\/reviews$/.test(new URL(response.url()).pathname) &&
+      response.request().method() === "POST",
+  );
+  await reviewDialog.getByRole("button", { name: "登记专业复核" }).click();
+  const reviewResponse = await reviewResponsePromise;
+  expect(reviewResponse.status()).toBe(201);
+  const reviewPayload = (await reviewResponse.json()) as { data: { id: string } };
+  const reviewRequest = reviewResponse.request().postDataJSON() as { evidenceFileId: string };
+  await expect(page.getByText("专业复核已写入追加审计；来源状态已按结论更新")).toBeVisible();
+  await expect(sourceRow).toContainText("已复核");
+
+  await sourceRow.getByRole("button", { name: "更多操作" }).click();
+  await page.getByRole("button", { name: "查看专业复核" }).click();
+  const history = page.getByRole("dialog", { name: `专业复核记录：${sourceTitle}` });
+  await expect(history.getByText("经复核不适用")).toBeVisible();
+  await expect(history.getByText("E2E 自动化测试复核人")).toBeVisible();
+  await expect(history.getByText(missingInformation)).toBeVisible();
+  await expect(history.getByRole("link", { name: "下载复核证据" })).toBeVisible();
+  await history.getByRole("button", { name: "关闭" }).click();
+
+  await page.goto("/resources/files");
+  const evidenceRow = page.getByRole("row").filter({ hasText: evidenceName });
+  await evidenceRow.getByRole("button", { name: "更多操作" }).click();
+  await page.getByRole("button", { name: "归档", exact: true }).click();
+  const archiveResponsePromise = page.waitForResponse(
+    (response) =>
+      /\/api\/v1\/files\/[^/]+$/.test(new URL(response.url()).pathname) &&
+      response.request().method() === "DELETE",
+  );
+  await page.getByRole("button", { name: "确认归档" }).click();
+  expect((await archiveResponsePromise).status()).toBe(409);
+  await expect(page.getByText("Referenced business evidence cannot be archived")).toBeVisible();
+
+  await page.goto("/resources/audit-events");
+  const auditRow = page.getByRole("row").filter({ hasText: "professional_review" }).first();
+  await expect(auditRow).toBeVisible();
+  await auditRow.getByRole("button", { name: "查看详情" }).click();
+  const auditDialog = page.getByRole("dialog", { name: "查看审计事件" });
+  await expect(auditDialog).toContainText(reviewPayload.data.id);
+  await expect(auditDialog).toContainText(reviewRequest.evidenceFileId);
+
+  const dimensions = await page.evaluate(() => ({
+    scrollWidth: document.documentElement.scrollWidth,
+    clientWidth: document.documentElement.clientWidth,
+  }));
+  expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.clientWidth + 1);
+});
+
 test("@desktop-core 真实栈完成经营闭环、文件往返、审批停点、顾问任务与审计", async ({ page }) => {
   const suffix = Date.now().toString(36);
   const goalTitle = `电竞教育在线目标-${suffix}`;

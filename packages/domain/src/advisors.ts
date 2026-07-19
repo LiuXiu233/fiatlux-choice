@@ -94,17 +94,35 @@ export interface AdvisorContextCandidate {
   record: Record<string, unknown>;
   complianceSourceReview?: {
     resourceId: string;
+    version: unknown;
     status: unknown;
     reviewStatus: unknown;
+    contentHash: unknown;
+    metadataHash: unknown;
+    reviewOutcome: unknown;
+    reviewerName: unknown;
+    reviewerRole: unknown;
+    reviewerOrganization: unknown;
+    reviewerQualification: unknown;
+    reviewMissingInformation: unknown;
+    reviewEvidenceFileId: unknown;
+    reviewedByUserId: unknown;
+    reviewedAt: unknown;
+    reviewedSourceVersion: unknown;
+    reviewedContentHash: unknown;
+    reviewedMetadataHash: unknown;
     nextReviewAt: unknown;
   } | null;
 }
 
 export type AdvisorContextWithheldReason =
   | "compliance_item_not_active_and_reviewed"
+  | "compliance_item_professional_review_not_conclusive"
   | "compliance_item_review_expired_or_unscheduled"
   | "compliance_event_not_reviewed"
   | "linked_compliance_source_not_active_and_reviewed"
+  | "linked_compliance_source_not_applicable"
+  | "linked_compliance_source_professional_review_not_conclusive"
   | "linked_compliance_source_review_expired_or_unscheduled";
 
 export interface WithheldAdvisorContext {
@@ -124,6 +142,60 @@ function linkedComplianceSourceIsActiveAndReviewed(candidate: AdvisorContextCand
     candidate.complianceSourceReview?.resourceId === sourceId &&
     candidate.complianceSourceReview.status === "active" &&
     candidate.complianceSourceReview.reviewStatus === "reviewed"
+  );
+}
+
+function hasConclusiveProfessionalReview(outcome: unknown) {
+  return outcome === "applicable" || outcome === "not_applicable";
+}
+
+function lockedHashMatches(
+  review: Record<string, unknown>,
+  currentKey: "contentHash" | "metadataHash",
+  reviewedKey: "reviewedContentHash" | "reviewedMetadataHash",
+) {
+  if (!(currentKey in review) || !(reviewedKey in review)) return false;
+  const current = review[currentKey];
+  const reviewed = review[reviewedKey];
+  return (current === null || typeof current === "string") && reviewed === current;
+}
+
+function hasProfessionalReviewProvenance(
+  review: Record<string, unknown> | null | undefined,
+  now: Date,
+) {
+  if (!review) return false;
+  const reviewedAt =
+    typeof review.reviewedAt === "string" || review.reviewedAt instanceof Date
+      ? new Date(review.reviewedAt)
+      : null;
+  return (
+    hasConclusiveProfessionalReview(review.reviewOutcome) &&
+    typeof review.reviewerName === "string" &&
+    review.reviewerName.trim().length > 0 &&
+    typeof review.reviewerRole === "string" &&
+    review.reviewerRole.trim().length > 0 &&
+    typeof review.reviewerOrganization === "string" &&
+    review.reviewerOrganization.trim().length > 0 &&
+    typeof review.reviewerQualification === "string" &&
+    review.reviewerQualification.trim().length > 0 &&
+    typeof review.reviewMissingInformation === "string" &&
+    review.reviewMissingInformation.trim().length > 0 &&
+    typeof review.reviewEvidenceFileId === "string" &&
+    review.reviewEvidenceFileId.length > 0 &&
+    typeof review.reviewedByUserId === "string" &&
+    review.reviewedByUserId.length > 0 &&
+    reviewedAt !== null &&
+    !Number.isNaN(reviewedAt.valueOf()) &&
+    reviewedAt <= now &&
+    typeof review.version === "number" &&
+    Number.isInteger(review.version) &&
+    typeof review.reviewedSourceVersion === "number" &&
+    Number.isInteger(review.reviewedSourceVersion) &&
+    review.reviewedSourceVersion > 0 &&
+    review.reviewedSourceVersion < review.version &&
+    lockedHashMatches(review, "contentHash", "reviewedContentHash") &&
+    lockedHashMatches(review, "metadataHash", "reviewedMetadataHash")
   );
 }
 
@@ -186,6 +258,8 @@ export function filterAdvisorContext(
     if (candidate.resourceType === "compliance-items") {
       if (candidate.record.status !== "active" || candidate.record.reviewStatus !== "reviewed") {
         reasons.push("compliance_item_not_active_and_reviewed");
+      } else if (!hasProfessionalReviewProvenance(candidate.record, now)) {
+        reasons.push("compliance_item_professional_review_not_conclusive");
       } else if (!reviewWindowIsCurrent(candidate.record.nextReviewAt, now)) {
         reasons.push("compliance_item_review_expired_or_unscheduled");
       }
@@ -203,9 +277,14 @@ export function filterAdvisorContext(
         candidate.resourceType === "obligations") &&
       hasLinkedComplianceSource(candidate)
     ) {
-      if (!linkedComplianceSourceIsActiveAndReviewed(candidate)) {
+      const complianceSourceReview = candidate.complianceSourceReview;
+      if (!complianceSourceReview || !linkedComplianceSourceIsActiveAndReviewed(candidate)) {
         reasons.push("linked_compliance_source_not_active_and_reviewed");
-      } else if (!reviewWindowIsCurrent(candidate.complianceSourceReview?.nextReviewAt, now)) {
+      } else if (!hasProfessionalReviewProvenance(complianceSourceReview, now)) {
+        reasons.push("linked_compliance_source_professional_review_not_conclusive");
+      } else if (complianceSourceReview.reviewOutcome !== "applicable") {
+        reasons.push("linked_compliance_source_not_applicable");
+      } else if (!reviewWindowIsCurrent(complianceSourceReview.nextReviewAt, now)) {
         reasons.push("linked_compliance_source_review_expired_or_unscheduled");
       }
     }

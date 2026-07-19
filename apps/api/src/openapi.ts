@@ -8,6 +8,8 @@ import {
   approvalRequestSchema,
   changePasswordSchema,
   complianceMonitorRequestSchema,
+  complianceProfessionalReviewSchema,
+  complianceReviewListQuerySchema,
   externalActionCreateSchema,
   externalActionTransitionSchema,
   fileCreateSchema,
@@ -823,6 +825,52 @@ addOperation("GET", "/api/v1/compliance-items/:id/snapshots", {
   params: idParamsSchema,
   querystring: zodSchema(complianceSnapshotListQuerySchema),
   success: { 200: paginatedEnvelope(tableSchema(complianceSourceSnapshots)) },
+});
+const complianceReviewHistoryRecordSchema = objectSchema({
+  id: uuidSchema,
+  sourceId: uuidSchema,
+  recordedByUserId: nullable(uuidSchema),
+  recordedByDisplayName: nullable({ type: "string" }),
+  recordedAt: dateTimeJsonSchema,
+  reviewOutcome: {
+    type: "string",
+    enum: ["applicable", "not_applicable", "changes_required", "insufficient_information"],
+  },
+  resultingStatus: {
+    type: "string",
+    enum: ["active", "superseded", "repealed", "uncertain"],
+  },
+  reviewerName: { type: "string" },
+  reviewerRole: { type: "string" },
+  reviewerOrganization: { type: "string" },
+  reviewerQualification: { type: "string" },
+  evidenceFileId: uuidSchema,
+  applicability: { type: "string" },
+  summary: { type: "string" },
+  missingInformation: { type: "string" },
+  reason: { type: "string" },
+  reviewedAt: dateTimeJsonSchema,
+  nextReviewAt: dateTimeJsonSchema,
+  reviewedSourceVersion: { type: "integer", minimum: 1 },
+  reviewedContentHash: nullable({ type: "string" }),
+  reviewedMetadataHash: nullable({ type: "string" }),
+});
+addOperation("GET", "/api/v1/compliance-items/:id/reviews", {
+  operationId: "listComplianceItemProfessionalReviews",
+  params: idParamsSchema,
+  querystring: zodSchema(complianceReviewListQuerySchema),
+  success: { 200: paginatedEnvelope(complianceReviewHistoryRecordSchema) },
+});
+addOperation("POST", "/api/v1/compliance-items/:id/reviews", {
+  operationId: "createComplianceItemProfessionalReview",
+  params: idParamsSchema,
+  body: zodSchema(complianceProfessionalReviewSchema),
+  success: {
+    201: dataEnvelope(
+      tableSchema(complianceItems),
+      objectSchema({ reviewId: uuidSchema }, ["reviewId"]),
+    ),
+  },
 });
 const roleRecordSchema = (() => {
   const role = tableSchema(roles) as { properties: Record<string, JsonSchema> };

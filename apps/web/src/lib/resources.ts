@@ -217,6 +217,25 @@ const userField = (key: string, label: string): FieldConfig => ({
   referenceLabelKey: "displayName",
 });
 
+const complianceSourceIdentityFields: FieldConfig[] = [
+  titleField("主题"),
+  { key: "category", label: "领域", kind: "text", required: true },
+  { key: "issuingAuthority", label: "发布机关", kind: "text", required: true },
+  { key: "sourceUrl", label: "官方来源", kind: "url", required: true, width: "full" },
+  { key: "effectiveDate", label: "生效日期", kind: "date" },
+];
+const complianceSourceOperationalFields: FieldConfig[] = [
+  {
+    key: "monitoringCadenceDays",
+    label: "自动检查周期（天）",
+    kind: "number",
+    required: true,
+    defaultValue: "30",
+  },
+  { key: "applicability", label: "待复核适用条件", kind: "textarea", width: "full" },
+  { key: "summary", label: "待复核工作摘要", kind: "textarea", width: "full" },
+];
+
 export const resources: Record<string, ResourceConfig> = {
   goals: {
     key: "goals",
@@ -504,32 +523,12 @@ export const resources: Record<string, ResourceConfig> = {
       { key: "nextMonitorAt", label: "下次检查", format: formatDate },
     ],
     fields: [
-      titleField("主题"),
-      statusField(complianceStatuses),
-      { key: "category", label: "领域", kind: "text", required: true },
-      { key: "issuingAuthority", label: "发布机关", kind: "text", required: true },
-      { key: "sourceUrl", label: "官方来源", kind: "url", required: true, width: "full" },
-      { key: "effectiveDate", label: "生效日期", kind: "date" },
-      { key: "lastVerifiedAt", label: "核验日期", kind: "date" },
-      { key: "nextReviewAt", label: "最迟人工复核日", kind: "date" },
-      {
-        key: "monitoringCadenceDays",
-        label: "自动检查周期（天）",
-        kind: "number",
-        required: true,
-        defaultValue: "30",
-      },
-      {
-        key: "reviewStatus",
-        label: "人工复核",
-        kind: "select",
-        required: true,
-        defaultValue: "pending",
-        options: statusOptions(["pending", "待复核"], ["reviewed", "已复核"], ["stale", "需更新"]),
-      },
-      { key: "applicability", label: "适用条件", kind: "textarea", width: "full" },
-      { key: "summary", label: "工作摘要", kind: "textarea", width: "full" },
+      ...complianceSourceIdentityFields,
+      { key: "lastVerifiedAt", label: "来源核验日期（非专业结论）", kind: "date" },
+      { key: "nextReviewAt", label: "计划专业复核截止", kind: "date" },
+      ...complianceSourceOperationalFields,
     ],
+    updateFields: [...complianceSourceIdentityFields, ...complianceSourceOperationalFields],
   },
   risks: {
     key: "risks",

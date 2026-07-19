@@ -37,6 +37,7 @@ CI 运行器 -- GHCR/SBOM -- 内网生产主机
 | 恶意上传 | 脚本、超大文件、路径穿越、危险双扩展或伪装格式 | 大小限制；扩展名与声明 MIME 精确匹配；NFKC 文件名策略；上传前 UTF-8/JSON、PDF/图片信封和 OOXML 包结构/类型/主部件/展开上限检查；拒绝加密、宏、ActiveX、嵌入和可执行包条目；随机对象键、私有桶、大小/SHA-256、权限下载、attachment 与 `nosniff` | 格式门禁不是完整解析、反病毒、沙箱或 DLP，格式正确的恶意 PDF/Office/图片、polyglot 或解析器漏洞仍可能通过；管理员 |
 | SQL/命令注入 | 搜索、报表、脚本参数 | 参数化 ORM、输入 schema、脚本名称白名单、不拼接 shell 密钥 | 复杂报表需专项测试；研发负责人 |
 | 官方来源抓取 SSRF/内容投毒/资源耗尽 | 恶意 URL、DNS 重绑定、私网重定向、压缩炸弹、超大正文 | 精确官方主机白名单、每跳 DNS 公网校验并固定连接地址、最终 HTTPS、GET-only、15 秒/2 MiB 上限、拒绝意外压缩、组织+来源租约 | 官方站自身被入侵或内容误发仍需人工复核；信息安全与合规负责人 |
+| 伪造专业复核或销毁依据 | 用通用 PATCH/seed 把来源改为 reviewed 或确定生命周期，复核后归档旧证据，或让 legacy 状态进入顾问事实 | 专用版本化复核端点；实名/机构/胜任依据/缺失信息/同组织 uploaded 证据必填；来源与证据事务锁；通用提升拒绝；实质编辑自动 stale/uncertain；当前及历史审计证据归档拒绝；顾问逐字段 provenance、当前/锁定哈希和期限门禁 | 系统不能验证执业资格真伪或意见正确性，数据库高权仍可绕过；合规负责人核验证据与资质，运维负责人限制高权 |
 | 审计篡改 | 管理员删除不利记录 | 应用无更新/删除审计接口；runtime 无 UPDATE/DELETE/TRUNCATE/TRIGGER、不是所有者且无法 SET ROLE；触发器 ENABLE ALWAYS；异机备份与异常告警 | migrator/bootstrap 或 Docker 主机管理员仍可显式绕过；公司负责人双人复核 |
 | 数据库常驻高权 | API/worker 被攻陷后执行 DDL、建库、建角色或禁用触发器 | bootstrap/migrator/runtime/backup/restore 分离；常驻服务仅 runtime；pg-boss migrate=false；部署验证查询实际 role flags 与对象权限 | runtime 对多数业务表仍有模块化单体所需 DML，应用组织隔离依赖服务端 RBAC；研发与运维负责人 |
 | 服务暴露 | DB/MinIO 监听办公网 | 只有 Caddy 发布端口、backend internal 网络、主机防火墙、部署验证 | Docker 配置变更可重新暴露；运维负责人 |

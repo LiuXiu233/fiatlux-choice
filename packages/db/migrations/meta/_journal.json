@@ -71,6 +71,13 @@
       "when": 1784406914986,
       "tag": "0009_foamy_loa",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1784486537155,
+      "tag": "0010_aspiring_maverick",
+      "breakpoints": true
     }
   ]
 }

@@ -24,18 +24,18 @@
 
 把已经完成本机 production-like 验证的候选版本，变成有不可变 Git/GitHub 证据、能在目标办公内网恢复、可审计并可由两人或单人补偿控制运行的内部系统。
 
-### 2026-07-19 工程基线
+### 2026-07-20 工程基线
 
-- 当前 schema 有 38 张业务表和 10 个业务迁移 `0000`–`0009`。首次强制改密、成员 pending/active/inactive/offboarded 生命周期、最后 owner 保护、归档角色即时失权、同组织 typed refs、decision/opportunity 跨字段一致性与八类高风险人工批准已经实现。
+- 当前 schema 有 38 张业务表和 11 个业务迁移 `0000`–`0010`。首次强制改密、成员 pending/active/inactive/offboarded 生命周期、最后 owner 保护、归档角色即时失权、同组织 typed refs、decision/opportunity 跨字段一致性与八类高风险人工批准已经实现。
 - seed 已拆为显式 `bootstrap`、`metadata-only`、`system-role-maintenance` 三种模式；常规 metadata seed 不会修改身份、membership、role assignment 或权限。离线 owner 恢复要求 exact org/email、active owner、生产确认、原因、批准引用和 requestId，密码只从 stdin 读取，成功后撤销全部会话、强制下次改密并审计。
 - 通知创建为 queued-only；GitHub 刷新保存 `expectedVersion` 并以 CAS 防止陈旧写回；workflow 保存不可变定义版本/步骤快照和 partial checkpoint；advisor/workflow/backup 使用原子 claim、CAS 与 `lease_expired` 人工复核边界。
 - 银行付款取消或审批驳回会原子解除草稿支出关联；顾问运行默认 requester-only，管理员的 `advisor-runs:read-all` 仍受顾问入口和上下文读权限限制；角色分配审批保存 membership 版本快照并在批准时重验。
-- 义务/合规日历已分开 `sourceId` 与 `evidenceFileId`，凭证必须是同组织已上传文件；来源关联不自动等于适用性复核。
+- 义务/合规日历已分开 `sourceId` 与 `evidenceFileId`；专业复核专用入口要求实名、机构、胜任依据、缺失信息、已上传证据，锁定来源版本/哈希/站内登记人并追加历史。通用提升、legacy 部分状态和不适用来源会在顾问侧失败关闭。
 - 合规来源人工复核到期、正文哈希变化和连续第三次失败已在状态事务内自动建立未分配的高优先级人工任务；同一事件去重、错误脱敏、组织隔离和陈旧并发丢弃由真实 PostgreSQL 集成覆盖，邮件/企业协作通知和负责人自动分配仍待批准适配器。
-- 2026-07-19 最新工作树已通过 Biome 199 files、ShellCheck/Actionlint、7 项类型检查、173/173 单元、API 17 files/86 tests、worker 5 files/25 tests、PostgreSQL/pg-boss/真实 MinIO 集成和生产构建；本轮新增文件真实内容门禁。mock 44+6、隔离 real 2 项 Playwright、针对引用链和教育内容的 Python Playwright 桌面/390 px、新建 Compose 六服务与重启持久性证据来自未修改对应层的前一冻结基线，尚待最终 SHA 统一复现。
+- 2026-07-20 当前工作树已通过 Biome 206 files、ShellCheck/Actionlint、7 项类型检查、177/177 单元、API 18 files/89 tests、worker 5 files/25 tests、真实 MinIO 2/2、mock 46+6、隔离 real 4/4、fresh/legacy 迁移、fresh/legacy 最小权限和生产构建；新增层尚未绑定不可变 SHA，Compose、镜像、安全扫描与 11 迁移签名恢复待实现提交后统一复现。
 - 七个最终本地 arm64 镜像、Trivy 0.70.0 四口径零 HIGH/CRITICAL、七份 SPDX、真实 BuildKit 0.31.2 双平台 provenance fixture，以及 API/worker amd64 原生件补偿验证均通过；GHCR 双平台 root digest 仍待最终提交后的 release workflow。
 - 旧底层 formatVersion 2 演练归档 SHA-256 `bcfd6c59d…b6ba`，核对 38 表、10 migrations、pg-boss 24 和 1 个 56-byte 对象，实测 RPO 2 秒、drill RTO 75 秒；它早于 Ed25519 来源签名门禁，只保留为历史恢复证据。
-- 2026-07-20 不可变实现提交 `6545c18…` 完成真实 age+Ed25519 一致性备份和全新卷隔离恢复：数据与加密配置 checksum sidecar、attestation 均通过；归档 SHA-256 `fa60a439…0e85`、attestation SHA-256 `ef26e210…1cae`，38 表、10 migrations、pg-boss 24、3 对象/132 bytes，RPO 20 秒、drill RTO 45 秒；临时签名私钥、归档、scratch、容器/卷和临时镜像 tag 已清理，原六服务保持健康。最终跨层提交仍待统一，也没有执行破坏性的生产 `restore.sh` 审批入口、异介质或目标内网。
+- 2026-07-20 不可变实现提交 `6545c18…` 曾完成 38 表、10 migrations 的真实 age+Ed25519 一致性备份和全新卷隔离恢复；新增 `0010` 后该结果已降为历史 schema 证据，当前实现必须重新演练。它也没有执行破坏性的生产 `restore.sh` 审批入口、异介质或目标内网。
 - 2026-07-18 的旧测试总数、镜像 digest、v1 归档、37 表/4 对象/16 秒恢复和同内容标签升级回滚均为历史证据，不能作为当前通过或发布门禁。
 - 首轮本地相邻演练在回滚后 idle 登录暴露 `CONNECT_TIMEOUT` 并正确阻断；修复后以 N 10 migrations、synthetic bridge 9 migrations 和七个全异镜像完成真实 registry push/pull、46 秒升级、43 秒应用回滚、双 formatVersion 2 恢复点和回滚后 308 秒 HTTPS CRUD，数据、审计、索引和对象均保留。该结果不是历史生产 N−1、GHCR 或目标内网证据。
 - 经审批生产恢复入口、最终不可变 Git SHA/绿色 GitHub CI/GHCR、历史生产 N−1 和目标发布复演、目标内网、真实受管手机、真实 LLM/GitHub、73 条合规来源的专业人工复核、MinIO 长期支持风险处置和业务批准仍未完成。
@@ -50,7 +50,7 @@
 ### 交付
 
 - 冻结完整 Git SHA；在同一 SHA 重跑 lint、类型、单元、集成、E2E、生产构建和七镜像安全扫描。
-- 在耀光目标办公内网从空环境完成 10 个业务迁移 `0000`–`0009`、pg-boss 迁移和权限收敛；显式运行一次 `SEED_MODE=bootstrap`，验证 owner 首登改密、登录、MinIO、ready、CA 分发和重启持久性。
+- 在耀光目标办公内网从空环境完成 11 个业务迁移 `0000`–`0010`、pg-boss 迁移和权限收敛；显式运行一次 `SEED_MODE=bootstrap`，验证 owner 首登改密、登录、MinIO、ready、CA 分发和重启持久性。
 - 在 legacy 副本验证 `metadata-only` 不改变组织、用户、membership、assignment 或权限；通过人工批准的 `system-role-maintenance` 演练角色基线升级，并完成一次受控离线 owner 恢复/回滚演练。
 - 对归档角色即时失权、成员停用、最后 owner、两人审批和单人补偿控制完成最终 Web/API E2E 与运维手册演练。
 - 在最终 SHA 复现已实现的 decision objective/project/task 同链校验、opportunity product/project 一致性、父关系/归档保护、API/worker 共用 advisory lock 和 runtime 数据库权限探测；保留特权管理员直接写表的批准与修复边界。
@@ -60,7 +60,7 @@
 - 保持 MinIO root/bootstrap、app、backup、restore 四身份最小权限。若改变 access-key ID，使用 root-only 运维显式删除旧用户，并以旧凭据负向验证；bootstrap 不会枚举未知旧 ID。
 - 迁移到有安全维护承诺的 S3 兼容存储、取得受支持的修复版，或在 internal-network 补偿控制下形成有期限的负责人风险接受与退出计划。
 - 运行 GitHub CI、安全扫描、SBOM 和 secret history scan。
-- 对 73 条合规来源按风险优先人工复核，获取关键正文哈希。
+- 对 73 条合规来源按风险优先上传真实意见并通过专用入口逐条复核；核对历史证据可下载、不可归档和变更后自动降级，不把自动化测试身份写入真实组织。
 - 统一官网中国境内主体、地域和业务表述。
 - 撤回或重写 7 篇模板占位文，修复重复标题、过期赛事时态和未核验见证；补主体、隐私、投诉和纠错入口。
 - 对已形成的首批 4 篇基础内容完成内部试讲、实名专业复核、权利证据、纠错入口和人工发布演练，并按 12 周台账维护版本与来源。

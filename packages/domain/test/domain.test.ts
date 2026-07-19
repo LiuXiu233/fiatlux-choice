@@ -252,10 +252,50 @@ describe("advisor compliance evidence gate", () => {
           resourceType: "compliance-items",
           resourceId: "approved",
           record: {
+            version: 3,
             status: "active",
             reviewStatus: "reviewed",
+            contentHash: "approved-content-hash",
+            metadataHash: "approved-metadata-hash",
+            reviewOutcome: "applicable",
+            reviewerName: "Reviewed Person",
+            reviewerRole: "Legal reviewer",
+            reviewerOrganization: "Review Organization",
+            reviewerQualification: "Qualified for this test review",
+            reviewMissingInformation: "No known missing information",
+            reviewEvidenceFileId: "review-file-approved",
+            reviewedByUserId: "review-recorder-approved",
+            reviewedAt: "2026-07-01T00:00:00.000Z",
+            reviewedSourceVersion: 2,
+            reviewedContentHash: "approved-content-hash",
+            reviewedMetadataHash: "approved-metadata-hash",
             nextReviewAt: "2027-01-01T00:00:00.000Z",
             summary: "usable",
+          },
+        },
+        {
+          resourceType: "compliance-items",
+          resourceId: "hash-mismatch",
+          record: {
+            version: 3,
+            status: "active",
+            reviewStatus: "reviewed",
+            contentHash: "changed-after-review",
+            metadataHash: "stable-metadata-hash",
+            reviewOutcome: "applicable",
+            reviewerName: "Reviewed Person",
+            reviewerRole: "Legal reviewer",
+            reviewerOrganization: "Review Organization",
+            reviewerQualification: "Qualified for this test review",
+            reviewMissingInformation: "No known missing information",
+            reviewEvidenceFileId: "review-file-hash-mismatch",
+            reviewedByUserId: "review-recorder-hash-mismatch",
+            reviewedAt: "2026-07-01T00:00:00.000Z",
+            reviewedSourceVersion: 2,
+            reviewedContentHash: "locked-before-review-change",
+            reviewedMetadataHash: "stable-metadata-hash",
+            nextReviewAt: "2027-01-01T00:00:00.000Z",
+            summary: "hash mismatch contents must stay hidden",
           },
         },
         {
@@ -272,8 +312,23 @@ describe("advisor compliance evidence gate", () => {
           resourceType: "compliance-items",
           resourceId: "expired",
           record: {
+            version: 3,
             status: "active",
             reviewStatus: "reviewed",
+            contentHash: "expired-content-hash",
+            metadataHash: "expired-metadata-hash",
+            reviewOutcome: "applicable",
+            reviewerName: "Reviewed Person",
+            reviewerRole: "Legal reviewer",
+            reviewerOrganization: "Review Organization",
+            reviewerQualification: "Qualified for this test review",
+            reviewMissingInformation: "No known missing information",
+            reviewEvidenceFileId: "review-file-expired",
+            reviewedByUserId: "review-recorder-expired",
+            reviewedAt: "2025-01-01T00:00:00.000Z",
+            reviewedSourceVersion: 2,
+            reviewedContentHash: "expired-content-hash",
+            reviewedMetadataHash: "expired-metadata-hash",
             nextReviewAt: "2025-01-01T00:00:00.000Z",
             summary: "expired contents must stay hidden",
           },
@@ -282,10 +337,35 @@ describe("advisor compliance evidence gate", () => {
           resourceType: "compliance-items",
           resourceId: "unscheduled",
           record: {
+            version: 3,
             status: "active",
             reviewStatus: "reviewed",
+            contentHash: "unscheduled-content-hash",
+            metadataHash: "unscheduled-metadata-hash",
+            reviewOutcome: "applicable",
+            reviewerName: "Reviewed Person",
+            reviewerRole: "Legal reviewer",
+            reviewerOrganization: "Review Organization",
+            reviewerQualification: "Qualified for this test review",
+            reviewMissingInformation: "No known missing information",
+            reviewEvidenceFileId: "review-file-unscheduled",
+            reviewedByUserId: "review-recorder-unscheduled",
+            reviewedAt: "2026-07-01T00:00:00.000Z",
+            reviewedSourceVersion: 2,
+            reviewedContentHash: "unscheduled-content-hash",
+            reviewedMetadataHash: "unscheduled-metadata-hash",
             nextReviewAt: null,
             summary: "unscheduled contents must stay hidden",
+          },
+        },
+        {
+          resourceType: "compliance-items",
+          resourceId: "legacy-without-professional-review",
+          record: {
+            status: "active",
+            reviewStatus: "reviewed",
+            nextReviewAt: "2027-01-01T00:00:00.000Z",
+            summary: "legacy contents must stay hidden",
           },
         },
         {
@@ -299,12 +379,13 @@ describe("advisor compliance evidence gate", () => {
 
     expect(result.accepted.map((item) => item.resourceId)).toEqual(["approved", "task"]);
     expect(JSON.stringify(result.modelContext)).not.toContain("must stay hidden");
-    expect(result.withheldComplianceCount).toBe(4);
+    expect(result.withheldComplianceCount).toBe(6);
     expect(result.modelContext.at(-1)).toMatchObject({
       resourceType: "compliance-review-gaps",
-      withheldCount: 4,
+      withheldCount: 6,
       reasonCounts: {
         compliance_item_not_active_and_reviewed: 2,
+        compliance_item_professional_review_not_conclusive: 2,
         compliance_item_review_expired_or_unscheduled: 2,
       },
     });
@@ -313,15 +394,66 @@ describe("advisor compliance evidence gate", () => {
   it("inherits source review gates for compliance events and sourced obligations", () => {
     const reviewedSource = {
       resourceId: "reviewed-source",
+      version: 3,
       status: "active",
       reviewStatus: "reviewed",
+      contentHash: "reviewed-source-content-hash",
+      metadataHash: "reviewed-source-metadata-hash",
+      reviewOutcome: "applicable",
+      reviewerName: "Reviewed Person",
+      reviewerRole: "Legal reviewer",
+      reviewerOrganization: "Review Organization",
+      reviewerQualification: "Qualified for this test review",
+      reviewMissingInformation: "No known missing information",
+      reviewEvidenceFileId: "review-file-reviewed-source",
+      reviewedByUserId: "review-recorder-reviewed-source",
+      reviewedAt: "2026-07-01T00:00:00.000Z",
+      reviewedSourceVersion: 2,
+      reviewedContentHash: "reviewed-source-content-hash",
+      reviewedMetadataHash: "reviewed-source-metadata-hash",
       nextReviewAt: "2027-01-01T00:00:00.000Z",
     };
     const pendingSource = {
       resourceId: "pending-source",
+      version: 1,
       status: "draft",
       reviewStatus: "pending",
+      contentHash: null,
+      metadataHash: null,
+      reviewOutcome: null,
+      reviewerName: null,
+      reviewerRole: null,
+      reviewerOrganization: null,
+      reviewerQualification: null,
+      reviewMissingInformation: null,
+      reviewEvidenceFileId: null,
+      reviewedByUserId: null,
+      reviewedAt: null,
+      reviewedSourceVersion: null,
+      reviewedContentHash: null,
+      reviewedMetadataHash: null,
       nextReviewAt: null,
+    };
+    const notApplicableSource = {
+      resourceId: "not-applicable-source",
+      version: 3,
+      status: "active",
+      reviewStatus: "reviewed",
+      contentHash: "not-applicable-content-hash",
+      metadataHash: "not-applicable-metadata-hash",
+      reviewOutcome: "not_applicable",
+      reviewerName: "Reviewed Person",
+      reviewerRole: "Legal reviewer",
+      reviewerOrganization: "Review Organization",
+      reviewerQualification: "Qualified for this test review",
+      reviewMissingInformation: "No known missing information",
+      reviewEvidenceFileId: "review-file-not-applicable-source",
+      reviewedByUserId: "review-recorder-not-applicable-source",
+      reviewedAt: "2026-07-01T00:00:00.000Z",
+      reviewedSourceVersion: 2,
+      reviewedContentHash: "not-applicable-content-hash",
+      reviewedMetadataHash: "not-applicable-metadata-hash",
+      nextReviewAt: "2027-01-01T00:00:00.000Z",
     };
     const result = filterAdvisorContext(
       [
@@ -369,6 +501,15 @@ describe("advisor compliance evidence gate", () => {
         },
         {
           resourceType: "obligations",
+          resourceId: "obligation-with-not-applicable-source",
+          record: {
+            sourceId: "not-applicable-source",
+            title: "withheld non-applicable obligation contents",
+          },
+          complianceSourceReview: notApplicableSource,
+        },
+        {
+          resourceType: "obligations",
           resourceId: "internal-obligation",
           record: { sourceId: null, title: "internal company obligation" },
         },
@@ -397,13 +538,22 @@ describe("advisor compliance evidence gate", () => {
         resourceId: "obligation-with-pending-source",
         reasons: ["linked_compliance_source_not_active_and_reviewed"],
       },
+      {
+        resourceType: "obligations",
+        resourceId: "obligation-with-not-applicable-source",
+        reasons: ["linked_compliance_source_not_applicable"],
+      },
     ]);
     expect(result.withheldReasonCounts).toEqual({
       compliance_event_not_reviewed: 1,
       linked_compliance_source_not_active_and_reviewed: 2,
+      linked_compliance_source_not_applicable: 1,
     });
     expect(JSON.stringify(result.modelContext)).not.toContain("withheld event contents");
     expect(JSON.stringify(result.modelContext)).not.toContain("withheld obligation contents");
+    expect(JSON.stringify(result.modelContext)).not.toContain(
+      "withheld non-applicable obligation contents",
+    );
     expect(JSON.stringify(result.modelContext)).not.toContain("complianceSourceReview");
   });
 

@@ -50,7 +50,7 @@ flowchart LR
 | 身份与访问 | organizations、users、memberships、roles、sessions | 组织作用域、服务端 RBAC、角色变更审批 |
 | 审计与文件 | audit_events、files | 审计无更新/删除业务接口；文件校验和私有对象键 |
 | 执行 | objectives、projects、tasks、decisions | 乐观并发、状态与负责人 |
-| 治理合规 | compliance_items、compliance_events、obligations、risks、contracts | 来源人工复核、截止日、风险处置、签署审批 |
+| 治理合规 | compliance_items、compliance_events、obligations、risks、contracts、professional_review 审计 | 证据型来源复核、版本锁定、截止日、风险处置、签署审批 |
 | 财务 | financial_entries、invoices、cash_flow_entries | 金额以分存储；外部付款/申报/红冲分离 |
 | 产品增长 | products、opportunities、github_insights | 机会到交付映射；外部技术内容视为不可信 |
 | 协作自动化 | notifications、workflow_definitions、workflow_runs | 受限步骤类型、后台执行、明确失败 |
@@ -87,8 +87,9 @@ flowchart LR
 - 外部动作、必要审批和审计。
 - 顾问运行、上下文工具记录、引用和审计。
 - 顾问人工修改、编辑历史和审计。
+- 合规来源专业复核、当前 provenance、证据引用和追加审计。
 
-对 PostgreSQL 与 MinIO 的跨存储操作无法使用单个数据库事务，因此文件采用“声明元数据—上传内容—校验完成”的状态流程。备份默认暂停写入以减少数据库和对象存储时间点不一致。
+对 PostgreSQL 与 MinIO 的跨存储操作无法使用单个数据库事务，因此文件采用“声明元数据—上传内容—校验完成”的状态流程。专业复核只能引用已经完成该流程的 `uploaded` 文件；当前行和历史 `professional_review` 审计都会阻止证据软归档。备份默认暂停写入以减少数据库和对象存储时间点不一致。
 
 ### 并发
 

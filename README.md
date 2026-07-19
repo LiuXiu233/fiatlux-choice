@@ -2,7 +2,7 @@
 
 耀光（广州）电子竞技有限公司及类似中国境内 1–2 人团队的内部公司治理与运营 Web App。
 
-当前状态：**受控候选，尚未宣布或批准 V1 完成**。仓库已经包含实质业务实现、PWA、API、worker、38 张业务表与 10 个迁移（`0000`–`0009`）、内网部署和恢复资产。2026-07-19 最新工作树已通过 Biome 199 文件、7 项类型检查、173/173 单元、API 86/86、worker 25/25、真实 MinIO 2/2 和生产构建；当前树/历史 secret scan、生产依赖审计与 Semgrep 证据仍按最近实现分层记录。其未修改的 Web/部署层在前一基线 `e582509…` 已通过 mock/real E2E、独立 Compose、桌面/移动浏览器和新 Web 镜像检查。备份签名实现提交 `6545c18…` 已完成真实 age+Ed25519 一致性备份和随机全新卷隔离恢复；更早冻结基线还完成七个本地 arm64 镜像供应链检查和一次底层 formatVersion 2 独立恢复。连接恢复实现起点为 `859841f…`；候选分支对应 Draft PR #12。首轮本地相邻版本回滚在 idle 后暴露 `CONNECT_TIMEOUT` 并正确阻断，修复后使用七组件内容全部不同、schema 由 9 个迁移升级到 10 个迁移的 synthetic bridge 完成真实 push/pull、升级、双恢复点、应用回滚和 308 秒后 HTTPS CRUD 复验。这些分层结果尚未绑定同一个最终 Git SHA，也不是历史生产 N−1、GHCR 或广州办公内网证据。GitHub CI/Security 仍因账户付款失败或 Actions spending limit 不足在 runner 启动前被平台阻断，尚未执行 workflow step。其余未完成闸门包括 GHCR 双平台发布与绿色 CI、经批准的生产候选/N−1 和目标环境复演、经审批生产恢复入口、耀光目标办公内网与真实受管设备、真实 LLM/GitHub 适配器、MinIO 长期维护/支持风险决策和专业合规/业务批准。详情见[V1 验收矩阵](docs/delivery/v1-acceptance-matrix.md)和[受控候选交付报告](docs/delivery/final-delivery-report.md)。
+当前状态：**受控候选，尚未宣布或批准 V1 完成**。仓库已经包含实质业务实现、PWA、API、worker、38 张业务表与 11 个迁移（`0000`–`0010`）、内网部署和恢复资产。2026-07-20 当前未提交工作树已通过 Biome 206 文件、ShellCheck/Actionlint、7 项类型检查、177/177 单元、API 89/89、worker 25/25、真实 MinIO 2/2、mock 46+6、隔离真实栈 desktop/mobile 4/4、fresh 与上一版本升级迁移、数据库最小权限和生产构建；仍须在不可变实现提交上重跑 Compose、安全扫描及 11 迁移签名备份恢复，才能把这些结果绑定为新候选证据。旧备份签名实现提交 `6545c18…` 的 10 迁移恢复、旧七镜像供应链和 synthetic bridge 升级结果只保留为历史/分层证据。候选分支对应 Draft PR #12；GitHub CI/Security 仍因账户付款失败或 Actions spending limit 不足在 runner 启动前被平台阻断，尚未执行 workflow step。其余未完成闸门包括 GHCR 双平台发布与绿色 CI、经批准的生产候选/N−1 和目标环境复演、经审批生产恢复入口、耀光目标办公内网与真实受管设备、真实 LLM/GitHub 适配器、73 条真实专业复核、MinIO 长期维护/支持风险决策和专业合规/业务批准。详情见[V1 验收矩阵](docs/delivery/v1-acceptance-matrix.md)和[受控候选交付报告](docs/delivery/final-delivery-report.md)。
 
 ## 能力
 
@@ -14,7 +14,7 @@
 - React/Vite 响应式前端、移动导航和可安装 PWA。
 - Fastify API、PostgreSQL/Drizzle、MinIO/S3、pg-boss worker。
 - Docker Compose 内网拓扑、Caddy TLS、迁移、健康检查、CI、安全扫描、备份恢复和升级回滚资产。
-- 73 条中国、广东、广州官方合规来源、受控抓取/哈希、到期/变化/连续失败自动建人工任务及复核工作流。
+- 73 条中国、广东、广州官方合规来源、受控抓取/哈希、到期/变化/连续失败自动建人工任务，以及实名、机构、胜任依据、缺失信息、版本与证据锁定的追加式专业复核工作流。
 - 4 篇面向中国境内成年人的版本化电竞教育基础内容，包含 Schema、来源、权利、AI 披露、人工复核和 WordPress 手工发布边界。
 
 高风险动作不会被自动执行。银行付款、税务申报、发票红冲、合同正式签署、合同终止、人事处分、关键权限修改和对外法律承诺共八类动作必须人工批准；创建请求只接受 `manual` 或 `mock`，`real` 会被拒绝。`manual` 必须凭外部回执推进，`mock` 只能得到 simulated/cancelled，不能伪造外部成功；合同签署、合同终止和发票红冲只有在 confirmed 时才与目标合同/发票状态原子更新。
@@ -125,6 +125,7 @@ pnpm lint
 pnpm typecheck
 pnpm test:unit
 pnpm test:integration
+pnpm test:database-migrations
 pnpm test:e2e
 pnpm build
 pnpm check
@@ -204,14 +205,14 @@ SEED_MODE=bootstrap pnpm db:seed
 
 API 基础路径是 /api/v1，使用组织作用域的 HttpOnly 会话 Cookie。健康端点为 /health/live 和 /health/ready。
 
-当前生成 OAS 3.1 候选文档；冻结工作树已用标准 parser 和运行时清单对账 74 个 path、138 个 operation，并校验认证、参数、请求和响应 schema。发布前仍要在不可变 SHA 复现，并建立兼容性 diff、弃用策略和受支持 SDK 生成交付。集成前请阅读[API 指南](docs/api/api-guide.md)；文件上传必须依次完成元数据声明、二进制 PUT 和 `POST /files/:id/complete`。
+当前生成 OAS 3.1 候选文档；当前工作树已用标准 parser 和运行时清单对账 75 个 path、140 个 operation，并校验认证、参数、请求和响应 schema。发布前仍要在不可变 SHA 复现，并建立兼容性 diff、弃用策略和受支持 SDK 生成交付。集成前请阅读[API 指南](docs/api/api-guide.md)；文件上传必须依次完成元数据声明、二进制 PUT 和 `POST /files/:id/complete`。
 
 ## 安全与数据
 
 - 不要提交 .env、生产数据库、附件、备份、Cookie、LLM/GitHub token 或 age 私钥。
 - 生产只通过 Caddy 暴露 HTTPS，数据库和 MinIO 不发布到办公网。
 - 默认 LLM_DRIVER=mock、GITHUB_INTEGRATION_MODE=manual；启用真实适配器前完成权限、供应商和数据处理复核。
-- 合规来源默认 pending/draft。只有 reviewed、active 且 `nextReviewAt` 尚未到期的记录才可进入顾问事实上下文；空复核日与过期来源 fail closed。
+- 合规来源默认 pending/draft。只有具备完整复核人/机构/胜任依据/缺失信息/证据/站内登记人/版本 provenance、reviewed、active 且 `nextReviewAt` 尚未到期的记录才可进入顾问事实上下文；空复核日、legacy 部分状态与过期来源 fail closed，关联义务还要求来源结论为 applicable。
 - 类型化关系已覆盖决策到目标/项目/任务、产品到项目、机会到产品/项目；API 会校验同组织活动记录，并强制同时填写的决策引用属于同一目标→项目→任务链、机会项目等于所选产品的活动项目。父记录改链或归档不能破坏现有活动引用。
 - member/viewer 只能读取本人通知并通过专用 read 端点标记已读；admin/owner 可跨收件人创建、查看和归档，通知内容对所有角色都不可 PATCH。
 - 合同或发票只能引用同组织、已 uploaded、未归档的文件；被合同或发票引用的文件不能归档，引用与归档检查由事务锁串行化。

@@ -1,6 +1,6 @@
 # 已知边界与剩余风险
 
-基准日期：2026-07-19
+基准日期：2026-07-20
 
 用途：上线决策、风险接受和路线图输入
 
@@ -15,9 +15,9 @@
 
 ## 2. 工程验证状态
 
-2026-07-18 的旧测试、六镜像、v1 恢复和同内容标签升级数字只保留为历史背景。2026-07-19 最新工作树已完成 Biome 199 files、ShellCheck/Actionlint、7 项类型检查、173/173 单元、API 17 files/86 tests、worker 5 files/25 tests、PostgreSQL/pg-boss/真实 MinIO 集成、mock 44+6 与隔离 real 2 项 Playwright、PWA/构建、独立桌面/390 px 引用链及教育内容检查，以及新建 Compose 的七镜像构建、六服务健康、Trivy 0 与七份 SPDX。Web/E2E/Compose/七镜像证据来自本轮未修改对应层的前一冻结基线，尚未与最新文件门禁绑定同一不可变 SHA。此前冻结候选还完成六服务重启持久性、双平台 provenance fixture、一次底层 formatVersion 2 独立恢复，以及一次本地 synthetic bridge 真实 schema/镜像差异升级与应用回滚。
+2026-07-18 的旧测试、六镜像、v1 恢复和同内容标签升级数字只保留为历史背景。2026-07-20 当前未提交工作树已完成 Biome 206 files、ShellCheck/Actionlint、7 项类型检查、177/177 单元、API 18 files/89 tests、worker 5 files/25 tests、PostgreSQL/pg-boss/真实 MinIO 集成、mock 46+6 与隔离 real 4 项 Playwright、PWA/生产构建，以及 fresh/上一版本迁移和 fresh/legacy 最小权限验证。新增层尚未绑定不可变 SHA，Compose、镜像、安全扫描和签名恢复仍必须在实现提交后重建；旧七镜像、六服务、Trivy/SPDX、10 迁移签名恢复和 synthetic bridge 结果不能上卷为当前通过。
 
-当前 schema 为 38 张业务表和 10 个迁移（`0000`–`0009`）。上述结果仍是本地冻结候选而非 GitHub runner、GHCR 双平台、耀光办公内网、真实设备或生产批准证据。本地 synthetic bridge 已实跑真实差异升级/回滚，但历史生产 N−1、目标发布复演和经审批的破坏性 `restore.sh` 生产入口没有实跑。GitHub CI、目标内网、真实设备、MinIO 长期维护/支持风险处置和责任人批准仍是发布闸门，以[验收矩阵](./v1-acceptance-matrix.md)为准。
+当前 schema 为 38 张业务表和 11 个迁移（`0000`–`0010`）。专用迁移测试已证明 `0000`–`0009` 数据原样保留、不会为 legacy reviewed 记录发明专业 provenance，并再次从空库得到 38 表；这仍不是 GitHub runner、生产副本或目标内网升级证明。本地 synthetic bridge 只覆盖旧 10 迁移基线，历史生产 N−1、目标发布复演和经审批的破坏性 `restore.sh` 生产入口没有实跑。GitHub CI、目标内网、真实设备、MinIO 长期维护/支持风险处置和责任人批准仍是发布闸门，以[验收矩阵](./v1-acceptance-matrix.md)为准。
 
 ## 3. 身份与权限
 
@@ -76,11 +76,12 @@
 
 - 73 条来源已完成官方元数据收集；当前 73 条全部为 `reviewStatus=pending`、`contentHashStatus=pending_fetch`、业务 `status=draft`。
 - 因此没有任何一条可被描述为公司已人工批准的 `reviewed+active` 依据；候选验证只证明未复核来源会被法务顾问 withheld。
+- 专业复核必须走专用入口并记录复核人、角色、机构/内部组织、胜任依据、缺失信息、已上传证据、来源版本/哈希、站内登记人、结论与期限。通用 POST/PATCH、seed 输入或 legacy `reviewed` 字样不能伪造这组 provenance；系统仍不能验证复核人真实资质或意见正确性。
 - 税率、最低工资、社保/公积金基数、申报日历和许可材料等易变结论不能从文档长期复制。
 - 官方来源受限抓取器、pg-boss 每日扫描、哈希快照、变化后 stale/uncertain、人工逐条触发及失败审计已经实现；73 条初始来源仍需在部署环境实际完成首次抓取。
 - `nextReviewAt` 到期会在每日扫描中降级并审计；组织+来源租约会去重定时、人工和 worker 并发任务，陈旧任务不会降低人工复核状态或虚增失败次数。
 - 自动快照保存哈希、HTTP 元数据和最多 100,000 UTF-8 字节规范化摘录，不是完整原始 HTML/PDF 法证归档。人工复核到期、正文哈希变化和连续第三次监测失败会在来源状态事务内各建立一条未分配的 `todo/high` 人工复核任务并双向审计；重复扫描、同一基线和第四次失败不重复建任务，陈旧并发结果也不建任务。任务完成与来源 `reviewed` 仍是两项独立人工记录，邮件/企业协作告警和负责人自动分配尚未配置。
-- 义务和合规日历分别使用 `sourceId` 保留规则来源、使用 `evidenceFileId` 保留履行/完成凭证。两个字段都可选；系统会校验同组织和未归档，凭证还必须已 `uploaded`，但来源关联不会自动判定适用，缺少凭证也不会自动阻止用户错误地把记录标记完成。被引用凭证不可归档，仍需人工核对证据充分性。
+- 义务和合规日历分别使用 `sourceId` 保留规则来源、使用 `evidenceFileId` 保留履行/完成凭证。两个字段都可选；系统会校验同组织和未归档，凭证还必须已 `uploaded`，但来源关联不会自动判定适用，缺少凭证也不会自动阻止用户错误地把记录标记完成。当前和历史专业复核证据也不可归档；仍需人工核对内容与资质。顾问只接受完整、未到期 provenance，且来源结论必须是 `applicable` 才能支持关联义务/日历；`not_applicable` 会失败关闭关联内容。
 - 公司事实、合同安排、人员身份和实际数据流决定适用性，不能仅靠行业标签推断。
 - 官网存在 “U.S.” 表述，与中国境内主体业务定位不一致；任何招生或合同发布前必须统一。
 
@@ -96,7 +97,7 @@
 
 ## 9. API 与兼容性
 
-- OpenAPI 3.1 由代码生成；冻结候选已用标准 parser 校验 74 个 path、138 个实际 Fastify operation，并对账 operationId、认证、参数、请求和成功/错误响应 schema，机器 JSON 与 Swagger UI 均通过。尚未发布跨版本兼容性 diff、弃用窗口或生成客户端回归，因此不能把结构对账当作所有语义已批准。
+- OpenAPI 3.1 由代码生成；当前工作树已用标准 parser 校验 75 个 path、140 个实际 Fastify operation，并对账 operationId、认证、参数、请求和成功/错误响应 schema，机器 JSON 与 Swagger UI 均通过。尚未发布跨版本兼容性 diff、弃用窗口或生成客户端回归，因此不能把结构对账当作所有语义已批准。
 - API 版本为 /api/v1，但尚未发布兼容性、弃用窗口和客户端支持政策。
 - 通用 search/status/category 在不同资源的支持程度不完全一致。
 - 金额为整数分；旧集成若发送元或浮点数会产生严重金额错误。
@@ -112,7 +113,7 @@
 - 生产完整备份需要 age recipient 和主机 Ed25519 签名私钥；age identity、签名私钥与备份必须分离。在线签名私钥是受主机权限保护的普通文件，不是 HSM 或不可导出企业密钥。
 - age 加密不认证备份来源。当前备份会签署规范化 attestation，绑定密文 SHA/大小、来源、数据库/桶、backup tool release、创建时间和公钥 DER 指纹；生产恢复和演练同时强制匹配签名、独立批准的公钥指纹与归档 SHA-256，并通过只允许目录/普通文件的归档守卫。相邻 `.sha256`、公钥或指纹不能自动充当批准记录；无法建立独立审批渠道时仍属于生产恢复阻断项。错误公钥/指纹、篡改归档/attestation/signature、错误来源/版本、签名缺失/部分参数均有 fail-before-Compose 回归，但在线私钥或主机失陷仍是剩余风险。
 - 备份恢复是破坏性管理员操作，不提供普通 Web 恢复按钮。
-- 旧的 `finalqa-isolated-v2-20260719T042309Z.tar.gz.age` 演练早于 Ed25519 attestation，只保留为历史恢复证据。2026-07-20 不可变实现提交 `6545c18…` 已完成一次真实 age+Ed25519 一致性备份与隔离恢复：归档 SHA `fa60a439…0e85`、attestation SHA `ef26e210…1cae`，数据/配置 checksum sidecar 与签名均直接验证，并核对 38 表、10 migration SQL SHA、pg-boss 24、3 对象/132 bytes、ready、数据库/对象 ACL、签名报告和资源清理，RPO 20 秒、drill RTO 45 秒；脱敏记录见[签名恢复证据](./evidence/signed-backup-restore-drill-20260720.json)。该运行尚未统一最终跨层提交，且 `productionRestoreEntrypointExecuted=false`，不能表述为 `restore.sh` 生产审批入口、异介质或目标内网已实跑。
+- 旧的 `finalqa-isolated-v2-20260719T042309Z.tar.gz.age` 演练早于 Ed25519 attestation，只保留为历史恢复证据。2026-07-20 不可变实现提交 `6545c18…` 的 age+Ed25519 一致性备份曾核对 38 表、10 migration SQL SHA、pg-boss 24、3 对象/132 bytes、RPO 20 秒与 drill RTO 45 秒；新增 `0010` 后它已不再证明当前 schema，必须在新的不可变实现提交上重做。其 `productionRestoreEntrypointExecuted=false`，也从未证明 `restore.sh` 生产审批入口、异介质或目标内网实跑。
 - 2026-07-18 formatVersion 1 的 `final-rc-...`、37 表/4 对象/16 秒，以及同内容标签的 35/35/33 秒升级回滚只保留为历史证据，不能作为当前发布结论。
 - 首轮新演练虽完成升级和回滚脚本，但回滚后的常驻 API 在 idle 后连续两次登录 `CONNECT_TIMEOUT`/HTTP 500，任务 CRUD 未执行，因此正确 BLOCKED。连接恢复修复提交 `859841f…` 经 162 单元、API 83、worker 23、暖连接/断链/黑洞同句柄恢复与生产构建复验。
 - 第二轮以 N 10 migrations、synthetic bridge 9 migrations 和七个全异 digest 完成真实 registry push/pull、46 秒升级、43 秒应用回滚及双 formatVersion 2 恢复点；回滚后同一 API 启动 308.138 秒登录 200，任务 CRUD/审计通过，日志无 `CONNECT_TIMEOUT`。该证据仅证明本地相邻兼容，不是历史生产 N−1、GHCR 或目标内网。

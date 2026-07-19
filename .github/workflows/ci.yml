@@ -132,6 +132,12 @@ jobs:
           DB_PRIVILEGE_TEST_SKIP_BUILD=1 \
             DB_PRIVILEGE_TEST_SIMULATE_LEGACY=1 \
             ./scripts/test-database-privileges.sh
+      - name: Test previous-release upgrade and fresh migrations
+        env:
+          MIGRATION_TEST_DATABASE_URL: ${{ env.DATABASE_URL }}
+          MIGRATION_TEST_RESET: RESET_DEDICATED_MIGRATION_TEST_DATABASE
+          MIGRATION_TEST_ALLOW_CI_DATABASE: "true"
+        run: pnpm test:database-migrations
       - name: Build the repository MinIO test image
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:

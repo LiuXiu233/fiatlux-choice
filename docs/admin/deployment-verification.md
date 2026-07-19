@@ -8,6 +8,9 @@ pnpm lint
 pnpm typecheck
 pnpm test:unit
 pnpm test:integration
+MIGRATION_TEST_DATABASE_URL=postgresql://USER:PASSWORD@127.0.0.1:5432/fiatlux_choice_migration_test \
+  MIGRATION_TEST_RESET=RESET_DEDICATED_MIGRATION_TEST_DATABASE \
+  pnpm test:database-migrations
 ./scripts/test-database-privileges.sh
 DB_PRIVILEGE_TEST_SIMULATE_LEGACY=1 ./scripts/test-database-privileges.sh
 ./scripts/test-release-image-verification.sh
@@ -18,6 +21,8 @@ DB_PRIVILEGE_TEST_SIMULATE_LEGACY=1 ./scripts/test-database-privileges.sh
 pnpm test:e2e
 pnpm build
 ```
+
+迁移验收会删除并重建目标数据库的 `public`/`drizzle` schema，只能指向 loopback 且名称以 `_migration_test` 结尾的专用数据库；它先验证上一迁移升级时业务数据不变且不发明专业复核 provenance，再从空库验证当前全部迁移。不得把生产或开发常用数据库传入该命令。
 
 生产 Compose 与镜像：
 
@@ -38,6 +43,7 @@ docker buildx build --platform linux/amd64,linux/arm64 \
 - 普通成员无法查看或修改无权限公司数据；拒绝事件进入审计。
 - 目标 -> 项目 -> 任务 -> 决策 -> 审批 -> 审计可完整完成。
 - 合同、义务、合规日历、风险、财务、发票和现金流可创建、检索和关联。
+- 合规专业复核必须绑定当前来源版本、实名/机构/胜任依据/缺失信息和已上传证据；桌面/移动均能查看追加历史，普通编辑不能伪造 reviewed 或确定生命周期，当前与历史证据归档失败。
 - 银行付款、税务申报、红冲、正式签署、人事处分、关键权限和对外承诺均停留在人工批准边界。
 - 模拟适配器明确显示模拟/待人工处理，不返回伪造外部成功。
 - 七类 AI 顾问只读取权限范围内数据，输出事实/推断/建议、依据、风险、缺失信息和置信度；调用、提示版本、工具与人工修改均可追溯。

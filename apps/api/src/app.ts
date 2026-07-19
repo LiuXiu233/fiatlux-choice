@@ -21,6 +21,7 @@ import { registerAdvisorRoutes } from "./advisor-routes.js";
 import { registerApprovalRoutes } from "./approval-routes.js";
 import { registerAuthRoutes } from "./auth.js";
 import { registerComplianceMonitorRoutes } from "./compliance-monitor-routes.js";
+import { registerComplianceReviewRoutes } from "./compliance-review-routes.js";
 import type { ApiConfig } from "./config.js";
 import { registerDashboardRoutes } from "./dashboard-routes.js";
 import { registerFileRoutes } from "./file-routes.js";
@@ -205,6 +206,7 @@ export async function buildApp(dependencies: AppDependencies) {
   registerDashboardRoutes(app, dependencies, authenticate);
   registerResourceRoutes(app, dependencies, authenticate);
   registerComplianceMonitorRoutes(app, dependencies, authenticate);
+  registerComplianceReviewRoutes(app, dependencies, authenticate);
   registerApprovalRoutes(app, dependencies, authenticate);
   registerFileRoutes(app, dependencies, authenticate);
   registerAdvisorRoutes(app, dependencies, authenticate);

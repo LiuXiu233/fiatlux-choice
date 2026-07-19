@@ -291,7 +291,10 @@ describe.skipIf(!databaseUrl)("API PostgreSQL repeatable core business chain", (
       headers: { cookie: ownerCookie },
       payload: { status: "active", expectedVersion: officialSource.version },
     });
-    expect(prohibitedSourceActivation.statusCode, prohibitedSourceActivation.body).toBe(400);
+    expect(prohibitedSourceActivation.statusCode, prohibitedSourceActivation.body).toBe(409);
+    expect(body(prohibitedSourceActivation).error).toMatchObject({
+      code: "PROFESSIONAL_REVIEW_REQUIRED",
+    });
 
     const obligation = await createResource("obligations", {
       title: `Review annual-report applicability ${suffix}`,

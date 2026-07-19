@@ -100,7 +100,7 @@ tar -tzf config.tar.gz
 
 ## 独立恢复演练
 
-演练不会接触当前项目卷。脚本创建名称以 `fiatlux-restore-` 开头的随机 Compose 项目，使用随机凭据和全新 PostgreSQL/MinIO 卷；恢复后依次执行 Drizzle 迁移、pg-boss 迁移和权限收敛，启动 API/worker。它从版本化 `packages/db/restore-acceptance.json` 取得精确业务表集合和 pg-boss schema version，并由单元测试强制该清单与 Drizzle 导出表及 `pg-boss` 依赖自带版本同步；迁移期望则直接从 `_journal.json`、连续 idx/tag、对应 SQL 文件及每个 SQL 的 SHA-256 派生。当前候选必须精确得到 38 张表、10 个 `0000`–`0009` 迁移、pg-boss schema 24、worker healthy 和 API database/queue/object-storage ready，不接受“表数大于零”或只看最后迁移时间。
+演练不会接触当前项目卷。脚本创建名称以 `fiatlux-restore-` 开头的随机 Compose 项目，使用随机凭据和全新 PostgreSQL/MinIO 卷；恢复后依次执行 Drizzle 迁移、pg-boss 迁移和权限收敛，启动 API/worker。它从版本化 `packages/db/restore-acceptance.json` 取得精确业务表集合和 pg-boss schema version，并由单元测试强制该清单与 Drizzle 导出表及 `pg-boss` 依赖自带版本同步；迁移期望则直接从 `_journal.json`、连续 idx/tag、对应 SQL 文件及每个 SQL 的 SHA-256 派生。当前候选必须精确得到 38 张表、11 个 `0000`–`0010` 迁移、pg-boss schema 24、worker healthy 和 API database/queue/object-storage ready，不接受“表数大于零”或只看最后迁移时间。
 
 对象恢复不是只核对数量：恢复容器会按归档中已通过内部 manifest 校验的每个对象路径，从目标桶逐个重新下载，比较字节数和 SHA-256，再检查目标桶文件数没有额外路径。只有所有对象逐项一致才原子写入带 `objectsVerified`、总对象数、总字节数和对象核验清单 SHA-256 的恢复报告；演练会再次核对报告、目标桶计数和 MinIO app/backup/restore 最小权限。任一对象缺失、额外或内容损坏均失败关闭。
 

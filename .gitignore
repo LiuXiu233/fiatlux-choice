@@ -28,6 +28,7 @@ playwright-report/
 test-results/
 blob-report/
 screenshots/
+semgrep-results/
 # Evidence is ignored by default. Only the reviewed public-site research
 # package is intentionally deliverable; never force-add runtime evidence.
 artifacts/**
