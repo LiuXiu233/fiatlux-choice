@@ -2,7 +2,7 @@
 
 耀光（广州）电子竞技有限公司及类似中国境内 1–2 人团队的内部公司治理与运营 Web App。
 
-当前状态：**受控候选，尚未宣布或批准 V1 完成**。仓库已经包含实质业务实现、PWA、API、worker、38 张业务表与 10 个迁移（`0000`–`0009`）、内网部署和恢复资产。2026-07-19 冻结工作树已通过静态/类型/单元/集成/E2E/生产构建、最新 production-like Compose、桌面与移动浏览器、七个本地 arm64 镜像供应链检查和一次底层 formatVersion 2 独立恢复；连接恢复实现基线为 `859841f…`，候选分支对应 Draft PR #12。首轮本地相邻版本回滚在 idle 后暴露 `CONNECT_TIMEOUT` 并正确阻断，修复后使用七组件内容全部不同、schema 由 9 个迁移升级到 10 个迁移的 synthetic bridge 完成真实 push/pull、升级、双恢复点、应用回滚和 308 秒后 HTTPS CRUD 复验。该结果不是历史生产 N−1、GHCR 或广州办公内网证据。GitHub CI/Security 仍因账户付款失败或 Actions spending limit 不足在 runner 启动前被平台阻断，尚未执行 workflow step。其余未完成闸门包括 GHCR 双平台发布与绿色 CI、经批准的生产候选/N−1 和目标环境复演、经审批生产恢复入口、耀光目标办公内网与真实受管设备、真实 LLM/GitHub 适配器、MinIO 长期维护/支持风险决策和专业合规/业务批准。详情见[V1 验收矩阵](docs/delivery/v1-acceptance-matrix.md)和[受控候选交付报告](docs/delivery/final-delivery-report.md)。
+当前状态：**受控候选，尚未宣布或批准 V1 完成**。仓库已经包含实质业务实现、PWA、API、worker、38 张业务表与 10 个迁移（`0000`–`0009`）、内网部署和恢复资产。2026-07-19 最新实现基线 `a45db54…` 已通过静态/类型/单元/集成/E2E/生产构建、独立 Compose、桌面与移动浏览器、七个本地 arm64 镜像供应链检查；此前冻结基线还完成一次底层 formatVersion 2 独立恢复。连接恢复实现起点为 `859841f…`；候选分支对应 Draft PR #12。首轮本地相邻版本回滚在 idle 后暴露 `CONNECT_TIMEOUT` 并正确阻断，修复后使用七组件内容全部不同、schema 由 9 个迁移升级到 10 个迁移的 synthetic bridge 完成真实 push/pull、升级、双恢复点、应用回滚和 308 秒后 HTTPS CRUD 复验。该结果不是历史生产 N−1、GHCR 或广州办公内网证据。GitHub CI/Security 仍因账户付款失败或 Actions spending limit 不足在 runner 启动前被平台阻断，尚未执行 workflow step。其余未完成闸门包括 GHCR 双平台发布与绿色 CI、经批准的生产候选/N−1 和目标环境复演、经审批生产恢复入口、耀光目标办公内网与真实受管设备、真实 LLM/GitHub 适配器、MinIO 长期维护/支持风险决策和专业合规/业务批准。详情见[V1 验收矩阵](docs/delivery/v1-acceptance-matrix.md)和[受控候选交付报告](docs/delivery/final-delivery-report.md)。
 
 ## 能力
 

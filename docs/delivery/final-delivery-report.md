@@ -12,8 +12,8 @@
 | --- | --- | --- |
 | 产品版本 | V1 受控候选 | 所有阻断闸门关闭并取得业务负责人批准后才能改为 V1 完成 |
 | 目标仓库 | 私有 `LiuXiu233/fiatlux-choice`；候选分支已推送；[Draft PR #12](https://github.com/LiuXiu233/fiatlux-choice/pull/12) | 解除 Actions 计费阻断，取得绿色 CI/security；批准后再合并 |
-| Git SHA / tag | 连接恢复实现基线 `859841f79efc68fd75757b6f3232ba4eaa56cb3a`；未创建发布 tag | 本报告状态回写为后续纯文档提交；生产发布仍须确定 commit/tag 签名政策，并绑定受保护 tag、GHCR digest、测试和恢复点 |
-| GitHub PR / CI | [CI run 29674559169](https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29674559169) 与 [Security run 29674559116](https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29674559116) **均在 runner 启动前失败** | GitHub annotation 明确为近期账户付款失败或 Actions spending limit 不足；`runner_id=0`、`steps=[]`，没有任何 workflow step 实际运行。修复 Billing & plans 后重跑；不得把本地通过或这次 failure 写成 GitHub CI 通过 |
+| Git SHA / tag | 引用链一致性实现基线 `a45db5489443fb240aa946561704228ccf1aaa61`；未创建发布 tag | 本报告状态回写为后续纯文档提交；生产发布仍须确定 commit/tag 签名政策，并绑定受保护 tag、GHCR digest、测试和恢复点 |
+| GitHub PR / CI | 推送前最近可见的 [CI run 29687727963](https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29687727963) 与 [Security run 29687727964](https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29687727964) **均在 runner 启动前失败**，对应旧 head `70763d7…` | GitHub annotation 明确为近期账户付款失败或 Actions spending limit 不足；`runner_id=0`、`steps=[]`，没有任何 workflow step 实际运行。推送当前 head 后重新检查；修复 Billing & plans 后重跑，不得把本地通过或平台 failure 写成 GitHub CI 通过 |
 | 数据库 | PostgreSQL 17.10；38 张业务表；10 个业务迁移 `0000`–`0009`；fresh 与 legacy 升级、pg-boss 24 和五职责权限均本地通过 | 最终提交后由 GitHub CI 复现；目标内网重新执行 |
 | 候选 QA 环境 | 最新冻结工作树的本机 production-like Compose：`https://choice-final.localhost:19443`，受信 TLS SAN `choice-final.localhost` | 不得改写成耀光广州办公内网生产环境 |
 | 目标办公内网 | **未部署** | 补主机、OS、架构、DNS、CA、防火墙、受管设备和运行观察 |
@@ -172,7 +172,7 @@
 - [x] 本地 synthetic bridge 使用真实 schema 与七镜像差异完成升级、双恢复点、应用回滚和 idle 后 HTTPS CRUD；历史生产 N−1、GHCR 和目标内网复演仍待执行，不得把本地结果升级为生产证明。
 - [x] 本地完成 Gitleaks、生产依赖审计、Semgrep+canary、Trivy、七镜像 SPDX/provenance fixture 和 arm64 content ID；GitHub/GHCR 双平台 digest、CodeQL/等效 SAST 与剩余风险批准待执行。
 - [ ] 在真实受管手机完成 PWA 安装/升级和移动浏览器验证。
-- [x] 连接修复实现基线已纳入候选分支并对应 Draft PR #12；文档提交后仍须核对远端 head 和不可变 SHA。
+- [x] 引用链一致性实现基线 `a45db5489443fb240aa946561704228ccf1aaa61` 已在候选分支提交；文档提交和推送后仍须核对 Draft PR #12 远端 head 与新 run。
 - [ ] 修复 GitHub Actions 账户付款/spending limit 阻断，重跑 PR CI 与 Security；取得绿色 run、CodeQL 或经批准等效 SAST、制品证据，批准后再合并。
 - [ ] 在耀光广州办公内网验证主机、DNS、CA、防火墙、显式 seed、owner 首登改密、设备、备份介质和运行观察。
 - [ ] 完成真实 LLM/GitHub 最小权限验收，或明确保持 disabled/manual 且不宣称外部集成完成。

@@ -119,7 +119,7 @@
 - 新升级/回滚入口强制校验严格七组件发布清单和独立批准的清单 SHA-256，并在 pull 后、迁移前及启动后核对本地 RepoDigest；切换时一致重建 PostgreSQL、MinIO 与应用，并核对六个常驻容器 image ID 后才写全局版本，避免任一常驻组件延迟切换。backup 保持按需。BuildKit provenance 与 SBOM 不是签名；当前未集成 cosign/Sigstore，不能声称镜像已由发布者签名。
 - 尚未完成的目标验证包括耀光办公内网主机、DNS、CA 分发、防火墙、seed/owner 首登改密、真实设备、异介质恢复和运行观察。
 - Caddy internal CA 需要逐台受控分发；它不是成熟企业 PKI。
-- 连接恢复实现基线 `859841f79efc68fd75757b6f3232ba4eaa56cb3a` 已对应私有 `LiuXiu233/fiatlux-choice` 的 Draft PR #12 候选分支。既有 CI/Security run 的所有 job 均为 `runner_id=0`、`steps=[]`，annotation 明确提示近期账户付款失败或 Actions spending limit 不足；因此没有 workflow step 被执行，不能声称 GitHub CI、安全扫描、合并或发布已完成。文档 head 推送后仍须复核新 run；修复 Billing & plans 后必须重跑。
+- 当前引用链一致性实现基线 `a45db5489443fb240aa946561704228ccf1aaa61` 已在私有 `LiuXiu233/fiatlux-choice` 的 Draft PR #12 候选分支提交。推送前最近 CI/Security run 的所有 job 均为 `runner_id=0`、`steps=[]`，annotation 明确提示近期账户付款失败或 Actions spending limit 不足；因此没有 workflow step 被执行，不能声称 GitHub CI、安全扫描、合并或发布已完成。文档 head 推送后仍须复核新 run；修复 Billing & plans 后必须重跑。
 - 当前仓库没有把 Git commit/tag 签名作为已验证控制。本地测试事实不能充当发布者签名；生产 tag 前必须确定并执行签名政策，或由有权负责人记录替代控制与风险决定。
 
 ## 11. 安全剩余风险

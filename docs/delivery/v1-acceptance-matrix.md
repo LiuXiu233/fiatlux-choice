@@ -92,7 +92,7 @@ lease 到期不等于“安全重试”。操作员必须查看审计、partial 
 | synthetic bridge 相邻版本 | N `859841f…`/10 migrations 与本地 bridge `b44a8d1…`/9 migrations；七 digest 全异，真实 push/pull，升级 46s、回滚 43s、双 v2 恢复点；回滚后 308s 登录与 CRUD 通过 | 冻结候选本地通过 / 范围受限 | 不是历史生产 N−1、GHCR 或目标内网；经批准生产候选仍须复演 |
 | 归档与维护安全 | archive guard、资源上限、scratch、preflight、maintenance lock 及对应安全测试通过 | 冻结候选本地通过 | 经审批生产 `restore.sh` 破坏性入口仍待目标演练 |
 | 七镜像与供应链 | arm64 七镜像 Trivy 四口径均 0；7 SPDX；真实 BuildKit 双平台 fixture；API/worker amd64 原生件补偿验证 | 冻结候选本地通过 / GHCR 待发布 | 最终 SHA 的双平台 registry digest、GitHub workflow 和残余风险批准 |
-| GitHub 交付 | 连接修复实现基线 `859841f…`，Draft PR #12 已创建；既有 CI/Security run 在 runner 启动前因账户付款失败或 spending limit 不足被 GitHub 阻断，未执行任何 step | 部分完成 / 外部计费阻断 | 推送文档 head 后复核远端；修复 Billing & plans 后重跑并取得绿色 CI/security、制品和批准；再合并 |
+| GitHub 交付 | 引用链一致性实现基线 `a45db54…` 已提交，Draft PR #12 已创建；推送前最近 CI `29687727963` / Security `29687727964` 在 runner 前因账户付款失败或 spending limit 不足被 GitHub 阻断，未执行任何 step | 部分完成 / 外部计费阻断 | 推送文档 head 后复核远端；修复 Billing & plans 后重跑并取得绿色 CI/security、制品和批准；再合并 |
 | 目标办公内网 | 尚未在耀光广州办公内网部署 | 待执行 / 阻断 | 主机基线、DNS、CA、设备、备份介质、运行观察和批准 |
 
 ## 7. 核心场景状态
@@ -124,8 +124,8 @@ lease 到期不等于“安全重试”。操作员必须查看审计、partial 
 
 | 字段 | 当前值 | 要求 |
 | --- | --- | --- |
-| 完整 Git SHA / tag | 连接修复实现基线 `859841f79efc68fd75757b6f3232ba4eaa56cb3a`；tag 未创建 | 推送文档 head 后记录完整 SHA；确定 commit/tag 签名政策，生产发布记录受保护 tag |
-| GitHub PR / CI / 安全 run | Draft PR #12；CI `29674559169`、Security `29674559116` 均被账户付款/spending limit 在 runner 前阻断 | 修复 Billing & plans 后重跑；只有实际 step 执行且绿色才能关闭门禁 |
+| 完整 Git SHA / tag | 引用链一致性实现基线 `a45db5489443fb240aa946561704228ccf1aaa61`；tag 未创建 | 推送文档 head 后记录完整 SHA；确定 commit/tag 签名政策，生产发布记录受保护 tag |
+| GitHub PR / CI / 安全 run | Draft PR #12；推送前最近 CI `29687727963`、Security `29687727964` 均被账户付款/spending limit 在 runner 前阻断 | 推送后记录新 run；修复 Billing & plans 后重跑，只有实际 step 执行且绿色才能关闭门禁 |
 | 38 表 / 10 migrations（`0000`–`0009`）证据 | **冻结工作树本地通过** | GitHub SHA 与目标环境复现 fresh/legacy、pg-boss 和权限 |
 | 七镜像 digest / SBOM / provenance | **本地 arm64/SPDX/fixture 通过** | 从最终 SHA 生成并记录 GHCR 双平台 registry digest |
 | 最终测试报告 | **冻结工作树本地通过** | 提交后记录不可变 SHA 与 GitHub run；源码漂移则重跑 |
