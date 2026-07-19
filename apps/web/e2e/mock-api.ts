@@ -203,6 +203,26 @@ const evidenceFile = {
 };
 const obligations: Array<Record<string, unknown>> = [];
 const complianceEvents: Array<Record<string, unknown>> = [];
+const complianceMonitoringStatus = {
+  generatedAt: "2026-07-20T02:31:00+08:00",
+  sourceCount: 1,
+  dueAvailableCount: 0,
+  inFlightCount: 0,
+  pendingFetchCount: 0,
+  failedCount: 0,
+  changedCount: 0,
+  staleReviewCount: 0,
+  overdueReviewCount: 0,
+  oldestDueAt: null,
+  nextFutureMonitorAt: "2026-07-25T00:00:00Z",
+  latestDispatch: {
+    occurredAt: "2026-07-20T02:30:00+08:00",
+    batchLimit: 12,
+    dueCount: 1,
+    queuedCount: 1,
+    hasMoreDue: false,
+  },
+};
 
 function json(route: Route, body: unknown, status = 200) {
   return route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) });
@@ -313,6 +333,9 @@ export async function installMockApi(
         data: [complianceSource],
         meta: { page: 1, pageSize: 20, total: 1, pageCount: 1 },
       });
+    }
+    if (path === "/compliance-items/monitoring-status" && request.method() === "GET") {
+      return json(route, { data: complianceMonitoringStatus });
     }
     if (path === "/compliance-items/compliance-source-1/monitor" && request.method() === "POST") {
       return json(

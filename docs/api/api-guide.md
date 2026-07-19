@@ -167,6 +167,7 @@ POST 使用对应 create schema。PATCH 使用 create schema 的部分字段，�
 | GET/POST /approvals、GET /approvals/:id、POST /approvals/:id/approve、POST /approvals/:id/reject | 人工审批 |
 | GET/POST /external-actions、GET /external-actions/:id、POST /external-actions/:id/transition | 外部动作真实性状态机 |
 | POST /github-insights/:id/refresh | 仅在批准的 read-only GitHub 模式排队刷新；服务端保存当前版本快照，见下文 |
+| GET /compliance-items/monitoring-status | 按会话组织只读汇总来源监控与人工复核工作量；需要 `compliance-items:read` |
 | POST /compliance-items/:id/monitor | 有 `compliance-items:update` 权限者人工排队检查白名单官方来源；可选 body 为 `{ "reason": "..." }`，202 只代表已排队 |
 | GET /compliance-items/:id/snapshots | 读取该官方来源追加式监测快照历史 |
 | GET /compliance-items/:id/reviews | 按页读取追加式专业复核历史；需要 `compliance-items:read` |
@@ -177,7 +178,9 @@ POST 使用对应 create schema。PATCH 使用 create schema 的部分字段，�
 
 OAS 3.1 是当前候选的机器可读接口清单；运行时 Zod/领域校验仍是实际执行边界。发现文档与运行时不一致时应作为契约缺陷处理并阻断兼容性发布，不能在客户端静默猜测。
 
-合规来源监控响应包含 `sourceId`、`jobId` 和 `status=queued`。同一组织、同一来源已有有效租约时，重复请求复用在途 job，不会二次抓取。实际成功、变化、失败或陈旧结果丢弃必须查看来源字段与审计事件，不能把 HTTP 202 当作官方网页已抓取或政策已人工复核。人工复核到期、已有正文哈希变化和连续第三次失败会由 worker 在来源更新事务中创建一条 `todo/high` 任务：执行时仍为有效成员且仍有 `compliance-items:update` 或通配权限的人工触发者优先成为协调责任人，否则确定性选择最早加入的有效 owner；同时原子送达一条站内通知。来源事件 metadata 的 `escalationTaskId`、`escalationNotificationId`、`escalationAssigneeId` 和 `assignmentStrategy` 分别指向任务、通知、协调人和选择策略。任务或通知出现仍只表示需要人工处理，不表示协调人具有专业资质、来源已经复核或问题已经解决。
+`GET /compliance-items/monitoring-status` 返回 `generatedAt`、八项非负计数、`oldestDueAt`、`nextFutureMonitorAt` 和可空的 `latestDispatch`。计数分别聚合未归档来源、当前可领取到期来源、有效租约、`pending_fetch`、`failed`、`changed`、`stale` 和已过下次复核日的 `reviewed` 来源；集合可能重叠。`latestDispatch` 只接受可验证的 `occurredAt/batchLimit/dueCount/queuedCount/hasMoreDue`，并强制 `queuedCount <= dueCount`；旧审计缺字段或结构无效时返回 `null`，不会补造事实。该 GET 不写审计、不排队、不改变来源，且只读取会话组织的数据。
+
+人工监控 POST 响应包含 `sourceId`、`jobId` 和 `status=queued`。同一组织、同一来源已有有效租约时，重复请求复用在途 job，不会二次抓取。实际成功、变化、失败或陈旧结果丢弃必须查看来源字段与审计事件，不能把 HTTP 202 当作官方网页已抓取或政策已人工复核。人工复核到期、已有正文哈希变化和连续第三次失败会由 worker 在来源更新事务中创建一条 `todo/high` 任务：执行时仍为有效成员且仍有 `compliance-items:update` 或通配权限的人工触发者优先成为协调责任人，否则确定性选择最早加入的有效 owner；同时原子送达一条站内通知。来源事件 metadata 的 `escalationTaskId`、`escalationNotificationId`、`escalationAssigneeId` 和 `assignmentStrategy` 分别指向任务、通知、协调人和选择策略。任务或通知出现仍只表示需要人工处理，不表示协调人具有专业资质、来源已经复核或问题已经解决。
 
 专业复核不能走通用 `POST/PATCH /compliance-items`。专用 POST 必须提交当前 `expectedVersion`、结论、来源生命周期、复核人姓名/角色/机构、胜任依据、同组织 `uploaded` 证据文件、适用条件、摘要、缺失信息、下一复核日和登记原因。例如：
 

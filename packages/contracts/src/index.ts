@@ -307,6 +307,34 @@ export const complianceMonitorRequestSchema = z.object({
   reason: z.string().trim().min(1).max(2_000).optional(),
 });
 
+export const complianceMonitorDispatchSummarySchema = z
+  .object({
+    occurredAt: dateTimeSchema,
+    batchLimit: z.number().int().min(1).max(250),
+    dueCount: z.number().int().min(0),
+    queuedCount: z.number().int().min(0),
+    hasMoreDue: z.boolean(),
+  })
+  .refine((summary) => summary.queuedCount <= summary.dueCount, {
+    message: "Queued compliance sources cannot exceed selected due sources",
+    path: ["queuedCount"],
+  });
+
+export const complianceMonitoringStatusSchema = z.object({
+  generatedAt: dateTimeSchema,
+  sourceCount: z.number().int().min(0),
+  dueAvailableCount: z.number().int().min(0),
+  inFlightCount: z.number().int().min(0),
+  pendingFetchCount: z.number().int().min(0),
+  failedCount: z.number().int().min(0),
+  changedCount: z.number().int().min(0),
+  staleReviewCount: z.number().int().min(0),
+  overdueReviewCount: z.number().int().min(0),
+  oldestDueAt: dateTimeSchema.nullable(),
+  nextFutureMonitorAt: dateTimeSchema.nullable(),
+  latestDispatch: complianceMonitorDispatchSummarySchema.nullable(),
+});
+
 export const complianceReviewOutcomeSchema = z.enum([
   "applicable",
   "not_applicable",
@@ -792,6 +820,7 @@ export type ResourceName = keyof typeof resourceContracts;
 export type AdvisorKey = z.infer<typeof advisorKeySchema>;
 export type AdvisorOutput = z.infer<typeof advisorOutputSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
+export type ComplianceMonitoringStatus = z.infer<typeof complianceMonitoringStatusSchema>;
 
 export const resourceNameSchema = z.enum(
   Object.keys(resourceContracts) as [ResourceName, ...ResourceName[]],

@@ -4,6 +4,7 @@ import {
   advisorOutputSchema,
   approvalRequestSchema,
   changePasswordSchema,
+  complianceMonitoringStatusSchema,
   dateOrDateTimeSchema,
   dateTimeSchema,
   decisionCreateSchema,
@@ -47,6 +48,37 @@ describe("HTTP contracts", () => {
     expect(moneyCentsSchema.parse(Number.MAX_SAFE_INTEGER)).toBe(Number.MAX_SAFE_INTEGER);
     expect(moneyCentsSchema.safeParse(Number.MAX_SAFE_INTEGER + 1).success).toBe(false);
     expect(moneyCentsSchema.safeParse(1e20).success).toBe(false);
+  });
+
+  it("validates compliance monitoring status without overstating dispatched work", () => {
+    const status = {
+      generatedAt: "2026-07-20T00:00:00+08:00",
+      sourceCount: 73,
+      dueAvailableCount: 61,
+      inFlightCount: 12,
+      pendingFetchCount: 73,
+      failedCount: 0,
+      changedCount: 0,
+      staleReviewCount: 0,
+      overdueReviewCount: 0,
+      oldestDueAt: "2026-07-19T00:00:00+08:00",
+      nextFutureMonitorAt: null,
+      latestDispatch: {
+        occurredAt: "2026-07-20T02:30:00+08:00",
+        batchLimit: 12,
+        dueCount: 12,
+        queuedCount: 12,
+        hasMoreDue: true,
+      },
+    };
+
+    expect(complianceMonitoringStatusSchema.parse(status)).toMatchObject(status);
+    expect(
+      complianceMonitoringStatusSchema.safeParse({
+        ...status,
+        latestDispatch: { ...status.latestDispatch, queuedCount: 13 },
+      }).success,
+    ).toBe(false);
   });
 
   it("requires optimistic concurrency on updates", () => {

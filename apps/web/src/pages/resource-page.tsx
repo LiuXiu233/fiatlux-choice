@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { type FormEvent, useEffect, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
+import { ComplianceMonitoringStatusPanel } from "../components/compliance-monitoring-status";
 import { PageHeader } from "../components/page-header";
 import {
   ConfirmForm,
@@ -219,6 +220,9 @@ export function ResourcePage() {
       toast.push("记录已归档", "success");
       setArchiving(null);
       await queryClient.invalidateQueries({ queryKey: ["resource", config?.key] });
+      if (config?.key === "compliance-items") {
+        await queryClient.invalidateQueries({ queryKey: ["compliance-monitoring-status"] });
+      }
     },
     onError: (error) => toast.push(error instanceof ApiError ? error.message : "归档失败", "error"),
   });
@@ -245,7 +249,10 @@ export function ResourcePage() {
       ),
     onSuccess: async () => {
       toast.push("官方来源检查已进入受控后台队列", "success");
-      await queryClient.invalidateQueries({ queryKey: ["resource", "compliance-items"] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["resource", "compliance-items"] }),
+        queryClient.invalidateQueries({ queryKey: ["compliance-monitoring-status"] }),
+      ]);
     },
     onError: (error) =>
       toast.push(error instanceof ApiError ? error.message : "无法触发官方来源检查", "error"),
@@ -286,6 +293,10 @@ export function ResourcePage() {
           ) : undefined
         }
       />
+
+      {config.key === "compliance-items" && canViewComplianceSnapshots ? (
+        <ComplianceMonitoringStatusPanel />
+      ) : null}
 
       <section className="resource-toolbar" aria-label="筛选">
         <label className="search-field">
@@ -1216,6 +1227,7 @@ export function ComplianceReviewForm({
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["resource", "compliance-items"] }),
         queryClient.invalidateQueries({ queryKey: ["compliance-reviews", source.id] }),
+        queryClient.invalidateQueries({ queryKey: ["compliance-monitoring-status"] }),
       ]);
       onClose();
     },
@@ -1873,6 +1885,9 @@ function ResourceForm({
     onSuccess: async () => {
       toast.push(record ? "记录已更新" : "记录已创建", "success");
       await queryClient.invalidateQueries({ queryKey: ["resource", config.key] });
+      if (config.key === "compliance-items") {
+        await queryClient.invalidateQueries({ queryKey: ["compliance-monitoring-status"] });
+      }
       onClose();
     },
     onError: (error) => toast.push(error instanceof ApiError ? error.message : "保存失败", "error"),

@@ -7,6 +7,7 @@ import {
   approvalDecisionSchema,
   approvalRequestSchema,
   changePasswordSchema,
+  complianceMonitoringStatusSchema,
   complianceMonitorRequestSchema,
   complianceProfessionalReviewSchema,
   complianceReviewListQuerySchema,
@@ -819,6 +820,10 @@ addOperation("POST", "/api/v1/compliance-items/:id/monitor", {
       }),
     ),
   },
+});
+addOperation("GET", "/api/v1/compliance-items/monitoring-status", {
+  operationId: "getComplianceMonitoringStatus",
+  success: { 200: dataEnvelope(zodSchema(complianceMonitoringStatusSchema)) },
 });
 addOperation("GET", "/api/v1/compliance-items/:id/snapshots", {
   operationId: "listComplianceItemSnapshots",

@@ -122,9 +122,9 @@ describe("machine-verifiable OpenAPI contract", () => {
       httpMethods.flatMap((method) => (pathItem[method] ? [operationKey(method, path)] : [])),
     );
 
-    expect(inventoryKeys).toHaveLength(140);
-    expect(new Set(inventoryKeys).size).toBe(140);
-    expect(Object.keys(document.paths ?? {})).toHaveLength(75);
+    expect(inventoryKeys).toHaveLength(141);
+    expect(new Set(inventoryKeys).size).toBe(141);
+    expect(Object.keys(document.paths ?? {})).toHaveLength(76);
     expect(contractKeys).toEqual(inventoryKeys);
     expect(documentKeys.sort()).toEqual(inventoryKeys);
   });

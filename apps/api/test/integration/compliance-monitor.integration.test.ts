@@ -37,6 +37,7 @@ describe.skipIf(!databaseUrl)("compliance monitor API PostgreSQL integration", (
   let firstCookie: string;
   let secondCookie: string;
   let firstOrgId: string;
+  let secondOrgId: string;
   let sourceId: string;
   let failureSourceId: string;
   const jobs: Array<{ name: string; data: unknown; id: string }> = [];
@@ -57,7 +58,7 @@ describe.skipIf(!databaseUrl)("compliance monitor API PostgreSQL integration", (
       adminMustChangePassword: false,
       complianceSourcesFile: "/nonexistent/monitor-api-one.json",
     });
-    await seedDatabase(dbHandle.db, {
+    const second = await seedDatabase(dbHandle.db, {
       organizationName: "Monitor API Two",
       organizationSlug: `monitor-api-two-${suffix}`,
       adminEmail: secondEmail,
@@ -67,7 +68,8 @@ describe.skipIf(!databaseUrl)("compliance monitor API PostgreSQL integration", (
       complianceSourcesFile: "/nonexistent/monitor-api-two.json",
     });
     firstOrgId = first.organization.id;
-    const [source, failureSource] = await dbHandle.db
+    secondOrgId = second.organization.id;
+    const [source, failureSource, pendingSource] = await dbHandle.db
       .insert(complianceItems)
       .values([
         {
@@ -76,6 +78,9 @@ describe.skipIf(!databaseUrl)("compliance monitor API PostgreSQL integration", (
           category: "company_governance",
           issuingAuthority: "国务院",
           sourceUrl: "https://www.gov.cn/policy",
+          contentHashStatus: "changed",
+          reviewStatus: "stale",
+          nextMonitorAt: new Date("2020-01-01T00:00:00.000Z"),
         },
         {
           orgId: firstOrgId,
@@ -83,12 +88,80 @@ describe.skipIf(!databaseUrl)("compliance monitor API PostgreSQL integration", (
           category: "data_security",
           issuingAuthority: "国务院",
           sourceUrl: "https://www.gov.cn/queue-failure",
+          contentHashStatus: "failed",
+          monitoringFailureCount: 3,
+          reviewStatus: "reviewed",
+          nextReviewAt: new Date("2020-01-01T00:00:00.000Z"),
+          nextMonitorAt: new Date("2035-01-01T00:00:00.000Z"),
+        },
+        {
+          orgId: firstOrgId,
+          title: "API 首次待抓取来源",
+          category: "tax_invoice",
+          issuingAuthority: "国家税务总局",
+          sourceUrl: "https://www.chinatax.gov.cn/pending-fetch",
+          nextMonitorAt: new Date("2020-02-01T00:00:00.000Z"),
+          monitoringLeaseToken: `monitor-status-lease-${suffix}`,
+          monitoringLeaseUntil: new Date("2035-02-01T00:00:00.000Z"),
+          monitoringJobId: `monitor-status-job-${suffix}`,
         },
       ])
       .returning();
-    if (!source || !failureSource) throw new Error("Failed to create compliance sources");
+    if (!source || !failureSource || !pendingSource)
+      throw new Error("Failed to create compliance sources");
     sourceId = source.id;
     failureSourceId = failureSource.id;
+    await dbHandle.db.insert(complianceItems).values({
+      orgId: secondOrgId,
+      title: "其他组织监控来源",
+      category: "company_governance",
+      issuingAuthority: "国务院",
+      sourceUrl: "https://www.gov.cn/other-organization-monitoring-status",
+      nextMonitorAt: new Date("2019-01-01T00:00:00.000Z"),
+    });
+    await dbHandle.db.insert(complianceItems).values({
+      orgId: firstOrgId,
+      title: "已归档来源不应进入监控汇总",
+      category: "company_governance",
+      issuingAuthority: "国务院",
+      sourceUrl: "https://www.gov.cn/archived-monitoring-status",
+      nextMonitorAt: new Date("2018-01-01T00:00:00.000Z"),
+      archivedAt: new Date("2026-07-19T00:00:00.000Z"),
+    });
+    await dbHandle.db.insert(auditEvents).values([
+      {
+        orgId: firstOrgId,
+        actorUserId: null,
+        action: "monitor_dispatch",
+        resourceType: "compliance-source-monitor",
+        resourceId: firstOrgId,
+        requestId: `monitor-status-first-${suffix}`,
+        metadata: {
+          actorType: "system",
+          batchLimit: 12,
+          dueCount: 3,
+          queuedCount: 2,
+          hasMoreDue: true,
+        },
+        createdAt: new Date("2026-07-19T18:30:00.000Z"),
+      },
+      {
+        orgId: secondOrgId,
+        actorUserId: null,
+        action: "monitor_dispatch",
+        resourceType: "compliance-source-monitor",
+        resourceId: secondOrgId,
+        requestId: `monitor-status-second-${suffix}`,
+        metadata: {
+          actorType: "system",
+          batchLimit: 99,
+          dueCount: 1,
+          queuedCount: 1,
+          hasMoreDue: false,
+        },
+        createdAt: new Date("2026-07-19T19:30:00.000Z"),
+      },
+    ]);
     config = apiConfigSchema.parse({
       NODE_ENV: "test",
       DATABASE_URL: testDatabaseUrl,
@@ -129,6 +202,85 @@ describe.skipIf(!databaseUrl)("compliance monitor API PostgreSQL integration", (
   afterAll(async () => {
     await app?.close();
     await dbHandle?.client.end();
+  });
+
+  it("summarizes monitoring workload without crossing organization boundaries", async () => {
+    const unauthorized = await app.inject({
+      method: "GET",
+      url: "/api/v1/compliance-items/monitoring-status",
+    });
+    expect(unauthorized.statusCode).toBe(401);
+
+    const firstResponse = await app.inject({
+      method: "GET",
+      url: "/api/v1/compliance-items/monitoring-status",
+      headers: { cookie: firstCookie },
+    });
+    expect(firstResponse.statusCode, firstResponse.body).toBe(200);
+    expect(body(firstResponse).data).toMatchObject({
+      sourceCount: 3,
+      dueAvailableCount: 1,
+      inFlightCount: 1,
+      pendingFetchCount: 1,
+      failedCount: 1,
+      changedCount: 1,
+      staleReviewCount: 1,
+      overdueReviewCount: 1,
+      oldestDueAt: "2020-01-01T00:00:00.000Z",
+      nextFutureMonitorAt: "2035-01-01T00:00:00.000Z",
+      latestDispatch: {
+        occurredAt: "2026-07-19T18:30:00.000Z",
+        batchLimit: 12,
+        dueCount: 3,
+        queuedCount: 2,
+        hasMoreDue: true,
+      },
+    });
+    expect(Date.parse(String((body(firstResponse).data as JsonObject).generatedAt))).not.toBeNaN();
+
+    const secondResponse = await app.inject({
+      method: "GET",
+      url: "/api/v1/compliance-items/monitoring-status",
+      headers: { cookie: secondCookie },
+    });
+    expect(secondResponse.statusCode, secondResponse.body).toBe(200);
+    expect(body(secondResponse).data).toMatchObject({
+      sourceCount: 1,
+      dueAvailableCount: 1,
+      failedCount: 0,
+      changedCount: 0,
+      latestDispatch: {
+        occurredAt: "2026-07-19T19:30:00.000Z",
+        batchLimit: 99,
+        dueCount: 1,
+        queuedCount: 1,
+        hasMoreDue: false,
+      },
+    });
+
+    await dbHandle.db.insert(auditEvents).values({
+      orgId: firstOrgId,
+      actorUserId: null,
+      action: "monitor_dispatch",
+      resourceType: "compliance-source-monitor",
+      resourceId: firstOrgId,
+      requestId: `monitor-status-invalid-${randomUUID()}`,
+      metadata: {
+        actorType: "system",
+        batchLimit: 12,
+        dueCount: 1,
+        queuedCount: 2,
+        hasMoreDue: false,
+      },
+      createdAt: new Date(Date.now() + 60_000),
+    });
+    const invalidHistoryResponse = await app.inject({
+      method: "GET",
+      url: "/api/v1/compliance-items/monitoring-status",
+      headers: { cookie: firstCookie },
+    });
+    expect(invalidHistoryResponse.statusCode, invalidHistoryResponse.body).toBe(200);
+    expect((body(invalidHistoryResponse).data as JsonObject).latestDispatch).toBeNull();
   });
 
   it("queues an organization-scoped manual check and records actor audit events", async () => {
