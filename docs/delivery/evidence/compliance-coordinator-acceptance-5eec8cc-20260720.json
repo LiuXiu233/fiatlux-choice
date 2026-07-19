@@ -1,0 +1,275 @@
+{
+  "schemaVersion": 1,
+  "evidenceType": "compliance-coordinator-local-production-like-acceptance",
+  "status": "passed_with_external_gates",
+  "candidate": {
+    "repository": "LiuXiu233/fiatlux-choice",
+    "branch": "codex/v1-acceptance-hardening",
+    "implementationGitSha": "5eec8cc3f4cbd0b9a12372240bca9f56d65ae5f9",
+    "imageTag": "coordinatorqa-5eec8cc",
+    "sourceWasClean": true,
+    "databaseMigrationAdded": false
+  },
+  "execution": {
+    "evidenceWindowStartedAt": "2026-07-19T21:18:57Z",
+    "evidenceWindowCompletedAt": "2026-07-19T21:51:23Z",
+    "operatorTimezone": "Asia/Shanghai",
+    "host": {
+      "os": "macOS 26.5.2",
+      "dockerClient": "29.6.0",
+      "dockerServer": "29.5.2",
+      "dockerServerOs": "linux",
+      "dockerServerArchitecture": "arm64",
+      "dockerCompose": "5.3.1",
+      "dockerBuildx": "0.35.0"
+    }
+  },
+  "qualityGates": {
+    "targetComplianceMonitorPostgreSQL": {
+      "files": 1,
+      "tests": 10,
+      "passed": 10
+    },
+    "fullCheck": {
+      "biomeFiles": 207,
+      "shellcheckPassed": true,
+      "typescriptProjects": 7,
+      "unitTests": 177,
+      "apiIntegrationFiles": 18,
+      "apiIntegrationTests": 89,
+      "workerIntegrationFiles": 5,
+      "workerIntegrationTests": 28,
+      "realMinioTests": 2,
+      "workspaceBuildPassed": true
+    },
+    "productionBuild": {
+      "nodeEnv": "production",
+      "educationChunkKiB": 128.19,
+      "mainChunkKiB": 423.59,
+      "pwaPrecacheEntries": 10,
+      "pwaPrecacheKiB": 700.3,
+      "ciAndReleaseBuildStepsOverrideTestEnvironment": true,
+      "actionlintVersion": "1.7.12",
+      "actionlintPassed": true
+    }
+  },
+  "compose": {
+    "projectName": "fiatlux-choice-coordinatorqa",
+    "url": "https://choice-coordinator.localhost:21443",
+    "productionOverlay": true,
+    "services": ["postgres", "minio", "api", "worker", "web", "caddy"],
+    "allSixServicesHealthyBeforeAndAfterBrowserRun": true,
+    "workerIntentionallyStoppedDuringResourceConstrainedBrowserRun": true,
+    "deploymentVerifierPassedTwice": true,
+    "minioLeastPrivilegeVerifierPassedTwice": true,
+    "onlyGatewayPublishedHostPort": true,
+    "runtimeDatabaseRole": "fiatlux_runtime",
+    "restartCounts": {
+      "postgres": 0,
+      "minio": 0,
+      "api": 0,
+      "worker": 0,
+      "web": 0,
+      "caddy": 0
+    },
+    "database": {
+      "publicTableCount": 38,
+      "migrationCount": 11,
+      "pgBossSchemaVersion": 24,
+      "organizationCount": 1,
+      "seededOfficialSources": 73,
+      "totalSourcesAfterOneQaFixture": 74,
+      "professionalProvenanceCount": 0
+    },
+    "runtimeLogReview": {
+      "unexpectedBlockingPatterns": 0,
+      "classifiedExpectedEvents": [
+        "The non-root Caddy container could not install its local CA into a host trust store; host curl validated the exported CA and browser trust used the verified certificate SPKI."
+      ]
+    },
+    "images": [
+      {
+        "component": "api",
+        "imageId": "sha256:0afbfcc6f485048a74d39a054374522bc569093554cd8851a674b4861d8f33ea"
+      },
+      {
+        "component": "worker",
+        "imageId": "sha256:bd57c727c0c1fed47a4bc3cb7580aef585d42a07d48eba4a59a371a983c5817c"
+      },
+      {
+        "component": "web",
+        "imageId": "sha256:bde477c8b87078f2985e13e5582badbc00b6ccb01006a355f77b1bb0a0dd0117"
+      },
+      {
+        "component": "gateway",
+        "imageId": "sha256:8a3c9db2d68b8f1f01e83bb92bcec33643f3a5927f2b9859c822b19ddd84d4cb"
+      },
+      {
+        "component": "minio",
+        "imageId": "sha256:61b2ab27d8313fddf84bf21de03a6e88e1ea7f753c6f7e8a0c2fe10e2571c54a"
+      },
+      {
+        "component": "backup",
+        "imageId": "sha256:44a5ccd4d3509b05b41d4d8aa0ea7bb3a2ceb0432e4d63a26062f8bbab69534f"
+      },
+      {
+        "component": "postgres",
+        "imageId": "sha256:efd387e6a6cdc488fdcdc51a3257c0fbba4925ebf7a7894445ae6fb29d4a02da"
+      }
+    ]
+  },
+  "runtimeScenario": {
+    "fixture": {
+      "sourceId": "ab7930f6-1d2f-42c0-9cf3-144af58b7e47",
+      "title": "【QA非专业意见】到期复核协调验收来源",
+      "professionalOpinion": false,
+      "isolatedProductionIdentityOrData": false,
+      "initialState": "reviewed/active with an expired nextReviewAt",
+      "finalReviewState": "stale",
+      "finalBusinessState": "uncertain"
+    },
+    "sweep": {
+      "jobId": "f6b93581-9f5d-43e9-b166-585d4c5370ea",
+      "name": "compliance-source.monitor",
+      "payloadScope": "organization",
+      "state": "completed",
+      "retryCount": 0
+    },
+    "ownerId": "152cb852-1ab2-4140-9a72-5d3b88a7ca54",
+    "task": {
+      "id": "7961f8f1-00bb-4d3f-ac24-577b7803b25d",
+      "status": "todo",
+      "priority": "high",
+      "assigneeMatchesOwner": true,
+      "immediatelyDue": true,
+      "reason": "review_expired"
+    },
+    "notification": {
+      "id": "2d8fbd52-0335-4de4-bf70-ab441e502c2b",
+      "channel": "in_app",
+      "workerDeliveryState": "sent",
+      "recipientMatchesOwner": true,
+      "browserFinalState": "read",
+      "browserMarkReadAuditCount": 1
+    },
+    "assignmentStrategy": "primary_active_owner",
+    "auditChain": {
+      "qaFixtureCreate": 1,
+      "taskCreate": 1,
+      "notificationActions": ["create", "deliver", "mark_read"],
+      "sourceReviewExpired": 1,
+      "sourceLinksTaskNotificationAssigneeAndStrategy": true,
+      "taskLinksNotification": true
+    },
+    "assertionsPassed": 14,
+    "fixtureSideEffects": {
+      "orgSweepAlsoQueuedSeedSourcesThatWereDueAtFirstBoot": true,
+      "syntheticUrlLaterReachedTheSeparateThirdFailureEscalation": true,
+      "followUpFailureTaskWasNotUsedAsTheReviewExpiredAssertion": true,
+      "officialSourceFetchResultsWereNotTreatedAsProfessionalReview": true
+    }
+  },
+  "browser": {
+    "desktopViewport": "1440x1000",
+    "mobileViewport": "390x844",
+    "targetReviewExpiredTaskVisibleOnDesktopAndMobile": true,
+    "targetNotificationVisibleOnDesktopAndMobile": true,
+    "selectedAssigneeLabel": "协调升级验收管理员",
+    "initialPasswordChanged": true,
+    "oldTemporaryPasswordRejected": true,
+    "currentPasswordAccepted": true,
+    "desktopHorizontalOverflow": false,
+    "mobileHorizontalOverflow": false,
+    "unexpectedConsoleErrors": 0,
+    "pageErrors": 0,
+    "unexpectedFailedRequests": 0,
+    "classifiedExpected401ConsoleMessages": 3,
+    "screenshots": [
+      {
+        "name": "desktop-task",
+        "size": "1440x1000",
+        "sha256": "bbad58b2f072ac3e36b445cc3b688d680a5e3e12dbf211ce24967cbb3a62b8e8"
+      },
+      {
+        "name": "desktop-notification",
+        "size": "1440x1000",
+        "sha256": "4d5e53f472f25edcd92b310cc58b70bc216182de24707efcfb813d9f42a18eca"
+      },
+      {
+        "name": "mobile-task",
+        "size": "390x906 full-page from 390x844 viewport",
+        "sha256": "9ea5a48c02e18e2aa792f747daa53a9864cecb7e7f333fa193cd3bcfa088f886"
+      },
+      {
+        "name": "mobile-notification",
+        "size": "390x906 full-page from 390x844 viewport",
+        "sha256": "5605c8cc0918591c8b88a12b88aa3a6dd5ecaef4c101b19384447a0931222df6"
+      }
+    ],
+    "pwa": {
+      "activeServiceWorker": true,
+      "serviceWorkerPath": "/sw.js",
+      "cacheEntryCount": 10,
+      "cachedSensitiveRouteCount": 0,
+      "installabilityErrors": 0,
+      "manifestName": "FIAT LUX CHOICE",
+      "display": "standalone",
+      "iconSizes": ["192x192", "512x512"],
+      "offlineSensitiveContentHidden": true,
+      "sessionRevalidatedAfterReconnect": true
+    }
+  },
+  "security": {
+    "gitleaks": {
+      "currentTreePassed": true,
+      "completeHistoryPassed": true,
+      "rulesCanaryPassed": true,
+      "exactAllowlistCanaryPassed": true
+    },
+    "semgrep": {
+      "version": "1.170.0",
+      "configurationValid": true,
+      "canaryRules": 10,
+      "canaryFindings": 10,
+      "productionTargets": 87,
+      "productionFindings": 0
+    },
+    "productionDependencyAuditFindings": 0,
+    "workerImage": {
+      "trivyVersion": "0.70.0",
+      "trivyImageDigest": "sha256:be1190afcb28352bfddc4ddeb71470835d16462af68d310f9f4bca710961a41e",
+      "highCriticalFindings": 0,
+      "trivyReportSha256": "770ded3c08723a19292377a9492c06f24d963d9354dc3318962059f7f8739914",
+      "syftVersion": "1.42.3",
+      "syftImageDigest": "sha256:5999d209a342e55e9edf70bf8930fb5b86d8f2a783fa401178372c50e21b1d36",
+      "spdxVersion": "SPDX-2.3",
+      "spdxPackages": 225,
+      "spdxSha256": "2b04b248b6eff4206ea201c29cb9fa2016f528c06026d420718d4a5ec2f905ab"
+    }
+  },
+  "cleanup": {
+    "composeContainersRemoved": true,
+    "composeNetworksRemoved": true,
+    "composeVolumesRemoved": true,
+    "sevenQaImageTagsRemoved": true,
+    "ageIdentityRemoved": true,
+    "gatewayCaCopyRemoved": true,
+    "browserScreenshotsRemoved": true,
+    "rawTrivyAndSpdxReportsRemoved": true,
+    "temporaryBrowserHarnessRemoved": true,
+    "secretsCookiesOrRuntimeDataCommitted": false
+  },
+  "scopeBoundary": {
+    "localProductionLikeOnly": true,
+    "baselineBackupRestoreNotRepeatedBecauseThisIncrementChangedWorkerAssignmentNotificationAndWorkflowBuildEnvironmentOnly": true,
+    "targetGuangzhouIntranetValidated": false,
+    "managedPhysicalMobileDeviceValidated": false,
+    "ghcrMultiArchitectureDigestValidated": false,
+    "githubCiGreen": false,
+    "realLlmValidated": false,
+    "realGithubAdapterValidated": false,
+    "officialSourcesProfessionallyReviewed": 0,
+    "minioLongTermSupportRiskAccepted": false,
+    "v1CompletionClaimed": false
+  }
+}

@@ -4,6 +4,8 @@
 
 当前状态：**受控候选，尚未宣布或批准 V1 完成**。仓库已经包含实质业务实现、PWA、API、worker、38 张业务表与 11 个迁移（`0000`–`0010`）、内网部署和恢复资产。2026-07-20 不可变实现提交 `101d2f0938adfa0caa8ed576f6587a5c78ae74a5` 已通过 Biome 206 文件、ShellCheck/Actionlint、7 项类型检查、177/177 单元、API 89/89、worker 25/25、真实 MinIO 2/2、mock 46+6、隔离真实栈 desktop/mobile 4/4、fresh/上一版本迁移、fresh/legacy 最小权限和生产构建；同一提交又重建七个 arm64 镜像和独立 production-like Compose，验证六服务健康、重启持久性、桌面/390×844 移动端、PWA 10 条缓存/0 安装性错误、73 条来源保持未复核、Trivy 0.70.0 HIGH/CRITICAL 0、7 份 Syft 1.42.3 SPDX，以及 age+Ed25519 一致性备份在随机全新卷精确恢复 38 表、11 migration、pg-boss 24 和逐对象 SHA。脱敏记录见[当前候选验收证据](docs/delivery/evidence/production-like-acceptance-101d2f0-20260720.json)。这些仍是本机 arm64 和底层恢复演练，不是 GHCR 双平台、经审批生产 `restore.sh`、耀光广州目标办公内网或真机证明。候选分支对应 Draft PR #12；GitHub CI/Security 仍因账户付款失败或 Actions spending limit 不足在 runner 启动前被平台阻断，尚未执行 workflow step。其余未完成闸门包括最终 Git/GitHub/GHCR 跨层身份统一与绿色 CI、经批准的生产候选/N−1 和目标环境复演、经审批生产恢复入口、耀光目标办公内网与真实受管设备、真实 LLM/GitHub 适配器、73 条真实专业复核、MinIO 长期维护/支持风险决策和专业合规/业务批准。详情见[V1 验收矩阵](docs/delivery/v1-acceptance-matrix.md)和[受控候选交付报告](docs/delivery/final-delivery-report.md)。
 
+后继不可变实现 `5eec8cc3f4cbd0b9a12372240bca9f56d65ae5f9` 已补齐合规升级任务的协调人选择、站内通知和任务/通知/来源审计链，并把 CI/release 构建显式固定为 production 语义。该提交完成 10/10 定向 PostgreSQL、完整 worker 28/28、全仓检查、独立七镜像 production-like Compose、真实 pg-boss 组织级 sweep、桌面/移动/PWA 和 worker 镜像安全验收；脱敏记录见[协调升级增量证据](docs/delivery/evidence/compliance-coordinator-acceptance-5eec8cc-20260720.json)。这项增量证据不替代 `101d2f0…` 的完整备份恢复证据，也不关闭 GitHub、GHCR、目标内网、真机、真实适配器或专业批准闸门。
+
 ## 能力
 
 - 用户、组织、数据库会话、四级 RBAC 和追加审计。

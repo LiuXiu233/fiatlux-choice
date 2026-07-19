@@ -17,6 +17,8 @@
 
 2026-07-18 的旧测试、六镜像、v1 恢复和同内容标签升级数字只保留为历史背景。2026-07-20 不可变实现提交 `101d2f0938adfa0caa8ed576f6587a5c78ae74a5` 已完成 Biome 206 files、ShellCheck/Actionlint、7 项类型检查、177/177 单元、API 18 files/89 tests、worker 5 files/25 tests、PostgreSQL/pg-boss/真实 MinIO 集成、mock 46+6 与隔离 real 4 项 Playwright、PWA/生产构建、fresh/上一版本迁移和 fresh/legacy 最小权限；同一提交又重建七镜像和全新 production-like Compose，完成真实 desktop/mobile/PWA、Trivy/SPDX 与 age+Ed25519 11 migration 隔离恢复。脱敏证据见[当前候选验收记录](./evidence/production-like-acceptance-101d2f0-20260720.json)。证据文档属于后续提交，本地 arm64/恢复结果也不能上卷为 GHCR、目标办公内网或生产批准。
 
+不可变协调增量 `5eec8cc3f4cbd0b9a12372240bca9f56d65ae5f9` 又完成合规升级协调人、站内通知、关联审计和 CI/release production 构建修复的受影响层复验：定向 PostgreSQL 10/10、完整 worker 28/28、全仓检查、七镜像独立 Compose、真实组织级 sweep、desktop/mobile/PWA、源码安全门禁及 worker Trivy/SPDX 均通过，脱敏记录见[协调升级增量证据](./evidence/compliance-coordinator-acceptance-5eec8cc-20260720.json)。它没有重跑或替代基线备份恢复，也没有关闭 GitHub/GHCR、目标内网、真机、真实适配器、专业复核或责任人批准边界。
+
 当前 schema 为 38 张业务表和 11 个迁移（`0000`–`0010`）。专用迁移测试已证明 `0000`–`0009` 数据原样保留、不会为 legacy reviewed 记录发明专业 provenance；当前签名恢复又逐项匹配 11 个 migration SQL hash，但这仍不是 GitHub runner、生产副本或目标内网升级证明。本地 synthetic bridge 只覆盖旧 10 迁移基线，历史生产 N−1、目标发布复演和经审批的破坏性 `restore.sh` 生产入口没有实跑。GitHub CI、目标内网、真实设备、MinIO 长期维护/支持风险处置和责任人批准仍是发布闸门，以[验收矩阵](./v1-acceptance-matrix.md)为准。
 
 ## 3. 身份与权限

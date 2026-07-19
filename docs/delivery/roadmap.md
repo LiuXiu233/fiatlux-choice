@@ -32,6 +32,7 @@
 - 银行付款取消或审批驳回会原子解除草稿支出关联；顾问运行默认 requester-only，管理员的 `advisor-runs:read-all` 仍受顾问入口和上下文读权限限制；角色分配审批保存 membership 版本快照并在批准时重验。
 - 义务/合规日历已分开 `sourceId` 与 `evidenceFileId`；专业复核专用入口要求实名、机构、胜任依据、缺失信息、已上传证据，锁定来源版本/哈希/站内登记人并追加历史。通用提升、legacy 部分状态和不适用来源会在顾问侧失败关闭。
 - 合规来源人工复核到期、正文哈希变化和连续第三次失败已在状态事务内自动建立高优先级任务；执行时仍有效且仍有来源更新权限的人工触发者优先协调，否则确定性选择最早加入的有效 owner，并原子送达站内通知。同一事件去重、错误脱敏、组织隔离、触发者停用/失权回退和陈旧并发丢弃由真实 PostgreSQL 集成覆盖；协调不等于专业复核，邮件/企业协作通知仍待批准适配器。
+- 不可变协调实现 `5eec8cc3f4cbd0b9a12372240bca9f56d65ae5f9` 已把上述路径绑定 10/10 定向、worker 28/28、真实 pg-boss 组织 sweep、七镜像 production-like Compose、desktop/mobile/PWA 和 worker Trivy/SPDX 证据；CI/release 构建也显式覆盖为 production 语义。实验室首次组织 sweep 会同时领取 seed 后已到期的来源，因此目标部署仍应把首次抓取、失败分流和人工容量纳入上线窗口，而不是把自动任务数量当作专业结论数量。
 - 2026-07-20 不可变实现提交 `101d2f0938adfa0caa8ed576f6587a5c78ae74a5` 已通过 Biome 206 files、ShellCheck/Actionlint、7 项类型检查、177/177 单元、API 18 files/89 tests、worker 5 files/25 tests、真实 MinIO 2/2、mock 46+6、隔离 real 4/4、fresh/legacy 迁移、fresh/legacy 最小权限和生产构建；同一提交的全新 production-like Compose 又通过 38 表/11 migration、六服务、重启持久性、桌面/390×844 mobile、PWA/offline 和 73 条来源保守状态验证。
 - `101d2f0…` 七个本地 arm64 镜像由固定 Trivy 0.70.0 digest 扫描，HIGH/CRITICAL/fixable/unfixed 均为 0；七份 Syft 1.42.3 SPDX 通过，真实 BuildKit 0.31.2 双平台 provenance fixture 及 API/worker amd64 补偿证据仍有效；GHCR 双平台 root digest 仍待 release workflow。
 - 旧底层 formatVersion 2 演练归档 SHA-256 `bcfd6c59d…b6ba`，核对 38 表、10 migrations、pg-boss 24 和 1 个 56-byte 对象，实测 RPO 2 秒、drill RTO 75 秒；它早于 Ed25519 来源签名门禁，只保留为历史恢复证据。

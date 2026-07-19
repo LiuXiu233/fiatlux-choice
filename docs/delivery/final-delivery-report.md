@@ -4,7 +4,7 @@
 
 报告状态：**受控候选记录，不是 V1 已完成、已批准上线或 GitHub CI 已通过的声明**
 
-本报告区分“不可变实现提交 `101d2f0…` 的本地工程/Compose/镜像/恢复证据”“记录该实现的文档后继变更”“最终 GitHub/GHCR”和“目标办公内网验收”。专业复核增量、38 表/11 migration、七镜像、desktop/mobile/PWA、最小权限和 age+Ed25519 隔离恢复均已绑定 `101d2f0…`；脱敏机器记录见[当前候选验收证据](./evidence/production-like-acceptance-101d2f0-20260720.json)。文档后继提交不冒充镜像或运行环境 SHA；这些证据仍不是 GitHub runner、GHCR 双平台、经审批生产恢复、目标办公内网或业务/专业批准。最终发布还必须按[最终交付报告模板](./final-delivery-report-template.md)补齐这些外部证据和真实责任人签署。
+本报告区分“不可变基线实现 `101d2f0…` 的完整本地工程/Compose/镜像/恢复证据”“不可变协调增量实现 `5eec8cc…` 的受影响层复验”“最终 GitHub/GHCR”和“目标办公内网验收”。专业复核、38 表/11 migration、七镜像、desktop/mobile/PWA、最小权限和 age+Ed25519 隔离恢复均已绑定 `101d2f0…`；协调责任人、站内通知与构建环境加固则绑定 `5eec8cc3f4cbd0b9a12372240bca9f56d65ae5f9`。脱敏机器记录分别见[基线候选验收证据](./evidence/production-like-acceptance-101d2f0-20260720.json)和[协调升级增量证据](./evidence/compliance-coordinator-acceptance-5eec8cc-20260720.json)。证据文档后继提交不冒充镜像或运行环境 SHA；这些证据仍不是 GitHub runner、GHCR 双平台、经审批生产恢复、目标办公内网或业务/专业批准。最终发布还必须按[最终交付报告模板](./final-delivery-report-template.md)补齐这些外部证据和真实责任人签署。
 
 ## 1. 候选身份与批准状态
 
@@ -12,10 +12,10 @@
 | --- | --- | --- |
 | 产品版本 | V1 受控候选 | 所有阻断闸门关闭并取得业务负责人批准后才能改为 V1 完成 |
 | 目标仓库 | 私有 `LiuXiu233/fiatlux-choice`；候选分支已推送；[Draft PR #12](https://github.com/LiuXiu233/fiatlux-choice/pull/12) | 解除 Actions 计费阻断，取得绿色 CI/security；批准后再合并 |
-| Git SHA / tag | 专业复核与本地验收实现为 `101d2f0938adfa0caa8ed576f6587a5c78ae74a5`，已推送；本报告和机器证据属于文档后继变更；未创建发布 tag | 生产发布仍须确定 commit/tag 签名政策，并统一最终 Git/GitHub/GHCR 身份 |
+| Git SHA / tag | 完整基线实现为 `101d2f0938adfa0caa8ed576f6587a5c78ae74a5`；协调升级实现为 `5eec8cc3f4cbd0b9a12372240bca9f56d65ae5f9`，增量机器证据显式绑定该父提交；未创建发布 tag | 生产发布仍须确定 commit/tag 签名政策，并统一最终 Git/GitHub/GHCR 身份 |
 | GitHub PR / CI | Draft PR #12；`101d2f0…` 已推送；PR Checks 是远端状态权威来源；历史最新已知 [CI run 29697701957](https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29697701957) 与 [Security run 29697701952](https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29697701952) 均在 runner 启动前失败 | 历史 job 为 `runner_id=0`、`steps=[]`，原因是账户付款或 Actions spending limit；文档推送自然触发的 run 只读核验，不反复盲目重跑 |
 | 数据库 | PostgreSQL 17.10；38 张业务表；11 个业务迁移 `0000`–`0010`；`101d2f0…` fresh、`0009→0010` 数据保留/幂等、fresh/legacy 五职责和签名恢复逐 migration hash 均本地通过 | GitHub CI、GHCR 与目标内网重新执行 |
-| 候选 QA 环境 | `101d2f0…` 验证时使用独立新卷 `https://choice-review.localhost:20443`，六服务、重启、浏览器和恢复均通过 | 本机环境不得改写成耀光广州办公内网；临时环境和私密材料须在证据固化后清理 |
+| 候选 QA 环境 | `101d2f0…` 使用独立新卷 `choice-review.localhost:20443` 完成完整基线和恢复；`5eec8cc…` 又使用独立新卷 `choice-coordinator.localhost:21443` 完成受影响层运行时、浏览器和安全验收；两套临时资源均已清理 | 本机环境不得改写成耀光广州办公内网；目标环境必须独立复现 |
 | 目标办公内网 | **未部署** | 补主机、OS、架构、DNS、CA、防火墙、受管设备和运行观察 |
 | 业务、风险与运维批准 | **未取得** | 公司和安全/运维负责人基于终态证据签署 |
 | 法务合规/财税批准 | **未取得** | 专业人员说明资质、事实、范围、复核日期和有效期 |
@@ -57,7 +57,7 @@
 | 全 workspace 与七镜像构建 | **不可变实现提交本地通过** | `101d2f0…` production build、七个 arm64 镜像、全新 Compose、六服务和重启持久性通过；GHCR 双平台待发布 |
 | 安全/供应链 | **不可变实现提交本地通过 / GitHub 待运行** | Gitleaks、Semgrep+canary、生产依赖 0；`101d2f0…` 七镜像 Trivy 0.70.0 HIGH/CRITICAL 0、7 份 Syft 1.42.3 SPDX；GitHub CodeQL/安全 workflow 待运行 |
 
-当前后继工作树再次完整运行 `pnpm check`：Biome 207 个文件、ShellCheck、7 项类型检查、177/177 单元、API 89/89、worker 28/28、真实 MinIO 2/2 和生产构建均通过；Actionlint 1.7.12、Gitleaks 当前树/完整历史与 canary、Semgrep 1.170.0 配置/10 条 canary/87 个生产目标也分别通过。生产依赖 `pnpm audit --prod` 为 0。全依赖扫描只剩 `drizzle-kit -> esbuild` 的 1 个 moderate，属于不进入生产镜像、CI 不启动其 dev server 的开发期依赖；列为非阻断升级项，不应表述为“全依赖零漏洞”。未运行、设计内 skip 和目标环境缺失继续分列。
+不可变协调实现 `5eec8cc…` 完整运行 `pnpm check`：Biome 207 个文件、ShellCheck、7 项类型检查、177/177 单元、API 89/89、worker 28/28、真实 MinIO 2/2 和 workspace build 均通过；另以 `NODE_ENV=production` 完成真实生产构建。Actionlint 1.7.12、Gitleaks 当前树/完整历史与 canary、Semgrep 1.170.0 配置/10 条 canary/87 个生产目标也分别通过。生产依赖 `pnpm audit --prod` 为 0。全依赖扫描只剩 `drizzle-kit -> esbuild` 的 1 个 moderate，属于不进入生产镜像、CI 不启动其 dev server 的开发期依赖；列为非阻断升级项，不应表述为“全依赖零漏洞”。未运行、设计内 skip 和目标环境缺失继续分列。
 
 本增量还复现并修正了构建环境漂移：CI 与 release 的验证 job 为测试阶段全局使用 `NODE_ENV=test`，原构建步骤会继承该值，使 Web 生成 979.63 KiB precache 并重新出现 500 kB 主块警告。两个 workflow 的构建步骤现在都显式覆盖为 `NODE_ENV=production`；Actionlint 1.7.12 通过，等价本地生产构建恢复为 128.19 kB 教育路由块、423.59 kB 主块和 10 条/700.30 KiB PWA precache。该本地验证不替代 GitHub runner 实际执行。
 
@@ -68,6 +68,8 @@
 电竞教育内容增量在同日完成 167/167 单元、API 85/85、worker 25/25、mock Playwright 44 passed/6 条件 skip 和真实栈 desktop/mobile 2/2；独立 Python Playwright 在 1440×1000 与 390×844 下均无横向溢出或控制台错误。隔离 PostgreSQL 的 22 个完整 bootstrap 组织均精确导入 73 条来源，隔离真实栈单组织同样为 73 条且新增健康来源精确 1 条。生产构建将教育内容拆为 128.19 kB 路由块，消除 500 kB 主块告警；独立 Web Compose 容器以 UID 10001、只读根、cap-drop ALL、no-new-privileges 健康运行，Trivy 0.70.0 对该新 Web 镜像扫描 HIGH/CRITICAL 为 0。Gitleaks 当前树/历史和 Semgrep 固定规则扫描均为 0 finding。隔离容器和网络验证后已删除；该证据仍不替代最终 SHA、七镜像重建、GHCR、目标内网或专业内容批准。
 
 合规监测低人力协调增量在自动销毁的 PostgreSQL 17.10 容器迁移后完成目标文件 10/10 与完整 worker integration 5 files/28 tests。验证人工复核到期、正文变化和连续第三次失败都在来源状态事务内精确创建一条同组织 `todo/high` 任务：执行时仍有效且仍有来源更新权限的人工触发者优先负责协调，否则确定性选择最早加入的有效 owner；触发者已停用或失权时正确回退，无有效 owner 的 legacy 异常则保持未指派且不跨组织猜测。系统在同一事务原子完成站内通知 `queued → sent`、任务/通知 create/deliver 与来源关联审计；重复扫描、同一哈希、第四次失败和陈旧并发结果不会重复或虚假建任务/通知，失败错误保持脱敏。协调责任人不等于专业复核人；邮件/企业协作和目标环境实际处置仍未验收。
+
+同一增量又从 `5eec8cc…` 构建七个 `linux/arm64` 镜像和全新 production overlay，完成五职责数据库引导、38 表/11 migration、pg-boss 24、六服务健康及两次部署/MinIO 最小权限验证。明确标注“QA、非专业意见”的到期来源由真实组织级 pg-boss sweep 处理，生成指向最早有效 owner 的目标任务、`sent` 站内通知及 task create、notification create/deliver、source review_expired 关联审计；浏览器随后标记已读并写 `mark_read`。1440×1000 与 390×844 均精确找到该到期任务和通知、无横向溢出；PWA 1 个活动 service worker、10 条缓存、0 敏感路由缓存、0 installability error，离线隐藏业务内容并在恢复后重新验证会话。固定 Trivy 0.70.0 对实际变更的 worker 镜像 HIGH/CRITICAL 为 0，Syft 1.42.3 SPDX-2.3 为 225 packages。组织级 sweep 也按设计领取了首次启动时已到期的 seed 来源；实验室后续抓取失败产生的独立任务没有被用来冒充目标 `review_expired` 断言。原始截图、报告、age identity、容器、网络、卷和七个 QA 镜像标签均已删除。
 
 文件真实内容门禁增量新增 6 项单元测试并把全工作区单元提高到 173/173；独立 PostgreSQL 17 上目标 API 文件 19/19、完整 API 17 files/86 tests 通过，真实 MinIO 私有桶往返/错误摘要删除 2/2 通过。伪装 PDF 在对象写入前返回 400，文件保持 `pending/version=1`，对象不存在，拒绝审计不含 body；压缩 OOXML 正/负向覆盖 DOCX/XLSX/PPTX 主部件、类型清单、宏、ActiveX、嵌入、加密和路径穿越。隔离 PostgreSQL/MinIO 容器均在测试后删除。该门禁不是反病毒、沙箱、完整格式语义解析或 DLP，不能把测试通过写成附件无恶意内容。
 
@@ -178,7 +180,7 @@
 以下全部完成前，本报告结论不得升级为“V1 完成”：
 
 - [x] `101d2f0…` 的预期范围、ignored 证据边界、当前树/完整历史 secret scan 和敏感数据已完成本地审计；仅纳入私有仓库的 6 张公开官网研究截图，公开或外发前仍需权利/个人信息复核；GitHub 仍须复核。
-- [x] `101d2f0…` 完成 lint、ShellCheck、Actionlint、全部类型检查、177 单元、API/worker/MinIO、mock/real E2E 和生产构建，并分列设计内 skip；本证据工作树又完成 207 文件 `pnpm check` 与独立安全门禁复跑。
+- [x] `101d2f0…` 完成完整基线 lint、测试、E2E、生产构建和恢复；不可变协调实现 `5eec8cc…` 又完成 207 文件 `pnpm check`、worker 28/28、受影响层真实浏览器和独立安全门禁复跑，并分列设计内 skip 与外部闸门。
 - [x] `101d2f0…` 的 production-like Compose 已在新卷完成 38 表/11 migration、HTTPS/PWA、六服务、最小权限和重启持久性验证；目标内网仍待复现。
 - [x] 首次强制改密、成员生命周期、版本化角色审批、归档角色即时失权、通知 queued-only、GitHub 刷新 CAS、工作流不可变快照、付款取消/驳回解链、顾问 requester-only/read-all、合规专业 provenance/source/evidence、typed refs 和文件并发场景已在分层测试覆盖。
 - [x] fresh/legacy 数据库、PostgreSQL 五职责和 MinIO 四身份的正/负向最小权限验证通过；目标凭据仍须重新执行。
