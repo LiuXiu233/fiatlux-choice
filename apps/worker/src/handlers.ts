@@ -839,6 +839,98 @@ export async function handleGitHubRefresh(
 const ONE_DAY_MS = 24 * 60 * 60 * 1_000;
 const MONITORING_LEASE_MS = 2 * 60 * 60 * 1_000;
 
+type ComplianceReviewReason = "review_expired" | "content_changed" | "monitor_failed";
+
+const complianceReviewReasonCopy: Record<
+  ComplianceReviewReason,
+  { label: string; requiredAction: string }
+> = {
+  review_expired: {
+    label: "人工复核日期已到期",
+    requiredAction:
+      "打开登记的官方原文，重新核对现行有效性、适用条件和公司事实；完成后由有权人员显式更新复核状态、复核日期、摘要及依据。",
+  },
+  content_changed: {
+    label: "官方正文哈希发生变化",
+    requiredAction:
+      "对比监控快照与官方原文，判断变化是否实质影响现行有效性、适用条件、义务或截止日；保存必要证据后由有权人员显式完成复核。",
+  },
+  monitor_failed: {
+    label: "官方来源连续三次监测失败",
+    requiredAction:
+      "通过同一发布机关官网、国务院公报或国家法律法规数据库核对来源是否迁移，并检查网络、证书或访问限制；不得用商业转载或模型记忆替代人工确认。",
+  },
+};
+
+function truncateComplianceTaskText(value: string, maxLength: number) {
+  if (value.length <= maxLength) return value;
+  return `${value.slice(0, Math.max(0, maxLength - 1))}…`;
+}
+
+async function createComplianceReviewTask(
+  db: Pick<Database, "insert">,
+  input: {
+    orgId: string;
+    source: Pick<
+      typeof complianceItems.$inferSelect,
+      "id" | "title" | "issuingAuthority" | "sourceUrl"
+    >;
+    reason: ComplianceReviewReason;
+    dueAt: Date;
+    initiatedBy?: string;
+    error?: string;
+  },
+) {
+  const reasonCopy = complianceReviewReasonCopy[input.reason];
+  const descriptionLines = [
+    "系统监测已建立人工复核任务；本任务不表示法规已完成复核、仍然有效或问题已经解决。",
+    `来源 ID：${input.source.id}`,
+    `来源标题：${truncateComplianceTaskText(input.source.title, 2_000)}`,
+    `发布机关：${truncateComplianceTaskText(input.source.issuingAuthority, 2_000)}`,
+    `官方地址：${truncateComplianceTaskText(input.source.sourceUrl, 4_000)}`,
+    `触发原因：${reasonCopy.label}`,
+    `人工动作：${reasonCopy.requiredAction}`,
+  ];
+  if (input.error) {
+    descriptionLines.push(`最近一次脱敏错误：${truncateComplianceTaskText(input.error, 5_000)}`);
+  }
+  const task = taskCreateSchema.parse({
+    projectId: null,
+    title: truncateComplianceTaskText(
+      `【合规人工复核】${input.source.title}：${reasonCopy.label}`,
+      300,
+    ),
+    description: truncateComplianceTaskText(descriptionLines.join("\n"), 20_000),
+    status: "todo",
+    priority: "high",
+    assigneeId: null,
+    dueAt: input.dueAt.toISOString(),
+  });
+  const [record] = await db
+    .insert(tasks)
+    .values({
+      orgId: input.orgId,
+      ...task,
+      dueAt: task.dueAt ? new Date(task.dueAt) : null,
+    })
+    .returning();
+  if (!record) throw new Error("Failed to create compliance review task");
+  await appendSystemAudit(db, {
+    orgId: input.orgId,
+    action: "create",
+    resourceType: "task",
+    resourceId: record.id,
+    after: record,
+    metadata: {
+      trigger: "compliance_source_monitor",
+      complianceSourceId: input.source.id,
+      escalationReason: input.reason,
+      initiatedBy: input.initiatedBy ?? null,
+    },
+  });
+  return record;
+}
+
 function nextMonitorAt(now: Date, cadenceDays: number, failed = false) {
   const days = failed ? Math.min(cadenceDays, 1) : cadenceDays;
   return new Date(now.getTime() + Math.max(1, days) * ONE_DAY_MS);
@@ -884,6 +976,12 @@ async function expireOverdueComplianceReviews(
         .returning();
       if (!expired) continue;
       expiredIds.push(expired.id);
+      const escalationTask = await createComplianceReviewTask(tx, {
+        orgId,
+        source,
+        reason: "review_expired",
+        dueAt: now,
+      });
       await appendSystemAudit(tx, {
         orgId,
         action: "review_expired",
@@ -899,7 +997,7 @@ async function expireOverdueComplianceReviews(
           status: expired.status,
           nextReviewAt: expired.nextReviewAt,
         },
-        metadata: { trigger: "schedule" },
+        metadata: { trigger: "schedule", escalationTaskId: escalationTask.id },
       });
     }
     return expiredIds;
@@ -1160,6 +1258,15 @@ export async function handleComplianceSourceMonitor(
         )
         .returning();
       if (!record) throw new Error("Compliance source changed concurrently during monitoring");
+      const escalationTask = changed
+        ? await createComplianceReviewTask(tx, {
+            orgId: payload.orgId,
+            source,
+            reason: "content_changed",
+            dueAt: checkedAt,
+            ...(payload.requestedBy ? { initiatedBy: payload.requestedBy } : {}),
+          })
+        : null;
       await appendSystemAudit(tx, {
         orgId: payload.orgId,
         action: changed ? "monitor_change_detected" : "monitor_complete",
@@ -1187,6 +1294,7 @@ export async function handleComplianceSourceMonitor(
           finalHost: new URL(snapshot.finalUrl).hostname,
           fetcherVersion: snapshot.fetcherVersion,
           notModified: snapshot.notModified,
+          escalationTaskId: escalationTask?.id ?? null,
         },
       });
       return record;
@@ -1221,6 +1329,17 @@ export async function handleComplianceSourceMonitor(
         )
         .returning();
       if (!failed) return false;
+      const escalationTask =
+        failureCount === 3
+          ? await createComplianceReviewTask(tx, {
+              orgId: payload.orgId,
+              source,
+              reason: "monitor_failed",
+              dueAt: checkedAt,
+              ...(payload.requestedBy ? { initiatedBy: payload.requestedBy } : {}),
+              error: message,
+            })
+          : null;
       await appendSystemAudit(tx, {
         orgId: payload.orgId,
         action: "monitor_fail",
@@ -1242,6 +1361,7 @@ export async function handleComplianceSourceMonitor(
           error: message,
           initiatedBy: payload.requestedBy ?? null,
           trigger: payload.requestedBy ? "manual" : "schedule",
+          escalationTaskId: escalationTask?.id ?? null,
         },
       });
       return true;

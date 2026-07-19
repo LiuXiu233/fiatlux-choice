@@ -5,6 +5,7 @@ import {
   complianceItems,
   complianceSourceSnapshots,
   createDatabase,
+  tasks,
 } from "@fiatlux/db";
 import { importOfficialComplianceSources, seedDatabase } from "@fiatlux/db/seed";
 import type {
@@ -14,7 +15,7 @@ import type {
   OfficialSourceFetcher,
   OfficialSourceSnapshot,
 } from "@fiatlux/integrations";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { workerConfigSchema } from "../../src/config.js";
@@ -92,6 +93,40 @@ describe.skipIf(!databaseUrl)("compliance source monitoring PostgreSQL integrati
     };
   }
 
+  async function complianceEscalations(sourceId: string, escalationReason: string) {
+    const taskAudits = await dbHandle.db
+      .select()
+      .from(auditEvents)
+      .where(
+        and(
+          eq(auditEvents.orgId, firstOrgId),
+          eq(auditEvents.action, "create"),
+          eq(auditEvents.resourceType, "task"),
+        ),
+      );
+    const audits = taskAudits.filter((audit) => {
+      const metadata = audit.metadata as Record<string, unknown> | null;
+      return (
+        metadata?.complianceSourceId === sourceId && metadata.escalationReason === escalationReason
+      );
+    });
+    const records = audits.length
+      ? await dbHandle.db
+          .select()
+          .from(tasks)
+          .where(
+            and(
+              eq(tasks.orgId, firstOrgId),
+              inArray(
+                tasks.id,
+                audits.map((audit) => audit.resourceId),
+              ),
+            ),
+          )
+      : [];
+    return { audits, records };
+  }
+
   it("imports JSON freshness and next-review metadata into PostgreSQL", async () => {
     const result = await importOfficialComplianceSources(
       dbHandle.db,
@@ -137,6 +172,7 @@ describe.skipIf(!databaseUrl)("compliance source monitoring PostgreSQL integrati
     const fetch = vi
       .fn<OfficialSourceFetcher["fetch"]>()
       .mockResolvedValueOnce(snapshot(firstHash))
+      .mockResolvedValueOnce(snapshot(changedHash))
       .mockResolvedValueOnce(snapshot(changedHash));
     const deps = dependencies({ fetch });
 
@@ -146,6 +182,7 @@ describe.skipIf(!databaseUrl)("compliance source monitoring PostgreSQL integrati
       requestedBy: firstUserId,
     });
     expect(fetch).not.toHaveBeenCalled();
+    expect((await complianceEscalations(source.id, "content_changed")).records).toHaveLength(0);
 
     await handleComplianceSourceMonitor(deps, {
       orgId: firstOrgId,
@@ -215,6 +252,35 @@ describe.skipIf(!databaseUrl)("compliance source monitoring PostgreSQL integrati
       trigger: "manual",
       finalHost: "www.gov.cn",
     });
+    const changeEscalation = await complianceEscalations(source.id, "content_changed");
+    expect(changeEscalation.audits).toHaveLength(1);
+    expect(changeEscalation.records).toHaveLength(1);
+    expect(changeEscalation.records[0]).toMatchObject({
+      orgId: firstOrgId,
+      status: "todo",
+      priority: "high",
+      assigneeId: null,
+    });
+    expect(changeEscalation.records[0]?.title).toContain("官方正文哈希发生变化");
+    expect(changeEscalation.records[0]?.description).toContain(`来源 ID：${source.id}`);
+    expect(changeEscalation.records[0]?.description).toContain("国务院");
+    expect(changeEscalation.audits[0]?.metadata).toMatchObject({
+      actorType: "system",
+      trigger: "compliance_source_monitor",
+      complianceSourceId: source.id,
+      escalationReason: "content_changed",
+      initiatedBy: firstUserId,
+    });
+    expect(changeAudit?.metadata).toMatchObject({
+      escalationTaskId: changeEscalation.records[0]?.id,
+    });
+
+    await handleComplianceSourceMonitor(deps, {
+      orgId: firstOrgId,
+      sourceId: source.id,
+      requestedBy: firstUserId,
+    });
+    expect((await complianceEscalations(source.id, "content_changed")).records).toHaveLength(1);
   });
 
   it("redacts failures, retains the last good hash and requires review after three attempts", async () => {
@@ -285,6 +351,37 @@ describe.skipIf(!databaseUrl)("compliance source monitoring PostgreSQL integrati
       );
     expect(failureAudits).toHaveLength(3);
     expect(JSON.stringify(failureAudits)).not.toContain("definitely-sensitive-monitor-placeholder");
+    const failureEscalation = await complianceEscalations(source.id, "monitor_failed");
+    expect(failureEscalation.audits).toHaveLength(1);
+    expect(failureEscalation.records).toHaveLength(1);
+    expect(failureEscalation.records[0]).toMatchObject({
+      orgId: firstOrgId,
+      status: "todo",
+      priority: "high",
+      assigneeId: null,
+    });
+    expect(failureEscalation.records[0]?.description).toContain(`来源 ID：${source.id}`);
+    expect(failureEscalation.records[0]?.description).toContain("国家互联网信息办公室");
+    expect(failureEscalation.records[0]?.description).toContain("[REDACTED]");
+    expect(failureEscalation.records[0]?.description).not.toContain(
+      "definitely-sensitive-monitor-placeholder",
+    );
+    const thirdFailureAudit = failureAudits.find(
+      (audit) =>
+        (audit.after as { monitoringFailureCount?: number } | null)?.monitoringFailureCount === 3,
+    );
+    expect(thirdFailureAudit?.metadata).toMatchObject({
+      escalationTaskId: failureEscalation.records[0]?.id,
+    });
+
+    await expect(
+      handleComplianceSourceMonitor(deps, {
+        orgId: firstOrgId,
+        sourceId: source.id,
+        claimToken: "failure-retry-claim",
+      }),
+    ).rejects.toThrow("upstream timeout");
+    expect((await complianceEscalations(source.id, "monitor_failed")).records).toHaveLength(1);
   });
 
   it("atomically expires overdue human reviews and forces a source check", async () => {
@@ -341,6 +438,30 @@ describe.skipIf(!databaseUrl)("compliance source monitoring PostgreSQL integrati
         ),
       );
     expect(audit?.after).toMatchObject({ reviewStatus: "stale", status: "uncertain" });
+    const expiryEscalation = await complianceEscalations(source.id, "review_expired");
+    expect(expiryEscalation.audits).toHaveLength(1);
+    expect(expiryEscalation.records).toHaveLength(1);
+    expect(expiryEscalation.records[0]).toMatchObject({
+      orgId: firstOrgId,
+      status: "todo",
+      priority: "high",
+      assigneeId: null,
+    });
+    expect(expiryEscalation.records[0]?.description).toContain(`来源 ID：${source.id}`);
+    expect(expiryEscalation.records[0]?.description).toContain("人工复核日期已到期");
+    expect(audit?.metadata).toMatchObject({
+      escalationTaskId: expiryEscalation.records[0]?.id,
+    });
+
+    await handleComplianceSourceMonitor(
+      dependencies({
+        async fetch() {
+          throw new Error("Sweep must enqueue rather than fetch inline");
+        },
+      }),
+      { orgId: firstOrgId },
+    );
+    expect((await complianceEscalations(source.id, "review_expired")).records).toHaveLength(1);
   });
 
   it("deduplicates concurrent handlers without creating a false failure", async () => {
@@ -409,6 +530,7 @@ describe.skipIf(!databaseUrl)("compliance source monitoring PostgreSQL integrati
         ),
       );
     expect(falseFailures).toHaveLength(0);
+    expect((await complianceEscalations(source.id, "content_changed")).records).toHaveLength(0);
   });
 
   it("discards a stale fetch when a human edits the source during monitoring", async () => {
@@ -489,6 +611,8 @@ describe.skipIf(!databaseUrl)("compliance source monitoring PostgreSQL integrati
       .from(complianceSourceSnapshots)
       .where(eq(complianceSourceSnapshots.sourceId, source.id));
     expect(snapshots).toHaveLength(0);
+    expect((await complianceEscalations(source.id, "content_changed")).records).toHaveLength(0);
+    expect((await complianceEscalations(source.id, "monitor_failed")).records).toHaveLength(0);
   });
 
   it("queues only due sources inside the requested organization", async () => {
