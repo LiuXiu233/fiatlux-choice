@@ -22,6 +22,7 @@ import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 
 import { type AuthenticateHook, requirePermission } from "./auth.js";
+import { fileContentPolicyIssue } from "./file-content-policy.js";
 import { requestAuditContext } from "./resource-repository.js";
 import type { AppDependencies, RequestAuditContext } from "./types.js";
 
@@ -200,6 +201,10 @@ export function registerFileRoutes(
             "Content-Length does not match declared file size",
             400,
           );
+        }
+        const contentIssue = fileContentPolicyIssue(current.filename, current.contentType, content);
+        if (contentIssue) {
+          throw new DomainError("VALIDATION_FAILED", contentIssue, 400);
         }
         try {
           await dependencies.storage.putVerified({

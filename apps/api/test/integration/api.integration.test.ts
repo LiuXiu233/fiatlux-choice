@@ -6,6 +6,7 @@ import {
   auditEvents,
   complianceItems,
   createDatabase,
+  files,
 } from "@fiatlux/db";
 import { seedDatabase } from "@fiatlux/db/seed";
 import { type JobQueue, MemoryObjectStorage } from "@fiatlux/integrations";
@@ -66,6 +67,7 @@ describe.skipIf(!databaseUrl)("API PostgreSQL vertical slice", () => {
   let suffix: string;
   let config: ApiConfig;
   let queuedJobs: Array<{ name: string; data: unknown }>;
+  let storage: MemoryObjectStorage;
 
   beforeAll(async () => {
     dbHandle = createDatabase(testDatabaseUrl);
@@ -103,10 +105,11 @@ describe.skipIf(!databaseUrl)("API PostgreSQL vertical slice", () => {
         return randomUUID();
       },
     } as unknown as JobQueue;
+    storage = new MemoryObjectStorage();
     app = await buildApp({
       config,
       db: dbHandle.db,
-      storage: new MemoryObjectStorage(),
+      storage,
       queue,
     });
 
@@ -381,6 +384,68 @@ describe.skipIf(!databaseUrl)("API PostgreSQL vertical slice", () => {
       expect(response.statusCode, `${payload.filename}: ${response.body}`).toBe(400);
       expect(body(response).error).toMatchObject({ code: "VALIDATION_FAILED" });
     }
+  });
+
+  it("rejects disguised binary content before object storage and preserves pending state", async () => {
+    const disguised = Buffer.from("MZ renamed executable bytes with a fake %%EOF marker");
+    const metadataResponse = await app.inject({
+      method: "POST",
+      url: "/api/v1/files",
+      headers: { cookie: firstCookie },
+      payload: {
+        filename: "disguised.pdf",
+        contentType: "application/pdf",
+        sizeBytes: disguised.byteLength,
+        checksumSha256: createHash("sha256").update(disguised).digest("hex"),
+        classification: "confidential",
+      },
+    });
+    expect(metadataResponse.statusCode, metadataResponse.body).toBe(201);
+    const metadata = body(metadataResponse).data as { file: JsonObject; upload: JsonObject };
+    const fileId = String(metadata.file.id);
+    const storageKey = String(metadata.file.storageKey);
+
+    const upload = await app.inject({
+      method: "PUT",
+      url: String(metadata.upload.uploadUrl),
+      headers: {
+        cookie: firstCookie,
+        "content-type": "application/octet-stream",
+        "content-length": String(disguised.byteLength),
+      },
+      payload: disguised,
+    });
+    expect(upload.statusCode, upload.body).toBe(400);
+    expect(body(upload).error).toMatchObject({
+      code: "VALIDATION_FAILED",
+      message: "File content does not match PDF",
+    });
+    expect(await storage.head(storageKey)).toBeNull();
+    const [record] = await dbHandle.db
+      .select()
+      .from(files)
+      .where(and(eq(files.id, fileId), eq(files.orgId, firstOrgId)))
+      .limit(1);
+    expect(record).toMatchObject({ uploadStatus: "pending", version: 1 });
+
+    const requestId = String((body(upload).error as JsonObject).requestId);
+    const [rejectionAudit] = await dbHandle.db
+      .select()
+      .from(auditEvents)
+      .where(
+        and(
+          eq(auditEvents.orgId, firstOrgId),
+          eq(auditEvents.requestId, requestId),
+          eq(auditEvents.action, "request_rejected"),
+        ),
+      )
+      .limit(1);
+    expect(rejectionAudit?.metadata).toMatchObject({
+      code: "VALIDATION_FAILED",
+      status: 400,
+      method: "PUT",
+    });
+    expect(rejectionAudit?.metadata).not.toHaveProperty("body");
   });
 
   it("rejects unauthenticated uploads before parsing their content type", async () => {
