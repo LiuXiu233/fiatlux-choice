@@ -27,7 +27,7 @@
 | 成员生命周期 | pending 登录拒绝、批准/停用/角色变更、乐观并发、最后 owner 保护和审计 | 冻结候选本地通过 | 两人审批和单人补偿控制由真实责任人演练 |
 | 四级 RBAC 与归档角色 | owner/admin/member/viewer、组织作用域；已有 Cookie 即时 403、新登录不建 session、恢复后重新授权 | 冻结候选本地通过 | 目标内网抽查跨组织拒绝和会话撤销 |
 | 追加审计 | 请求 ID、人工/系统 actor、before/after、拒绝、模型、工具、worker 和恢复事件 | 冻结候选本地通过 | 目标环境验证数据库与主机运维分权 |
-| 文件 | 三步上传、真实 MinIO 往返、大小/SHA-256、权限下载、篡改/并发/归档边界和恢复对象核对 | 冻结候选本地通过 | 目标内网和异介质复核 |
+| 文件 | 三步上传、上传前 UTF-8/JSON/格式信封/OOXML 结构与活动条目门禁、真实 MinIO 往返、大小/SHA-256、权限下载、篡改/并发/归档边界和恢复对象核对 | 冻结候选本地通过 / 无杀毒边界 | 目标内网和异介质复核；若风险要求病毒查杀/DLP，接入经批准扫描适配器 |
 | 目标、项目、任务、决策 typed refs | 同组织活动引用；decision 任意有效组合强制同一 objective→project→task 链；PATCH 合并校验、父关系与归档保护及并发锁集成通过 | 冻结候选本地通过 | 最终 SHA/GitHub CI 与目标内网复现；特权数据库写入保持运维边界 |
 | 产品、机会、项目 typed refs | product→project；opportunity 同时填写 product/project 时强制匹配产品所属活动项目；改链、归档和并发保护通过 | 冻结候选本地通过 | 最终 SHA/GitHub CI 与目标内网复现；业务成交与交付仍需人工证据 |
 | 义务、合规、风险、合同 | API/UI、逾期 worker、状态规则、`sourceId`/`evidenceFileId` 分离及文件凭证校验 | 冻结候选本地通过 / 有业务边界 | 来源关联不等于适用性复核；合同正式状态仍需人工外部回执 |
@@ -69,9 +69,9 @@ lease 到期不等于“安全重试”。操作员必须查看审计、partial 
 
 | 层级 | 当前发布状态 | 最终证据要求 |
 | --- | --- | --- |
-| Biome / ShellCheck / Actionlint / 类型 | **本地通过** | 196 个 Biome 文件、全 shell、3 个 workflow、7 个 TS 项目；GitHub CI 复现 |
-| 单元/聚合 | **本地通过** | 167/167 单元与完整 workspace 聚合通过；原始日志不进 Git |
-| API / worker / PostgreSQL / pg-boss | **本地通过** | 最新 API 17 files/85 tests、worker 5 files/25 tests；10 个 migration、fresh/legacy、权限、引用链锁、连接恢复、并发/CAS、审计和失败边界通过 |
+| Biome / ShellCheck / Actionlint / 类型 | **本地通过** | 198 个 Biome 文件、全 shell、3 个 workflow、7 个 TS 项目；GitHub CI 复现 |
+| 单元/聚合 | **本地通过** | 173/173 单元与完整 workspace 聚合通过；原始日志不进 Git |
+| API / worker / PostgreSQL / pg-boss | **本地通过** | 最新 API 17 files/86 tests、worker 5 files/25 tests；10 个 migration、fresh/legacy、权限、文件内容门禁、引用链锁、连接恢复、并发/CAS、审计和失败边界通过 |
 | MinIO / S3 | **本地通过** | 2 项真实私有桶/字节/权限/校验和集成及恢复对象核对通过 |
 | Web / Playwright / PWA | **本地通过，有真机边界** | mock 44 passed/6 条件 skip；real 2 passed；独立浏览器、离线壳、SW active、390 px 通过；真机待验收 |
 | 全 workspace / 七镜像构建 | **本地通过，有 registry 边界** | production build、PWA 10 precache/688.29 KiB；引用链增量候选七个 arm64 镜像、六常驻服务健康、Trivy 0 和七份 SPDX 通过；本次新 Web 镜像另以只读非 root Compose 和 Trivy HIGH/CRITICAL 0 验证，GHCR 双平台待发布 |
@@ -92,7 +92,7 @@ lease 到期不等于“安全重试”。操作员必须查看审计、partial 
 | synthetic bridge 相邻版本 | N `859841f…`/10 migrations 与本地 bridge `b44a8d1…`/9 migrations；七 digest 全异，真实 push/pull，升级 46s、回滚 43s、双 v2 恢复点；回滚后 308s 登录与 CRUD 通过 | 冻结候选本地通过 / 范围受限 | 不是历史生产 N−1、GHCR 或目标内网；经批准生产候选仍须复演 |
 | 归档与维护安全 | archive guard、资源上限、scratch、preflight、maintenance lock 及对应安全测试通过 | 冻结候选本地通过 | 经审批生产 `restore.sh` 破坏性入口仍待目标演练 |
 | 七镜像与供应链 | arm64 七镜像 Trivy 四口径均 0；7 SPDX；真实 BuildKit 双平台 fixture；API/worker amd64 原生件补偿验证 | 冻结候选本地通过 / GHCR 待发布 | 最终 SHA 的双平台 registry digest、GitHub workflow 和残余风险批准 |
-| GitHub 交付 | 合规监测人工升级实现基线 `f993ca6…` 已推送，Draft PR #12 已更新；CI `29693227281` 两个失败 job 均为 `runner_id=0`/`steps=[]`，在 runner 前因账户付款失败或 spending limit 不足被 GitHub 阻断 | 部分完成 / 外部计费阻断 | 推送文档 head 后复核远端；修复 Billing & plans 后重跑并取得绿色 CI/security、制品和批准；再合并 |
+| GitHub 交付 | 文件真实内容门禁实现基线 `10d5edd…` 已推送，Draft PR #12 已更新；CI `29694179547` 与 Security `29694179494` 的六个首级失败 job 均为 `runner_id=0`/`steps=[]`，在 runner 前因账户付款失败或 spending limit 不足被 GitHub 阻断 | 部分完成 / 外部计费阻断 | 推送文档 head 后复核远端；修复 Billing & plans 后重跑并取得绿色 CI/security、制品和批准；再合并 |
 | 目标办公内网 | 尚未在耀光广州办公内网部署 | 待执行 / 阻断 | 主机基线、DNS、CA、设备、备份介质、运行观察和批准 |
 
 ## 7. 核心场景状态
@@ -124,8 +124,8 @@ lease 到期不等于“安全重试”。操作员必须查看审计、partial 
 
 | 字段 | 当前值 | 要求 |
 | --- | --- | --- |
-| 完整 Git SHA / tag | 合规监测人工升级实现基线 `f993ca6a27ac4f38b90b1d5799b41da72b72f854`；tag 未创建 | 推送文档 head 后记录完整 SHA；确定 commit/tag 签名政策，生产发布记录受保护 tag |
-| GitHub PR / CI / 安全 run | Draft PR #12；实现基线 CI `29693227281` 和 Security `29693227315` 的六个首级失败 job 均在 runner 前被账户付款/spending limit 阻断，`runner_id=0`、`steps=[]` | 推送后记录新 run；修复 Billing & plans 后重跑，只有实际 step 执行且绿色才能关闭门禁 |
+| 完整 Git SHA / tag | 文件真实内容门禁实现基线 `10d5edda0db53c3c6ca23118e3097ba1618ee447`；tag 未创建 | 推送文档 head 后记录完整 SHA；确定 commit/tag 签名政策，生产发布记录受保护 tag |
+| GitHub PR / CI / 安全 run | Draft PR #12；实现基线 CI `29694179547` 和 Security `29694179494` 的六个首级失败 job 均在 runner 前被账户付款/spending limit 阻断，`runner_id=0`、`steps=[]` | 推送后记录新 run；修复 Billing & plans 后重跑，只有实际 step 执行且绿色才能关闭门禁 |
 | 38 表 / 10 migrations（`0000`–`0009`）证据 | **冻结工作树本地通过** | GitHub SHA 与目标环境复现 fresh/legacy、pg-boss 和权限 |
 | 七镜像 digest / SBOM / provenance | **本地 arm64/SPDX/fixture 通过** | 从最终 SHA 生成并记录 GHCR 双平台 registry digest |
 | 最终测试报告 | **冻结工作树本地通过** | 提交后记录不可变 SHA 与 GitHub run；源码漂移则重跑 |

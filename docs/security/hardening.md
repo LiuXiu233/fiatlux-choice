@@ -28,7 +28,7 @@
 - PostgreSQL 和 MinIO 使用独立随机密钥；MinIO 桶保持 anonymous none。
 - PostgreSQL bootstrap、migration、runtime、backup、restore 使用五个独立口令。API/worker 只使用无 SUPERUSER/CREATEDB/CREATEROLE/DDL 的 runtime；业务和 pg-boss DDL 只在一次性 migrator 容器执行，restore 仅在人工批准的破坏性操作中使用。
 - runtime 对 `audit_events` 只可 SELECT/INSERT；UPDATE/DELETE/TRUNCATE/触发器权限显式撤销，追加写触发器为 `ENABLE ALWAYS` 且归 migrator 所有。主机 root/bootstrap 仍能绕过，必须以异机备份与维护审计补偿。
-- 文件对象键不使用原始文件名作为路径；元数据入口按扩展名—声明 MIME 对照表只允许 PDF、纯文本/CSV/Markdown/JSON、常见无脚本图片和非宏 OOXML 等公司文件，并拒绝规范化后的路径/点段/控制字符/保留名、危险双扩展、脚本/活动内容/宏或 ODF 格式和 generic octet-stream。Markdown/JSON 与其他格式一样只以 attachment 下载，不作为可信代码或页面解释。完成上传时再次核对对象大小与 SHA-256；下载使用 attachment Content-Disposition 和 `nosniff`。该声明型 allowlist 不验证真实文件 magic，也不替代反病毒或内容安全扫描。
+- 文件对象键不使用原始文件名作为路径；元数据入口按扩展名—声明 MIME 对照表只允许 PDF、纯文本/CSV/Markdown/JSON、常见无脚本图片和非宏 OOXML 等公司文件，并拒绝规范化后的路径/点段/控制字符/保留名、危险双扩展、脚本/活动内容/宏或 ODF 格式和 generic octet-stream。二进制 PUT 在对象存储前验证 UTF-8/JSON、PDF/图片格式信封和 OOXML 的中央目录、本地头、规范路径、类型清单、主部件、条目/展开上限，并拒绝加密、ZIP64/分卷、宏、ActiveX、嵌入对象和常见可执行条目。失败时数据库仍为 pending、对象未写入，并由统一错误处理写不含 body 的拒绝审计。Markdown/JSON 与其他格式一样只以 attachment 下载，不作为可信代码或页面解释；完成上传时再次核对对象大小与 SHA-256，下载使用 attachment Content-Disposition 和 `nosniff`。该门禁不会完整解析或渲染正文，不能识别所有 polyglot、恶意 PDF/Office/图片或解析器漏洞，也不替代反病毒、沙箱、内容安全或 DLP。
 - 个人信息按业务必要性收集；业务变更、权限拒绝和已授权文件流发放写入追加审计，文件事件 `download_issued` 只表示服务端已取得对象并开始发放，不证明客户端下载完成。普通列表/详情查询目前依赖最小化应用访问日志，产品尚无通用业务导出，因此不得宣称所有查询或导出均已有逐记录业务审计。日志与 AI 输入先最小化/脱敏。
 - 生产备份必须 age 加密并异机保存，私钥独立托管；age 不认证创建者，恢复还必须匹配独立受审的归档 SHA-256。归档守卫只提取目录/普通文件并限制成员数与展开总量；每月实际恢复。
 

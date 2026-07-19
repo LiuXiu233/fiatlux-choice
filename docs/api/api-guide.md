@@ -260,7 +260,9 @@ curl --request PUT \
   https://choice.internal.example:8443/api/v1/files/00000000-0000-4000-8000-000000000000/content
 ~~~
 
-API 在 50,000,000 字节上限内有界接收文件（约 47.7 MiB），再写入对象存储，并核对声明的大小与 SHA-256。元数据创建只接受扩展名与声明 MIME 匹配的 PDF、纯文本/CSV/Markdown/JSON、常见无脚本图片和非宏 OOXML 等格式；HTML、SVG、脚本、可执行、宏或 ODF 格式、generic octet-stream，以及 NFKC 规范化后的路径/点段/控制字符/保留名和危险双扩展会被拒绝，重命名也执行同一策略。Markdown/JSON 与其他格式一样只作为 attachment 返回，不能作为可信页面或代码解释。通过 PUT 后状态为 `stored`，尚不能下载。该检查只约束声明元数据，不检查文件 magic，也不替代反病毒、内容安全或 DLP。
+API 在 50,000,000 字节上限内有界接收文件（约 47.7 MiB），在进入对象存储前检查真实内容，再核对声明的大小与 SHA-256。元数据创建只接受扩展名与声明 MIME 匹配的 PDF、纯文本/CSV/Markdown/JSON、常见无脚本图片和非宏 OOXML 等格式；HTML、SVG、脚本、可执行、宏或 ODF 格式、generic octet-stream，以及 NFKC 规范化后的路径/点段/控制字符/保留名和危险双扩展会被拒绝，重命名也执行同一策略。内容门禁要求文本为无二进制控制字节的有效 UTF-8、JSON 可解析、PDF/PNG/JPEG/GIF/WebP 具有对应格式信封；DOCX/XLSX/PPTX 还会校验 ZIP 中央目录与本地头一致、规范路径、条目/展开上限、`[Content_Types].xml`、根关系及对应主部件，并拒绝加密、ZIP64/分卷、宏、ActiveX、嵌入对象和常见可执行条目。失败发生在对象写入前，记录保持 `pending` 并写请求拒绝审计。Markdown/JSON 与其他格式一样只作为 attachment 返回，不能作为可信页面或代码解释。通过 PUT 后状态为 `stored`，尚不能下载。
+
+该门禁是保守的格式与容器结构检查，不会完整渲染或语义解析 PDF/图片/Office 正文，也不是反病毒、内容安全、沙箱或 DLP。格式正确的恶意文档、多格式 polyglot 或未知解析器漏洞仍可能通过；用户必须只下载可信来源文件，并在受管终端使用已更新的阅读器。被拒绝的保守格式应转换为受支持的静态格式后重新上传，不得关闭门禁绕过。
 
 ### 第三步：完成校验
 

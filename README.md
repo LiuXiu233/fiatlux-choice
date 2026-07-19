@@ -2,7 +2,7 @@
 
 耀光（广州）电子竞技有限公司及类似中国境内 1–2 人团队的内部公司治理与运营 Web App。
 
-当前状态：**受控候选，尚未宣布或批准 V1 完成**。仓库已经包含实质业务实现、PWA、API、worker、38 张业务表与 10 个迁移（`0000`–`0009`）、内网部署和恢复资产。2026-07-19 最新实现基线 `f993ca6…` 已通过静态检查、7 项类型检查、167/167 单元、API 85/85、worker 25/25、生产构建及当前树/历史 secret scan、依赖审计和 Semgrep；其未修改的 Web/部署层在前一基线 `e582509…` 已通过 mock/real E2E、独立 Compose、桌面/移动浏览器和新 Web 镜像检查。更早冻结基线还完成七个本地 arm64 镜像供应链检查和一次底层 formatVersion 2 独立恢复。连接恢复实现起点为 `859841f…`；候选分支对应 Draft PR #12。首轮本地相邻版本回滚在 idle 后暴露 `CONNECT_TIMEOUT` 并正确阻断，修复后使用七组件内容全部不同、schema 由 9 个迁移升级到 10 个迁移的 synthetic bridge 完成真实 push/pull、升级、双恢复点、应用回滚和 308 秒后 HTTPS CRUD 复验。这些分层结果尚未绑定同一个最终 Git SHA，也不是历史生产 N−1、GHCR 或广州办公内网证据。GitHub CI/Security 仍因账户付款失败或 Actions spending limit 不足在 runner 启动前被平台阻断，尚未执行 workflow step。其余未完成闸门包括 GHCR 双平台发布与绿色 CI、经批准的生产候选/N−1 和目标环境复演、经审批生产恢复入口、耀光目标办公内网与真实受管设备、真实 LLM/GitHub 适配器、MinIO 长期维护/支持风险决策和专业合规/业务批准。详情见[V1 验收矩阵](docs/delivery/v1-acceptance-matrix.md)和[受控候选交付报告](docs/delivery/final-delivery-report.md)。
+当前状态：**受控候选，尚未宣布或批准 V1 完成**。仓库已经包含实质业务实现、PWA、API、worker、38 张业务表与 10 个迁移（`0000`–`0009`）、内网部署和恢复资产。2026-07-19 最新工作树已通过 Biome 198 文件、7 项类型检查、173/173 单元、API 86/86、worker 25/25、真实 MinIO 2/2 和生产构建；当前树/历史 secret scan、生产依赖审计与 Semgrep 证据仍按最近实现分层记录。其未修改的 Web/部署层在前一基线 `e582509…` 已通过 mock/real E2E、独立 Compose、桌面/移动浏览器和新 Web 镜像检查。更早冻结基线还完成七个本地 arm64 镜像供应链检查和一次底层 formatVersion 2 独立恢复。连接恢复实现起点为 `859841f…`；候选分支对应 Draft PR #12。首轮本地相邻版本回滚在 idle 后暴露 `CONNECT_TIMEOUT` 并正确阻断，修复后使用七组件内容全部不同、schema 由 9 个迁移升级到 10 个迁移的 synthetic bridge 完成真实 push/pull、升级、双恢复点、应用回滚和 308 秒后 HTTPS CRUD 复验。这些分层结果尚未绑定同一个最终 Git SHA，也不是历史生产 N−1、GHCR 或广州办公内网证据。GitHub CI/Security 仍因账户付款失败或 Actions spending limit 不足在 runner 启动前被平台阻断，尚未执行 workflow step。其余未完成闸门包括 GHCR 双平台发布与绿色 CI、经批准的生产候选/N−1 和目标环境复演、经审批生产恢复入口、耀光目标办公内网与真实受管设备、真实 LLM/GitHub 适配器、MinIO 长期维护/支持风险决策和专业合规/业务批准。详情见[V1 验收矩阵](docs/delivery/v1-acceptance-matrix.md)和[受控候选交付报告](docs/delivery/final-delivery-report.md)。
 
 ## 能力
 
@@ -28,6 +28,7 @@
 - 顾问运行默认只对发起人可见；只有具有 `advisor-runs:read-all` 或全局权限的用户才可读取他人运行，且仍必须拥有该顾问入口和所有上下文资源的读权限。
 - 义务和合规日历将法规来源 `sourceId` 与完成凭证 `evidenceFileId` 分开维护；凭证必须是本组织已完成上传的文件，关联来源本身不等于规则已经人工判定适用。
 - 合规来源人工复核到期、已有正文哈希变化或连续第三次抓取失败时，worker 在来源状态事务内创建未分配的高优先级任务并关联审计；任务只表示需要人工处理，不会自动认定法规有效、适用或已复核。
+- 文件二进制 PUT 在进入对象存储前校验实际内容：文本/JSON、PDF/图片格式信封及 OOXML 包结构、主部件、展开上限和活动内容边界；该门禁仍不是反病毒、PDF/图片完整语义解析或 DLP，所有附件继续按不可信内容处理。
 - 角色分配/移除审批保存 membership 的 `expectedVersion` 与幂等键；等待审批期间成员或角色关系已变更时，旧审批冲突失败，不会在新版本上静默执行。
 
 ## 架构

@@ -15,7 +15,7 @@
 
 ## 2. 工程验证状态
 
-2026-07-18 的旧测试、六镜像、v1 恢复和同内容标签升级数字只保留为历史背景。2026-07-19 最新工作树已完成 lint/ShellCheck/Actionlint、7 项类型检查、167/167 单元、API 17 files/85 tests、worker 5 files/25 tests、PostgreSQL/pg-boss/MinIO 集成、mock 44+6 与隔离 real 2 项 Playwright、PWA/构建、独立桌面/390 px 引用链及教育内容检查，以及新建 Compose 的七镜像构建、六服务健康、Trivy 0 与七份 SPDX。此前冻结候选还完成六服务重启持久性、双平台 provenance fixture、一次底层 formatVersion 2 独立恢复，以及一次本地 synthetic bridge 真实 schema/镜像差异升级与应用回滚。
+2026-07-18 的旧测试、六镜像、v1 恢复和同内容标签升级数字只保留为历史背景。2026-07-19 最新工作树已完成 Biome 198 files、ShellCheck/Actionlint、7 项类型检查、173/173 单元、API 17 files/86 tests、worker 5 files/25 tests、PostgreSQL/pg-boss/真实 MinIO 集成、mock 44+6 与隔离 real 2 项 Playwright、PWA/构建、独立桌面/390 px 引用链及教育内容检查，以及新建 Compose 的七镜像构建、六服务健康、Trivy 0 与七份 SPDX。Web/E2E/Compose/七镜像证据来自本轮未修改对应层的前一冻结基线，尚未与最新文件门禁绑定同一不可变 SHA。此前冻结候选还完成六服务重启持久性、双平台 provenance fixture、一次底层 formatVersion 2 独立恢复，以及一次本地 synthetic bridge 真实 schema/镜像差异升级与应用回滚。
 
 当前 schema 为 38 张业务表和 10 个迁移（`0000`–`0009`）。上述结果仍是本地冻结候选而非 GitHub runner、GHCR 双平台、耀光办公内网、真实设备或生产批准证据。本地 synthetic bridge 已实跑真实差异升级/回滚，但历史生产 N−1、目标发布复演和经审批的破坏性 `restore.sh` 生产入口没有实跑。GitHub CI、目标内网、真实设备、MinIO 长期维护/支持风险处置和责任人批准仍是发布闸门，以[验收矩阵](./v1-acceptance-matrix.md)为准。
 
@@ -34,7 +34,7 @@
 ## 4. 文件与数据
 
 - 单文件上限 50 MB；大型视频课件、赛事回放和媒体素材应使用受控媒体存储，后续再引入分片上传和后台校验。
-- 文件入口限制为扩展名与声明 MIME 匹配的常用公司格式，拒绝脚本/活动内容/宏与 ODF 格式/generic octet-stream、规范化路径/点段/保留名和危险双扩展，并验证大小和 SHA-256；Markdown/JSON 也只作为非可信附件下载。但系统不检查真实文件 magic，仍无法识别伪装内容或恶意 PDF/Office，也没有反病毒、内容安全扫描、DLP、OCR 或敏感信息识别。
+- 文件入口限制为扩展名与声明 MIME 匹配的常用公司格式，拒绝脚本/活动内容/宏与 ODF 格式/generic octet-stream、规范化路径/点段/保留名和危险双扩展，并在存储前验证 UTF-8/JSON、PDF/图片信封及 OOXML 的包结构、规范路径、类型、主部件、展开上限和活动条目，随后验证大小和 SHA-256；Markdown/JSON 也只作为非可信附件下载。该实现不是完整格式解析器，仍无法排除格式正确的恶意 PDF/Office/图片、polyglot 或阅读器漏洞，也没有反病毒、沙箱、内容安全扫描、DLP、OCR 或敏感信息识别。
 - 软归档不等于物理删除，也不自动满足个人信息删除或法定档案销毁。
 - PostgreSQL 和 MinIO 之间没有分布式事务；上传状态机和暂停写入备份降低但不能消除跨存储不一致风险。
 - 恢复源与输出已分离：归档通过 `RESTORE_SOURCE_DIR` 只读挂载，恢复前加密备份写到独立的 `RESTORE_PRE_BACKUP_DIR`。这解决了批准介质只读时无法生成 pre-restore 的路径冲突，但目录容量只提供安全下限而非成功保证；MinIO 内部卷格式/身份元数据不在归档中，跨版本兼容仍需人工确认。
@@ -119,7 +119,7 @@
 - 新升级/回滚入口强制校验严格七组件发布清单和独立批准的清单 SHA-256，并在 pull 后、迁移前及启动后核对本地 RepoDigest；切换时一致重建 PostgreSQL、MinIO 与应用，并核对六个常驻容器 image ID 后才写全局版本，避免任一常驻组件延迟切换。backup 保持按需。BuildKit provenance 与 SBOM 不是签名；当前未集成 cosign/Sigstore，不能声称镜像已由发布者签名。
 - 尚未完成的目标验证包括耀光办公内网主机、DNS、CA 分发、防火墙、seed/owner 首登改密、真实设备、异介质恢复和运行观察。
 - Caddy internal CA 需要逐台受控分发；它不是成熟企业 PKI。
-- 当前合规监测人工升级实现基线 `f993ca6a27ac4f38b90b1d5799b41da72b72f854` 已推送到私有 `LiuXiu233/fiatlux-choice` 的 Draft PR #12 候选分支。该提交的 CI run `29693227281` 两个、Security run `29693227315` 四个首级失败 job 均为 `runner_id=0`、`steps=[]`，annotation 明确提示近期账户付款失败或 Actions spending limit 不足；因此没有 workflow step 被执行，不能声称 GitHub CI、安全扫描、合并或发布已完成。文档 head 推送后仍须复核最新 run，修复 Billing & plans 后必须重跑。
+- 当前文件真实内容门禁实现基线 `10d5edda0db53c3c6ca23118e3097ba1618ee447` 已推送到私有 `LiuXiu233/fiatlux-choice` 的 Draft PR #12 候选分支。该提交的 CI run `29694179547` 两个、Security run `29694179494` 四个首级失败 job 均为 `runner_id=0`、`steps=[]`，annotation 明确提示近期账户付款失败或 Actions spending limit 不足；因此没有 workflow step 被执行，不能声称 GitHub CI、安全扫描、合并或发布已完成。文档 head 推送后仍须复核最新 run，修复 Billing & plans 后必须重跑。
 - 当前仓库没有把 Git commit/tag 签名作为已验证控制。本地测试事实不能充当发布者签名；生产 tag 前必须确定并执行签名政策，或由有权负责人记录替代控制与风险决定。
 
 ## 11. 安全剩余风险
