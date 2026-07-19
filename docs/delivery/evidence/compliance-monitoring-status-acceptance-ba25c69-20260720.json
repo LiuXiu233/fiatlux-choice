@@ -1,0 +1,289 @@
+{
+  "schemaVersion": 1,
+  "evidenceType": "compliance-monitoring-status-local-production-like-acceptance",
+  "status": "passed_with_external_gates",
+  "candidate": {
+    "repository": "LiuXiu233/fiatlux-choice",
+    "branch": "codex/v1-acceptance-hardening",
+    "implementationGitSha": "ba25c69954015c406c6a61ff9fadadd3830741c3",
+    "imageTag": "statusqa-ba25c69",
+    "sourceWasClean": true,
+    "databaseMigrationAdded": false
+  },
+  "execution": {
+    "evidenceWindowStartedAt": "2026-07-19T23:10:58Z",
+    "evidenceWindowCompletedAt": "2026-07-19T23:29:28Z",
+    "operatorTimezone": "Asia/Shanghai",
+    "host": {
+      "os": "macOS 26.5.2",
+      "dockerClient": "29.6.0",
+      "dockerServer": "29.5.2",
+      "dockerServerArchitecture": "arm64",
+      "dockerCompose": "5.3.1",
+      "dockerBuildx": "0.35.0"
+    }
+  },
+  "change": {
+    "observedProblem": "A 1–2 person operator could only reconstruct current compliance monitoring workload from source rows and audit history; the latest dispatch audit also described historical backlog, which must not be presented as current legal or operational truth.",
+    "implementedBehavior": [
+      "A permission-gated GET endpoint computes organization-scoped current monitoring and review workload without mutating sources or dispatching jobs.",
+      "The endpoint validates the latest organization dispatch audit and returns null for missing or structurally invalid legacy metadata instead of inventing history.",
+      "The responsive compliance page separates current due workload, active leases, machine status and review attention from the latest dispatch-at-that-time facts.",
+      "The current backlog warning is derived only from current dueAvailableCount; historical hasMoreDue remains explicitly worded as an at-that-time fact.",
+      "The UI states that machine metrics do not prove legal validity, applicability, complete archival or professional approval."
+    ]
+  },
+  "qualityGates": {
+    "immutableSourceFullCheck": {
+      "biomeFiles": 212,
+      "shellcheckPassed": true,
+      "actionlintVersion": "1.7.12",
+      "actionlintPassed": true,
+      "typescriptProjects": 7,
+      "unitTests": 186,
+      "apiIntegrationFiles": 18,
+      "apiIntegrationTests": 90,
+      "workerIntegrationFiles": 5,
+      "workerIntegrationTests": 29,
+      "workspaceProductionBuildPassed": true
+    },
+    "targetedContractsAndApi": {
+      "contractTests": 20,
+      "complianceMonitorApiTests": 4,
+      "organizationIsolationCovered": true,
+      "archivedSourcesExcluded": true,
+      "activeLeaseClassificationCovered": true,
+      "invalidLatestDispatchFailsClosedToNull": true,
+      "unauthenticatedRuntimeStatus": 401
+    },
+    "openApi": {
+      "version": "3.1.0",
+      "paths": 76,
+      "operations": 141,
+      "operationId": "getComplianceMonitoringStatus",
+      "parserAndInventoryTestsPassed": true
+    },
+    "browserAutomation": {
+      "mockPlaywrightPassed": 46,
+      "mockPlaywrightDesignedSkips": 6,
+      "newResponsiveScenarioProjects": ["desktop-chromium", "mobile-chromium"],
+      "nativePythonRealComposePassed": true
+    },
+    "productionBuild": {
+      "nodeEnv": "production",
+      "educationChunkKiB": 128.19,
+      "mainChunkKiB": 427.75,
+      "pwaPrecacheEntries": 10,
+      "pwaPrecacheKiB": 706.88
+    },
+    "realMinio": {
+      "finalTestsPassed": 2,
+      "fixtureIdentity": "isolated QA root used only because the versioned integration fixture calls CreateBucket",
+      "runtimeAppCreateBucketDenied": true,
+      "runtimeAppReadWriteDeleteProbePassed": true,
+      "backupReadOnlyProbePassed": true,
+      "restoreDestructiveProbePassed": true
+    },
+    "sourceSecurity": {
+      "gitleaksCurrentTreeHistoryCanaryAndAllowlistPassed": true,
+      "productionDependencyAuditFindings": 0,
+      "semgrepVersion": "1.170.0",
+      "semgrepRulesValidated": 10,
+      "semgrepCanaryFindings": 10,
+      "semgrepProductionTargets": 88,
+      "semgrepProductionFindings": 0
+    },
+    "rebuiltImageSecurity": {
+      "trivyVersion": "0.70.0",
+      "syftVersion": "1.42.3",
+      "components": [
+        {
+          "component": "api",
+          "imageId": "sha256:35a94eb94be85b2fb1ed362f98580a97325aa069be06626c7e41461b3a021d8a",
+          "highCriticalFindings": 0,
+          "fixableHighCriticalFindings": 0,
+          "trivyReportSha256": "d6bc18350e897457475bd60b3854c24dac38180a65e5fb32441cc75a31caff77",
+          "spdxPackages": 204,
+          "spdxSha256": "eda1927e6507e8cbe5932017421193beefeaf5052cdac380ca3cb30f4a1fbdec"
+        },
+        {
+          "component": "worker",
+          "imageId": "sha256:ee84b7734d489e8f10805b1451d0ee0437be29d9739d765637f8154bac689cb0",
+          "highCriticalFindings": 0,
+          "fixableHighCriticalFindings": 0,
+          "trivyReportSha256": "fddefb50dbda96d926ca190f8cfe5c0eeb4b95e1224dbf7743274cb8d746eaf7",
+          "spdxPackages": 225,
+          "spdxSha256": "c3486a6d47af563914479eb38e3c67a0caaee2c7dbf4cc0969071c2d56c484f0"
+        },
+        {
+          "component": "web",
+          "imageId": "sha256:bf61112431415d7991348fb76b17594196121b43b93475d5fc80fc0c0105583f",
+          "highCriticalFindings": 0,
+          "fixableHighCriticalFindings": 0,
+          "trivyReportSha256": "f1b23b35b5ef69d12a029306b5d31e264f4576d9f9e1e2c72c79ae98157c6c85",
+          "spdxPackages": 176,
+          "spdxSha256": "3a4d392879920286648a524071abd355413edcee5e9ab5d05f1bcac0312d0e40"
+        }
+      ]
+    }
+  },
+  "compose": {
+    "projectName": "fiatlux-choice-statusqa",
+    "url": "https://choice-status.localhost:23443",
+    "productionOverlay": true,
+    "services": ["postgres", "minio", "api", "worker", "web", "caddy"],
+    "allSixServicesHealthy": true,
+    "deploymentVerifierPasses": 3,
+    "minioLeastPrivilegeVerifierPasses": 3,
+    "onlyGatewayPublishedAfterTestFixtures": true,
+    "restartPersistencePassed": true,
+    "runtimeDatabaseRole": "fiatlux_runtime",
+    "database": {
+      "publicTableCount": 38,
+      "migrationCount": 11,
+      "pgBossSchemaVersion": 24,
+      "organizationCount": 1,
+      "officialSources": 73,
+      "professionallyReviewedSources": 0,
+      "distinctInitialMonitorTimes": 7,
+      "initialBucketCounts": [11, 11, 11, 10, 10, 10, 10]
+    },
+    "images": [
+      {
+        "component": "api",
+        "builtFromCandidateSource": true,
+        "imageId": "sha256:35a94eb94be85b2fb1ed362f98580a97325aa069be06626c7e41461b3a021d8a"
+      },
+      {
+        "component": "worker",
+        "builtFromCandidateSource": true,
+        "imageId": "sha256:ee84b7734d489e8f10805b1451d0ee0437be29d9739d765637f8154bac689cb0"
+      },
+      {
+        "component": "web",
+        "builtFromCandidateSource": true,
+        "imageId": "sha256:bf61112431415d7991348fb76b17594196121b43b93475d5fc80fc0c0105583f"
+      },
+      {
+        "component": "postgres",
+        "reusedUnchangedPriorAcceptanceImage": true,
+        "imageId": "sha256:21f55d61458ac149cce46ed6e9cb753810aa2331244aaba3a495ea938dc97c72"
+      },
+      {
+        "component": "minio",
+        "reusedUnchangedPriorAcceptanceImage": true,
+        "imageId": "sha256:74bd0fc3fa45b7eec2647b1f483847373c6a35dac8ec0f26782977c2a5569ef8"
+      },
+      {
+        "component": "gateway",
+        "reusedUnchangedPriorAcceptanceImage": true,
+        "imageId": "sha256:a245c2d28d0a078da7313101077a2fefd81544061dd8b796dead50eded935e86"
+      }
+    ],
+    "runtimeLogReview": {
+      "blockingErrors": 0,
+      "classifiedExpectedEvents": [
+        "runtime pg-boss create_queue calls were denied while pre-created queues remained healthy",
+        "PostgreSQL terminated old client connections during the intentional six-service restart",
+        "the non-root Caddy container could not install its local CA into a host trust store; host verification used the exported CA"
+      ]
+    }
+  },
+  "runtimeStatusScenario": {
+    "authenticatedResponse": {
+      "sourceCount": 73,
+      "dueAvailableCount": 11,
+      "inFlightCount": 0,
+      "pendingFetchCount": 73,
+      "failedCount": 0,
+      "changedCount": 0,
+      "staleReviewCount": 0,
+      "overdueReviewCount": 0,
+      "latestDispatch": null
+    },
+    "firstPasswordChanged": true,
+    "sessionAndDataPersistedAcrossSixServiceRestart": true,
+    "machineStatePresentedAsProfessionalReview": false,
+    "dispatchOrFetchTriggeredByStatusRefresh": false
+  },
+  "browser": {
+    "desktopViewport": "1440x1000",
+    "mobileViewport": "390x844",
+    "desktopGridColumns": 6,
+    "mobileGridColumns": 2,
+    "desktopHorizontalOverflow": false,
+    "mobileHorizontalOverflow": false,
+    "refreshHttpStatus": 200,
+    "unexpectedConsoleOrPageErrors": 0,
+    "expectedUnauthenticatedSessionChecks": 2,
+    "desktopScreenshotSha256": "708acf49bde477abbd61fb2149c65714e4e920ce8c28a76c886d1c7444679179",
+    "mobileScreenshotSha256": "50d69ed179724e157ad16be7b898a2e90b20f114b7453cde8f92e78cb5ef1859",
+    "offlineScreenshotSha256": "f53840278d2872df1e1b1bef4a46c8d67fa6b8084c4e2caff95f4e25766c9419",
+    "pwa": {
+      "manifestName": "FIAT LUX CHOICE",
+      "display": "standalone",
+      "activeServiceWorker": true,
+      "serviceWorkerPath": "/sw.js",
+      "cacheEntryCount": 10,
+      "cachedSensitiveRouteCount": 0,
+      "installabilityErrors": 0,
+      "offlineSensitiveContentHidden": true,
+      "sessionRevalidatedAfterReconnect": true
+    }
+  },
+  "failureHistory": [
+    {
+      "stage": "real browser harness",
+      "initialResult": "functional, layout and PWA assertions passed but two expected unauthenticated /auth/me 401 console entries were initially classified as unexpected",
+      "resolution": "the harness captured console locations and allowed only the exact expected 401; the full browser scenario then passed with zero unexpected errors"
+    },
+    {
+      "stage": "real MinIO host fixture",
+      "initialResult": "the first temporary direct port overlay did not create a reachable Docker Desktop listener and both tests failed with ECONNREFUSED",
+      "resolution": "the port was removed, an isolated dual-network reverse proxy was used, and the production deployment was reverified"
+    },
+    {
+      "stage": "real MinIO least-privilege fixture",
+      "initialResult": "the app identity reached MinIO; checksum cleanup passed, while the fixture CreateBucket call was correctly denied",
+      "resolution": "the final 2/2 byte tests used the isolated root only for fixture bucket setup, then the production app/backup/restore policies were reverified without widening permissions"
+    },
+    {
+      "stage": "Semgrep command invocation",
+      "initialResult": "an unquoted shell glob stopped the first production scan command before Semgrep ran",
+      "resolution": "quoted excludes ran the pinned scanner over 88 production targets with zero findings"
+    }
+  ],
+  "recoveryEvidenceBoundary": {
+    "currentChangeTouchesMigrationsStorageOrRecovery": false,
+    "recoveryFilesUnchangedSinceGitSha": "101d2f0938adfa0caa8ed576f6587a5c78ae74a5",
+    "priorAuthoritativeEvidence": "docs/delivery/evidence/production-like-acceptance-101d2f0-20260720.json",
+    "priorSignedRestoreRerunClaimedForThisIncrement": false
+  },
+  "cleanup": {
+    "qaContainersRemoved": true,
+    "qaNetworksRemoved": true,
+    "qaVolumesRemoved": true,
+    "qaImageTagsRemoved": true,
+    "temporaryProxyRemoved": true,
+    "screenshotsReportsCookiesAndCredentialsRemoved": true,
+    "sensitiveDataCommitted": false
+  },
+  "externalGates": {
+    "githubCiForThisImplementation": "pending push; prior runs were blocked before runner start by account billing or Actions spending limits",
+    "githubCodeQl": "not run for this implementation",
+    "ghcrMultiArchitectureRelease": "not published",
+    "targetGuangzhouIntranet": "not deployed",
+    "managedPhysicalMobileDevice": "not tested",
+    "approvedProductionRestoreEntry": "not run",
+    "realLlmAndGitHubAdapters": "not tested",
+    "professionalReviewOf73Sources": "not completed",
+    "businessSecurityOperationsLegalTaxAndEducationApprovals": "not obtained"
+  },
+  "claimsNotMade": [
+    "The status panel does not prove that an official source is current, applicable, completely archived or professionally approved.",
+    "The local arm64 image IDs are not GHCR multi-architecture digests, signatures or provenance.",
+    "The local Docker Desktop environment is not the Guangzhou office intranet or a managed physical device.",
+    "The unchanged prior backup/restore evidence is not represented as a new restore drill for ba25c69.",
+    "This evidence does not upgrade the repository from controlled candidate to completed V1."
+  ]
+}

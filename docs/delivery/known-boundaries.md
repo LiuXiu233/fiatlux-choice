@@ -21,6 +21,8 @@
 
 不可变容量保护增量 `51ebb28999319eaa220ac204f2a6a23bee0b4caa` 把新目录分散到 7 个每日时间桶，并按 `nextMonitorAt + id` 将每组织定时 sweep 默认限制为 12 条。干净提交上的 11/11 定向 PostgreSQL、182/182 单元、API 89/89、worker 29/29、真实 MinIO、生产构建、源码/worker 镜像安全门禁和隔离 production Compose 均通过；真实 pg-boss 积压断言为 12 已领取、61 待后续、`hasMoreDue=true`，且子 job 执行前任务/通知均为 0。脱敏记录见[首次监控容量增量证据](./evidence/compliance-monitor-batch-acceptance-51ebb28-20260720.json)。它没有完成 73 条抓取或专业复核，也不替代基线恢复及外部门禁。
 
+不可变运营可见性增量 `ba25c69954015c406c6a61ff9fadadd3830741c3` 增加只读、组织隔离的监控状态 API 与桌面/移动面板，并把实时待领取与历史派发积压分开。不可变提交上完成 212 文件、ShellCheck/Actionlint、7 项类型、186/186 单元、API 90/90、worker 29/29、真实 MinIO 2/2、mock 46+6、生产构建、三张重建镜像安全扫描和独立 production Compose；真实状态为 73 条来源、11 条待领取、0 在途、73 条 pending_fetch、0 专业复核，六服务重启、PWA/offline 和三次部署/MinIO 最小权限验证均通过。脱敏记录见[监控运营状态增量证据](./evidence/compliance-monitoring-status-acceptance-ba25c69-20260720.json)。失败夹具、预期 401、复用的未变化底层镜像和未重跑的恢复层均分列；这仍不是 GitHub runner、目标内网或法律结论。
+
 当前 schema 为 38 张业务表和 11 个迁移（`0000`–`0010`）。专用迁移测试已证明 `0000`–`0009` 数据原样保留、不会为 legacy reviewed 记录发明专业 provenance；当前签名恢复又逐项匹配 11 个 migration SQL hash，但这仍不是 GitHub runner、生产副本或目标内网升级证明。本地 synthetic bridge 只覆盖旧 10 迁移基线，历史生产 N−1、目标发布复演和经审批的破坏性 `restore.sh` 生产入口没有实跑。GitHub CI、目标内网、真实设备、MinIO 长期维护/支持风险处置和责任人批准仍是发布闸门，以[验收矩阵](./v1-acceptance-matrix.md)为准。
 
 ## 3. 身份与权限

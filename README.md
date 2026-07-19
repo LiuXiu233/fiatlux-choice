@@ -8,6 +8,8 @@
 
 不可变容量保护增量 `51ebb28999319eaa220ac204f2a6a23bee0b4caa` 将新导入的 73 条来源分散到 7 个每日时间桶，并把每组织定时 sweep 默认限制为最早到期的 12 条。该提交完成 11/11 定向 PostgreSQL、182/182 单元、API 89/89、worker 29/29、真实 MinIO 2/2、生产构建、隔离 production Compose、桌面/移动/PWA 和安全复验；真实 pg-boss 积压断言得到 12 已领取、61 待后续、`hasMoreDue=true`，没有伪造抓取、任务、通知或专业复核。脱敏记录见[首次监控容量增量证据](docs/delivery/evidence/compliance-monitor-batch-acceptance-51ebb28-20260720.json)。它同样不替代完整恢复、GHCR、目标内网和专业批准证据。
 
+不可变运营可见性增量 `ba25c69954015c406c6a61ff9fadadd3830741c3` 新增组织隔离、`compliance-items:read` 权限保护的合规监控状态 API 与响应式面板，分别呈现当前待领取、有效租约、首次未抓取、失败/变化和复核关注，并把历史 `hasMoreDue` 明确限定为“当时”事实。该提交完成 212 文件静态检查、186/186 单元、API 90/90、worker 29/29、真实 MinIO 2/2、mock 46+6、生产构建和独立 production Compose；真实桌面/移动/PWA、六服务重启、三镜像 Trivy/SPDX 与临时资源清理均通过。脱敏记录见[监控运营状态增量证据](docs/delivery/evidence/compliance-monitoring-status-acceptance-ba25c69-20260720.json)。面板刷新不会抓取或复核，任何指标都不证明法规有效、适用或已获专业批准；本增量也不替代基线恢复、GitHub/GHCR、目标内网和真实责任人验收。
+
 ## 能力
 
 - 用户、组织、数据库会话、四级 RBAC 和追加审计。

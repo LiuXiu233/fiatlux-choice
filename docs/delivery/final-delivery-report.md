@@ -4,7 +4,7 @@
 
 报告状态：**受控候选记录，不是 V1 已完成、已批准上线或 GitHub CI 已通过的声明**
 
-本报告区分“不可变基线实现 `101d2f0…` 的完整本地工程/Compose/镜像/恢复证据”“不可变协调增量实现 `5eec8cc…` 的受影响层复验”“不可变容量保护增量 `51ebb28…` 的首次监控分批复验”“最终 GitHub/GHCR”和“目标办公内网验收”。专业复核、38 表/11 migration、七镜像、desktop/mobile/PWA、最小权限和 age+Ed25519 隔离恢复均已绑定 `101d2f0…`；协调责任人、站内通知与构建环境加固绑定 `5eec8cc…`；七日初始分桶、每组织 12 条容量上限与积压审计绑定 `51ebb28999319eaa220ac204f2a6a23bee0b4caa`。脱敏机器记录分别见[基线候选验收证据](./evidence/production-like-acceptance-101d2f0-20260720.json)、[协调升级增量证据](./evidence/compliance-coordinator-acceptance-5eec8cc-20260720.json)和[首次监控容量增量证据](./evidence/compliance-monitor-batch-acceptance-51ebb28-20260720.json)。证据文档后继提交不冒充镜像或运行环境 SHA；这些证据仍不是 GitHub runner、GHCR 双平台、经审批生产恢复、目标办公内网或业务/专业批准。最终发布还必须按[最终交付报告模板](./final-delivery-report-template.md)补齐这些外部证据和真实责任人签署。
+本报告区分“不可变基线实现 `101d2f0…` 的完整本地工程/Compose/镜像/恢复证据”“不可变协调增量 `5eec8cc…`”“不可变容量保护增量 `51ebb28…`”“不可变运营状态增量 `ba25c69…`”“最终 GitHub/GHCR”和“目标办公内网验收”。完整 age+Ed25519 恢复绑定 `101d2f0…`；协调、容量与新的组织隔离监控读模型分别绑定后三个实现。脱敏机器记录见[基线证据](./evidence/production-like-acceptance-101d2f0-20260720.json)、[协调证据](./evidence/compliance-coordinator-acceptance-5eec8cc-20260720.json)、[容量证据](./evidence/compliance-monitor-batch-acceptance-51ebb28-20260720.json)和[监控运营状态证据](./evidence/compliance-monitoring-status-acceptance-ba25c69-20260720.json)。证据提交不冒充实现、镜像、GitHub runner、GHCR 双平台、目标办公内网或业务/专业批准；最终发布仍须按[模板](./final-delivery-report-template.md)补齐外部证据和真实责任人签署。
 
 ## 1. 候选身份与批准状态
 
@@ -12,10 +12,10 @@
 | --- | --- | --- |
 | 产品版本 | V1 受控候选 | 所有阻断闸门关闭并取得业务负责人批准后才能改为 V1 完成 |
 | 目标仓库 | 私有 `LiuXiu233/fiatlux-choice`；候选分支已推送；[Draft PR #12](https://github.com/LiuXiu233/fiatlux-choice/pull/12) | 解除 Actions 计费阻断，取得绿色 CI/security；批准后再合并 |
-| Git SHA / tag | 完整基线实现为 `101d2f0938adfa0caa8ed576f6587a5c78ae74a5`；协调升级实现为 `5eec8cc3f4cbd0b9a12372240bca9f56d65ae5f9`；容量保护实现为 `51ebb28999319eaa220ac204f2a6a23bee0b4caa`，增量机器证据显式绑定各自实现提交；未创建发布 tag | 生产发布仍须确定 commit/tag 签名政策，并统一最终 Git/GitHub/GHCR 身份 |
-| GitHub PR / CI | Draft PR #12；`101d2f0…` 已推送；PR Checks 是远端状态权威来源；历史最新已知 [CI run 29697701957](https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29697701957) 与 [Security run 29697701952](https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29697701952) 均在 runner 启动前失败 | 历史 job 为 `runner_id=0`、`steps=[]`，原因是账户付款或 Actions spending limit；文档推送自然触发的 run 只读核验，不反复盲目重跑 |
+| Git SHA / tag | 完整恢复基线为 `101d2f0938adfa0caa8ed576f6587a5c78ae74a5`；最新监控运营状态实现为 `ba25c69954015c406c6a61ff9fadadd3830741c3`，增量机器证据显式绑定各自实现提交；未创建发布 tag | 生产发布仍须确定 commit/tag 签名政策，并统一最终 Git/GitHub/GHCR 身份 |
+| GitHub PR / CI | Draft PR #12；当前实现待本轮推送；PR Checks 是远端状态权威来源；上一远端 head 的 [CI run 29706630229](https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29706630229) 与 [Security run 29706630238](https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29706630238) 均在 runner 启动前失败 | 首级 job 为 `steps=[]`，原因是账户付款或 Actions spending limit；本轮推送自然触发的 run 只读核验，不反复盲目重跑 |
 | 数据库 | PostgreSQL 17.10；38 张业务表；11 个业务迁移 `0000`–`0010`；`101d2f0…` fresh、`0009→0010` 数据保留/幂等、fresh/legacy 五职责和签名恢复逐 migration hash 均本地通过 | GitHub CI、GHCR 与目标内网重新执行 |
-| 候选 QA 环境 | `101d2f0…` 使用独立新卷 `choice-review.localhost:20443` 完成完整基线和恢复；`5eec8cc…` 使用 `choice-coordinator.localhost:21443` 完成协调增量；`51ebb28…` 使用 `choice-batch.localhost:22443` 完成七日分桶、真实 pg-boss 容量、桌面/移动/PWA 与安全复验；临时资源均已清理 | 本机环境不得改写成耀光广州办公内网；目标环境必须独立复现 |
+| 候选 QA 环境 | `101d2f0…` 在 `choice-review.localhost:20443` 完成完整基线和恢复；`ba25c69…` 在独立 `choice-status.localhost:23443` 完成状态 API、桌面/移动/PWA、重启、真实 MinIO 与三镜像安全复验；临时资源均已清理 | 本机环境不得改写成耀光广州办公内网；目标环境必须独立复现 |
 | 目标办公内网 | **未部署** | 补主机、OS、架构、DNS、CA、防火墙、受管设备和运行观察 |
 | 业务、风险与运维批准 | **未取得** | 公司和安全/运维负责人基于终态证据签署 |
 | 法务合规/财税批准 | **未取得** | 专业人员说明资质、事实、范围、复核日期和有效期 |
@@ -34,14 +34,14 @@
 | 身份与权限 | 用户、组织、数据库会话、owner/admin/member/viewer、成员 pending/active/inactive/offboarded 生命周期、首次强制改密、最后 owner 保护和关键角色审批 | 首次改密前路由受限；改密撤销其他会话；归档角色后已有会话即时失权，唯一授权角色被归档时新登录不创建会话 |
 | 初始化与紧急恢复 | 显式 `bootstrap`、`metadata-only`、`system-role-maintenance` 三种 seed mode；离线 owner 密码恢复 CLI | 常规 metadata seed 不修改身份、成员、角色分配或权限；角色维护需 active owner、原因、批准引用和 requestId；恢复密钥仅从 stdin 读取并强制撤销会话、下次改密和审计 |
 | 审计与文件 | 追加审计、请求 ID、前后值、拒绝事件、私有 S3/MinIO 文件和并发完成锁 | 跨组织拒绝、不可经 API 篡改审计、拒绝请求体最小化、真实文件往返和并发冲突已本地验证；目标内网仍需复跑 |
-| 执行与治理 | 目标、项目、任务、决策、义务、合规日历、风险、合同、typed refs 和证据型专业复核 | 专业复核锁定实名/角色/机构/胜任依据/缺失信息/证据/来源版本与哈希/站内登记人，追加不可改历史；通用 reviewed/确定生命周期提升被拒，实质编辑自动 stale/uncertain，当前与历史证据均受归档保护 |
+| 执行与治理 | 目标、项目、任务、决策、义务、合规日历、风险、合同、typed refs、证据型专业复核和合规监控运营状态 | 状态面板按组织只读汇总当前机器/复核工作量并区分历史派发；专业复核锁定实名/机构/依据/证据/版本，通用状态提升被拒；面板数字不构成专业结论 |
 | 财务 | 简易收支、发票、现金流、外部动作引用 | 金额使用整数分；正式外部状态仍依赖人工回执，不由内部批准伪造成功 |
 | 产品、市场与电竞教育 | 产品组合、市场机会、电竞教育筹备页、官网公开业务/内容审计、成人试点课程草案，以及 4 篇带 Schema、版本、来源、练习、模板、AI 披露和审阅状态的成年人基础内容 | 四篇均为待人工复核、权利待确认和 WordPress 未发布；教育页面是内部筹备工作台，不是招生、支付、直播、考试、证书或未成年人平台 |
 | GitHub 情报 | manual/read-only 集成边界与刷新队列 | 刷新任务在排队时保存当前 `expectedVersion`，worker 只在版本未变时以 CAS 写回，不用陈旧网络快照覆盖并发人工修改；真实 GitHub 凭据和最小权限读取验收未执行 |
 | 审批与外部动作 | 八类高风险人工批准、manual/mock 状态机、幂等与合同/发票/付款台账原子联动 | 没有外部回执时不报成功；已关联草稿支出的银行付款在取消或审批驳回时于同一事务解除台账关联并增加版本，避免草稿被废弃动作永久占用 |
 | 通知、顾问与工作流 | in-app 通知、失败可见的 email/webhook 边界、七类顾问、四类工作流步骤 | 通知 queued-only、工作流不可变快照/partial checkpoint、advisor/workflow/backup 原子 claim 和 lease 边界均已在冻结候选回归覆盖 |
 | AI 可追溯 | 总经理、财务、法务合规、产品研发、市场机会、人力行政、信息安全；提示词/模型/工具/引用/人工编辑审计 | 运行默认只对发起人可见；合规事实要求完整、未到期专业 provenance，关联义务还要求 applicable；legacy/不适用/过期内容失败关闭；mock 不代表真实模型质量 |
-| PWA | 响应式导航、manifest、service worker、离线壳和恢复会话 | `101d2f0…` 构建生成 10 个 precache（700.30 KiB）；Compose 浏览器验证 0 installability error、0 敏感路由缓存、desktop/mobile 无溢出、离线内容隐藏和恢复会话；真机安装/升级仍待执行 |
+| PWA | 响应式导航、manifest、service worker、离线壳和恢复会话 | `ba25c69…` 构建生成 10 个 precache（706.88 KiB）；Compose 浏览器验证 0 installability error、0 敏感路由缓存、desktop/mobile 无溢出、离线内容隐藏和恢复会话；真机安装/升级仍待执行 |
 | 部署与灾备 | Compose、Caddy、迁移、健康检查、日志、最小权限数据库/MinIO、age+Ed25519 备份恢复、升级回滚工具 | `101d2f0…` 全新 Compose、七镜像和 11 migration 签名恢复已通过；经审批生产入口、历史生产 N−1、GHCR、目标内网/异介质和批准 RPO/RTO 仍待执行 |
 
 ## 3. 最终冻结测试状态
@@ -72,6 +72,8 @@
 同一增量又从 `5eec8cc…` 构建七个 `linux/arm64` 镜像和全新 production overlay，完成五职责数据库引导、38 表/11 migration、pg-boss 24、六服务健康及两次部署/MinIO 最小权限验证。明确标注“QA、非专业意见”的到期来源由真实组织级 pg-boss sweep 处理，生成指向最早有效 owner 的目标任务、`sent` 站内通知及 task create、notification create/deliver、source review_expired 关联审计；浏览器随后标记已读并写 `mark_read`。1440×1000 与 390×844 均精确找到该到期任务和通知、无横向溢出；PWA 1 个活动 service worker、10 条缓存、0 敏感路由缓存、0 installability error，离线隐藏业务内容并在恢复后重新验证会话。固定 Trivy 0.70.0 对实际变更的 worker 镜像 HIGH/CRITICAL 为 0，Syft 1.42.3 SPDX-2.3 为 225 packages。组织级 sweep 也按设计领取了首次启动时已到期的 seed 来源；实验室后续抓取失败产生的独立任务没有被用来冒充目标 `review_expired` 断言。原始截图、报告、age identity、容器、网络、卷和七个 QA 镜像标签均已删除。
 
 首次监控容量增量从干净 `51ebb28…` 再完成 Biome 209 files、ShellCheck、7 项类型、182/182 单元、API 89/89、worker 29/29、真实 MinIO 2/2 和 production build；Actionlint 1.7.12、Gitleaks、Semgrep 10/10 canary/87 生产目标 0 finding、生产依赖 0、worker Trivy HIGH/CRITICAL 0 与 Syft 225 packages 同步通过。独立 production overlay 精确 seed 73 条来源为 7 个时间桶 `11/11/11/10/10/10/10`；暂停常驻 worker 后，用同一候选镜像和真实 pg-boss 对隔离的 73 条到期 fixture 执行一次组织 sweep，审计为 `batchLimit=12`、`queuedCount=12`、`hasMoreDue=true`，数据库保留 61 条未领取，12 个子 job 均为 created，尚未执行时任务/通知为 0。桌面和移动合规页均显示 73 条、无溢出，`/sw.js` 激活且意外错误为 0。该 fixture 的管理员 SQL 只用于隔离容量断言，不冒充用户行为、抓取成功或专业复核；QA 数据与全部临时资源已删除。
+
+监控运营状态增量从干净 `ba25c69…` 完成 Biome 212 files、ShellCheck/Actionlint、7 项类型、186/186 单元、API 90/90、worker 29/29、真实 MinIO 2/2 和 production build；OpenAPI 为 76 paths/141 operations，Semgrep 88 个生产目标 0 finding，生产依赖 0。独立 production overlay seed 73 条未复核来源，真实状态读到 11 条待领取、0 在途、73 条 pending_fetch 和空派发历史；未认证访问为 401。API/worker/Web 三张重建镜像 Trivy HIGH/CRITICAL 0，SPDX 分别 204/225/176 packages。1440×1000 与 390×844 分别为 6/2 列且无溢出，PWA 10 缓存、0 敏感缓存、0 installability error，离线隐藏数据并恢复会话。六服务整体重启和三次部署/MinIO 最小权限验证通过；夹具失败与隔离 root 建桶边界写入[机器证据](./evidence/compliance-monitoring-status-acceptance-ba25c69-20260720.json)，全部 QA 资源和凭据已删除。本增量未修改恢复层，也未伪称重跑基线恢复。
 
 文件真实内容门禁增量新增 6 项单元测试并把全工作区单元提高到 173/173；独立 PostgreSQL 17 上目标 API 文件 19/19、完整 API 17 files/86 tests 通过，真实 MinIO 私有桶往返/错误摘要删除 2/2 通过。伪装 PDF 在对象写入前返回 400，文件保持 `pending/version=1`，对象不存在，拒绝审计不含 body；压缩 OOXML 正/负向覆盖 DOCX/XLSX/PPTX 主部件、类型清单、宏、ActiveX、嵌入、加密和路径穿越。隔离 PostgreSQL/MinIO 容器均在测试后删除。该门禁不是反病毒、沙箱、完整格式语义解析或 DLP，不能把测试通过写成附件无恶意内容。
 
@@ -182,7 +184,7 @@
 以下全部完成前，本报告结论不得升级为“V1 完成”：
 
 - [x] `101d2f0…` 的预期范围、ignored 证据边界、当前树/完整历史 secret scan 和敏感数据已完成本地审计；仅纳入私有仓库的 6 张公开官网研究截图，公开或外发前仍需权利/个人信息复核；GitHub 仍须复核。
-- [x] `101d2f0…` 完成完整基线 lint、测试、E2E、生产构建和恢复；不可变协调实现 `5eec8cc…` 又完成 207 文件 `pnpm check`、worker 28/28、受影响层真实浏览器和独立安全门禁复跑，并分列设计内 skip 与外部闸门。
+- [x] `101d2f0…` 完成完整基线和恢复；最新 `ba25c69…` 又完成 212 文件、186/186 单元、API 90/90、worker 29/29、真实 MinIO、真实浏览器/PWA、独立 Compose 与三张重建镜像安全复跑，并分列失败夹具、设计内 skip 与外部闸门。
 - [x] `101d2f0…` 的 production-like Compose 已在新卷完成 38 表/11 migration、HTTPS/PWA、六服务、最小权限和重启持久性验证；目标内网仍待复现。
 - [x] 首次强制改密、成员生命周期、版本化角色审批、归档角色即时失权、通知 queued-only、GitHub 刷新 CAS、工作流不可变快照、付款取消/驳回解链、顾问 requester-only/read-all、合规专业 provenance/source/evidence、typed refs 和文件并发场景已在分层测试覆盖。
 - [x] fresh/legacy 数据库、PostgreSQL 五职责和 MinIO 四身份的正/负向最小权限验证通过；目标凭据仍须重新执行。
@@ -190,7 +192,7 @@
 - [x] 本地 synthetic bridge 使用真实 schema 与七镜像差异完成升级、双恢复点、应用回滚和 idle 后 HTTPS CRUD；历史生产 N−1、GHCR 和目标内网复演仍待执行，不得把本地结果升级为生产证明。
 - [x] `101d2f0…` 已完成 Gitleaks、生产依赖审计、Semgrep+canary、七镜像 Trivy 0.70.0 与 Syft 1.42.3 SPDX；GitHub/GHCR 双平台 digest、CodeQL/等效 SAST 与剩余风险批准仍待执行。
 - [ ] 在真实受管手机完成 PWA 安装/升级和移动浏览器验证。
-- [x] 专业复核实现 `101d2f0…` 已提交并推送；脱敏机器证据明确绑定该父实现 SHA，未把文档后继提交冒充镜像或运行环境 SHA。
+- [x] 专业复核基线 `101d2f0…` 已推送；监控运营状态实现 `ba25c69…` 已提交，脱敏机器证据明确绑定实现 SHA，未把证据后继提交冒充镜像或运行环境 SHA；本轮远端执行状态以 PR Checks 为准。
 - [ ] 修复 GitHub Actions 账户付款/spending limit 阻断，重跑 PR CI 与 Security；取得绿色 run、CodeQL 或经批准等效 SAST、制品证据，批准后再合并。
 - [ ] 在耀光广州办公内网验证主机、DNS、CA、防火墙、显式 seed、owner 首登改密、设备、备份介质和运行观察。
 - [ ] 完成真实 LLM/GitHub 最小权限验收，或明确保持 disabled/manual 且不宣称外部集成完成。
@@ -201,4 +203,4 @@
 
 FIAT LUX CHOICE 已形成可运行的模块化单体候选，不是脚手架、静态仪表盘或仅有数据库模型。身份、权限、审计、业务模块、八类人工批准、七类顾问、后台任务、PWA、最小权限、七镜像供应链和 Ed25519 签名 formatVersion 2 独立恢复路径均有分层实证。
 
-不可变实现提交 `101d2f0…` 已完成专业复核增量的静态、单元、数据库、API/worker、MinIO、mock/real E2E、生产构建、全新 Compose、七镜像扫描/SPDX、desktop/mobile/PWA 和 11 migration age+Ed25519 隔离恢复；测试私钥、归档和恢复资源已清理，脱敏证据已经入库。GitHub CI/security 仍因账户付款或 spending limit 在 runner 前阻断；GHCR、历史生产 N−1/目标发布、经审批生产恢复入口、耀光目标办公内网/真机、真实 LLM/GitHub、73 条真实专业复核、MinIO 支持风险决策及责任人批准均未完成。因此唯一合法结论仍是：**受控候选，尚不可宣布 V1 已完成或已批准生产上线。**
+不可变基线 `101d2f0…` 已完成 11 migration age+Ed25519 隔离恢复；最新运营状态实现 `ba25c69…` 已完成完整源码、真实 MinIO、生产构建、独立 Compose、desktop/mobile/PWA 和受影响镜像扫描/SPDX，且临时资源已清理。恢复层自基线未变，本轮没有把旧恢复结果写成新演练。GitHub CI/security、GHCR、历史生产 N−1/目标发布、经审批生产恢复入口、耀光目标办公内网/真机、真实 LLM/GitHub、73 条真实专业复核、MinIO 支持风险决策及责任人批准仍未完成。因此唯一合法结论仍是：**受控候选，尚不可宣布 V1 已完成或已批准生产上线。**
