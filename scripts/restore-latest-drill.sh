@@ -10,6 +10,10 @@ identity_file=${BACKUP_AGE_IDENTITY_FILE:-}
 expected_sha256=${BACKUP_EXPECTED_SHA256:-}
 approved_manifest_dir=${BACKUP_APPROVED_MANIFEST_DIR:-}
 expected_backup_tool_release=${RESTORE_EXPECTED_BACKUP_TOOL_RELEASE:-}
+attestation_file=${BACKUP_ATTESTATION_FILE:-}
+signature_file=${BACKUP_SIGNATURE_FILE:-}
+signing_public_key_file=${BACKUP_SIGNING_PUBLIC_KEY_FILE:-}
+expected_signing_key_sha256=${BACKUP_SIGNING_PUBLIC_KEY_SHA256:-}
 
 path_mode() {
   local mode
@@ -77,6 +81,9 @@ fi
 
 latest=""
 while IFS= read -r -d '' candidate; do
+  case "$candidate" in
+    *.config.tar.gz | *.config.tar.gz.age) continue ;;
+  esac
   if [[ -z "$latest" || "$candidate" -nt "$latest" ]]; then
     latest=$candidate
   fi
@@ -88,6 +95,25 @@ fi
 
 args=(--file "$latest")
 backup_basename=$(basename "$latest")
+attestation_file=${attestation_file:-$latest.attestation.json}
+signature_file=${signature_file:-$latest.attestation.sig}
+if [[ ! -f "$attestation_file" || -L "$attestation_file" ||
+  ! -f "$signature_file" || -L "$signature_file" ]]; then
+  echo "最新备份演练要求归档对应的签名 attestation 与 Ed25519 签名。" >&2
+  exit 3
+fi
+if [[ -z "$signing_public_key_file" || ! -f "$signing_public_key_file" ||
+  -L "$signing_public_key_file" ||
+  ! "$expected_signing_key_sha256" =~ ^[0-9a-f]{64}$ ]]; then
+  echo "最新备份演练要求 BACKUP_SIGNING_PUBLIC_KEY_FILE 和独立批准的 BACKUP_SIGNING_PUBLIC_KEY_SHA256。" >&2
+  exit 2
+fi
+args+=(
+  --attestation "$attestation_file"
+  --signature "$signature_file"
+  --signing-public-key "$signing_public_key_file"
+  --expected-signing-key-sha256 "$expected_signing_key_sha256"
+)
 if [[ -z "$expected_sha256" ]]; then
   if [[ -z "$approved_manifest_dir" || ! -d "$approved_manifest_dir" ]]; then
     echo "最新备份演练要求 BACKUP_EXPECTED_SHA256 或 BACKUP_APPROVED_MANIFEST_DIR。" >&2

@@ -86,6 +86,10 @@ run_tree_scan() {
   if ((scan_rc != 0)); then
     printf 'Gitleaks %s 扫描失败（退出码 %d；日志仅含脱敏输出）。\n' \
       "$log_name" "$scan_rc" >&2
+    if [[ -s "$workspace/$report_name" ]] && command -v jq >/dev/null 2>&1; then
+      jq -r '.[] | "rule=\(.RuleID) file=\(.File) line=\(.StartLine) match=\(.Match)"' \
+        "$workspace/$report_name" | head -n 20 >&2
+    fi
     return "$scan_rc"
   fi
   if [[ ! -s "$workspace/$report_name" ]]; then

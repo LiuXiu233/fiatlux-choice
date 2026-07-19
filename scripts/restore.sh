@@ -20,6 +20,8 @@ usage() {
        --restore-image-version VERSION --release-manifest FILE \
        --manifest-sha256 SHA256 --expected-git-sha GIT_SHA \
        [--expected-backup-tool-release VERSION] \
+       --attestation FILE --signature FILE --signing-public-key FILE \
+       --expected-signing-key-sha256 SHA256 \
        [--confirm-postgres-minor-rollback POSTGRES-MINOR-ROLLBACK-REVIEWED] \
        --approve YES-I-UNDERSTAND \
        [--identity AGE_IDENTITY] [--skip-pre-backup]
@@ -36,6 +38,10 @@ database_confirmation=""
 bucket_confirmation=""
 approval=""
 identity_file=""
+attestation_file=${BACKUP_ATTESTATION_FILE:-}
+signature_file=${BACKUP_SIGNATURE_FILE:-}
+signing_public_key_file=${BACKUP_SIGNING_PUBLIC_KEY_FILE:-}
+expected_signing_key_sha256=${BACKUP_SIGNING_PUBLIC_KEY_SHA256:-}
 expected_sha256=${BACKUP_EXPECTED_SHA256:-}
 expected_source_id=${RESTORE_EXPECTED_SOURCE_ID:-}
 expected_source_database=${RESTORE_EXPECTED_SOURCE_DATABASE:-}
@@ -68,6 +74,22 @@ while (($#)); do
       ;;
     --identity)
       identity_file=${2:?--identity 需要值}
+      shift 2
+      ;;
+    --attestation)
+      attestation_file=${2:?--attestation 需要文件}
+      shift 2
+      ;;
+    --signature)
+      signature_file=${2:?--signature 需要文件}
+      shift 2
+      ;;
+    --signing-public-key)
+      signing_public_key_file=${2:?--signing-public-key 需要文件}
+      shift 2
+      ;;
+    --expected-signing-key-sha256)
+      expected_signing_key_sha256=${2:?--expected-signing-key-sha256 需要 SHA-256}
       shift 2
       ;;
     --expected-sha256)
@@ -138,9 +160,29 @@ if [[ ! "$expected_sha256" =~ ^[0-9a-f]{64}$ ]]; then
   echo "必须通过受控审批记录提供 64 位小写 --expected-sha256；不得自动信任备份旁的 sidecar。" >&2
   exit 2
 fi
-if [[ ! -f "$backup_file" ]]; then
+if [[ ! -f "$backup_file" || -L "$backup_file" ]]; then
   printf '找不到备份文件：%s\n' "$backup_file" >&2
   exit 3
+fi
+signature_inputs=(
+  "$attestation_file"
+  "$signature_file"
+  "$signing_public_key_file"
+  "$expected_signing_key_sha256"
+)
+signature_input_count=0
+for signature_input in "${signature_inputs[@]}"; do
+  if [[ -n "$signature_input" ]]; then
+    ((signature_input_count += 1))
+  fi
+done
+if [[ "${FIATLUX_ENV:-development}" == production && $signature_input_count -ne 4 ]]; then
+  echo "生产恢复要求显式提供 attestation、Ed25519 签名、公钥和独立批准的公钥指纹。" >&2
+  exit 2
+fi
+if ((signature_input_count != 0 && signature_input_count != 4)); then
+  echo "备份签名验证参数必须完整提供，不能部分启用。" >&2
+  exit 2
 fi
 if [[ "$backup_file" == *.age && -z "$identity_file" ]]; then
   echo "加密备份需要 --identity。" >&2
@@ -206,6 +248,42 @@ if [[ "$database_confirmation" != "$target_database" || "$bucket_confirmation" !
   exit 2
 fi
 
+source_backup_dir=$(cd "$(dirname "$backup_file")" && pwd -P)
+backup_basename=$(basename "$backup_file")
+backup_file="$source_backup_dir/$backup_basename"
+if [[ ! -r "$backup_file" ]]; then
+  printf '恢复归档不可读：%s\n' "$backup_file" >&2
+  exit 3
+fi
+signature_verified=false
+attestation_sha256=""
+signing_key_fingerprint_sha256=""
+if ((signature_input_count == 4)); then
+  attestation_file=$(cd "$(dirname "$attestation_file")" && pwd -P)/$(basename "$attestation_file")
+  signature_file=$(cd "$(dirname "$signature_file")" && pwd -P)/$(basename "$signature_file")
+  signing_public_key_file=$(cd "$(dirname "$signing_public_key_file")" && pwd -P)/$(basename "$signing_public_key_file")
+  signature_result=$("$ROOT_DIR/scripts/verify-backup-attestation.sh" \
+    --file "$backup_file" \
+    --attestation "$attestation_file" \
+    --signature "$signature_file" \
+    --public-key "$signing_public_key_file" \
+    --expected-signing-key-sha256 "$expected_signing_key_sha256" \
+    --expected-sha256 "$expected_sha256" \
+    --expected-source-id "$expected_source_id" \
+    --expected-source-database "$expected_source_database" \
+    --expected-source-bucket "$expected_source_bucket" \
+    --expected-backup-tool-release "$expected_backup_tool_release")
+  signature_verified=$(jq -er '.signatureVerified' <<<"$signature_result")
+  attestation_sha256=$(jq -er '.attestationSha256' <<<"$signature_result")
+  signing_key_fingerprint_sha256=$(jq -er '.signingKeyFingerprintSha256' <<<"$signature_result")
+  if [[ "$signature_verified" != true ]]; then
+    echo "备份签名验证未返回成功状态。" >&2
+    exit 4
+  fi
+else
+  echo "警告：该非生产恢复未验证备份创建者签名。" >&2
+fi
+
 release_manifest=$(cd "$(dirname "$release_manifest")" && pwd -P)/$(basename "$release_manifest")
 "$ROOT_DIR/scripts/verify-release-images.sh" \
   --version "$restore_image_version" \
@@ -214,14 +292,6 @@ release_manifest=$(cd "$(dirname "$release_manifest")" && pwd -P)/$(basename "$r
   --manifest-sha256 "$manifest_sha256" \
   --manifest-only
 "$ROOT_DIR/scripts/verify-deployment-source.sh" --expected-git-sha "$expected_git_sha"
-
-source_backup_dir=$(cd "$(dirname "$backup_file")" && pwd -P)
-backup_basename=$(basename "$backup_file")
-backup_file="$source_backup_dir/$backup_basename"
-if [[ ! -r "$backup_file" ]]; then
-  printf '恢复归档不可读：%s\n' "$backup_file" >&2
-  exit 3
-fi
 archive_size=$(wc -c <"$backup_file" | tr -d '[:space:]')
 if [[ ! "$archive_size" =~ ^[0-9]+$ ]]; then
   echo "无法读取恢复归档大小，拒绝继续。" >&2
@@ -404,6 +474,9 @@ run_args=(
   -e "RESTORE_EXPECTED_SOURCE_DATABASE=$expected_source_database"
   -e "RESTORE_EXPECTED_SOURCE_BUCKET=$expected_source_bucket"
   -e "RESTORE_EXPECTED_BACKUP_TOOL_RELEASE=$expected_backup_tool_release"
+  -e "RESTORE_SIGNATURE_VERIFIED=$signature_verified"
+  -e "RESTORE_ATTESTATION_SHA256=$attestation_sha256"
+  -e "RESTORE_SIGNING_KEY_FINGERPRINT_SHA256=$signing_key_fingerprint_sha256"
   -e "RESTORE_TOOL_RELEASE=$restore_image_version"
   -e "RESTORE_CONFIRM_DATABASE=$target_database"
   -e "RESTORE_CONFIRM_BUCKET=$target_bucket"
@@ -458,7 +531,9 @@ printf '%s  %s\n' "$manifest_sha256" "$restore_image_version.tsv" \
 chmod 600 "$STATE_DIR/manifests/$restore_image_version.tsv.sha256"
 printf '%s\n' "$current_release" >"$STATE_DIR/previous"
 printf '%s\n' "$restore_image_version" >"$STATE_DIR/current"
-printf '%s\trestore\t%s\t%s\t%s\t%s\t%s\n' \
+printf '%s\trestore\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
   "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$current_release" "$restore_image_version" \
-  "$expected_git_sha" "$manifest_sha256" "$expected_sha256" >>"$STATE_DIR/history.tsv"
+  "$expected_git_sha" "$manifest_sha256" "$expected_sha256" \
+  "${signing_key_fingerprint_sha256:-unsigned}" "${attestation_sha256:-unsigned}" \
+  >>"$STATE_DIR/history.tsv"
 chmod 600 "$STATE_DIR/current" "$STATE_DIR/previous" "$STATE_DIR/history.tsv"

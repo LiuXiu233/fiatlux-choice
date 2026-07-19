@@ -23,3 +23,10 @@ regexes = [
   '''^correct-horse-battery-staple-1$''',
   '''^correct-horse-battery-staple-2$''',
 ]
+
+[[rules.allowlists]]
+description = "Public Ed25519 DER fingerprint in the sanitized signed-restore evidence"
+condition = "AND"
+regexTarget = "match"
+paths = ['''(?:^|/)docs/delivery/evidence/signed-backup-restore-drill-20260720\.json$''']
+regexes = ['''^signingKeyFingerprintSha256":\s*"[0-9a-f]{64}"$''']

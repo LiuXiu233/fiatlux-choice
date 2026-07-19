@@ -37,6 +37,19 @@ if [ "${BACKUP_REQUIRE_ENCRYPTION:-false}" = "true" ] && [ -z "${BACKUP_AGE_RECI
 	echo "生产备份要求设置 BACKUP_AGE_RECIPIENT。" >&2
 	exit 2
 fi
+case "${BACKUP_REQUIRE_SIGNATURE:-false}" in
+	true | false) ;;
+	*) echo "BACKUP_REQUIRE_SIGNATURE 必须是 true 或 false。" >&2; exit 2 ;;
+esac
+case "${BACKUP_SIGNING_PRIVATE_KEY_STDIN:-false}" in
+	true | false) ;;
+	*) echo "BACKUP_SIGNING_PRIVATE_KEY_STDIN 必须是 true 或 false。" >&2; exit 2 ;;
+esac
+if [ "${BACKUP_REQUIRE_SIGNATURE:-false}" = "true" ] &&
+	[ "${BACKUP_SIGNING_PRIVATE_KEY_STDIN:-false}" != "true" ]; then
+	echo "生产备份要求通过 stdin 提供 Ed25519 签名私钥。" >&2
+	exit 2
+fi
 
 backup_name=${BACKUP_NAME:-fiatlux-$(date -u +%Y%m%dT%H%M%SZ)}
 case "$backup_name" in
@@ -63,16 +76,45 @@ archive_partial="$work_root/$backup_name.tar.gz.partial"
 archive="$backup_root/$backup_name.tar.gz"
 encrypted_partial="$archive.age.partial"
 encrypted="$archive.age"
+signing_key_partial="$work_root/.$backup_name.signing-key.partial"
+backup_completed=false
+owns_output=false
 
 cleanup() {
+	status=$?
+	trap - EXIT HUP INT TERM
 	rm -rf "$staging" "$archive_partial" "$encrypted_partial" \
-		"$archive.partial" "$archive.sha256.partial" "$encrypted.sha256.partial"
+		"$archive.partial" "$archive.sha256.partial" "$encrypted.sha256.partial" \
+		"$signing_key_partial"
+	if [ "$owns_output" = true ] && [ "$backup_completed" != true ]; then
+		rm -f "$archive" "$archive.sha256" "$archive.attestation.json" \
+			"$archive.attestation.sig" "$encrypted" "$encrypted.sha256" \
+			"$encrypted.attestation.json" "$encrypted.attestation.sig"
+	fi
+	exit "$status"
 }
 trap cleanup EXIT HUP INT TERM
 
-if [ -e "$archive" ] || [ -e "$encrypted" ] || [ -e "$archive.sha256" ] || [ -e "$encrypted.sha256" ]; then
+if [ -e "$archive" ] || [ -e "$encrypted" ] || [ -e "$archive.sha256" ] ||
+	[ -e "$encrypted.sha256" ] || [ -e "$archive.attestation.json" ] ||
+	[ -e "$archive.attestation.sig" ] || [ -e "$encrypted.attestation.json" ] ||
+	[ -e "$encrypted.attestation.sig" ]; then
 	echo "备份文件已存在，拒绝覆盖：$backup_name" >&2
 	exit 3
+fi
+owns_output=true
+
+if [ "${BACKUP_SIGNING_PRIVATE_KEY_STDIN:-false}" = "true" ]; then
+	cat >"$signing_key_partial"
+	chmod 0600 "$signing_key_partial"
+	signing_key_size=$(wc -c <"$signing_key_partial" | tr -d '[:space:]')
+	case "$signing_key_size" in
+		"" | *[!0-9]*) echo "无法读取备份签名私钥大小。" >&2; exit 2 ;;
+	esac
+	if [ "$signing_key_size" -lt 32 ] || [ "$signing_key_size" -gt 16384 ]; then
+		echo "备份签名私钥大小无效。" >&2
+		exit 2
+	fi
 fi
 
 mkdir -p "$staging/objects"
@@ -139,6 +181,27 @@ checksum_file="$final_file.sha256"
 checksum_partial="$checksum_file.partial"
 printf '%s  %s\n' "$final_sha256" "$(basename "$final_file")" >"$checksum_partial"
 chmod 0600 "$checksum_partial"
+if [ "${BACKUP_SIGNING_PRIVATE_KEY_STDIN:-false}" = "true" ]; then
+	create-backup-attestation \
+		--file "$final_file" \
+		--private-key "$signing_key_partial" \
+		--source-id "$BACKUP_SOURCE_ID" \
+		--source-database "$PGDATABASE" \
+		--source-bucket "$S3_BUCKET" \
+		--backup-tool-release "$BACKUP_TOOL_RELEASE" \
+		--created-at "$created_at"
+elif [ "${BACKUP_REQUIRE_SIGNATURE:-false}" = "true" ]; then
+	echo "生产备份未生成签名证明，拒绝完成。" >&2
+	exit 3
+else
+	echo "警告：未提供备份签名私钥；该开发备份没有来源真实性证明。" >&2
+fi
 mv "$checksum_partial" "$checksum_file"
+rm -f "$signing_key_partial"
+backup_completed=true
 trap - EXIT HUP INT TERM
 printf '备份完成：%s\nSHA-256：%s\n待复核清单：%s\n' "$final_file" "$final_sha256" "$checksum_file"
+if [ -f "$final_file.attestation.json" ] && [ -f "$final_file.attestation.sig" ]; then
+	printf '签名证明：%s\n签名：%s\n' \
+		"$final_file.attestation.json" "$final_file.attestation.sig"
+fi

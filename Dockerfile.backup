@@ -55,6 +55,8 @@ RUN apk upgrade --no-cache && \
 COPY --from=mc-build /out/mc /usr/local/bin/mc
 COPY --from=mc-build /out/archive-guard /usr/local/bin/archive-guard
 COPY --chmod=0555 infra/backup/backup-container.sh /usr/local/bin/backup-container
+COPY --chmod=0555 infra/backup/config-backup-container.sh /usr/local/bin/config-backup-container
+COPY --chmod=0555 infra/backup/create-backup-attestation.sh /usr/local/bin/create-backup-attestation
 COPY --chmod=0555 infra/backup/restore-container.sh /usr/local/bin/restore-container
 COPY --chmod=0555 infra/backup/verify-restored-objects.sh /usr/local/bin/verify-restored-objects
 

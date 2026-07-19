@@ -20,6 +20,8 @@ usage() {
 用法：./scripts/restore-drill.sh --file FILE --expected-sha256 SHA256 \
        [--expected-source-id SOURCE_ID --expected-source-database DB \
         --expected-source-bucket BUCKET] --expected-backup-tool-release VERSION \
+       --attestation FILE --signature FILE --signing-public-key FILE \
+       --expected-signing-key-sha256 SHA256 \
        [--identity AGE_IDENTITY]
 
 在随机 Compose 项目和全新卷中恢复；默认结束后销毁演练环境。
@@ -29,6 +31,10 @@ EOF
 
 backup_file=""
 identity_file=""
+attestation_file=${BACKUP_ATTESTATION_FILE:-}
+signature_file=${BACKUP_SIGNATURE_FILE:-}
+signing_public_key_file=${BACKUP_SIGNING_PUBLIC_KEY_FILE:-}
+expected_signing_key_sha256=${BACKUP_SIGNING_PUBLIC_KEY_SHA256:-}
 expected_sha256=${BACKUP_EXPECTED_SHA256:-}
 while (($#)); do
   case "$1" in
@@ -38,6 +44,22 @@ while (($#)); do
       ;;
     --identity)
       identity_file=${2:?--identity 需要值}
+      shift 2
+      ;;
+    --attestation)
+      attestation_file=${2:?--attestation 需要文件}
+      shift 2
+      ;;
+    --signature)
+      signature_file=${2:?--signature 需要文件}
+      shift 2
+      ;;
+    --signing-public-key)
+      signing_public_key_file=${2:?--signing-public-key 需要文件}
+      shift 2
+      ;;
+    --expected-signing-key-sha256)
+      expected_signing_key_sha256=${2:?--expected-signing-key-sha256 需要 SHA-256}
       shift 2
       ;;
     --expected-sha256)
@@ -71,8 +93,13 @@ while (($#)); do
   esac
 done
 
-if [[ -z "$backup_file" || ! -f "$backup_file" ]]; then
+if [[ -z "$backup_file" || ! -f "$backup_file" || -L "$backup_file" ]]; then
   usage >&2
+  exit 2
+fi
+if [[ -z "$attestation_file" || -z "$signature_file" || -z "$signing_public_key_file" ||
+  ! "$expected_signing_key_sha256" =~ ^[0-9a-f]{64}$ ]]; then
+  echo "恢复演练要求完整提供签名 attestation、Ed25519 签名、公钥和独立批准的公钥指纹。" >&2
   exit 2
 fi
 if [[ ! "$expected_sha256" =~ ^[0-9a-f]{64}$ ]]; then
@@ -150,6 +177,28 @@ fi
 
 source_backup_dir=$(cd "$(dirname "$backup_file")" && pwd -P)
 backup_basename=$(basename "$backup_file")
+backup_file="$source_backup_dir/$backup_basename"
+attestation_file=$(cd "$(dirname "$attestation_file")" && pwd -P)/$(basename "$attestation_file")
+signature_file=$(cd "$(dirname "$signature_file")" && pwd -P)/$(basename "$signature_file")
+signing_public_key_file=$(cd "$(dirname "$signing_public_key_file")" && pwd -P)/$(basename "$signing_public_key_file")
+signature_result=$("$ROOT_DIR/scripts/verify-backup-attestation.sh" \
+  --file "$backup_file" \
+  --attestation "$attestation_file" \
+  --signature "$signature_file" \
+  --public-key "$signing_public_key_file" \
+  --expected-signing-key-sha256 "$expected_signing_key_sha256" \
+  --expected-sha256 "$expected_sha256" \
+  --expected-source-id "$expected_source_id" \
+  --expected-source-database "$expected_source_database" \
+  --expected-source-bucket "$expected_source_bucket" \
+  --expected-backup-tool-release "$expected_backup_tool_release")
+signature_verified=$(jq -er '.signatureVerified' <<<"$signature_result")
+attestation_sha256=$(jq -er '.attestationSha256' <<<"$signature_result")
+signing_key_fingerprint_sha256=$(jq -er '.signingKeyFingerprintSha256' <<<"$signature_result")
+if [[ "$signature_verified" != true ]]; then
+  echo "恢复演练的备份签名验证未返回成功状态。" >&2
+  exit 4
+fi
 if [[ -z "$restore_drill_report_dir" ]]; then
   restore_drill_report_dir="$ROOT_DIR/tmp/restore-drill-reports"
 fi
@@ -416,6 +465,9 @@ run_args=(
   -e "RESTORE_EXPECTED_SOURCE_DATABASE=$expected_source_database"
   -e "RESTORE_EXPECTED_SOURCE_BUCKET=$expected_source_bucket"
   -e "RESTORE_EXPECTED_BACKUP_TOOL_RELEASE=$expected_backup_tool_release"
+  -e RESTORE_SIGNATURE_VERIFIED=true
+  -e "RESTORE_ATTESTATION_SHA256=$attestation_sha256"
+  -e "RESTORE_SIGNING_KEY_FINGERPRINT_SHA256=$signing_key_fingerprint_sha256"
   -e "RESTORE_TOOL_RELEASE=${APP_IMAGE_TAG:-local}"
   -e "RESTORE_REPORT_ID=$restore_report_id"
   -e "RESTORE_CONFIRM_DATABASE=$POSTGRES_DB"
@@ -621,8 +673,12 @@ if [[ ! -f "$restore_report_path" || -L "$restore_report_path" ]] ||
     --arg source_database "$expected_source_database" \
     --arg source_bucket "$expected_source_bucket" \
     --arg target_database "$POSTGRES_DB" \
-    --arg target_bucket "$S3_BUCKET" '
+    --arg target_bucket "$S3_BUCKET" \
+    --arg attestation_sha256 "$attestation_sha256" \
+    --arg signing_key_fingerprint_sha256 "$signing_key_fingerprint_sha256" '
       .archiveSha256 == $archive_sha256 and .approvedDigestMatched == true and
+      .signatureVerified == true and .attestationSha256 == $attestation_sha256 and
+      .signingKeyFingerprintSha256 == $signing_key_fingerprint_sha256 and
       .sourceId == $source_id and .sourceDatabase == $source_database and
       .sourceBucket == $source_bucket and .database == $target_database and
       .bucket == $target_bucket and .checksumVerified == true and

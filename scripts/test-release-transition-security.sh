@@ -28,7 +28,8 @@ postgres_assert_release_transition rollback \
 fixture="$workspace/repository"
 mkdir -p "$fixture/scripts/lib" "$workspace/state" "$workspace/backups"
 for script in \
-  backup.sh restore.sh upgrade.sh rollback.sh verify-release-images.sh verify-deployment-source.sh; do
+  backup.sh restore.sh upgrade.sh rollback.sh verify-backup-attestation.sh \
+  verify-release-images.sh verify-deployment-source.sh; do
   install -m 0755 "$ROOT_DIR/scripts/$script" "$fixture/scripts/$script"
 done
 install -m 0644 "$ROOT_DIR/scripts/lib/runtime-env.sh" "$fixture/scripts/lib/runtime-env.sh"
@@ -77,6 +78,10 @@ JSON
       esac
       printf 'postgres (PostgreSQL) %s\n' "$postgres_version"
     fi
+    if [[ "${TRANSITION_FAIL_CONFIG_BACKUP:-0}" == 1 &&
+      "$*" == *'backup-tools config-backup-container'* ]]; then
+      exit 77
+    fi
     ;;
   up)
     if [[ "${TRANSITION_ENFORCE_PINNED:-0}" == 1 ]] &&
@@ -106,6 +111,14 @@ APP_IMAGE_TAG=v1.0.0
 BACKUP_AGE_RECIPIENT=age1securitytestrecipient
 BACKUP_SOURCE_ID=fiatlux-transition-test
 EOF
+signing_private_key="$workspace/backup-signing-private.pem"
+signing_public_key="$workspace/backup-signing-public.pem"
+signing_public_der="$workspace/backup-signing-public.der"
+openssl genpkey -algorithm ED25519 -out "$signing_private_key"
+chmod 0600 "$signing_private_key"
+openssl pkey -in "$signing_private_key" -passin pass: -pubout -out "$signing_public_key"
+openssl pkey -pubin -in "$signing_public_key" -outform DER -out "$signing_public_der"
+signing_key_sha=$(sha256sum "$signing_public_der" | awk '{print $1}')
 cat >"$fixture/.gitignore" <<'EOF'
 data/
 backups/
@@ -222,6 +235,7 @@ export FIATLUX_ENV_FILE=$env_file
 export FIATLUX_COMPOSE_SCRIPT=$fake_compose
 export FIATLUX_STATE_DIR=$workspace/state
 export BACKUP_DIR=$workspace/backups
+export BACKUP_SIGNING_PRIVATE_KEY_FILE=$signing_private_key
 mkdir -p "$workspace/backup-scratch" "$workspace/restore-scratch"
 chmod 700 "$workspace/backup-scratch" "$workspace/restore-scratch"
 export BACKUP_SCRATCH_DIR=$workspace/backup-scratch
@@ -348,11 +362,25 @@ restore_manifest_sha=$(sha256sum "$restore_manifest" | awk '{print $1}')
 mkdir -p "$workspace/source-archive"
 restore_archive="$workspace/source-archive/approved-source.tar.gz"
 printf 'fixture archive; fake compose does not open it\n' >"$restore_archive"
-chmod 444 "$restore_archive"
+"$ROOT_DIR/infra/backup/create-backup-attestation.sh" \
+  --file "$restore_archive" \
+  --private-key "$signing_private_key" \
+  --source-id fiatlux-transition-test \
+  --source-database fiatlux_choice \
+  --source-bucket fiatlux-choice \
+  --backup-tool-release v2.0.0 \
+  --created-at 2026-07-20T00:00:00Z >/dev/null
+restore_attestation="$restore_archive.attestation.json"
+restore_signature="$restore_archive.attestation.sig"
+chmod 444 "$restore_archive" "$restore_attestation" "$restore_signature"
 chmod 555 "$workspace/source-archive"
 restore_archive_sha=$(sha256sum "$restore_archive" | awk '{print $1}')
 "$fixture/scripts/restore.sh" \
   --file "$restore_archive" \
+  --attestation "$restore_attestation" \
+  --signature "$restore_signature" \
+  --signing-public-key "$signing_public_key" \
+  --expected-signing-key-sha256 "$signing_key_sha" \
   --expected-sha256 "$restore_archive_sha" \
   --expected-source-id fiatlux-transition-test \
   --expected-source-database fiatlux_choice \
@@ -389,4 +417,26 @@ if [[ "$(<"$workspace/state/current")" != v3.0.0 ]]; then
   exit 1
 fi
 
-echo "七组件升级/回滚/恢复 N-1 编排测试通过：PostgreSQL 兼容门禁、镜像核验和 backup/restore release provenance 精确。"
+: >"$transition_log"
+set +e
+TRANSITION_FAIL_CONFIG_BACKUP=1 \
+  "$fixture/scripts/backup.sh" --name config-staging-failure --quiesce \
+  >/dev/null 2>&1
+config_staging_failure_exit=$?
+set -e
+if ((config_staging_failure_exit != 77)); then
+  printf '配置备份失败退出码未保留：%d。\n' "$config_staging_failure_exit" >&2
+  exit 1
+fi
+if find "$workspace/backup-scratch" -mindepth 1 -print -quit | grep -q .; then
+  echo "配置备份失败后 owner-only host staging 未清理。" >&2
+  exit 1
+fi
+if ! grep -F $'none\tstop caddy api worker' "$transition_log" >/dev/null ||
+  ! grep -F $'none\tup -d --wait --no-deps --no-recreate --no-build --pull never caddy api worker' \
+    "$transition_log" >/dev/null; then
+  echo "配置备份失败后没有恢复原写入服务集合。" >&2
+  exit 1
+fi
+
+echo "七组件升级/回滚/恢复 N-1 编排测试通过：PostgreSQL 兼容、镜像/backup/restore provenance 与配置 staging 失败清理精确。"

@@ -14,8 +14,11 @@ if [[ "${BACKUP_SECURITY_TEST_SKIP_BUILD:-0}" != 1 ]]; then
   docker build --quiet --file "$ROOT_DIR/Dockerfile.backup" --tag "$IMAGE" "$ROOT_DIR" >/dev/null
 fi
 
-mkdir -p "$workspace/fakebin" "$workspace/backups" "$workspace/backup-work" "$workspace/restore-work"
+mkdir -p "$workspace/fakebin" "$workspace/backups" "$workspace/backup-work" \
+  "$workspace/restore-work" "$workspace/config-input/releases"
 chmod 0700 "$workspace/backups" "$workspace/backup-work" "$workspace/restore-work"
+printf 'APP_IMAGE_TAG=v9.8.7-test\n' >"$workspace/config-input/production.env"
+printf 'v9.8.7-test\n' >"$workspace/config-input/releases/current"
 cat >"$workspace/fakebin/pg_dump" <<'EOF'
 #!/bin/sh
 set -eu
@@ -121,12 +124,30 @@ recipient=$(docker run --rm --user "$uid:$gid" \
   --volume "$workspace:/work:ro" \
   --entrypoint /usr/bin/age-keygen \
   "$IMAGE" -y /work/identity.txt)
+docker run --rm --user "$uid:$gid" \
+  --volume "$workspace:/work" \
+  --entrypoint /usr/bin/openssl \
+  "$IMAGE" genpkey -algorithm ED25519 -out /work/backup-signing-private.pem
+docker run --rm --user "$uid:$gid" \
+  --volume "$workspace:/work" \
+  --entrypoint /usr/bin/openssl \
+  "$IMAGE" pkey -in /work/backup-signing-private.pem -pubout \
+  -out /work/backup-signing-public.pem
+chmod 0600 "$workspace/backup-signing-private.pem"
+docker run --rm --user "$uid:$gid" \
+  --volume "$workspace:/work" \
+  --entrypoint /usr/bin/openssl \
+  "$IMAGE" pkey -pubin -in /work/backup-signing-public.pem -outform DER \
+  -out /work/backup-signing-public.der
+signing_key_sha256=$(sha256sum "$workspace/backup-signing-public.der" | awk '{print $1}')
 
 run_backup() {
   local name=$1
   local age_recipient=$2
   local interrupt=${3:-false}
-  docker run --rm --user "$uid:$gid" \
+  local with_signing_key=${4:-true}
+  local run_args=(
+    --rm --user "$uid:$gid"
     --volume "$workspace:/work" \
     --volume "$workspace/backups:/backups" \
     --volume "$workspace/backup-work:/backup-work" \
@@ -139,9 +160,17 @@ run_backup() {
     --env BACKUP_TOOL_RELEASE=v9.8.7-test \
     --env "BACKUP_AGE_RECIPIENT=$age_recipient" \
     --env BACKUP_REQUIRE_ENCRYPTION=true \
+    --env BACKUP_REQUIRE_SIGNATURE=true \
     --env "FAKE_AGE_INTERRUPT=$interrupt" \
     --entrypoint /usr/local/bin/backup-container \
-    "$IMAGE"
+  )
+  if [[ "$with_signing_key" == true ]]; then
+    docker run --interactive "${run_args[@]}" \
+      --env BACKUP_SIGNING_PRIVATE_KEY_STDIN=true \
+      "$IMAGE" <"$workspace/backup-signing-private.pem"
+  else
+    docker run "${run_args[@]}" "$IMAGE"
+  fi
 }
 
 assert_no_residue() {
@@ -151,7 +180,9 @@ assert_no_residue() {
     "$workspace/backups/.$name.partial" \
     "$workspace/backups/.$name.tar.gz.partial" \
     "$workspace/backups/$name.tar.gz.age.partial" \
-    "$workspace/backups/$name.tar.gz.age.sha256.partial"; do
+    "$workspace/backups/$name.tar.gz.age.sha256.partial" \
+    "$workspace/backups/$name.tar.gz.age.attestation.json".partial.* \
+    "$workspace/backups/$name.tar.gz.age.attestation.sig".partial.*; do
     if [[ -e "$candidate" || -L "$candidate" ]]; then
       printf '发现备份残留：%s\n' "$candidate" >&2
       exit 1
@@ -167,11 +198,75 @@ run_backup success "$recipient" >/dev/null
 assert_no_residue success
 [[ -f "$workspace/backups/success.tar.gz.age" ]]
 [[ -f "$workspace/backups/success.tar.gz.age.sha256" ]]
+[[ -f "$workspace/backups/success.tar.gz.age.attestation.json" ]]
+[[ -f "$workspace/backups/success.tar.gz.age.attestation.sig" ]]
 [[ ! -e "$workspace/backups/success.tar.gz" ]]
 (
   cd "$workspace/backups"
   sha256sum --check success.tar.gz.age.sha256 >/dev/null
 )
+success_sha256=$(sha256sum "$workspace/backups/success.tar.gz.age" | awk '{print $1}')
+"$ROOT_DIR/scripts/verify-backup-attestation.sh" \
+  --file "$workspace/backups/success.tar.gz.age" \
+  --attestation "$workspace/backups/success.tar.gz.age.attestation.json" \
+  --signature "$workspace/backups/success.tar.gz.age.attestation.sig" \
+  --public-key "$workspace/backup-signing-public.pem" \
+  --expected-signing-key-sha256 "$signing_key_sha256" \
+  --expected-sha256 "$success_sha256" \
+  --expected-source-id fiatlux-security-test \
+  --expected-source-database fiatlux \
+  --expected-source-bucket fiatlux \
+  --expected-backup-tool-release v9.8.7-test |
+  jq -e '.signatureVerified == true' >/dev/null
+
+attestation_before=$(sha256sum \
+  "$workspace/backups/success.tar.gz.age.attestation.json" | awk '{print $1}')
+signature_before=$(sha256sum \
+  "$workspace/backups/success.tar.gz.age.attestation.sig" | awk '{print $1}')
+set +e
+docker run --rm --user "$uid:$gid" \
+  --volume "$workspace:/work" \
+  --entrypoint /usr/local/bin/create-backup-attestation \
+  "$IMAGE" \
+  --file /work/backups/success.tar.gz.age \
+  --private-key /work/backup-signing-private.pem \
+  --source-id fiatlux-security-test \
+  --source-database fiatlux \
+  --source-bucket fiatlux \
+  --backup-tool-release v9.8.7-test \
+  --created-at 2026-07-20T00:00:00Z >/dev/null 2>&1
+attestation_collision_exit=$?
+set -e
+if ((attestation_collision_exit != 3)) ||
+  [[ "$(sha256sum "$workspace/backups/success.tar.gz.age.attestation.json" | awk '{print $1}')" != "$attestation_before" ]] ||
+  [[ "$(sha256sum "$workspace/backups/success.tar.gz.age.attestation.sig" | awk '{print $1}')" != "$signature_before" ]]; then
+  echo "attestation 拒绝覆盖时改写或删除了既有证明。" >&2
+  exit 1
+fi
+
+docker run --rm --user "$uid:$gid" \
+  --volume "$workspace:/work" \
+  --entrypoint /usr/bin/openssl \
+  "$IMAGE" genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out /work/rsa-private.pem \
+  >/dev/null 2>&1
+printf 'rsa rejection fixture\n' >"$workspace/rsa-archive.bin"
+if docker run --rm --user "$uid:$gid" \
+  --volume "$workspace:/work" \
+  --entrypoint /usr/local/bin/create-backup-attestation \
+  "$IMAGE" \
+  --file /work/rsa-archive.bin \
+  --private-key /work/rsa-private.pem \
+  --source-id fiatlux-security-test \
+  --source-database fiatlux \
+  --source-bucket fiatlux \
+  --backup-tool-release v9.8.7-test \
+  --created-at 2026-07-20T00:00:00Z >/dev/null 2>&1; then
+  echo "非 Ed25519 私钥被 attestation 创建器接受。" >&2
+  exit 1
+fi
+[[ -f "$workspace/rsa-archive.bin" ]]
+[[ ! -e "$workspace/rsa-archive.bin.attestation.json" ]]
+[[ ! -e "$workspace/rsa-archive.bin.attestation.sig" ]]
 docker run --rm --user "$uid:$gid" \
   --volume "$workspace:/work" \
   --volume "$workspace/backups:/backups:ro" \
@@ -191,6 +286,34 @@ tar -xOzf "$workspace/decrypted.tar.gz" ./metadata.json |
     .tools.backupRelease == "v9.8.7-test"
   ' >/dev/null
 
+cp "$workspace/backups/success.tar.gz.age.attestation.sig" "$workspace/tampered.sig"
+printf x >>"$workspace/tampered.sig"
+if "$ROOT_DIR/scripts/verify-backup-attestation.sh" \
+  --file "$workspace/backups/success.tar.gz.age" \
+  --attestation "$workspace/backups/success.tar.gz.age.attestation.json" \
+  --signature "$workspace/tampered.sig" \
+  --public-key "$workspace/backup-signing-public.pem" \
+  --expected-signing-key-sha256 "$signing_key_sha256" \
+  --expected-sha256 "$success_sha256" \
+  --expected-source-id fiatlux-security-test \
+  --expected-source-database fiatlux \
+  --expected-source-bucket fiatlux \
+  --expected-backup-tool-release v9.8.7-test >/dev/null 2>&1; then
+  echo "篡改后的备份签名未被拒绝。" >&2
+  exit 1
+fi
+
+set +e
+run_backup missing-signing-key "$recipient" false false >/dev/null 2>&1
+missing_signing_key_exit=$?
+set -e
+if ((missing_signing_key_exit == 0)); then
+  echo "生产签名要求缺少私钥时未失败关闭。" >&2
+  exit 1
+fi
+assert_no_residue missing-signing-key
+[[ ! -e "$workspace/backups/missing-signing-key.tar.gz.age" ]]
+
 set +e
 run_backup failure not-an-age-recipient >/dev/null 2>&1
 failure_exit=$?
@@ -202,6 +325,8 @@ fi
 assert_no_residue failure
 [[ ! -e "$workspace/backups/failure.tar.gz.age" ]]
 [[ ! -e "$workspace/backups/failure.tar.gz.age.sha256" ]]
+[[ ! -e "$workspace/backups/failure.tar.gz.age.attestation.json" ]]
+[[ ! -e "$workspace/backups/failure.tar.gz.age.attestation.sig" ]]
 
 set +e
 run_backup interrupted "$recipient" true >/dev/null 2>&1
@@ -215,6 +340,117 @@ fi
 assert_no_residue interrupted
 [[ ! -e "$workspace/backups/interrupted.tar.gz.age" ]]
 [[ ! -e "$workspace/backups/interrupted.tar.gz.age.sha256" ]]
+[[ ! -e "$workspace/backups/interrupted.tar.gz.age.attestation.json" ]]
+[[ ! -e "$workspace/backups/interrupted.tar.gz.age.attestation.sig" ]]
+
+run_config_backup() {
+  local name=$1
+  local age_recipient=$2
+  local with_signing_key=${3:-true}
+  local run_args=(
+    --rm --user "$uid:$gid"
+    --volume "$workspace/backups:/backups"
+    --volume "$workspace/backup-work:/backup-work"
+    --volume "$workspace/config-input/production.env:/run/backup-input/production.env:ro"
+    --volume "$workspace/config-input/releases:/run/backup-input/releases:ro"
+    --env "CONFIG_BACKUP_NAME=$name"
+    --env "CONFIG_BACKUP_RECIPIENT=$age_recipient"
+    --env CONFIG_BACKUP_SOURCE_ID=fiatlux-security-test
+    --env CONFIG_BACKUP_SOURCE_DATABASE=fiatlux
+    --env CONFIG_BACKUP_SOURCE_BUCKET=fiatlux
+    --env CONFIG_BACKUP_TOOL_RELEASE=v9.8.7-test
+    --env CONFIG_BACKUP_REQUIRE_SIGNATURE=true
+    --entrypoint /usr/local/bin/config-backup-container
+  )
+  if [[ "$with_signing_key" == true ]]; then
+    docker run --interactive "${run_args[@]}" \
+      --env CONFIG_BACKUP_SIGNING_PRIVATE_KEY_STDIN=true \
+      "$IMAGE" <"$workspace/backup-signing-private.pem"
+  else
+    docker run "${run_args[@]}" "$IMAGE"
+  fi
+}
+
+assert_config_no_residue() {
+  local name=$1
+  local candidate
+  for candidate in \
+    "$workspace/backups/$name.config.tar.gz.age.partial" \
+    "$workspace/backups/$name.config.tar.gz.age.sha256.partial" \
+    "$workspace/backups/$name.config.tar.gz.age.attestation.json".partial.* \
+    "$workspace/backups/$name.config.tar.gz.age.attestation.sig".partial.*; do
+    if [[ -e "$candidate" || -L "$candidate" ]]; then
+      printf '发现配置备份残留：%s\n' "$candidate" >&2
+      exit 1
+    fi
+  done
+  if find "$workspace/backup-work" -mindepth 1 -maxdepth 1 -print -quit | grep -q .; then
+    echo "配置备份工作区存在残留。" >&2
+    exit 1
+  fi
+}
+
+run_config_backup config-success "$recipient" >/dev/null
+assert_config_no_residue config-success
+config_archive="$workspace/backups/config-success.config.tar.gz.age"
+for config_artifact in \
+  "$config_archive" "$config_archive.sha256" \
+  "$config_archive.attestation.json" "$config_archive.attestation.sig"; do
+  [[ -f "$config_artifact" ]]
+done
+(
+  cd "$workspace/backups"
+  sha256sum --check config-success.config.tar.gz.age.sha256 >/dev/null
+)
+config_sha=$(sha256sum "$config_archive" | awk '{print $1}')
+"$ROOT_DIR/scripts/verify-backup-attestation.sh" \
+  --file "$config_archive" \
+  --attestation "$config_archive.attestation.json" \
+  --signature "$config_archive.attestation.sig" \
+  --public-key "$workspace/backup-signing-public.pem" \
+  --expected-signing-key-sha256 "$signing_key_sha256" \
+  --expected-sha256 "$config_sha" \
+  --expected-source-id fiatlux-security-test \
+  --expected-source-database fiatlux \
+  --expected-source-bucket fiatlux \
+  --expected-backup-tool-release v9.8.7-test >/dev/null
+docker run --rm --user "$uid:$gid" \
+  --volume "$workspace:/work" \
+  --entrypoint /usr/bin/age \
+  "$IMAGE" --decrypt --identity /work/identity.txt \
+  --output /work/config-decrypted.tar.gz \
+  /work/backups/config-success.config.tar.gz.age
+tar -tzf "$workspace/config-decrypted.tar.gz" | grep -qx './production.env'
+tar -tzf "$workspace/config-decrypted.tar.gz" | grep -qx './releases/current'
+
+config_artifact_sha_before=$(sha256sum "$config_archive" | awk '{print $1}')
+config_attestation_sha_before=$(sha256sum "$config_archive.attestation.json" | awk '{print $1}')
+set +e
+run_config_backup config-success "$recipient" >/dev/null 2>&1
+config_collision_exit=$?
+set -e
+if ((config_collision_exit != 3)) ||
+  [[ "$(sha256sum "$config_archive" | awk '{print $1}')" != "$config_artifact_sha_before" ]] ||
+  [[ "$(sha256sum "$config_archive.attestation.json" | awk '{print $1}')" != "$config_attestation_sha_before" ]]; then
+  echo "配置备份拒绝覆盖时改写或删除了既有产物。" >&2
+  exit 1
+fi
+assert_config_no_residue config-success
+
+set +e
+run_config_backup config-missing-key "$recipient" false >/dev/null 2>&1
+config_missing_key_exit=$?
+run_config_backup config-invalid-recipient not-an-age-recipient >/dev/null 2>&1
+config_invalid_recipient_exit=$?
+set -e
+if ((config_missing_key_exit == 0 || config_invalid_recipient_exit == 0)); then
+  echo "配置备份缺失签名密钥或无效 recipient 未失败关闭。" >&2
+  exit 1
+fi
+assert_config_no_residue config-missing-key
+assert_config_no_residue config-invalid-recipient
+[[ ! -e "$workspace/backups/config-missing-key.config.tar.gz.age" ]]
+[[ ! -e "$workspace/backups/config-invalid-recipient.config.tar.gz.age" ]]
 
 make_metadata_archive() {
   local name=$1
@@ -334,6 +570,8 @@ fi
 # root:fiatlux 0750/0640 approval channel without requiring sudo on the host or CI runner.
 approval_fixture="$workspace/approval-fixture"
 mkdir -p "$approval_fixture/scripts/lib"
+install -m 0644 "$workspace/backup-signing-public.pem" \
+  "$approval_fixture/backup-signing-public.pem"
 install -m 0755 "$ROOT_DIR/scripts/restore-latest-drill.sh" \
   "$approval_fixture/scripts/restore-latest-drill.sh"
 install -m 0644 "$ROOT_DIR/scripts/lib/runtime-env.sh" \
@@ -362,8 +600,16 @@ archive="$backup_dir/$archive_name"
 mkdir -p "$backup_dir"
 chmod 0777 "$backup_dir"
 printf 'approved archive fixture\n' >"$archive"
+printf 'signed attestation fixture\n' >"$archive.attestation.json"
+printf 'signed signature fixture\n' >"$archive.attestation.sig"
+printf 'newer configuration archive must be ignored\n' \
+  >"$backup_dir/fiatlux-newer.config.tar.gz"
 chmod 0444 "$archive"
+chmod 0444 "$archive.attestation.json" "$archive.attestation.sig"
 archive_sha=$(sha256sum "$archive" | awk '{print $1}')
+public_key="$root/backup-signing-public.pem"
+openssl pkey -pubin -in "$public_key" -outform DER -out "$root/backup-signing-public.der"
+signing_key_sha=$(sha256sum "$root/backup-signing-public.der" | awk '{print $1}')
 
 make_approval() {
   local directory=$1
@@ -382,6 +628,8 @@ run_as_operator() {
   export BACKUP_APPROVED_MANIFEST_DIR="$approved_dir"
   export BACKUP_SOURCE_ID=fiatlux-approval-security
   export RESTORE_EXPECTED_BACKUP_TOOL_RELEASE=finalqa
+  export BACKUP_SIGNING_PUBLIC_KEY_FILE="$public_key"
+  export BACKUP_SIGNING_PUBLIC_KEY_SHA256="$signing_key_sha"
   unset BACKUP_EXPECTED_SHA256 FIATLUX_ENV_FILE
   su -m -s /bin/bash operator -c "$root/scripts/restore-latest-drill.sh"
 }
@@ -391,6 +639,11 @@ make_approval "$trusted"
 trusted_output=$(run_as_operator "$trusted")
 if [[ "$trusted_output" != *RESTORE_CALLED* ]]; then
   printf 'root-owned read-only approval path was not accepted: %s\n' "$trusted_output" >&2
+  exit 1
+fi
+if [[ "$trusted_output" != *"--file $archive"* ||
+  "$trusted_output" == *'fiatlux-newer.config.tar.gz'* ]]; then
+  printf 'restore-latest selected a configuration archive: %s\n' "$trusted_output" >&2
   exit 1
 fi
 
@@ -444,5 +697,5 @@ docker run --rm --pull never --user 0:0 \
   --entrypoint /bin/bash \
   "$IMAGE" /fixture-input/run-approval-tests.sh >/dev/null
 
-printf '备份安全测试通过：success=0 failure=%d interrupted=%d；无明文/partial 残留，来源/v1/未来格式拒绝，300MiB scratch 与批准清单信任路径正/负向通过。\n' \
+printf '备份安全测试通过：success=0 failure=%d interrupted=%d；数据/配置签名、拒绝覆盖、Ed25519 类型、无明文/partial 残留，来源/v1/未来格式、300MiB scratch 与批准清单信任路径正/负向通过。\n' \
   "$failure_exit" "$interrupt_exit"

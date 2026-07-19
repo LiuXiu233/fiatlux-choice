@@ -36,6 +36,29 @@ if [ "$RESTORE_CONFIRM_BUCKET" != "$S3_BUCKET" ]; then
 	echo "对象桶确认值与目标不一致。" >&2
 	exit 2
 fi
+signature_verified=${RESTORE_SIGNATURE_VERIFIED:-false}
+attestation_sha256=${RESTORE_ATTESTATION_SHA256:-}
+signing_key_fingerprint_sha256=${RESTORE_SIGNING_KEY_FINGERPRINT_SHA256:-}
+case "$signature_verified" in
+	true)
+		for digest in "$attestation_sha256" "$signing_key_fingerprint_sha256"; do
+			if [ "${#digest}" -ne 64 ]; then
+				echo "已验证签名的 attestation 或公钥指纹长度无效。" >&2
+				exit 2
+			fi
+			case "$digest" in
+				*[!0-9a-f]*) echo "已验证签名的摘要必须是小写十六进制。" >&2; exit 2 ;;
+			esac
+		done
+		;;
+	false)
+		if [ -n "$attestation_sha256" ] || [ -n "$signing_key_fingerprint_sha256" ]; then
+			echo "未验证签名时不得注入 attestation 或公钥指纹。" >&2
+			exit 2
+		fi
+		;;
+	*) echo "RESTORE_SIGNATURE_VERIFIED 必须是 true 或 false。" >&2; exit 2 ;;
+esac
 
 case "$PGDATABASE" in
 	*[!A-Za-z0-9_]* | "")
@@ -407,6 +430,9 @@ jq -n \
 	--arg restored_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
 	--arg source "$(basename "$BACKUP_FILE")" \
 	--arg archive_sha256 "$actual_sha256" \
+	--argjson signature_verified "$signature_verified" \
+	--arg attestation_sha256 "$attestation_sha256" \
+	--arg signing_key_fingerprint_sha256 "$signing_key_fingerprint_sha256" \
 	--arg source_id "$RESTORE_EXPECTED_SOURCE_ID" \
 	--arg source_database "$RESTORE_EXPECTED_SOURCE_DATABASE" \
 	--arg source_bucket "$RESTORE_EXPECTED_SOURCE_BUCKET" \
@@ -417,7 +443,7 @@ jq -n \
 	--argjson object_count "$object_count" \
 	--argjson object_bytes "$object_bytes" \
 	--arg object_manifest_sha256 "$object_manifest_sha256" \
-	'{restoredAt: $restored_at, source: $source, archiveSha256: $archive_sha256, approvedDigestMatched: true, sourceId: $source_id, sourceDatabase: $source_database, sourceBucket: $source_bucket, backupToolRelease: $backup_tool_release, restoreToolRelease: $restore_tool_release, database: $database, bucket: $bucket, checksumVerified: true, metadataVerified: true, objectsVerified: true, objectCount: $object_count, objectBytes: $object_bytes, objectManifestSha256: $object_manifest_sha256}' \
+	'{restoredAt: $restored_at, source: $source, archiveSha256: $archive_sha256, approvedDigestMatched: true, signatureVerified: $signature_verified, attestationSha256: (if $signature_verified then $attestation_sha256 else null end), signingKeyFingerprintSha256: (if $signature_verified then $signing_key_fingerprint_sha256 else null end), sourceId: $source_id, sourceDatabase: $source_database, sourceBucket: $source_bucket, backupToolRelease: $backup_tool_release, restoreToolRelease: $restore_tool_release, database: $database, bucket: $bucket, checksumVerified: true, metadataVerified: true, objectsVerified: true, objectCount: $object_count, objectBytes: $object_bytes, objectManifestSha256: $object_manifest_sha256}' \
 	>"$report_partial"
 mv "$report_partial" "$report"
 report_partial=""
