@@ -36,12 +36,12 @@
 | 审计与文件 | 追加审计、请求 ID、前后值、拒绝事件、私有 S3/MinIO 文件和并发完成锁 | 跨组织拒绝、不可经 API 篡改审计、拒绝请求体最小化、真实文件往返和并发冲突已本地验证；目标内网仍需复跑 |
 | 执行与治理 | 目标、项目、任务、决策、义务、合规日历、风险、合同及 typed refs | decision 可引用 objective/project/task 并强制已填写项属于同一活动链；product 可引用 project，opportunity 同时引用 product/project 时必须匹配产品所属活动项目。父关系变更和归档不能破坏活动下游引用；义务/合规日历分开关联来源 `sourceId` 与完成凭证 `evidenceFileId`，来源关联仍不等于已判定适用 |
 | 财务 | 简易收支、发票、现金流、外部动作引用 | 金额使用整数分；正式外部状态仍依赖人工回执，不由内部批准伪造成功 |
-| 产品、市场与电竞教育 | 产品组合、市场机会、电竞教育筹备页、官网公开业务/内容审计、成人试点课程草案 | 教育页面是内部筹备工作台；不是招生、支付、直播、考试、证书或未成年人平台 |
+| 产品、市场与电竞教育 | 产品组合、市场机会、电竞教育筹备页、官网公开业务/内容审计、成人试点课程草案，以及 4 篇带 Schema、版本、来源、练习、模板、AI 披露和审阅状态的成年人基础内容 | 四篇均为待人工复核、权利待确认和 WordPress 未发布；教育页面是内部筹备工作台，不是招生、支付、直播、考试、证书或未成年人平台 |
 | GitHub 情报 | manual/read-only 集成边界与刷新队列 | 刷新任务在排队时保存当前 `expectedVersion`，worker 只在版本未变时以 CAS 写回，不用陈旧网络快照覆盖并发人工修改；真实 GitHub 凭据和最小权限读取验收未执行 |
 | 审批与外部动作 | 八类高风险人工批准、manual/mock 状态机、幂等与合同/发票/付款台账原子联动 | 没有外部回执时不报成功；已关联草稿支出的银行付款在取消或审批驳回时于同一事务解除台账关联并增加版本，避免草稿被废弃动作永久占用 |
 | 通知、顾问与工作流 | in-app 通知、失败可见的 email/webhook 边界、七类顾问、四类工作流步骤 | 通知 queued-only、工作流不可变快照/partial checkpoint、advisor/workflow/backup 原子 claim 和 lease 边界均已在冻结候选回归覆盖 |
 | AI 可追溯 | 总经理、财务、法务合规、产品研发、市场机会、人力行政、信息安全；提示词/模型/工具/引用/人工编辑审计 | 运行默认只对发起人可见；`advisor-runs:read-all`/全局权限只扩大候选可见集，读者仍必须拥有顾问入口及全部上下文资源读权限；mock 不代表真实模型质量 |
-| PWA | 响应式导航、manifest、service worker、离线壳和恢复会话 | 最新构建生成 9 个 precache 条目（560.36 KiB）；mock/隔离真实栈 desktop/mobile、离线壳、SW active 和 390 px 无溢出通过；真机安装/升级仍待执行 |
+| PWA | 响应式导航、manifest、service worker、离线壳和恢复会话 | 最新构建生成 10 个 precache 条目（688.29 KiB）；电竞教育 128.19 kB 路由块与 411.29 kB 主块分离，mock/隔离真实栈 desktop/mobile、离线壳、SW active 和 390 px 无溢出通过；真机安装/升级仍待执行 |
 | 部署与灾备 | Compose、Caddy、迁移、健康检查、日志、最小权限数据库/MinIO、备份恢复、升级回滚工具 | 最新 Compose、六常驻服务重启持久性、部署验证、一次底层 formatVersion 2 隔离恢复，以及一次本地 synthetic bridge 真实 schema/镜像差异升级与应用回滚均通过；历史生产 N−1、GHCR 和目标内网仍待执行 |
 
 ## 3. 最终冻结测试状态
@@ -50,8 +50,8 @@
 
 | 层级 | 当前发布口径 | 最终要求 |
 | --- | --- | --- |
-| Biome / ShellCheck / Actionlint / 类型 | **本地通过** | Biome 190 个文件；全 `scripts/`/`infra/` shell；3 个 workflow；7 个 TypeScript 项目 |
-| 单元/聚合测试 | **本地通过** | 162/162 单元测试；完整 workspace 聚合通过；最终精确集成计数见同次测试日志 |
+| Biome / ShellCheck / Actionlint / 类型 | **本地通过** | Biome 196 个文件；全 `scripts/`/`infra/` shell；3 个 workflow；7 个 TypeScript 项目 |
+| 单元/聚合测试 | **本地通过** | 167/167 单元测试；完整 workspace 聚合通过；最终精确集成计数见同次测试日志 |
 | API/worker/PostgreSQL/pg-boss/MinIO 集成 | **本地通过** | 最新 API 17 files/85 tests、worker 5 files/25 tests；fresh/legacy PostgreSQL、pg-boss 24、权限/事务/并发/CAS/审计、连接恢复以及 2 项真实 MinIO/S3 集成通过 |
 | Playwright / 视觉 / PWA | **本地通过，有外部边界** | mock 全套 44 passed、6 个设计内条件 skip；真实栈 desktop/mobile 2 项通过；独立浏览器抽查、PWA 离线壳和 390 px 移动布局通过；受管真机另行验收 |
 | 全 workspace 与七镜像构建 | **本地通过，有发布边界** | production build 通过；七个本地 arm64 镜像、六常驻服务健康/重启持久性和按需 backup 通过；GHCR 双平台 root digest 待 GitHub release workflow |
@@ -62,6 +62,8 @@
 失败历史没有删除：API 集成首次按文件并行运行时，在本机 2 CPU/4 GB 的 seed/Argon2 峰值出现 PostgreSQL `CONNECT_TIMEOUT`，得到 13 passed、4 failed、63 skipped；数据库全程 healthy、RestartCount 0、连接数未耗尽，且无业务断言失败。将 root/API/worker 的 `test` 与 `test:integration` 标准入口固定为 unit→workspace 串行、API/worker `--no-file-parallelism --maxWorkers=1` 后，旧基线 API 80/80、worker 23/23 和根级集成均通过。连接恢复修复后曾复跑 162/162 单元、API 83/83、worker 23/23；其中 malformed-JSON 单测曾在宿主 load 83 时唯一超时，在正常负载下同一测试 140 ms 通过，未删除该环境事件。引用链一致性加固后的最新复跑为 162/162 单元、API 85/85、worker 25/25。未配置 S3 时 integrations 2 项按设计 skip；真实 S3 两项由单独带凭据的 MinIO 门禁 2/2 通过，不能把 skip 记作通过。
 
 引用链增量候选另在全新随机命名的 Compose 项目中重建 PostgreSQL、API、worker、Web、gateway、MinIO、backup 七镜像，完成空库五职责引导、10 个业务迁移、pg-boss 24、72 条来源 bootstrap、六服务健康和 `verify-deployment.sh` 最小权限检查；随后显式删除该项目全部容器、网络和卷。七镜像以 Trivy 0.70.0 扫描 HIGH/CRITICAL 均为 0，并生成、校验七份 Syft 1.42.3 SPDX。该本地增量证据仍不是最终 Git SHA 的 GHCR 双平台 digest、签名或目标内网证据。
+
+电竞教育内容增量在同日完成 167/167 单元、API 85/85、worker 25/25、mock Playwright 44 passed/6 条件 skip 和真实栈 desktop/mobile 2/2；独立 Python Playwright 在 1440×1000 与 390×844 下均无横向溢出或控制台错误。隔离 PostgreSQL 的 22 个完整 bootstrap 组织均精确导入 73 条来源，隔离真实栈单组织同样为 73 条且新增健康来源精确 1 条。生产构建将教育内容拆为 128.19 kB 路由块，消除 500 kB 主块告警；独立 Web Compose 容器以 UID 10001、只读根、cap-drop ALL、no-new-privileges 健康运行，Trivy 0.70.0 对该新 Web 镜像扫描 HIGH/CRITICAL 为 0。Gitleaks 当前树/历史和 Semgrep 固定规则扫描均为 0 finding。隔离容器和网络验证后已删除；该证据仍不替代最终 SHA、七镜像重建、GHCR、目标内网或专业内容批准。
 
 ## 4. 权限、后台任务与数据一致性证据
 
@@ -105,7 +107,7 @@
 
 ## 6. 合规、AI 与官网/电竞教育边界
 
-- 结构化数据集有 72 条中国、广东、广州官方来源；目前均未完成专业人工复核，不能据此宣称公司适用性结论已批准。
+- 结构化数据集有 73 条中国、广东、广州官方来源；目前均未完成专业人工复核，不能据此宣称公司适用性结论已批准。
 - 合规结论保存在可维护记录中，包含来源、适用条件、更新时间、机器哈希状态和人工复核状态；政策变化不应永久硬编码。
 - 义务和合规日历可分别保存 `sourceId` 与 `evidenceFileId`：前者指向同组织未归档的合规来源，后者必须是同组织已 `uploaded` 的凭证文件。来源与凭证都可为空，因此记录成功不自动证明有法律依据或已完成履行；被引用凭证也不可在引用存续时归档。
 - 未复核或已过期来源不会作为法务顾问的确定事实；自动抓取、哈希一致或 pending 引用也不等于专业复核。
@@ -115,6 +117,7 @@
 - [fiatlux.gg 公开业务与内容盘点](../research/fiatlux-gg-public-business-audit.md)记录了 Marvel Rivals 队伍、现有服务信号和内容问题。9 篇公开博文中只有 2 篇有成型正文，另 7 篇为模板占位；美国地域表述、过期赛事未来时态、未核验见证以及 Contact 隐私/投诉信息仍需负责人修订和核验。
 - `artifacts/browser/fiatlux-gg/` 的 6 张无登录公开页面截图只作为当前私有仓库的内部研究证据，并附采集方式、尺寸和 SHA-256；它们可能含人物与网页素材。仓库改为公开、对外分发或长期归档前，必须由公司确认肖像、版权、个人信息和保留范围，否则从交付历史前置分支移除并改存受控证据库。
 - [成人电竞教育试点课程草案](../product/adult-esports-pilot-curriculum.md)限定中国境内成年人、小班、人工交付和 4–6 周试点。九项事实问卷、合同、隐私、退款、版权、健康提示、内容安全和事件响应未获批准前，不得扩展为公开招生或未成年人服务。
+- [首批电竞教育基础内容](../../content/education/README.md)已形成四篇可维护内部草案并接入产品页面；每篇均保留版本、对象、负责人/审阅角色、权利、来源、AI 披露、正文、模板、练习和复核问题。四篇当前均为 `pending`/`pending_clearance`/`not_published`，不能把页面可读或测试通过写成专业复核或 WordPress 发布成功。
 
 ## 7. formatVersion 2 备份恢复证据
 
@@ -176,11 +179,11 @@
 - [ ] 修复 GitHub Actions 账户付款/spending limit 阻断，重跑 PR CI 与 Security；取得绿色 run、CodeQL 或经批准等效 SAST、制品证据，批准后再合并。
 - [ ] 在耀光广州办公内网验证主机、DNS、CA、防火墙、显式 seed、owner 首登改密、设备、备份介质和运行观察。
 - [ ] 完成真实 LLM/GitHub 最小权限验收，或明确保持 disabled/manual 且不宣称外部集成完成。
-- [ ] 对 72 条来源完成适用范围内的专业人工复核；关闭官网/电竞教育事实、权利、合同、隐私和内容安全闸门。
+- [ ] 对 73 条来源完成适用范围内的专业人工复核；关闭官网/电竞教育事实、权利、合同、隐私和内容安全闸门。
 - [ ] 由公司、运维安全、风险、法务合规和财税真实责任人完成适用范围内的批准。
 
 ## 11. 交付结论
 
 FIAT LUX CHOICE 已形成可运行的模块化单体候选，不是脚手架、静态仪表盘或仅有数据库模型。身份、权限、审计、业务模块、八类人工批准、七类顾问、后台任务、PWA、最小权限、七镜像供应链和 formatVersion 2 独立恢复路径均有冻结工作树的分层实证。
 
-本地全量测试、生产构建、最新 Compose、桌面/移动浏览器、安全扫描、一次独立恢复，以及一次有真实 schema/镜像差异的本地 synthetic bridge 升级与应用回滚已经通过，实现基线已形成 Draft PR。GitHub CI/security 因账户付款或 spending limit 在 runner 启动前被平台阻断，并非绿色；GHCR 双平台制品、历史生产 N−1/目标发布复演、破坏性生产恢复审批入口、耀光目标办公内网和真实受管手机、真实 LLM/GitHub、72 条专业复核、MinIO 长期支持风险决策以及业务和专业责任人批准也未完成。因此本报告的唯一合法结论仍是：**受控候选，尚不可宣布 V1 已完成或已批准生产上线。**
+本地全量测试、生产构建、最新 Compose、桌面/移动浏览器、安全扫描、一次独立恢复，以及一次有真实 schema/镜像差异的本地 synthetic bridge 升级与应用回滚已经通过，实现基线已形成 Draft PR。GitHub CI/security 因账户付款或 spending limit 在 runner 启动前被平台阻断，并非绿色；GHCR 双平台制品、历史生产 N−1/目标发布复演、破坏性生产恢复审批入口、耀光目标办公内网和真实受管手机、真实 LLM/GitHub、73 条专业复核、MinIO 长期支持风险决策以及业务和专业责任人批准也未完成。因此本报告的唯一合法结论仍是：**受控候选，尚不可宣布 V1 已完成或已批准生产上线。**

@@ -15,7 +15,7 @@
 
 ## 2. 工程验证状态
 
-2026-07-18 的旧测试、六镜像、v1 恢复和同内容标签升级数字只保留为历史背景。2026-07-19 最新工作树已完成 lint/ShellCheck/Actionlint、7 项类型检查、162/162 单元、API 17 files/85 tests、worker 5 files/25 tests、PostgreSQL/pg-boss/MinIO 集成、mock 44+6 与隔离 real 2 项 Playwright、PWA/构建、独立桌面/390 px 引用链表单检查，以及新建 Compose 的七镜像构建、六服务健康、Trivy 0 与七份 SPDX。此前冻结候选还完成六服务重启持久性、双平台 provenance fixture、一次底层 formatVersion 2 独立恢复，以及一次本地 synthetic bridge 真实 schema/镜像差异升级与应用回滚。
+2026-07-18 的旧测试、六镜像、v1 恢复和同内容标签升级数字只保留为历史背景。2026-07-19 最新工作树已完成 lint/ShellCheck/Actionlint、7 项类型检查、167/167 单元、API 17 files/85 tests、worker 5 files/25 tests、PostgreSQL/pg-boss/MinIO 集成、mock 44+6 与隔离 real 2 项 Playwright、PWA/构建、独立桌面/390 px 引用链及教育内容检查，以及新建 Compose 的七镜像构建、六服务健康、Trivy 0 与七份 SPDX。此前冻结候选还完成六服务重启持久性、双平台 provenance fixture、一次底层 formatVersion 2 独立恢复，以及一次本地 synthetic bridge 真实 schema/镜像差异升级与应用回滚。
 
 当前 schema 为 38 张业务表和 10 个迁移（`0000`–`0009`）。上述结果仍是本地冻结候选而非 GitHub runner、GHCR 双平台、耀光办公内网、真实设备或生产批准证据。本地 synthetic bridge 已实跑真实差异升级/回滚，但历史生产 N−1、目标发布复演和经审批的破坏性 `restore.sh` 生产入口没有实跑。GitHub CI、目标内网、真实设备、MinIO 长期维护/支持风险处置和责任人批准仍是发布闸门，以[验收矩阵](./v1-acceptance-matrix.md)为准。
 
@@ -74,10 +74,10 @@
 
 ## 7. 合规知识
 
-- 72 条来源已完成官方元数据收集；当前 72 条全部为 `reviewStatus=pending`、`contentHashStatus=pending_fetch`、业务 `status=draft`。
+- 73 条来源已完成官方元数据收集；当前 73 条全部为 `reviewStatus=pending`、`contentHashStatus=pending_fetch`、业务 `status=draft`。
 - 因此没有任何一条可被描述为公司已人工批准的 `reviewed+active` 依据；候选验证只证明未复核来源会被法务顾问 withheld。
 - 税率、最低工资、社保/公积金基数、申报日历和许可材料等易变结论不能从文档长期复制。
-- 官方来源受限抓取器、pg-boss 每日扫描、哈希快照、变化后 stale/uncertain、人工逐条触发及失败审计已经实现；72 条初始来源仍需在部署环境实际完成首次抓取。
+- 官方来源受限抓取器、pg-boss 每日扫描、哈希快照、变化后 stale/uncertain、人工逐条触发及失败审计已经实现；73 条初始来源仍需在部署环境实际完成首次抓取。
 - `nextReviewAt` 到期会在每日扫描中降级并审计；组织+来源租约会去重定时、人工和 worker 并发任务，陈旧任务不会降低人工复核状态或虚增失败次数。
 - 自动快照保存哈希、HTTP 元数据和最多 100,000 UTF-8 字节规范化摘录，不是完整原始 HTML/PDF 法证归档。邮件告警和连续失败自动建任务尚未配置，当前必须查看合规列表与审计日志。
 - 义务和合规日历分别使用 `sourceId` 保留规则来源、使用 `evidenceFileId` 保留履行/完成凭证。两个字段都可选；系统会校验同组织和未归档，凭证还必须已 `uploaded`，但来源关联不会自动判定适用，缺少凭证也不会自动阻止用户错误地把记录标记完成。被引用凭证不可归档，仍需人工核对证据充分性。

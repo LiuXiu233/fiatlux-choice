@@ -14,7 +14,8 @@
 - React/Vite 响应式前端、移动导航和可安装 PWA。
 - Fastify API、PostgreSQL/Drizzle、MinIO/S3、pg-boss worker。
 - Docker Compose 内网拓扑、Caddy TLS、迁移、健康检查、CI、安全扫描、备份恢复和升级回滚资产。
-- 72 条中国、广东、广州官方合规来源及人工复核工作流。
+- 73 条中国、广东、广州官方合规来源及人工复核工作流。
+- 4 篇面向中国境内成年人的版本化电竞教育基础内容，包含 Schema、来源、权利、AI 披露、人工复核和 WordPress 手工发布边界。
 
 高风险动作不会被自动执行。银行付款、税务申报、发票红冲、合同正式签署、合同终止、人事处分、关键权限修改和对外法律承诺共八类动作必须人工批准；创建请求只接受 `manual` 或 `mock`，`real` 会被拒绝。`manual` 必须凭外部回执推进，`mock` 只能得到 simulated/cancelled，不能伪造外部成功；合同签署、合同终止和发票红冲只有在 confirmed 时才与目标合同/发票状态原子更新。
 
@@ -150,6 +151,7 @@ SEED_MODE=bootstrap pnpm db:seed
 | packages/db | Drizzle schema、迁移和种子 |
 | packages/integrations | LLM、GitHub、对象存储和队列适配器 |
 | content/compliance | 结构化官方来源 |
+| content/education | 版本化电竞教育文章、JSON Schema 与维护流程 |
 | infra | Caddy、环境、systemd 和部署资产 |
 | scripts | Compose、验证、备份、恢复、升级和回滚 |
 | docs | 产品、用户、架构、安全、合规、API、运维与交付文档 |
@@ -161,6 +163,7 @@ SEED_MODE=bootstrap pnpm db:seed
 - [产品范围](docs/product/product-scope.md)
 - [电竞教育在线业务策略](docs/product/esports-education-strategy.md)
 - [成人电竞教育试点课程包](docs/product/adult-esports-pilot-curriculum.md)
+- [电竞教育内容资产维护](content/education/README.md)
 - [fiatlux.gg 公开业务与内容盘点](docs/research/fiatlux-gg-public-business-audit.md)
 - [角色与权限](docs/user/roles-and-permissions.md)
 - [核心业务操作](docs/user/core-workflows.md)

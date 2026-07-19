@@ -41,6 +41,7 @@ RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
 
 COPY apps ./apps
 COPY packages ./packages
+COPY content ./content
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
     pnpm --filter @fiatlux/web... build
 

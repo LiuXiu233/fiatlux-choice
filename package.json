@@ -16,6 +16,8 @@
     "lint": "biome check .",
     "lint:shell": "find scripts infra -type f -name '*.sh' -print0 | xargs -0 shellcheck -x",
     "lint:fix": "biome check --write .",
+    "content:education:schema": "tsx scripts/generate-education-content-schema.ts",
+    "content:education:validate": "pnpm --filter @fiatlux/web exec vitest run src/lib/education-content.test.ts",
     "test": "pnpm test:unit && pnpm test:integration",
     "test:unit": "pnpm -r --if-present test:unit",
     "test:integration": "pnpm -r --workspace-concurrency=1 --if-present test:integration",

@@ -31,18 +31,19 @@
 - 通知创建为 queued-only；GitHub 刷新保存 `expectedVersion` 并以 CAS 防止陈旧写回；workflow 保存不可变定义版本/步骤快照和 partial checkpoint；advisor/workflow/backup 使用原子 claim、CAS 与 `lease_expired` 人工复核边界。
 - 银行付款取消或审批驳回会原子解除草稿支出关联；顾问运行默认 requester-only，管理员的 `advisor-runs:read-all` 仍受顾问入口和上下文读权限限制；角色分配审批保存 membership 版本快照并在批准时重验。
 - 义务/合规日历已分开 `sourceId` 与 `evidenceFileId`，凭证必须是同组织已上传文件；来源关联不自动等于适用性复核。
-- 2026-07-19 最新工作树已通过 Biome 190 files、ShellCheck/Actionlint、7 项类型检查、162/162 单元、API 17 files/85 tests、worker 5 files/25 tests、PostgreSQL/pg-boss/MinIO 集成、mock 44+6 与隔离 real 2 项 Playwright、针对引用链表单的 Python Playwright 桌面/390 px 验证、PWA/生产构建和新建 Compose 六服务部署验证；既有六服务重启持久性证据仍通过。
+- 2026-07-19 最新工作树已通过 Biome 196 files、ShellCheck/Actionlint、7 项类型检查、167/167 单元、API 17 files/85 tests、worker 5 files/25 tests、PostgreSQL/pg-boss/MinIO 集成、mock 44+6 与隔离 real 2 项 Playwright、针对引用链和教育内容的 Python Playwright 桌面/390 px 验证、PWA/生产构建和新建 Compose 六服务部署验证；既有六服务重启持久性证据仍通过。
 - 七个最终本地 arm64 镜像、Trivy 0.70.0 四口径零 HIGH/CRITICAL、七份 SPDX、真实 BuildKit 0.31.2 双平台 provenance fixture，以及 API/worker amd64 原生件补偿验证均通过；GHCR 双平台 root digest 仍待最终提交后的 release workflow。
 - 底层 formatVersion 2 只执行一次最终隔离恢复：归档 SHA-256 `bcfd6c59d9e66f7319ab2b55e6e711e2adfe2732f2c3a928b02eb82a3768b6ba`、`sourceId=fiatlux-finalqa-isolated`，恢复并核对 38 表、10 migrations、pg-boss 24 和 1 个 56-byte 对象，实测 RPO 2 秒、drill RTO 75 秒，临时资源和密钥已清理。该演练没有执行破坏性的生产 `restore.sh` 审批入口。
 - 2026-07-18 的旧测试总数、镜像 digest、v1 归档、37 表/4 对象/16 秒恢复和同内容标签升级回滚均为历史证据，不能作为当前通过或发布门禁。
 - 首轮本地相邻演练在回滚后 idle 登录暴露 `CONNECT_TIMEOUT` 并正确阻断；修复后以 N 10 migrations、synthetic bridge 9 migrations 和七个全异镜像完成真实 registry push/pull、46 秒升级、43 秒应用回滚、双 formatVersion 2 恢复点和回滚后 308 秒 HTTPS CRUD，数据、审计、索引和对象均保留。该结果不是历史生产 N−1、GHCR 或目标内网证据。
-- 经审批生产恢复入口、最终不可变 Git SHA/绿色 GitHub CI/GHCR、历史生产 N−1 和目标发布复演、目标内网、真实受管手机、真实 LLM/GitHub、72 条合规来源的专业人工复核、MinIO 长期支持风险处置和业务批准仍未完成。
+- 经审批生产恢复入口、最终不可变 Git SHA/绿色 GitHub CI/GHCR、历史生产 N−1 和目标发布复演、目标内网、真实受管手机、真实 LLM/GitHub、73 条合规来源的专业人工复核、MinIO 长期支持风险处置和业务批准仍未完成。
 
 ### 2026-07-19 官网与教育内容基线
 
 - [fiatlux.gg 公开业务与内容盘点](../research/fiatlux-gg-public-business-audit.md)确认官网可见 Marvel Rivals 项目队伍、选手/教练角色、2025 年两项赛事、Player Development、Tournament Management 和 Community Engagement 等业务信号；这些仍需真实性、权利和有效期证据，不能直接当作已交付案例。
 - 公开 9 篇博文只有 2 篇具有成型正文，另 7 篇仍是模板占位文；页面还存在美国地域表述、过期赛事未来时态、未核验见证和 Contact 隐私/投诉说明不足。
 - 电竞教育首期继续限定为中国境内成年人、小班、人工交付、一个游戏项目和 4–6 周验证，不在 V1 内建设公开招生、支付、直播、考试、证书或未成年人平台。
+- 首批 4 篇基础内容已成为版本化 JSON 资产并接入内部页面，包含 Schema、来源、适用范围、负责人/审阅角色、权利与发布状态、AI 披露、模板、练习和复核问题；当前全部为待人工复核、权利待确认和 WordPress 未发布。
 
 ### 交付
 
@@ -57,10 +58,10 @@
 - 保持 MinIO root/bootstrap、app、backup、restore 四身份最小权限。若改变 access-key ID，使用 root-only 运维显式删除旧用户，并以旧凭据负向验证；bootstrap 不会枚举未知旧 ID。
 - 迁移到有安全维护承诺的 S3 兼容存储、取得受支持的修复版，或在 internal-network 补偿控制下形成有期限的负责人风险接受与退出计划。
 - 运行 GitHub CI、安全扫描、SBOM 和 secret history scan。
-- 对 72 条合规来源按风险优先人工复核，获取关键正文哈希。
+- 对 73 条合规来源按风险优先人工复核，获取关键正文哈希。
 - 统一官网中国境内主体、地域和业务表述。
 - 撤回或重写 7 篇模板占位文，修复重复标题、过期赛事时态和未核验见证；补主体、隐私、投诉和纠错入口。
-- 按六个内容支柱完成首批 4 篇可用于内部试讲的基础内容，并建立 12 周内容版本、来源、权利和复核台账。
+- 对已形成的首批 4 篇基础内容完成内部试讲、实名专业复核、权利证据、纠错入口和人工发布演练，并按 12 周台账维护版本与来源。
 - 为成人电竞教育试点完成合同、隐私、退款、版权、健康提示、内容安全和事件响应材料。
 
 ### 建议投入

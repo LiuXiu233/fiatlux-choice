@@ -22,7 +22,7 @@
 | 验收项 | 当前实现与证据 | 状态 | 最终 V1 闸门 |
 | --- | --- | --- | --- |
 | 响应式 Web 与导航 | mock 44 passed/6 设计内 skip；真实栈 desktop/mobile 2 项和独立浏览器抽查通过；390/390 无横向溢出 | 冻结候选本地通过 | GitHub CI 复现；至少一台真实受管手机 |
-| PWA 与离线边界 | 最新构建 9 个 precache（560.36 KiB）、manifest、active service worker、离线壳和会话恢复通过 | 冻结候选本地通过 | 目标受管设备安装、升级和缓存清理验证 |
+| PWA 与离线边界 | 最新构建 10 个 precache（688.29 KiB）、manifest、active service worker、离线壳和会话恢复通过；教育内容拆为独立 128.19 kB 路由块，主块 411.29 kB | 冻结候选本地通过 | 目标受管设备安装、升级和缓存清理验证 |
 | 身份、首次改密与会话 | Argon2id、数据库会话、安全 Cookie、限流、`mustChangePassword` 路由门禁、改密后撤销其他会话 | 冻结候选本地通过 | 目标 HTTPS 复跑 owner/member 首登和并发 |
 | 成员生命周期 | pending 登录拒绝、批准/停用/角色变更、乐观并发、最后 owner 保护和审计 | 冻结候选本地通过 | 两人审批和单人补偿控制由真实责任人演练 |
 | 四级 RBAC 与归档角色 | owner/admin/member/viewer、组织作用域；已有 Cookie 即时 403、新登录不建 session、恢复后重新授权 | 冻结候选本地通过 | 目标内网抽查跨组织拒绝和会话撤销 |
@@ -36,7 +36,7 @@
 | 通知与工作流 | queued-only、sent/failed 由 worker 控制；run 固化版本/步骤快照和 partial checkpoint | 冻结候选本地通过 | 目标操作员演练失败调查与人工补偿 |
 | 八类高风险动作 | 人工批准、取消/驳回解链、幂等/CAS、manual/mock 与外部回执边界 | 冻结候选本地通过 / 外部边界 | 真实责任人逐类批准；无合法适配器的 `real` 必须拒绝 |
 | 七类 AI 顾问 | requester-only/read-all 二次权限、事实/推断/建议结构、提示词/模型/工具/人工修改审计 | 冻结候选本地通过 / 真实模型未验收 | 供应商、数据处理、预算、质量样本和停用开关批准 |
-| 官网与电竞教育 | 已完成 fiatlux.gg 公开业务/内容审计、内部教育筹备页和成年人 4–6 周试点课程草案 | 已实现 / 待业务与专业复核 | 修复 7 篇模板占位、地域/时态/见证/隐私投诉问题；九项事实问卷及合同、隐私、版权、退款、健康和内容安全批准 |
+| 官网与电竞教育 | 已完成 fiatlux.gg 公开业务/内容审计、内部教育筹备页、成年人 4–6 周试点课程草案，以及 4 篇带版本、Schema、来源、权利、AI 披露、模板、练习和复核问题的基础内容；desktop/mobile 内容浏览通过 | 已实现 / 待业务与专业复核 | 四篇仍是 `pending`/`pending_clearance`/`not_published`；修复 7 篇模板占位、地域/时态/见证/隐私投诉问题；九项事实问卷及合同、隐私、版权、退款、健康和内容安全批准后才可人工发布 |
 
 ## 3. 初始化、恢复身份与后台幂等
 
@@ -57,8 +57,8 @@ lease 到期不等于“安全重试”。操作员必须查看审计、partial 
 
 | 验收项 | 当前证据 | 状态 | 剩余工作 |
 | --- | --- | --- | --- |
-| 官方来源数据集 | `content/compliance/official-sources.json` 共 72 条，覆盖中国、广东、广州官方来源 | 已实现 | 最终 SHA 校验文件、URL、元数据与导入结果 |
-| 人工复核状态 | 72 条尚未完成可识别专业人员的适用性复核 | 正确保持未批准 | 按风险逐条复核正文、公司事实、适用条件、更新时间和下次复核日；不得批量伪造 reviewed/active |
+| 官方来源数据集 | `content/compliance/official-sources.json` 共 73 条，覆盖中国、广东、广州官方来源；隔离数据库 22 个完整组织和真实栈单组织均精确导入 73 条 | 已实现 | 最终 SHA 校验文件、URL、元数据与导入结果 |
+| 人工复核状态 | 73 条尚未完成可识别专业人员的适用性复核 | 正确保持未批准 | 按风险逐条复核正文、公司事实、适用条件、更新时间和下次复核日；不得批量伪造 reviewed/active |
 | 易变政策 | 来源元数据、机器哈希、人工状态和业务状态分离；变化可标 stale/uncertain | 已实现 / 待运营 | 目标环境完成首次抓取、变化监控、证据快照、负责人和纠错流程 |
 | 来源与履行凭证 | `sourceId`/`evidenceFileId` 分离、跨组织/未上传拒绝、被引用凭证归档拒绝和 linked-source withheld 已覆盖 | 冻结候选本地通过 | 人工核对凭证充分性 |
 | 顾问使用边界 | 未复核、过期或不活动来源不会进入法务顾问确定事实 | 定向候选已验证 | 真实模型启用后重新验证引用、权限、过期与越权边界 |
@@ -69,12 +69,12 @@ lease 到期不等于“安全重试”。操作员必须查看审计、partial 
 
 | 层级 | 当前发布状态 | 最终证据要求 |
 | --- | --- | --- |
-| Biome / ShellCheck / Actionlint / 类型 | **本地通过** | 190 个 Biome 文件、全 shell、3 个 workflow、7 个 TS 项目；GitHub CI 复现 |
-| 单元/聚合 | **本地通过** | 162/162 单元与完整 workspace 聚合通过；原始日志不进 Git |
+| Biome / ShellCheck / Actionlint / 类型 | **本地通过** | 196 个 Biome 文件、全 shell、3 个 workflow、7 个 TS 项目；GitHub CI 复现 |
+| 单元/聚合 | **本地通过** | 167/167 单元与完整 workspace 聚合通过；原始日志不进 Git |
 | API / worker / PostgreSQL / pg-boss | **本地通过** | 最新 API 17 files/85 tests、worker 5 files/25 tests；10 个 migration、fresh/legacy、权限、引用链锁、连接恢复、并发/CAS、审计和失败边界通过 |
 | MinIO / S3 | **本地通过** | 2 项真实私有桶/字节/权限/校验和集成及恢复对象核对通过 |
 | Web / Playwright / PWA | **本地通过，有真机边界** | mock 44 passed/6 条件 skip；real 2 passed；独立浏览器、离线壳、SW active、390 px 通过；真机待验收 |
-| 全 workspace / 七镜像构建 | **本地通过，有 registry 边界** | production build、PWA 9 precache/560.36 KiB；引用链增量候选七个 arm64 镜像、六常驻服务健康、Trivy 0 和七份 SPDX 通过；既有重启持久性证据通过，GHCR 双平台待发布 |
+| 全 workspace / 七镜像构建 | **本地通过，有 registry 边界** | production build、PWA 10 precache/688.29 KiB；引用链增量候选七个 arm64 镜像、六常驻服务健康、Trivy 0 和七份 SPDX 通过；本次新 Web 镜像另以只读非 root Compose 和 Trivy HIGH/CRITICAL 0 验证，GHCR 双平台待发布 |
 | 安全/供应链 | **本地通过，有 GitHub 边界** | Gitleaks、Semgrep+canary、`audit --prod` 0、IaC、七镜像 Trivy 0、7 SPDX、真实 BuildKit provenance fixture 通过；GitHub CodeQL/安全 workflow 待运行 |
 
 七镜像的本地 arm64 content ID、SPDX 和扫描证据不是 GHCR 双平台 root digest 或签名。全依赖只余 dev-only `drizzle-kit -> esbuild` 1 个 moderate，生产依赖为 0；CI 不启动其 dev server，作为非阻断升级项跟踪。
@@ -109,8 +109,8 @@ lease 到期不等于“安全重试”。操作员必须查看审计、partial 
 | 高风险外部动作 | 八类人工批准、取消/驳回解链、幂等/CAS、manual/mock 外部回执边界通过 | 每类真实责任人批准和外部回执验收 |
 | 七类顾问 | requester-only/read-all、上下文二次权限、越权 404、工具/模型/人工编辑审计通过 | 真实 LLM 质量、隐私、成本、停用和供应商审批 |
 | advisor/workflow/backup 后台任务 | 原子 claim、CAS、lease-expired 审计和 partial checkpoint 通过 | 目标真实备份命令和人工补偿演练 |
-| 合规 | 未复核来源受限；source/evidence 跨组织/上传/归档/withheld 边界通过 | 72 条专业复核与目标环境首次抓取 |
-| 官网与教育 | 官网审计、内部教育页和成人试点草案已形成 | 内容清理、权利/事实核验及九项业务/专业闸门批准 |
+| 合规 | 未复核来源受限；source/evidence 跨组织/上传/归档/withheld 边界通过 | 73 条专业复核与目标环境首次抓取 |
+| 官网与教育 | 官网审计、内部教育页、成人试点草案和四篇版本化基础内容已形成 | 四篇仍未获专业/权利/发布批准；继续内容清理、权利/事实核验及九项业务/专业闸门批准 |
 | 桌面、移动与 PWA | mock/real E2E、独立浏览器、SW active、offline shell 和 390 px 布局通过 | 真实受管手机安装/升级 |
 | 部署与恢复 | 最新 Compose、38 表/10 迁移、一次独立恢复 RPO 2s/RTO 75s，以及本地 synthetic bridge 真实差异升级/应用回滚通过 | 历史生产 N−1/目标发布复演、生产恢复入口、目标内网与 RPO/RTO 批准 |
 
@@ -118,7 +118,7 @@ lease 到期不等于“安全重试”。操作员必须查看审计、partial 
 
 该仓库已经超过脚手架、静态仪表盘和数据库模型阶段。核心业务、首次改密与成员生命周期、归档角色即时失权、八类人工批准、typed refs、可追溯顾问、后台原子 claim 和 formatVersion 2 恢复路径均有实现与候选证据。
 
-当前仍只能称为**受控候选**。冻结工作树的全量测试、生产构建、最新 Compose、桌面/移动浏览器、本地供应链扫描、一次底层独立恢复和一次本地 synthetic bridge 真实差异升级/应用回滚已经通过，候选分支已创建 Draft PR；GitHub CI/security 因账户计费在 runner 前被阻断，GHCR、历史生产 N−1/目标发布复演、生产恢复入口、目标办公内网、真机、真实 LLM/GitHub、72 条专业复核、残余风险决策和业务批准仍未完成。在这些门禁全部关闭前，不得宣布“V1 已完成”，也不得用于无人监督的生产关键操作。
+当前仍只能称为**受控候选**。冻结工作树的全量测试、生产构建、最新 Compose、桌面/移动浏览器、本地供应链扫描、一次底层独立恢复和一次本地 synthetic bridge 真实差异升级/应用回滚已经通过，候选分支已创建 Draft PR；GitHub CI/security 因账户计费在 runner 前被阻断，GHCR、历史生产 N−1/目标发布复演、生产恢复入口、目标办公内网、真机、真实 LLM/GitHub、73 条专业复核、残余风险决策和业务批准仍未完成。在这些门禁全部关闭前，不得宣布“V1 已完成”，也不得用于无人监督的生产关键操作。
 
 ## 9. 最终 SHA 与目标环境必须补录
 

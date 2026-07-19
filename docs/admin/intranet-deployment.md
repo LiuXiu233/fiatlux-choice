@@ -136,7 +136,7 @@ export FIATLUX_ENV_FILE=/etc/fiatlux-choice/production.env
 SEED_MODE=bootstrap ./scripts/compose.sh run --rm seed
 ```
 
-确认命令输出显示目标 organization、引导管理员和导入 72 条合规来源；再通过 UI/API 抽查来源保持 `reviewStatus=pending`、`contentHashStatus=pending_fetch`、业务 `status=draft`。seed 会创建 owner 角色，但不会替代登录和权限验收。
+确认命令输出显示目标 organization、引导管理员和导入 73 条合规来源；再通过 UI/API 抽查来源保持 `reviewStatus=pending`、`contentHashStatus=pending_fetch`、业务 `status=draft`。seed 会创建 owner 角色，但不会替代登录和权限验收。
 
 seed 是**非日常运维命令**，且必须显式选择模式。`bootstrap` 只接受空组织初始化，遇到既有 organization slug 会失败，不会更新 owner 密码或自动转成维护。既有组织补提示词/合规元数据只能用 `SEED_MODE=metadata-only`，该模式拒绝管理员身份/密码并且不修改 membership、assignment、角色或权限；系统角色维护必须另走经批准的 `system-role-maintenance`。不要把任何 seed 模式放进常规重启、systemd 或升级流程。
 

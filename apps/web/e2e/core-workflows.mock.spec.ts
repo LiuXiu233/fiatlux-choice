@@ -25,7 +25,7 @@ test("登录、查看经营工作台并创建任务", async ({ page }) => {
   await expect(page.getByText("发布电竞教育试点报名表")).toBeVisible();
 });
 
-test("电竞教育工作台呈现官网清理、内容支柱与人工上线门槛", async ({ page }) => {
+test("电竞教育工作台呈现可审阅内容包、官网清理与人工上线门槛", async ({ page }) => {
   await login(page);
   await page.goto("/education");
 
@@ -35,6 +35,30 @@ test("电竞教育工作台呈现官网清理、内容支柱与人工上线门�
   await expect(page.getByText("竞技训练方法", { exact: true })).toBeVisible();
   await expect(page.getByText("健康与数字安全", { exact: true })).toBeVisible();
   await expect(page.getByText("官网、广告、销售话术、案例和合同表述一致且有证据")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "首批基础内容包" })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "查看文章：如何设定 4 周竞技训练目标" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "查看文章：一次有效回放复盘怎么做" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "查看文章：团队语音沟通的最小协议" }),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "查看文章：人体工学与休息自查" })).toBeVisible();
+
+  await page.getByRole("button", { name: "查看文章：人体工学与休息自查" }).click();
+  const articleDialog = page.getByRole("dialog", { name: "人体工学与休息自查" });
+  await expect(articleDialog.getByText(/不是医疗建议、诊断、治疗、康复/)).toBeVisible();
+  await expect(
+    articleDialog.getByText("中国公民健康素养——基本知识与技能（2024年版）"),
+  ).toBeVisible();
+  await expect(articleDialog.getByText(/不提供适用于所有人的固定休息分钟数/)).toBeVisible();
+  await expect(articleDialog.getByRole("link", { name: "查看官方来源" })).toHaveAttribute(
+    "href",
+    "https://www.gov.cn/zhengce/zhengceku/202405/content_6954649.htm",
+  );
+  await articleDialog.getByRole("button", { name: "关闭" }).click();
 
   const dimensions = await page.evaluate(() => ({
     scrollWidth: document.documentElement.scrollWidth,
