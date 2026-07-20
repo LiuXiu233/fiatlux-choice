@@ -51,7 +51,7 @@
 
 ### 交付
 
-- 以 `f86bff4…` 后续证据 head 为候选起点；任何功能源码变化后重新冻结完整 Git SHA，并在同一 SHA 重跑 lint、类型、单元、集成、E2E、生产构建和七镜像安全扫描。
+- 以运行异常实现 `f86bff4…` 和证据记录 `56395d4…` 为候选起点；任何功能源码变化后重新冻结完整 Git SHA，并在同一 SHA 重跑 lint、类型、单元、集成、E2E、生产构建和七镜像安全扫描。
 - 在耀光目标办公内网从空环境完成 11 个业务迁移 `0000`–`0010`、pg-boss 迁移和权限收敛；显式运行一次 `SEED_MODE=bootstrap`，验证 owner 首登改密、登录、MinIO、ready、CA 分发和重启持久性。
 - 在 legacy 副本验证 `metadata-only` 不改变组织、用户、membership、assignment 或权限；通过人工批准的 `system-role-maintenance` 演练角色基线升级，并完成一次受控离线 owner 恢复/回滚演练。
 - 对归档角色即时失权、成员停用、最后 owner、两人审批和单人补偿控制完成最终 Web/API E2E 与运维手册演练。

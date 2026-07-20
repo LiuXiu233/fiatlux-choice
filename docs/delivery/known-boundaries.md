@@ -128,7 +128,7 @@
 - 新升级/回滚入口强制校验严格七组件发布清单和独立批准的清单 SHA-256，并在 pull 后、迁移前及启动后核对本地 RepoDigest；切换时一致重建 PostgreSQL、MinIO 与应用，并核对六个常驻容器 image ID 后才写全局版本，避免任一常驻组件延迟切换。backup 保持按需。BuildKit provenance 与 SBOM 不是签名；当前未集成 cosign/Sigstore，不能声称镜像已由发布者签名。
 - 尚未完成的目标验证包括耀光办公内网主机、DNS、CA 分发、防火墙、seed/owner 首登改密、真实设备、异介质恢复和运行观察。
 - Caddy internal CA 需要逐台受控分发；它不是成熟企业 PKI。
-- 当前运行异常实现 `f86bff4dcc7d2b61e05c8a6b44078d039aad1e38` 已推送到私有 `LiuXiu233/fiatlux-choice` 的 Draft PR #12 候选分支，证据文档 head 待提交。历史 CI/Security run 的首级失败 job 均为 `runner_id=0`、`steps=[]`，annotation 明确提示近期账户付款失败或 Actions spending limit 不足；因此不能声称 GitHub CI、安全扫描、合并或发布已完成。PR Checks 是远端状态权威来源；修复 Billing & plans 后必须重跑。
+- 当前运行异常实现 `f86bff4dcc7d2b61e05c8a6b44078d039aad1e38` 与证据记录 `56395d4f6764fafa2eeb4459f1a751b0daf45058` 已推送到私有 `LiuXiu233/fiatlux-choice` 的 Draft PR #12 候选分支。证据提交的 CI `29712259090` 和 Security `29712259101` 中，六个首级失败 job 均为 `runner_id=0`、`steps=[]`，annotation 明确提示近期账户付款失败或 Actions spending limit 不足；因此不能声称 GitHub CI、安全扫描、合并或发布已完成。PR Checks 是后续远端状态权威来源；修复 Billing & plans 后必须重跑。
 - 当前仓库没有把 Git commit/tag 签名作为已验证控制。本地测试事实不能充当发布者签名；生产 tag 前必须确定并执行签名政策，或由有权负责人记录替代控制与风险决定。
 
 ## 11. 安全剩余风险

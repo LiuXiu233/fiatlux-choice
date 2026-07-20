@@ -12,8 +12,8 @@
 | --- | --- | --- |
 | 产品版本 | V1 受控候选 | 所有阻断闸门关闭并取得业务负责人批准后才能改为 V1 完成 |
 | 目标仓库 | 私有 `LiuXiu233/fiatlux-choice`；候选分支已推送；[Draft PR #12](https://github.com/LiuXiu233/fiatlux-choice/pull/12) | 解除 Actions 计费阻断，取得绿色 CI/security；批准后再合并 |
-| Git SHA / tag | 完整恢复基线为 `101d2f0938adfa0caa8ed576f6587a5c78ae74a5`；最新运行异常实现 `f86bff4dcc7d2b61e05c8a6b44078d039aad1e38` 已推送，增量机器证据显式绑定实现提交；未创建发布 tag | 生产发布仍须确定 commit/tag 签名政策，并统一最终 Git/GitHub/GHCR 身份 |
-| GitHub PR / CI | Draft PR #12；`f86bff4…` 已推送，证据文档 head 待本轮提交；PR Checks 是远端状态权威来源；上一远端 head 的 [CI run 29706630229](https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29706630229) 与 [Security run 29706630238](https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29706630238) 均在 runner 启动前失败 | 首级 job 为 `steps=[]`，原因是账户付款或 Actions spending limit；证据 head 推送自然触发的 run 只读核验，不反复盲目重跑 |
+| Git SHA / tag | 完整恢复基线为 `101d2f0938adfa0caa8ed576f6587a5c78ae74a5`；最新运行异常实现 `f86bff4dcc7d2b61e05c8a6b44078d039aad1e38` 与证据记录 `56395d4f6764fafa2eeb4459f1a751b0daf45058` 已推送；未创建发布 tag | 生产发布仍须确定 commit/tag 签名政策，并统一最终 Git/GitHub/GHCR 身份 |
+| GitHub PR / CI | Draft PR #12；证据提交的 [CI run 29712259090](https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29712259090) 与 [Security run 29712259101](https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29712259101) 均在 runner 启动前失败；PR Checks 是后续远端状态权威来源 | 六个首级失败 job 均为 `runner_id=0`、`steps=[]`，annotation 明确为账户付款或 Actions spending limit；不反复盲目重跑 |
 | 数据库 | PostgreSQL 17.10；38 张业务表；11 个业务迁移 `0000`–`0010`；`101d2f0…` fresh、`0009→0010` 数据保留/幂等、fresh/legacy 五职责和签名恢复逐 migration hash 均本地通过 | GitHub CI、GHCR 与目标内网重新执行 |
 | 候选 QA 环境 | `101d2f0…` 在 `choice-review.localhost:20443` 完成完整基线和恢复；`f86bff4…` 在独立 `fiatlux-choice-opsfinal` 用同一 SHA 重建/扫描的 API、worker、Web 完成五职责、38 表/11 migration、73 条来源、六服务、MinIO 最小权限、三类运行异常处置、desktop/mobile/PWA 和整体重启。全部临时容器、网络、卷、镜像标签、报告和凭据已清理 | 本机环境不得改写成耀光广州办公内网、GHCR 双平台或目标制品；目标环境必须独立复现 |
 | 目标办公内网 | **未部署** | 补主机、OS、架构、DNS、CA、防火墙、受管设备和运行观察 |
