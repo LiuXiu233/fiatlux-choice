@@ -107,3 +107,5 @@ pnpm typecheck
 自动验收会从当前 HEAD 真实生成 12 个 HTML、12 个 Markdown、README 和 manifest，独立复算候选及产物哈希，检查 `0700/0600`、12 篇阻断状态、禁止发布标记和无 TCP/HTTP/HTTPS 调用，并验证相对路径、不安全父目录及覆盖尝试失败关闭。
 
 截至 2026-07-20，当前 12 篇均为 `pending` / `pending_clearance` / `not_published`，生成结果应为 `publicationEligibleCount=0`、`blockedArticleCount=12`。该结果是诚实的准备状态，不是缺陷规避，也不能把 `education_content_clearance` 从 blocked 改为 passed。
+
+实现提交 `9c5633e1c3e9650507231106fcd8a451bf32053f` 的[脱敏机器证据](../delivery/evidence/education-wordpress-review-bundle-acceptance-9c5633e-20260720.json)记录了 exact-SHA 产物、权限、哈希、网络防护、浏览器和三张受影响应用镜像检查。证据本身没有保存审阅正文、凭据、身份或外部操作回执，也不是逐篇真实放行报告。

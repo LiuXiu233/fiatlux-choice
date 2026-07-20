@@ -2,19 +2,19 @@
   "schemaVersion": 1,
   "versionLabel": "V1 controlled candidate",
   "overallStatus": "blocked",
-  "evaluatedAt": "2026-07-20T20:21:43+08:00",
+  "evaluatedAt": "2026-07-20T21:50:03+08:00",
   "candidate": {
     "repository": "https://github.com/LiuXiu233/fiatlux-choice",
     "branch": "codex/v1-acceptance-hardening",
-    "implementationCommit": "f4c12b596afd90d5781a0d192f381315c39790bc",
-    "evidenceCommit": "39801ebcf84257fe639e4a0be35bd60b8bcf75e3"
+    "implementationCommit": "9c5633e1c3e9650507231106fcd8a451bf32053f",
+    "evidenceCommit": "c41ef1018358b0e42063082330561a53aa8dc0a4"
   },
   "gates": [
     {
       "id": "local_core_acceptance",
       "status": "passed",
       "ownerRole": "研发与交付负责人",
-      "summary": "核心闭环、真实栈、浏览器、移动端、PWA、运行异常、教育内容、生产恢复防护、真实适配器和逐篇内容放行失败关闭入口已有分层本地机器证据。",
+      "summary": "核心闭环、真实栈、浏览器、移动端、PWA、运行异常、教育内容、生产恢复防护、真实适配器、逐篇放行入口和 WordPress 内部审阅包已有分层本地机器证据。",
       "evidence": [
         {
           "kind": "machine_evidence",
@@ -105,16 +105,25 @@
           "subjectCommit": "f4c12b596afd90d5781a0d192f381315c39790bc",
           "sha256": "1aa8974fec37cf0cfe6dc5c8a2313185ce2f958b79e9d8e7825621f3c027ae42",
           "note": "当前候选 exact-SHA 的逐篇放行合同/模板/离线验证器、全仓、隔离依赖、空卷 Compose、桌面/移动/PWA 和七镜像验收；只证明工程入口，不代表真实内容放行。"
+        },
+        {
+          "kind": "machine_evidence",
+          "result": "success",
+          "reference": "docs/delivery/evidence/education-wordpress-review-bundle-acceptance-9c5633e-20260720.json",
+          "verifiedAt": "2026-07-20T21:46:01+08:00",
+          "subjectCommit": "9c5633e1c3e9650507231106fcd8a451bf32053f",
+          "sha256": "62aa22b352005ee7de459e24723ce595041e7775a9c014b85ab80947b3920dae",
+          "note": "当前候选 exact-SHA 的 12 篇 review-only HTML/审阅表/哈希 manifest、无网络与失败关闭 CLI、桌面/移动/PWA 及 API/worker/Web 三张受影响镜像验收；不代表专业复核或 WordPress 发布。"
         }
       ],
       "blockers": [],
-      "reviewedAt": "2026-07-20T20:16:13+08:00"
+      "reviewedAt": "2026-07-20T21:46:01+08:00"
     },
     {
       "id": "local_security_and_sensitive_data",
       "status": "passed",
       "ownerRole": "信息安全负责人",
-      "summary": "当前实现提交已完成源码、完整历史、生产依赖、Semgrep 和七个本地镜像的 Trivy/SPDX 安全复核，未发现敏感数据或阻断漏洞。",
+      "summary": "当前实现提交已完成源码、完整历史、生产依赖和 Semgrep 复核，并对三张受影响应用镜像完成 Trivy/SPDX；历史七镜像证据继续分列，未发现敏感数据或阻断漏洞。",
       "evidence": [
         {
           "kind": "machine_evidence",
@@ -187,10 +196,19 @@
           "subjectCommit": "f4c12b596afd90d5781a0d192f381315c39790bc",
           "sha256": "1aa8974fec37cf0cfe6dc5c8a2313185ce2f958b79e9d8e7825621f3c027ae42",
           "note": "当前候选精确 HEAD 与完整历史 Gitleaks 0、生产依赖 0、Semgrep 104 个生产目标 0 finding，以及七镜像 Trivy HIGH/CRITICAL 0 和 SPDX 包清单通过。"
+        },
+        {
+          "kind": "machine_evidence",
+          "result": "success",
+          "reference": "docs/delivery/evidence/education-wordpress-review-bundle-acceptance-9c5633e-20260720.json#sourceSecurity",
+          "verifiedAt": "2026-07-20T21:46:01+08:00",
+          "subjectCommit": "9c5633e1c3e9650507231106fcd8a451bf32053f",
+          "sha256": "62aa22b352005ee7de459e24723ce595041e7775a9c014b85ab80947b3920dae",
+          "note": "当前候选 Gitleaks 当前树/完整历史、生产依赖、Semgrep 及 API/worker/Web 三张受影响镜像的 Trivy HIGH/CRITICAL 0 和 SPDX 通过；没有冒充七镜像或 GHCR 全量发布。"
         }
       ],
       "blockers": [],
-      "reviewedAt": "2026-07-20T20:16:13+08:00"
+      "reviewedAt": "2026-07-20T21:46:01+08:00"
     },
     {
       "id": "github_ci_security",
@@ -201,18 +219,18 @@
         {
           "kind": "github_run",
           "result": "blocked",
-          "reference": "https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29741910154",
-          "verifiedAt": "2026-07-20T20:21:43+08:00",
-          "subjectCommit": "39801ebcf84257fe639e4a0be35bd60b8bcf75e3",
+          "reference": "https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29747915723",
+          "verifiedAt": "2026-07-20T21:50:03+08:00",
+          "subjectCommit": "c41ef1018358b0e42063082330561a53aa8dc0a4",
           "githubWorkflow": "ci",
           "note": "CI 两个首级失败 job 均为 runner_id=0、steps=[]，没有执行仓库步骤；不能记为代码失败或绿色通过。"
         },
         {
           "kind": "github_run",
           "result": "blocked",
-          "reference": "https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29741910245",
-          "verifiedAt": "2026-07-20T20:21:43+08:00",
-          "subjectCommit": "39801ebcf84257fe639e4a0be35bd60b8bcf75e3",
+          "reference": "https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29747915624",
+          "verifiedAt": "2026-07-20T21:50:03+08:00",
+          "subjectCommit": "c41ef1018358b0e42063082330561a53aa8dc0a4",
           "githubWorkflow": "security",
           "note": "Security 四个首级失败 job 均为 runner_id=0、steps=[]，文件系统与 CodeQL 下游 job 被跳过。"
         }
@@ -221,13 +239,13 @@
         "GitHub 账户付款或 Actions spending limit 尚未恢复，CI 与 Security 没有实际 runner steps。",
         "尚无两个绑定同一 evidenceCommit 的独立绿色 CI 与 Security run。"
       ],
-      "reviewedAt": "2026-07-20T20:21:43+08:00"
+      "reviewedAt": "2026-07-20T21:50:03+08:00"
     },
     {
       "id": "ghcr_release_artifacts",
       "status": "blocked",
       "ownerRole": "发布与供应链负责人",
-      "summary": "本地镜像扫描和 SPDX 已有证据，但最终提交的七个 GHCR 双平台制品、摘要和来源证明尚未发布。",
+      "summary": "本地历史七镜像与当前三张受影响应用镜像的扫描和 SPDX 已有证据，但最终提交的七个 GHCR 双平台制品、摘要和来源证明尚未发布。",
       "evidence": [
         {
           "kind": "registry",
@@ -397,7 +415,7 @@
       "id": "education_content_clearance",
       "status": "blocked",
       "ownerRole": "教育内容与法务发布负责人",
-      "summary": "十二篇成年人电竞教育内部草案及逐篇失败关闭证据入口已完成结构化实现，但真实问卷、事实、专业、著作权、肖像隐私、公开发布和批准均保持待审。",
+      "summary": "十二篇成年人电竞教育内部草案、review-only WordPress 审阅包及逐篇失败关闭证据入口已完成结构化实现，但真实问卷、事实、专业、著作权、肖像隐私、公开发布和批准均保持待审。",
       "evidence": [
         {
           "kind": "machine_evidence",
@@ -407,6 +425,15 @@
           "subjectCommit": "f4c12b596afd90d5781a0d192f381315c39790bc",
           "sha256": "1aa8974fec37cf0cfe6dc5c8a2313185ce2f958b79e9d8e7825621f3c027ae42",
           "note": "exact-SHA 工程验收通过，但真实逐篇放行机器报告没有创建；问卷、复核、批准、12 个公开 URL 和 7 个旧模板处置均未发生。"
+        },
+        {
+          "kind": "machine_evidence",
+          "result": "blocked",
+          "reference": "docs/delivery/evidence/education-wordpress-review-bundle-acceptance-9c5633e-20260720.json#truthBoundary",
+          "verifiedAt": "2026-07-20T21:46:01+08:00",
+          "subjectCommit": "9c5633e1c3e9650507231106fcd8a451bf32053f",
+          "sha256": "62aa22b352005ee7de459e24723ce595041e7775a9c014b85ab80947b3920dae",
+          "note": "12 篇审阅 HTML、治理表和哈希 manifest 已由 exact-SHA 工程验收，但固定为 review_only、全部 12 篇仍 blocked，且没有凭据、外部调用、专业意见、权利许可或发布批准。"
         },
         {
           "kind": "professional_review",
@@ -438,7 +465,7 @@
         "九项真实上线问卷及十二篇专业事实、来源、权利、隐私、健康、内容安全和内部试讲尚未完成。",
         "尚未取得逐篇和最终可识别批准，没有 WordPress 真实发布回填，也未处置并验证七篇旧模板页面。"
       ],
-      "reviewedAt": "2026-07-20T20:16:13+08:00"
+      "reviewedAt": "2026-07-20T21:46:01+08:00"
     },
     {
       "id": "operational_responsibility_drills",
