@@ -2,12 +2,12 @@
   "schemaVersion": 1,
   "versionLabel": "V1 controlled candidate",
   "overallStatus": "blocked",
-  "evaluatedAt": "2026-07-20T12:31:57+08:00",
+  "evaluatedAt": "2026-07-20T13:00:43+08:00",
   "candidate": {
     "repository": "https://github.com/LiuXiu233/fiatlux-choice",
     "branch": "codex/v1-acceptance-hardening",
-    "implementationCommit": "213d9b65b927d679b1afc927cb077f7a1aedd3d1",
-    "evidenceCommit": "213d9b65b927d679b1afc927cb077f7a1aedd3d1"
+    "implementationCommit": "6e40b82914e237b0941ad7a5d5496a73d7a65190",
+    "evidenceCommit": "6e40b82914e237b0941ad7a5d5496a73d7a65190"
   },
   "gates": [
     {
@@ -51,10 +51,19 @@
           "subjectCommit": "213d9b65b927d679b1afc927cb077f7a1aedd3d1",
           "sha256": "07b89fe475b43949e91db032f349db69569e3ee4cab6033941a92d2a638d831c",
           "note": "当前发布治理提交的 exact-SHA 全仓、门禁正反向、构建和安全验收。"
+        },
+        {
+          "kind": "machine_evidence",
+          "result": "success",
+          "reference": "docs/delivery/evidence/v1-platform-attestation-acceptance-6e40b82-20260720.json",
+          "verifiedAt": "2026-07-20T13:00:43+08:00",
+          "subjectCommit": "6e40b82914e237b0941ad7a5d5496a73d7a65190",
+          "sha256": "2b854c0b4fadb26cd1944b06c828fc56a8ea56b47490ccbb2cde5a703f81a06d",
+          "note": "当前只读平台证明提交的 exact-SHA 全仓、workflow、平台适配器和构建验收。"
         }
       ],
       "blockers": [],
-      "reviewedAt": "2026-07-20T12:31:57+08:00"
+      "reviewedAt": "2026-07-20T13:00:43+08:00"
     },
     {
       "id": "local_security_and_sensitive_data",
@@ -79,10 +88,19 @@
           "subjectCommit": "213d9b65b927d679b1afc927cb077f7a1aedd3d1",
           "sha256": "07b89fe475b43949e91db032f349db69569e3ee4cab6033941a92d2a638d831c",
           "note": "当前提交的 Gitleaks 当前树/完整历史和 npm 官方 registry 生产依赖审计通过。"
+        },
+        {
+          "kind": "machine_evidence",
+          "result": "success",
+          "reference": "docs/delivery/evidence/v1-platform-attestation-acceptance-6e40b82-20260720.json#sourceSecurity",
+          "verifiedAt": "2026-07-20T13:00:43+08:00",
+          "subjectCommit": "6e40b82914e237b0941ad7a5d5496a73d7a65190",
+          "sha256": "2b854c0b4fadb26cd1944b06c828fc56a8ea56b47490ccbb2cde5a703f81a06d",
+          "note": "当前提交的 Gitleaks、官方 registry 生产依赖审计和 Semgrep 93 个目标通过。"
         }
       ],
       "blockers": [],
-      "reviewedAt": "2026-07-20T12:31:57+08:00"
+      "reviewedAt": "2026-07-20T13:00:43+08:00"
     },
     {
       "id": "github_ci_security",
@@ -93,18 +111,18 @@
         {
           "kind": "github_run",
           "result": "blocked",
-          "reference": "https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29717068798",
-          "verifiedAt": "2026-07-20T12:31:57+08:00",
-          "subjectCommit": "213d9b65b927d679b1afc927cb077f7a1aedd3d1",
+          "reference": "https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29718120626",
+          "verifiedAt": "2026-07-20T13:00:43+08:00",
+          "subjectCommit": "6e40b82914e237b0941ad7a5d5496a73d7a65190",
           "githubWorkflow": "ci",
           "note": "CI 首级失败 job 没有执行仓库步骤，不能记为代码失败或绿色通过。"
         },
         {
           "kind": "github_run",
           "result": "blocked",
-          "reference": "https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29717068861",
-          "verifiedAt": "2026-07-20T12:31:57+08:00",
-          "subjectCommit": "213d9b65b927d679b1afc927cb077f7a1aedd3d1",
+          "reference": "https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29718120610",
+          "verifiedAt": "2026-07-20T13:00:43+08:00",
+          "subjectCommit": "6e40b82914e237b0941ad7a5d5496a73d7a65190",
           "githubWorkflow": "security",
           "note": "Security 首级失败 job 没有执行仓库步骤，CodeQL 等下游 job 被跳过。"
         }
@@ -113,7 +131,7 @@
         "GitHub 账户付款或 Actions spending limit 尚未恢复，CI 与 Security 没有实际 runner steps。",
         "尚无两个绑定同一 evidenceCommit 的独立绿色 CI 与 Security run。"
       ],
-      "reviewedAt": "2026-07-20T12:31:57+08:00"
+      "reviewedAt": "2026-07-20T13:00:43+08:00"
     },
     {
       "id": "ghcr_release_artifacts",
@@ -130,7 +148,7 @@
         }
       ],
       "blockers": [
-        "尚无七个绑定 evidenceCommit 的独立 GHCR 发布制品证据。",
+        "尚无绑定 evidenceCommit 的绿色 release run 和七类独立 GHCR 发布制品证据。",
         "最终双平台 digest、SBOM、provenance、升级与回滚身份尚未统一。"
       ],
       "reviewedAt": "2026-07-20T12:07:56+08:00"

@@ -16,6 +16,8 @@
 
 发布治理实现 `213d9b65b927d679b1afc927cb077f7a1aedd3d1` 将 V1 完成定义固化为 14 项结构化、失败关闭门禁，要求本地证据绑定实现提交、CI/Security 两个绿色 run、七类 GHCR 制品以及目标环境和真实责任人批准。该 SHA 在干净工作树上通过 Biome 224 文件、ShellCheck、7 项类型、199 个单元测试、生产构建、门禁正反向、Gitleaks 与生产依赖审计；标准入口未配置 PostgreSQL/MinIO 时的 2/93/29 项 skip 没有计为通过。脱敏事实见[发布门禁证据](docs/delivery/evidence/v1-release-gate-acceptance-213d9b6-20260720.json)。GitHub CI `29717068798` 与 Security `29717068861` 的六个首级失败 job 均为 `runner_id=0`、`steps=[]`，当前机器结论仍为 2 项通过、12 项阻断。
 
+后置平台证明实现 `6e40b82914e237b0941ad7a5d5496a73d7a65190` 增加只读 `v1-readiness.yml`、GitHub/GHCR 实证适配器和固定 Actionlint 门禁。候选制品生成后，只有 ready 清单进入 `main`、受保护 `v1-production-approval` environment 放行、CI/Security/release 三类 run 实时绿色且七类 GHCR digest 的 HEAD 精确匹配时，才会上传最终证明 artifact；该流程不部署、不建 tag，也不执行高风险外部动作。精确 SHA 已通过 Biome 228 文件、ShellCheck、Actionlint、7 项类型、203 个单元测试、生产构建、Gitleaks、生产依赖审计和 Semgrep 93 个目标 0 finding；当前 blocked 清单在联网前拒绝平台核验。证据见[平台证明验收记录](docs/delivery/evidence/v1-platform-attestation-acceptance-6e40b82-20260720.json)。其 CI `29718120626` 与 Security `29718120610` 仍被同一账户计费问题在 runner 前阻断。
+
 ## 能力
 
 - 用户、组织、数据库会话、四级 RBAC 和追加审计。
