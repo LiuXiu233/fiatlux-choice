@@ -51,6 +51,8 @@ export const SYSTEM_ROLE_PERMISSIONS = {
     "advisor-runs:*",
     "advisor-runs:read-all",
     "audit-events:read",
+    "operations-incidents:read",
+    "operations-incidents:update",
     "users:*",
     "roles:read",
     "role-assignments:create",

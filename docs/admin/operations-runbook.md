@@ -41,6 +41,7 @@ df -h /var/lib/docker /var/backups/fiatlux-choice
 - live/ready、容器重启次数、worker 失败任务和磁盘使用率。
 - 上一次备份服务状态、加密文件大小、`.attestation.json`/`.attestation.sig` 是否齐全及签名公钥指纹；异常小、缺少签名或未获独立 SHA/指纹批准的备份均视为不可用于生产恢复。
 - 登录失败、关键权限修改、人工审批与外部适配器失败事件。
+- 打开“运行异常处置”，检查顾问、工作流和备份的 `lease_expired`。待处置不为零时先保全审计、partial output、目标对象和主机/外部状态，不得直接重放。
 - 打开“合规知识库”的“官方来源监控状态”，先读实时“待后台领取”“执行中”“首次未抓取”“最近检查失败”“复核关注”，再核对最近批次。各数字是可重叠集合，不能求和；“当时仍有后续积压”是历史批次事实，当前是否仍待领取以实时指标为准。面板刷新只读，不会触发抓取或复核。
 - 对 `changed`/`failed`、已到期人工复核、连续失败次数、异常长租约及 `monitor_result_discarded` 继续下钻审计；检查当天 `monitor_dispatch` 的 `batchLimit`、`dueCount`、`queuedCount`、`hasMoreDue`，默认批次为每组织 12 条。首次 73 条目录会分布在 7 个每日时间桶；若 `hasMoreDue=true` 连续超过 7 次扫描，先排查统一网络阻断、长租约和 worker 失败，再经容量记录调整 `COMPLIANCE_MONITOR_SWEEP_BATCH_SIZE`，不能直接拉到 250。核对到期、正文变化和连续第三次失败对应的高优先级任务、协调责任人、已送达站内通知，以及来源审计中的 `escalationTaskId`、`escalationNotificationId`、`escalationAssigneeId`、`assignmentStrategy`。202 排队、自动建任务或站内通知都不能当作抓取成功、法规已复核、协调人具备专业资质或问题已解决。
 
@@ -79,6 +80,17 @@ df -h /var/lib/docker /var/backups/fiatlux-choice
 ```sh
 ./scripts/compose.sh up -d --wait --force-recreate api worker
 ```
+
+### 顾问、工作流与备份租约失效
+
+1. 在“运行异常处置”记录事件 ID、失败运行 ID、当前版本和发现时间；该列表只来自同组织 `lease_expired` 审计，不是全部 worker 失败列表。
+2. 顾问检查模型调用/工具调用是否已经发生；工作流逐项核对 checkpoint 里的子资源；备份检查受控输出目录、scratch、partial、维护锁、对象和命令日志。页面“未记录部分结果”不能证明外部没有副作用。
+3. 若数据库已经记录模型输出、工作流步骤或备份产物，API 会拒绝“未发现部分副作用”，必须先完成人工补偿并提供补偿主记录引用。
+4. 处置提交必须包含至少 20 字调查说明、至少一项证据和 `NO_AUTOMATIC_REPLAY_ACKNOWLEDGED`。系统只追加 `manual_review_completed` 审计；原运行状态、版本、错误和输出保持不变，队列不会收到新任务。
+5. 同一事件只能处置一次；并发或重复提交返回 409。跨组织事件返回 404。来源记录缺失或引用损坏返回冲突时，按数据完整性事件升级，不要直接写审计伪造关闭。
+6. 确需重做时，先建立补偿/变更任务，再创建具有新 ID 和明确原因的新运行。完整用户步骤见[运行异常人工处置指南](../user/operational-incident-handling.md)。
+
+既有组织首次升级到该能力时，admin 需要新增 `operations-incidents:read` 和 `operations-incidents:update`。这属于关键权限变更：取得人工批准后使用 `SEED_MODE=system-role-maintenance` 补齐并核对审计；不得改用 `metadata-only` 或直接 SQL。
 
 ### 成员停用与离职处置
 

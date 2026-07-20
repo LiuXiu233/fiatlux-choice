@@ -20,6 +20,11 @@ import {
   MAX_FILE_SIZE_BYTES,
   membershipLifecycleRequestSchema,
   notificationMarkReadSchema,
+  operationalIncidentListQuerySchema,
+  operationalIncidentResolutionSchema,
+  operationalIncidentResolutionTypeSchema,
+  operationalIncidentStatusSchema,
+  operationalIncidentTypeSchema,
   type ResourceName,
   resourceContracts,
   updateSchemaFor,
@@ -935,6 +940,77 @@ addOperation("POST", "/api/v1/backups", {
   bodyRequired: false,
   body: zodSchema(backupCreateSchema),
   success: { 202: dataEnvelope(backupRecordSchema) },
+});
+
+const operationalIncidentResolutionDetailSchema = objectSchema({
+  auditEventId: uuidSchema,
+  resolution: zodSchema(operationalIncidentResolutionTypeSchema),
+  reviewSummary: { type: "string" },
+  evidenceReferences: arraySchema({ type: "string" }),
+  compensationReference: nullable({ type: "string" }),
+  resolvedAt: dateTimeJsonSchema,
+  resolvedByUserId: nullable(uuidSchema),
+  resolvedByDisplayName: nullable({ type: "string" }),
+});
+const operationalIncidentRecordSchema = objectSchema({
+  incidentId: uuidSchema,
+  sourceType: zodSchema(operationalIncidentTypeSchema),
+  sourceId: uuidSchema,
+  detectedAt: dateTimeJsonSchema,
+  title: { type: "string" },
+  currentStatus: nullable({ type: "string" }),
+  currentVersion: nullable({ type: "integer", minimum: 1 }),
+  sourceError: nullable({ type: "string" }),
+  sourceExists: { type: "boolean" },
+  possiblePartialEffects: { type: "boolean", const: true },
+  recordedPartialEffects: { type: "boolean" },
+  recordedPartialCount: nonNegativeIntegerSchema,
+  status: zodSchema(operationalIncidentStatusSchema),
+  resolution: nullable(operationalIncidentResolutionDetailSchema),
+});
+const operationalIncidentPaginationSchema = objectSchema(
+  {
+    page: { type: "integer", minimum: 1 },
+    pageSize: { type: "integer", minimum: 1, maximum: 100 },
+    total: nonNegativeIntegerSchema,
+    pageCount: nonNegativeIntegerSchema,
+    status: zodSchema(operationalIncidentStatusSchema),
+    type: zodSchema(operationalIncidentTypeSchema),
+  },
+  ["page", "pageSize", "total", "pageCount", "status"],
+);
+addOperation("GET", "/api/v1/operations/incidents", {
+  operationId: "listOperationalIncidents",
+  querystring: zodSchema(operationalIncidentListQuerySchema),
+  success: {
+    200: dataEnvelope(
+      arraySchema(operationalIncidentRecordSchema),
+      operationalIncidentPaginationSchema,
+    ),
+  },
+});
+const operationalIncidentResolutionRecordSchema = objectSchema({
+  resolutionAuditId: uuidSchema,
+  incidentId: uuidSchema,
+  sourceType: zodSchema(operationalIncidentTypeSchema),
+  sourceId: uuidSchema,
+  status: { type: "string", const: "resolved" },
+  resolution: zodSchema(operationalIncidentResolutionTypeSchema),
+  reviewSummary: { type: "string" },
+  evidenceReferences: arraySchema({ type: "string" }),
+  compensationReference: nullable({ type: "string" }),
+  resolvedAt: dateTimeJsonSchema,
+  resolvedByUserId: uuidSchema,
+  sourceStatus: nullable({ type: "string" }),
+  sourceVersion: nullable({ type: "integer", minimum: 1 }),
+  sourceRecordChanged: { type: "boolean", const: false },
+  automaticReplay: { type: "boolean", const: false },
+});
+addOperation("POST", "/api/v1/operations/incidents/:id/resolve", {
+  operationId: "resolveOperationalIncident",
+  params: idParamsSchema,
+  body: zodSchema(operationalIncidentResolutionSchema),
+  success: { 200: dataEnvelope(operationalIncidentResolutionRecordSchema) },
 });
 
 export function listOpenApiContracts() {

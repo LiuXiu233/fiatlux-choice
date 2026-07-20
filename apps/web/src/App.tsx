@@ -16,6 +16,11 @@ const EducationPage = lazy(async () => {
   return { default: module.EducationPage };
 });
 
+const OperationsPage = lazy(async () => {
+  const module = await import("./pages/operations-page");
+  return { default: module.OperationsPage };
+});
+
 function ScrollToTop() {
   const { pathname } = useLocation();
   useEffect(() => {
@@ -24,10 +29,10 @@ function ScrollToTop() {
   return null;
 }
 
-function RouteLoading() {
+function RouteLoading({ label }: { label: string }) {
   return (
     <div className="app-loading route-loading" role="status" aria-live="polite">
-      <span>正在加载电竞教育内容…</span>
+      <span>{label}</span>
     </div>
   );
 }
@@ -50,9 +55,17 @@ export function App() {
           <Route path="approvals" element={<ApprovalsPage />} />
           <Route path="advisors" element={<AdvisorsPage />} />
           <Route
+            path="operations"
+            element={
+              <Suspense fallback={<RouteLoading label="正在加载运行异常处置…" />}>
+                <OperationsPage />
+              </Suspense>
+            }
+          />
+          <Route
             path="education"
             element={
-              <Suspense fallback={<RouteLoading />}>
+              <Suspense fallback={<RouteLoading label="正在加载电竞教育内容…" />}>
                 <EducationPage />
               </Suspense>
             }

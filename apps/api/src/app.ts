@@ -32,6 +32,7 @@ import {
   openApiTransform,
   openApiTransformObject,
 } from "./openapi.js";
+import { registerOperationalIncidentRoutes } from "./operational-incident-routes.js";
 import { createBoundedReadinessProbe } from "./readiness.js";
 import { registerResourceRoutes } from "./resource-routes.js";
 import type { AppDependencies } from "./types.js";
@@ -210,6 +211,7 @@ export async function buildApp(dependencies: AppDependencies) {
   registerApprovalRoutes(app, dependencies, authenticate);
   registerFileRoutes(app, dependencies, authenticate);
   registerAdvisorRoutes(app, dependencies, authenticate);
+  registerOperationalIncidentRoutes(app, dependencies, authenticate);
   registerAdminRoutes(app, dependencies, authenticate);
   registerOperationsRoutes(app, dependencies, authenticate);
 

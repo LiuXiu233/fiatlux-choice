@@ -63,6 +63,7 @@ test("viewer 移动导航与更多菜单隐藏未授权模块", async ({ page },
   await expect(menu.getByRole("link", { name: "AI 顾问", exact: true })).toBeVisible();
   await expect(menu.getByRole("link", { name: "审批中心", exact: true })).toHaveCount(0);
   await expect(menu.getByRole("link", { name: "文件", exact: true })).toHaveCount(0);
+  await expect(menu.getByRole("link", { name: "运行异常处置", exact: true })).toHaveCount(0);
   await expect(menu.getByRole("link", { name: "集成与备份", exact: true })).toHaveCount(0);
 });
 
@@ -93,6 +94,7 @@ test("member 移动导航保留授权入口并隐藏系统管理入口", async (
   await expect(menu.getByRole("link", { name: "工作流", exact: true })).toBeVisible();
   await expect(menu.getByRole("link", { name: "成员与权限", exact: true })).toHaveCount(0);
   await expect(menu.getByRole("link", { name: "审计日志", exact: true })).toHaveCount(0);
+  await expect(menu.getByRole("link", { name: "运行异常处置", exact: true })).toHaveCount(0);
   await expect(menu.getByRole("link", { name: "集成与备份", exact: true })).toHaveCount(0);
 });
 

@@ -251,6 +251,24 @@ export async function installMockApi(
   };
   const membershipStatus = options.membershipStatus ?? "active";
   let pendingLifecycleAction: "deactivate" | "offboard" | "reactivate" | null = null;
+  const operationalIncidents: Array<Record<string, unknown>> = [
+    {
+      incidentId: "8feee8b8-6c3a-4360-b535-aef2ec87bc6f",
+      sourceType: "workflow-run",
+      sourceId: "ef79a0ed-e9df-412f-b0a9-3cb72df7665f",
+      detectedAt: "2026-07-20T02:30:00+08:00",
+      title: "每周经营检查",
+      currentStatus: "failed",
+      currentVersion: 5,
+      sourceError: "Worker execution lease expired; requires manual review",
+      sourceExists: true,
+      possiblePartialEffects: true,
+      recordedPartialEffects: true,
+      recordedPartialCount: 1,
+      status: "open",
+      resolution: null,
+    },
+  ];
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
     const url = new URL(request.url());
@@ -281,6 +299,77 @@ export async function installMockApi(
       return json(route, { data: { changed: true, revokedOtherSessions: 0 } });
     }
     if (path === "/dashboard") return json(route, { data: dashboard });
+    if (path === "/operations/incidents" && request.method() === "GET") {
+      const requestedStatus = url.searchParams.get("status") ?? "open";
+      const requestedType = url.searchParams.get("type");
+      const items = operationalIncidents.filter(
+        (incident) =>
+          incident.status === requestedStatus &&
+          (!requestedType || incident.sourceType === requestedType),
+      );
+      return json(route, {
+        data: items,
+        meta: {
+          page: 1,
+          pageSize: 20,
+          total: items.length,
+          pageCount: items.length ? 1 : 0,
+          status: requestedStatus,
+          ...(requestedType ? { type: requestedType } : {}),
+        },
+      });
+    }
+    const incidentResolutionMatch = /^\/operations\/incidents\/([^/]+)\/resolve$/.exec(path);
+    if (incidentResolutionMatch && request.method() === "POST") {
+      const incident = operationalIncidents.find(
+        (candidate) => candidate.incidentId === incidentResolutionMatch[1],
+      );
+      if (incident?.status !== "open") {
+        return json(route, { error: { message: "运行异常不存在或已经处置" } }, 409);
+      }
+      const input = request.postDataJSON() as Record<string, unknown>;
+      if (
+        input.resolution !== "manual_compensation_completed" ||
+        typeof input.reviewSummary !== "string" ||
+        input.reviewSummary.trim().length < 20 ||
+        !Array.isArray(input.evidenceReferences) ||
+        input.evidenceReferences.length === 0 ||
+        !input.compensationReference ||
+        input.acknowledgement !== "NO_AUTOMATIC_REPLAY_ACKNOWLEDGED"
+      ) {
+        return json(route, { error: { message: "运行异常处置输入无效" } }, 400);
+      }
+      incident.status = "resolved";
+      incident.resolution = {
+        auditEventId: "98d024f1-cbd8-4c3c-9781-40c1a7b283a5",
+        resolution: input.resolution,
+        reviewSummary: input.reviewSummary,
+        evidenceReferences: input.evidenceReferences,
+        compensationReference: input.compensationReference,
+        resolvedAt: "2026-07-20T03:30:00+08:00",
+        resolvedByUserId: sessionState.user.id,
+        resolvedByDisplayName: sessionState.user.displayName,
+      };
+      return json(route, {
+        data: {
+          resolutionAuditId: "98d024f1-cbd8-4c3c-9781-40c1a7b283a5",
+          incidentId: incident.incidentId,
+          sourceType: incident.sourceType,
+          sourceId: incident.sourceId,
+          status: "resolved",
+          resolution: input.resolution,
+          reviewSummary: input.reviewSummary,
+          evidenceReferences: input.evidenceReferences,
+          compensationReference: input.compensationReference,
+          resolvedAt: "2026-07-20T03:30:00+08:00",
+          resolvedByUserId: sessionState.user.id,
+          sourceStatus: incident.currentStatus,
+          sourceVersion: incident.currentVersion,
+          sourceRecordChanged: false,
+          automaticReplay: false,
+        },
+      });
+    }
     if (path === "/files" && request.method() === "GET") {
       return json(route, {
         data: [evidenceFile],

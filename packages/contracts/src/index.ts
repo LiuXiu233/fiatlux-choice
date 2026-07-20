@@ -171,6 +171,38 @@ export const listQuerySchema = z.object({
   category: z.string().trim().max(100).optional(),
 });
 
+export const operationalIncidentTypeSchema = z.enum(["advisor-run", "workflow-run", "backup"]);
+export const operationalIncidentStatusSchema = z.enum(["open", "resolved"]);
+export const operationalIncidentResolutionTypeSchema = z.enum([
+  "no_partial_effects_found",
+  "manual_compensation_completed",
+]);
+
+export const operationalIncidentListQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(20),
+  status: operationalIncidentStatusSchema.default("open"),
+  type: operationalIncidentTypeSchema.optional(),
+});
+
+export const operationalIncidentResolutionSchema = z
+  .object({
+    resolution: operationalIncidentResolutionTypeSchema,
+    reviewSummary: z.string().trim().min(20).max(5_000),
+    evidenceReferences: z.array(z.string().trim().min(1).max(500)).min(1).max(20),
+    compensationReference: z.string().trim().min(1).max(500).optional(),
+    acknowledgement: z.literal("NO_AUTOMATIC_REPLAY_ACKNOWLEDGED"),
+  })
+  .superRefine((input, context) => {
+    if (input.resolution === "manual_compensation_completed" && !input.compensationReference) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["compensationReference"],
+        message: "A compensation reference is required when manual compensation is completed",
+      });
+    }
+  });
+
 export const loginSchema = z.object({
   email: z.string().trim().toLowerCase().email().max(320),
   password: z.string().min(10).max(256),

@@ -67,6 +67,62 @@ test("电竞教育工作台呈现可审阅内容包、官网清理与人工上�
   expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.clientWidth + 1);
 });
 
+test("租约失效运行必须经证据化人工补偿且不会自动重放", async ({ page }) => {
+  await login(page);
+  await page.goto("/operations");
+
+  await expect(page.getByRole("heading", { name: "运行异常处置" })).toBeVisible();
+  await expect(page.getByText("租约失效不等于安全重试")).toBeVisible();
+  const incident = page.getByRole("article").filter({ hasText: "每周经营检查" });
+  await expect(incident.getByText("待人工处置")).toBeVisible();
+  await expect(incident.getByText("1 项")).toBeVisible();
+  await expect(incident.getByText(/不要重放旧运行/)).toBeVisible();
+  await incident.getByRole("button", { name: "调查并记录处置" }).click();
+
+  const dialog = page.getByRole("dialog", { name: "调查并记录运行异常处置" });
+  await expect(dialog.getByLabel("调查结论")).toHaveValue("manual_compensation_completed");
+  await expect(dialog.getByLabel("调查结论").getByText("调查后未发现部分副作用")).toHaveCount(0);
+  await dialog
+    .getByLabel("调查与核对说明")
+    .fill("已核对部分创建的任务并完成业务补偿，保留原失败运行作为审计证据。");
+  await dialog
+    .getByLabel("证据引用（每行一项）")
+    .fill(["audit:8feee8b8-6c3a-4360-b535-aef2ec87bc6f", "task:compensation-20260720"].join("\n"));
+  await dialog.getByLabel("补偿主记录引用").fill("task:compensation-20260720");
+  await dialog
+    .getByLabel("我已确认旧运行不会自动重放；如需重做，将创建一个具有明确原因的新运行。")
+    .check();
+  const resolutionRequest = page.waitForRequest(
+    (request) =>
+      new URL(request.url()).pathname ===
+        "/api/v1/operations/incidents/8feee8b8-6c3a-4360-b535-aef2ec87bc6f/resolve" &&
+      request.method() === "POST",
+  );
+  await dialog.getByRole("button", { name: "记录调查结论" }).click();
+  expect((await resolutionRequest).postDataJSON()).toEqual({
+    resolution: "manual_compensation_completed",
+    reviewSummary: "已核对部分创建的任务并完成业务补偿，保留原失败运行作为审计证据。",
+    evidenceReferences: [
+      "audit:8feee8b8-6c3a-4360-b535-aef2ec87bc6f",
+      "task:compensation-20260720",
+    ],
+    compensationReference: "task:compensation-20260720",
+    acknowledgement: "NO_AUTOMATIC_REPLAY_ACKNOWLEDGED",
+  });
+  await expect(page.getByText("当前没有待人工处置的运行异常")).toBeVisible();
+
+  await page.getByRole("tab", { name: "已记录处置" }).click();
+  await expect(page.getByText("已完成并核对人工补偿")).toBeVisible();
+  await expect(page.getByText("task:compensation-20260720")).toBeVisible();
+  await expect(page.getByRole("button", { name: "调查并记录处置" })).toHaveCount(0);
+
+  const dimensions = await page.evaluate(() => ({
+    scrollWidth: document.documentElement.scrollWidth,
+    clientWidth: document.documentElement.clientWidth,
+  }));
+  expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.clientWidth + 1);
+});
+
 test("高风险付款批准后仍显示等待外部执行", async ({ page }) => {
   await login(page);
   if ((page.viewportSize()?.width ?? 1024) <= 720) {

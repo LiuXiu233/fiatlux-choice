@@ -140,8 +140,12 @@ describe("database schema invariants", () => {
         "external-actions:*",
         "audit-events:read",
         "backups:*",
+        "operations-incidents:read",
+        "operations-incidents:update",
       ]),
     );
+    expect(SYSTEM_ROLE_PERMISSIONS.member).not.toContain("operations-incidents:read");
+    expect(SYSTEM_ROLE_PERMISSIONS.viewer).not.toContain("operations-incidents:read");
   });
 
   it("lets members create files without granting global metadata updates", () => {

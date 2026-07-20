@@ -56,7 +56,7 @@ flowchart LR
 | 协作自动化 | notifications、workflow_definitions、workflow_runs | 受限步骤类型、后台执行、明确失败 |
 | 审批与外部动作 | approvals、external_actions | 高风险默认审批、真实状态机、回执证据 |
 | AI 顾问 | prompt_versions、advisor_runs、model/tool calls、citations、edits | 双重权限过滤、上下文快照、证据白名单 |
-| 运维 | integration_checks、backups | 检查结果审计；生产完整备份走受控适配器 |
+| 运维 | integration_checks、backups、lease-expired 处置审计 | 检查结果审计；人工处置不重放失败运行；生产完整备份走受控适配器 |
 
 模块之间通过记录 ID、领域函数和同库事务协作，不通过内部 HTTP。
 
@@ -88,6 +88,7 @@ flowchart LR
 - 顾问运行、上下文工具记录、引用和审计。
 - 顾问人工修改、编辑历史和审计。
 - 合规来源专业复核、当前 provenance、证据引用和追加审计。
+- `lease_expired` 人工处置通过事件 UUID 的事务级 advisory lock 保证一次关闭，只追加 `manual_review_completed`，不修改原运行或调用队列，也不要求审计表 UPDATE 权限。
 
 对 PostgreSQL 与 MinIO 的跨存储操作无法使用单个数据库事务，因此文件采用“声明元数据—上传内容—校验完成”的状态流程。专业复核只能引用已经完成该流程的 `uploaded` 文件；当前行和历史 `professional_review` 审计都会阻止证据软归档。备份默认暂停写入以减少数据库和对象存储时间点不一致。
 
@@ -116,6 +117,8 @@ pg-boss 与业务共用 PostgreSQL，避免为小团队维护额外消息系统�
 普通任务最多重试 5 次，带退避和有效期。处理器必须使用 orgId、幂等状态和审计，重复投递不能产生虚假外部动作。合规来源的每日领取上限只控制新 job 数，不吞掉到期状态、不修改失败次数，也不限制有权用户逐条人工触发；积压由 `monitor_dispatch.hasMoreDue` 明示。备份任务的队列有效期必须与数据库 claim lease 对齐；不要把通用 10 分钟 active expiry 复用于可能运行一小时的备份命令。
 
 合规监控运营状态采用 API 内的组织作用域只读查询模型，不新增物化表、缓存或微服务。PostgreSQL 条件聚合提供当前来源/租约/机器状态/人工复核工作量，另以同组织、同资源身份的最新 `monitor_dispatch` 追加审计补充最近派发事实。响应先通过共享契约校验；不完整 legacy metadata 降级为无批次记录。Web 只展示这些事实并单独说明机器状态、历史派发和专业结论的边界，刷新不产生业务写入。
+
+运行异常处置同样留在模块化单体内，不新增事件服务或可变 incident 表。API 以同组织 `lease_expired` 审计为不可变事件身份，连接当前 advisor/workflow/backup 记录，并只把带 schema version、证据和禁止重放确认的 `manual_review_completed` 视为有效关闭。处置事务按事件 UUID 获取 PostgreSQL advisory lock，因而并发请求只能追加一次；它不会对追加式审计表申请行更新锁或扩大 runtime 的 UPDATE/DELETE 权限。原运行状态、版本、错误和 partial output 不变。这个派生读取模型会自动覆盖功能上线前已经存在的租约事件，同时保留审计追加语义。
 
 ## 8. 集成适配器
 

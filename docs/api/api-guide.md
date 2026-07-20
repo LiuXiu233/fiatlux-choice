@@ -174,6 +174,8 @@ POST 使用对应 create schema。PATCH 使用 create schema 的部分字段，�
 | POST /compliance-items/:id/reviews | 登记版本绑定、证据支持的专业复核；需要 `compliance-items:update` 与 `files:read` |
 | GET /settings/integrations、POST /settings/integrations/:id/test | 集成边界和连接探测 |
 | GET/POST /backups | 查看或排队备份任务 |
+| GET /operations/incidents | 按组织列出顾问、工作流和备份的 `lease_expired` 人工处置事项 |
+| POST /operations/incidents/:id/resolve | 追加证据化人工调查结论；不重放或修改原失败运行 |
 | GET /advisors、提示词版本和 advisor-runs 路由 | 权限感知顾问与审计，详见第 11 节 |
 
 OAS 3.1 是当前候选的机器可读接口清单；运行时 Zod/领域校验仍是实际执行边界。发现文档与运行时不一致时应作为契约缺陷处理并阻断兼容性发布，不能在客户端静默猜测。
@@ -422,10 +424,31 @@ POST /external-actions/:id/transition 记录状态变化。manual 进入 submitt
 | GET /settings/integrations | 列出集成模式 |
 | POST /settings/integrations/:id/test | 测试连接并审计结果 |
 | GET/POST /backups | 列出或排队备份任务 |
+| GET /operations/incidents | `operations-incidents:read`；分页读取租约失效处置事项 |
+| POST /operations/incidents/:id/resolve | `operations-incidents:update`；追加人工调查审计 |
 
 连接测试只验证可达性，不执行业务动作。external-manual 测试只确认人工适配器可用。
 
-POST /backups 的 scope 为 database、files 或 full。没有受控 BACKUP_COMMAND 时，worker 只支持 database；files/full 会明确失败。内置 database-only 导出不是完整灾备恢复点，也不持有主机 Ed25519 签名私钥。生产完整备份与恢复使用管理员脚本，由一次性容器完成 age 加密、来源签名和人工批准边界。
+POST /backups 当前只接受 `scope=database`（省略时同样为 database）。files/full 必须使用管理员完整备份脚本，Web/API 会在入队前拒绝这些 scope，不会排入一个注定失败的伪完整备份。内置 database-only 导出不是完整灾备恢复点，也不持有主机 Ed25519 签名私钥。生产完整备份与恢复使用管理员脚本，由一次性容器完成 age 加密、来源签名和人工批准边界。
+
+`GET /operations/incidents` 支持 `page`、`pageSize`、`status=open|resolved` 和可选 `type=advisor-run|workflow-run|backup`。每项包含租约审计 ID、原运行 ID/状态/版本、脱敏错误、数据库是否已记录部分结果，以及可空人工处置。它只汇总 `lease_expired`，不是所有 worker 失败列表；“未记录部分结果”也不证明外部没有副作用。缺少受控 schema version、证据或禁止重放确认的旧/伪造处置审计不会关闭事项。
+
+处置请求示例：
+
+~~~json
+{
+  "resolution": "manual_compensation_completed",
+  "reviewSummary": "已核对工作流 checkpoint 与目标任务，并完成业务补偿；原失败运行保留。",
+  "evidenceReferences": [
+    "audit:租约事件 UUID",
+    "task:补偿任务 UUID"
+  ],
+  "compensationReference": "task:补偿任务 UUID",
+  "acknowledgement": "NO_AUTOMATIC_REPLAY_ACKNOWLEDGED"
+}
+~~~
+
+`resolution` 只能是 `no_partial_effects_found` 或 `manual_compensation_completed`。调查说明至少 20 字，证据至少一项；选择人工补偿时主补偿引用必填。数据库已经记录模型输出、工作流 partial output 或备份产物时，服务端拒绝“未发现部分副作用”。成功只新增 `manual_review_completed` 审计，返回 `sourceRecordChanged=false`、`automaticReplay=false`；原记录、队列、模型、工作流和备份命令均不变。同一事件并发关闭只有一个 200，其他请求 409；跨组织 ID 按 404 处理。
 
 ## 13. 健康检查
 

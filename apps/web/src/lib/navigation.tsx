@@ -30,6 +30,7 @@ import {
   Target,
   Users,
   Workflow,
+  Wrench,
 } from "lucide-react";
 
 export interface NavItem {
@@ -163,6 +164,12 @@ export const navGroups: NavGroup[] = [
   {
     label: "系统",
     items: [
+      {
+        label: "运行异常处置",
+        path: "/operations",
+        icon: Wrench,
+        permission: "operations-incidents:read",
+      },
       { label: "成员与权限", path: "/resources/users", icon: Users, permission: "users:read" },
       {
         label: "审计日志",

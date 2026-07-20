@@ -15,6 +15,8 @@ import {
   membershipLifecycleRequestSchema,
   moneyCentsSchema,
   notificationCreateSchema,
+  operationalIncidentListQuerySchema,
+  operationalIncidentResolutionSchema,
   opportunityCreateSchema,
   productCreateSchema,
   roleAssignmentApprovalPayloadSchema,
@@ -29,6 +31,35 @@ describe("HTTP contracts", () => {
       page: 2,
       pageSize: 25,
     });
+  });
+
+  it("requires evidence and an explicit no-replay acknowledgement for incident resolution", () => {
+    expect(
+      operationalIncidentListQuerySchema.parse({ page: "2", status: "resolved", type: "backup" }),
+    ).toMatchObject({ page: 2, pageSize: 20, status: "resolved", type: "backup" });
+    expect(
+      operationalIncidentResolutionSchema.parse({
+        resolution: "no_partial_effects_found",
+        reviewSummary: "已核对运行审计、目标记录和外部系统日志，未发现部分副作用。",
+        evidenceReferences: ["audit:event-1", "log:worker-20260720"],
+        acknowledgement: "NO_AUTOMATIC_REPLAY_ACKNOWLEDGED",
+      }),
+    ).toMatchObject({ resolution: "no_partial_effects_found" });
+    expect(
+      operationalIncidentResolutionSchema.safeParse({
+        resolution: "manual_compensation_completed",
+        reviewSummary: "已核对并完成补偿，但没有提供补偿记录引用。",
+        evidenceReferences: ["audit:event-1"],
+        acknowledgement: "NO_AUTOMATIC_REPLAY_ACKNOWLEDGED",
+      }).success,
+    ).toBe(false);
+    expect(
+      operationalIncidentResolutionSchema.safeParse({
+        resolution: "no_partial_effects_found",
+        reviewSummary: "说明文字长度足够，但没有人工确认禁止自动重放。",
+        evidenceReferences: ["audit:event-1"],
+      }).success,
+    ).toBe(false);
   });
 
   it("normalizes browser-local Chinese dates before PostgreSQL storage", () => {
