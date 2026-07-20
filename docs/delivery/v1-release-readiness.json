@@ -379,8 +379,15 @@
       "id": "education_content_clearance",
       "status": "blocked",
       "ownerRole": "教育内容与法务发布负责人",
-      "summary": "十二篇成年人电竞教育内部草案已完成结构化实现，但事实、专业、著作权、肖像隐私和官网发布批准均保持待审。",
+      "summary": "十二篇成年人电竞教育内部草案及逐篇失败关闭证据入口已完成结构化实现，但真实问卷、事实、专业、著作权、肖像隐私、公开发布和批准均保持待审。",
       "evidence": [
+        {
+          "kind": "machine_evidence",
+          "result": "not_run",
+          "reference": "docs/admin/education-content-clearance.md#8-当前状态与门禁回填",
+          "verifiedAt": "2026-07-20T18:58:00+08:00",
+          "note": "只有合同、模板和模拟公开 HTTP 的实现测试；尚无绑定候选提交及真实 19 个公开 URL 的放行报告。"
+        },
         {
           "kind": "professional_review",
           "result": "blocked",
@@ -408,10 +415,10 @@
         }
       ],
       "blockers": [
-        "十二篇草案尚未逐篇完成专业事实、来源、权利、隐私和内容安全核验。",
-        "尚未取得可识别发布批准，也没有 WordPress 真实发布回填证据。"
+        "九项真实上线问卷及十二篇专业事实、来源、权利、隐私、健康、内容安全和内部试讲尚未完成。",
+        "尚未取得逐篇和最终可识别批准，没有 WordPress 真实发布回填，也未处置并验证七篇旧模板页面。"
       ],
-      "reviewedAt": "2026-07-20T12:07:56+08:00"
+      "reviewedAt": "2026-07-20T18:58:00+08:00"
     },
     {
       "id": "operational_responsibility_drills",

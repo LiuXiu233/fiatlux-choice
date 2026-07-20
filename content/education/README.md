@@ -9,6 +9,7 @@
 - 两个内容包都独立保存正文、模板、练习、适用范围、负责人、审阅角色、权利状态、来源、AI 辅助披露和外部发布边界；Web 加载层校验每包后再合并。
 - `education-content.schema.json`：由 TypeScript 结构 Schema 生成的 JSON Schema，供编辑器和内容工具检查。
 - 可执行结构与跨记录语义校验器：`apps/web/src/lib/education-content-schema.ts`。
+- V1 逐篇专业/事实/权利/公开发布放行采用[失败关闭证据流程](../../docs/admin/education-content-clearance.md)；它从候选 Git 提交生成 12 篇快照并只读核验真实 `fiatlux.gg` 页面，不提供 WordPress 写入能力。
 
 ## 当前内容包
 
@@ -34,8 +35,8 @@
 3. 执行 `pnpm content:education:schema` 更新 JSON Schema。不要手工维护生成文件。
 4. 执行 `pnpm content:education:validate`。校验器会分别检查两个内容包，再验证合并后的 12 篇内容库；相同来源标识只有完整治理元数据一致时才会去重，来源冲突、文章标识或 slug 重复、结构版本不一致都会失败关闭。
 5. 执行 Web 类型、单元、端到端和桌面/移动浏览器验证。
-6. 由列明的业务、教练、法务合规、隐私、健康内容及素材权利复核人逐项审阅；不能由开发人员批量伪造 `reviewed` 或 `cleared`。
-7. 只有人工复核和权利证据完成后，获授权人员才能在 WordPress 外部系统人工发布。发布后回填真实 URL、发布日期和证据，再变更站内状态。
+6. 由列明的业务、教练、法务合规、隐私、健康内容及素材权利复核人逐项审阅；不能由开发人员批量伪造 `reviewed` 或 `cleared`。发布候选应使用 `pnpm delivery:education-content:template` 生成绑定精确提交的逐篇会话。
+7. 只有人工复核和权利证据完成后，获授权人员才能在 WordPress 外部系统人工发布。发布后回填真实 URL、发布日期、逐篇批准和独立附件，再运行 `pnpm delivery:education-content:verify`；该验证只读公开页面且不替代专业判断或批准真实性复核。
 
 ## 内容边界
 

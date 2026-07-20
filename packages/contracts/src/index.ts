@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+export * from "./education-content-clearance.js";
 export * from "./real-adapter-acceptance.js";
 
 export const idSchema = z.string().uuid();
@@ -1295,7 +1296,12 @@ const requiredEvidenceKinds = {
   production_backup_restore: ["machine_evidence", "approval"],
   real_llm_github_adapters: ["machine_evidence", "approval"],
   compliance_professional_review: ["professional_review", "approval"],
-  education_content_clearance: ["professional_review", "external_publication", "approval"],
+  education_content_clearance: [
+    "machine_evidence",
+    "professional_review",
+    "external_publication",
+    "approval",
+  ],
   operational_responsibility_drills: ["target_environment", "approval"],
   residual_risk_decisions: ["risk_decision", "approval"],
   known_blocking_defects_closed: ["risk_decision", "approval"],
@@ -1427,6 +1433,23 @@ export const v1ReleaseReadinessManifestSchema = z
           code: z.ZodIssueCode.custom,
           path: ["gates", index, "evidence"],
           message: "本地通过门禁必须有绑定 implementationCommit 的成功机器证据",
+        });
+      }
+
+      if (
+        gate.id === "education_content_clearance" &&
+        gate.status === "passed" &&
+        !gate.evidence.some(
+          ({ kind, result, subjectCommit }) =>
+            kind === "machine_evidence" &&
+            result === "success" &&
+            subjectCommit === manifest.candidate.implementationCommit,
+        )
+      ) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["gates", index, "evidence"],
+          message: "教育内容放行必须有绑定 implementationCommit 的逐篇机器验证报告",
         });
       }
 

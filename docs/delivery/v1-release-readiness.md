@@ -76,6 +76,7 @@ pnpm exec tsx scripts/verify-v1-release-readiness.ts --file /absolute/path/to/ma
 - GitHub 门禁必须有两个不同的绿色 run，分别覆盖 CI 与 Security，并绑定同一 `evidenceCommit`。
 - GHCR 门禁必须有绑定 `evidenceCommit` 的绿色 `release` workflow，并分别有 `api`、`postgres`、`minio`、`worker`、`web`、`gateway`、`backup` 七个不同的成功 registry 制品引用。本地 image ID 不能代替 registry digest。
 - 目标内网、真机 PWA、生产恢复、真实适配器、专业复核、教育发布、运营演练、残余风险、阻断缺陷和业务发布门禁必须保留可识别批准人、角色、时间和批准引用；批准元数据必须与成功 approval 证据引用一致。
+- 教育发布门禁还必须有绑定 `implementationCommit` 的逐篇机器报告；报告须覆盖候选 Git 内容快照、九项事实问卷、十二篇八类复核与权利、逐篇人工批准、公开页面和七篇旧模板处置。工具测试或一张笼统签字不能替代真实报告。
 - `restore.sh` 的操作者、理由和批准引用只是输入断言，主机报告中的 `approvalIndependentlyVerified` 必须保持 `false`；只有独立渠道复核原始审批、报告哈希、目标环境和介质/RPO/RTO 后才能更新生产恢复门禁。
 - `pending`、`todo`、`tbd` 等孤立占位值不能作为证据引用；阻断状态可以引用真实存在的待办、审批或受控登记编号，但不能把它改写成成功。
 - 银行、税务、发票红冲、正式签章、人事处分、关键权限和对外法律承诺继续由业务工作流的人工批准控制；本发布清单不执行任何外部动作。
@@ -93,7 +94,7 @@ pnpm exec tsx scripts/verify-v1-release-readiness.ts --file /absolute/path/to/ma
 | `production_backup_restore` | 生产范围备份、异介质隔离恢复及 RPO/RTO | 是 |
 | `real_llm_github_adapters` | 真实最小权限适配器、隐私、质量、成本和停用 | 是 |
 | `compliance_professional_review` | 适用范围内的真实专业复核记录 | 是 |
-| `education_content_clearance` | 逐篇专业/事实/权利复核及真实发布登记 | 是 |
+| `education_content_clearance` | 绑定实现提交的[逐篇机器报告](../admin/education-content-clearance.md)、专业/事实/权利复核、12 篇真实发布、七篇旧模板处置 | 是 |
 | `operational_responsibility_drills` | 真实责任人的审批、异常和补偿控制演练 | 是 |
 | `residual_risk_decisions` | 每项残余风险的整改或书面接受决定 | 是 |
 | `known_blocking_defects_closed` | 阻断缺陷清零或经批准判定不阻断 | 是 |
@@ -104,7 +105,7 @@ pnpm exec tsx scripts/verify-v1-release-readiness.ts --file /absolute/path/to/ma
 1. 冻结实现提交，记录完整小写 40 位 `implementationCommit`；任何功能、迁移、运行时依赖或镜像输入变化都产生新候选。
 2. 在精确提交上完成适当范围的本地测试和安全复核，保存脱敏机器证据、SHA-256、执行时间和范围边界。
 3. 冻结用于 GitHub/GHCR 验证的 `evidenceCommit`。CI、Security、release run 和七个 registry 制品必须精确绑定该提交，不能混用历史绿色结果。
-4. 逐项更新证据和 blocker。没有真实执行、凭据、设备、目标环境或专业人员时保持 `blocked`，不得预填成功。
+4. 逐项更新证据和 blocker。没有真实执行、凭据、设备、目标环境或专业人员时保持 `blocked`，不得预填成功。教育内容先从候选提交生成故意失败的受保护模板，真实逐篇完成后才运行公开页面只读验证；模板或模拟 HTTP 测试本身不能关闭门禁。
 5. 由真实责任人通过公司批准渠道形成批准记录，再将同一记录编号写入 `approval` 元数据和成功的 approval 证据。系统或开发者不能替代法务、财税、运维、风险或公司负责人签署。
 6. 运行 `pnpm check`、`pnpm delivery:v1:status` 和人工证据抽查。准备最终证明时必须再运行 `pnpm delivery:v1:require-ready` 与 `pnpm delivery:v1:verify-platform`。
 7. 机器清单随候选证据提交；后续任何源码漂移都要重新评估受影响门禁。若只提交证据文档，应明确它不改变被验证的实现或制品身份。

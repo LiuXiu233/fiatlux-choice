@@ -196,6 +196,11 @@ function makeReadyManifest(): V1ReleaseReadinessManifest {
       passedGate(
         "education_content_clearance",
         [
+          evidence(
+            "machine_evidence",
+            "machine-evidence:education-content-clearance:session-001",
+            implementationCommit,
+          ),
           evidence("professional_review", "professional-review:education-library:batch-001"),
           evidence("external_publication", "https://fiatlux.gg/education/publication-register/001"),
           approvalEvidence("education_content_clearance"),
@@ -316,6 +321,23 @@ describe("V1 release readiness manifest", () => {
     const wrongCommit = structuredClone(makeReadyManifest());
     evidenceAt(gateById(wrongCommit, "local_security_and_sensitive_data"), 0).subjectCommit =
       evidenceCommit;
+    expect(v1ReleaseReadinessManifestSchema.safeParse(wrongCommit).success).toBe(false);
+  });
+
+  it("binds education clearance machine evidence to the implementation commit", () => {
+    const missingMachineEvidence = structuredClone(makeReadyManifest());
+    gateById(missingMachineEvidence, "education_content_clearance").evidence = gateById(
+      missingMachineEvidence,
+      "education_content_clearance",
+    ).evidence.filter(({ kind }) => kind !== "machine_evidence");
+    expect(v1ReleaseReadinessManifestSchema.safeParse(missingMachineEvidence).success).toBe(false);
+
+    const wrongCommit = structuredClone(makeReadyManifest());
+    const machineEvidence = gateById(wrongCommit, "education_content_clearance").evidence.find(
+      ({ kind }) => kind === "machine_evidence",
+    );
+    if (!machineEvidence) throw new Error("Missing education machine evidence");
+    machineEvidence.subjectCommit = evidenceCommit;
     expect(v1ReleaseReadinessManifestSchema.safeParse(wrongCommit).success).toBe(false);
   });
 
