@@ -121,7 +121,13 @@
     "freshRealStackBrowser": {
       "command": "REAL_E2E_DATABASE_URL=<isolated-loopback-url> REAL_E2E_S3_ENDPOINT=<isolated-loopback-url> ./scripts/e2e-real-stack.sh",
       "status": "passed",
-      "dependencies": ["fresh PostgreSQL 17.10", "fresh MinIO bucket", "real Fastify API", "real pg-boss worker", "real Vite web"],
+      "dependencies": [
+        "fresh PostgreSQL 17.10",
+        "fresh MinIO bucket",
+        "real Fastify API",
+        "real pg-boss worker",
+        "real Vite web"
+      ],
       "projects": ["real-desktop-chromium", "real-mobile-chromium"],
       "testsPassed": 6,
       "testsFailed": 0,
