@@ -2,19 +2,19 @@
   "schemaVersion": 1,
   "versionLabel": "V1 controlled candidate",
   "overallStatus": "blocked",
-  "evaluatedAt": "2026-07-21T00:06:44+08:00",
+  "evaluatedAt": "2026-07-21T01:25:52+08:00",
   "candidate": {
     "repository": "https://github.com/LiuXiu233/fiatlux-choice",
     "branch": "codex/v1-acceptance-hardening",
     "implementationCommit": "4391837e0c2b91fa58b2269a26b2cbb3294347b6",
-    "evidenceCommit": "49278ce7f8de5c5a8fe57d0854f138e83652349f"
+    "evidenceCommit": "4f309791fef7271a2919135393ab8b88167cd4c9"
   },
   "gates": [
     {
       "id": "local_core_acceptance",
       "status": "passed",
       "ownerRole": "研发与交付负责人",
-      "summary": "核心闭环、真实栈、浏览器、移动端、PWA、运行异常、教育内容、生产恢复防护、真实适配器、逐篇放行入口、WordPress 内部审阅包和受控审计导出已有分层本地机器证据。",
+      "summary": "核心闭环、真实栈、浏览器、移动端、PWA、运行异常、教育内容、生产恢复防护、真实适配器、逐篇放行入口、WordPress 内部审阅包和受控审计导出已有分层本地机器证据；另有 9de2b56 远端 Ubuntu 验收部署、真实 HTTPS 和 6/6 E2E 增量。",
       "evidence": [
         {
           "kind": "machine_evidence",
@@ -123,16 +123,25 @@
           "subjectCommit": "4391837e0c2b91fa58b2269a26b2cbb3294347b6",
           "sha256": "d7c0be8675e2076a0efcb173d1d37584a5e87b23669997946069a4ce790ccf35",
           "note": "当前候选 exact-SHA 的双权限受控审计导出、PostgreSQL API 95/95、mock 51+7、全新真实栈 desktop/mobile 6/6、响应/浏览器 SHA-256、自身追加审计和三张受影响应用镜像验收；不证明下载后保留、转发或销毁。"
+        },
+        {
+          "kind": "target_environment",
+          "result": "success",
+          "reference": "docs/delivery/evidence/remote-server-acceptance-9de2b56-20260721.json",
+          "verifiedAt": "2026-07-21T01:25:52+08:00",
+          "subjectCommit": "9de2b56a2fe2943c9ddf038eefe5a5b11b53eb06",
+          "sha256": "18ebaf92188def38a4c42569cc0a07cecd0761e62baf54451a66255e6432ecc1",
+          "note": "远端 Ubuntu 24.04 x86_64 源码构建、可信 HTTPS、首登改密、部署验证、桌面/移动/PWA、真实栈 6/6、systemd 重启和签名隔离恢复通过；是远端验收部署，不是 GHCR、广州办公内网或 V1 生产批准。"
         }
       ],
       "blockers": [],
-      "reviewedAt": "2026-07-20T23:51:49+08:00"
+      "reviewedAt": "2026-07-21T01:25:52+08:00"
     },
     {
       "id": "local_security_and_sensitive_data",
       "status": "passed",
       "ownerRole": "信息安全负责人",
-      "summary": "当前 4391837 实现提交已完成源码、完整历史、生产依赖和 Semgrep 复核，并对 API/worker/Web 三张实际受影响应用镜像完成 Trivy/SPDX；历史七镜像证据继续分列，未发现敏感数据或阻断漏洞。",
+      "summary": "当前 4391837 实现提交已完成源码、完整历史、生产依赖和 Semgrep 复核；9de2b56 远端 Ubuntu 源码构建的七类 linux/amd64 镜像又以当前 Trivy 数据库完成 HIGH/CRITICAL 0 和 SPDX，未发现敏感数据或阻断漏洞。",
       "evidence": [
         {
           "kind": "machine_evidence",
@@ -223,10 +232,19 @@
           "subjectCommit": "4391837e0c2b91fa58b2269a26b2cbb3294347b6",
           "sha256": "d7c0be8675e2076a0efcb173d1d37584a5e87b23669997946069a4ce790ccf35",
           "note": "当前候选 Gitleaks 当前树/完整历史、生产依赖 0、Semgrep 10/10 canary/109 目标 0 finding，以及 API/worker/Web Trivy HIGH/CRITICAL 0 和 SPDX 204/225/176 packages 通过；没有冒充七镜像或 GHCR。"
+        },
+        {
+          "kind": "target_environment",
+          "result": "success",
+          "reference": "docs/delivery/evidence/remote-server-acceptance-9de2b56-20260721.json#supplyChain",
+          "verifiedAt": "2026-07-21T01:25:52+08:00",
+          "subjectCommit": "9de2b56a2fe2943c9ddf038eefe5a5b11b53eb06",
+          "sha256": "18ebaf92188def38a4c42569cc0a07cecd0761e62baf54451a66255e6432ecc1",
+          "note": "目标服务器实际运行的 postgres/API/worker/Web/gateway/MinIO/backup 七类 amd64 镜像均以固定 Trivy 0.70.0 扫描 HIGH/CRITICAL 0，并生成 47/204/214/178/178/375/168 个包的 SPDX；本地 image ID 不冒充 GHCR digest。"
         }
       ],
       "blockers": [],
-      "reviewedAt": "2026-07-20T23:51:49+08:00"
+      "reviewedAt": "2026-07-21T01:25:52+08:00"
     },
     {
       "id": "github_ci_security",
@@ -283,7 +301,7 @@
       "id": "target_intranet_deployment",
       "status": "blocked",
       "ownerRole": "目标环境运维负责人",
-      "summary": "目标内网机器证明入口已完成本地失败关闭验收，但尚未在耀光广州办公内网使用真实主机、DNS、CA、防火墙和备份介质部署或运行。",
+      "summary": "43.165.189.222 已完成真实 Ubuntu、choice.fiatlux.gg、可信 HTTPS、防火墙、systemd、备份和运行观察验收；该 2 GB/40 GB 公网远端验收环境仍不是已批准的耀光广州办公内网或最终 GHCR 发布。",
       "evidence": [
         {
           "kind": "target_environment",
@@ -293,6 +311,15 @@
           "note": "scripts/verify-target-intranet.sh 的 stub/macOS/Linux 测试只证明采集入口；本地 production-like Compose 和测试 JSON 都不是耀光广州办公内网验收。"
         },
         {
+          "kind": "target_environment",
+          "result": "success",
+          "reference": "docs/delivery/evidence/remote-server-acceptance-9de2b56-20260721.json#deployment",
+          "verifiedAt": "2026-07-21T01:25:52+08:00",
+          "subjectCommit": "9de2b56a2fe2943c9ddf038eefe5a5b11b53eb06",
+          "sha256": "18ebaf92188def38a4c42569cc0a07cecd0761e62baf54451a66255e6432ecc1",
+          "note": "真实远端服务器已部署并通过可信 HTTPS、六服务健康、部署验证、最小权限、重启、systemd/UFW 和日志复查；环境明确标记 remote_acceptance，未运行最终 release manifest 绑定的 verify-target-intranet.sh。"
+        },
+        {
           "kind": "approval",
           "result": "not_run",
           "reference": "approval:v1:target-intranet-deployment:pending",
@@ -300,16 +327,16 @@
         }
       ],
       "blockers": [
-        "缺少目标办公内网主机、DNS、CA、防火墙、凭据、备份介质和运行观察证据。",
-        "缺少目标环境运维负责人的可识别验收批准。"
+        "当前远端主机只有 2 CPU、约 2 GB 内存和 40 GB 系统盘，低于文档生产建议，并通过公网 443 提供验收访问；尚未证明广州办公内网、VPN/访问源限制或生产容量。",
+        "尚无绑定最终绿色 GitHub/GHCR 七制品清单的目标机器证明，也缺少目标环境运维负责人的可识别验收批准。"
       ],
-      "reviewedAt": "2026-07-20T13:30:13+08:00"
+      "reviewedAt": "2026-07-21T01:25:52+08:00"
     },
     {
       "id": "managed_device_pwa",
       "status": "blocked",
       "ownerRole": "终端与业务验收负责人",
-      "summary": "候选构建身份、受管真机会话合同、实际附件校验器及 390 像素 PWA 工程边界已通过，但尚未在真实受管手机安装、升级和清理缓存。",
+      "summary": "候选构建身份、受管真机会话合同和附件校验器已通过；远端可信 HTTPS 又验证 390×844 布局、active service worker、standalone manifest 和 Chromium 安装性 0 错误，但仍没有真实受管手机。",
       "evidence": [
         {
           "kind": "target_environment",
@@ -317,6 +344,15 @@
           "reference": "docs/delivery/evidence/managed-device-pwa-verifier-acceptance-ffe102e-20260720.json#boundaries",
           "verifiedAt": "2026-07-20T14:44:36+08:00",
           "note": "精确 SHA 的自动化 viewport、生产 Web 镜像和 synthetic 会话只证明工程入口；不等于真实物理受管设备、MDM 记录或人工批准。"
+        },
+        {
+          "kind": "target_environment",
+          "result": "success",
+          "reference": "docs/delivery/evidence/remote-server-acceptance-9de2b56-20260721.json#browser",
+          "verifiedAt": "2026-07-21T01:25:52+08:00",
+          "subjectCommit": "9de2b56a2fe2943c9ddf038eefe5a5b11b53eb06",
+          "sha256": "18ebaf92188def38a4c42569cc0a07cecd0761e62baf54451a66255e6432ecc1",
+          "note": "choice.fiatlux.gg 上桌面与 iPhone 14 Chromium 仿真登录、移动导航、无溢出、service worker、manifest 和安装性通过；这仍是模拟 viewport，不是物理设备或 MDM 证据。"
         },
         {
           "kind": "approval",
@@ -329,13 +365,13 @@
         "缺少真实受管手机上的 PWA 安装、升级、离线边界和缓存清理证据。",
         "缺少终端与业务验收负责人的可识别批准。"
       ],
-      "reviewedAt": "2026-07-20T14:44:36+08:00"
+      "reviewedAt": "2026-07-21T01:25:52+08:00"
     },
     {
       "id": "production_backup_restore",
       "status": "blocked",
       "ownerRole": "备份恢复批准人与运维负责人",
-      "summary": "exact-SHA formatVersion 2 签名隔离恢复和生产 restore.sh 防护已通过本地工程验收；破坏性生产入口、异介质、目标 RPO/RTO 和独立批准尚未执行。",
+      "summary": "本地恢复防护之外，远端验收服务器已对最终认证状态生成 age 加密、Ed25519 签名恢复点并在随机全新卷完成第二次隔离恢复；破坏性生产入口、两份独立介质、目标 RPO/RTO 和独立批准仍未执行。",
       "evidence": [
         {
           "kind": "machine_evidence",
@@ -356,6 +392,15 @@
           "note": "本地 exact-SHA 恢复防护、operation 证据契约和 38 表/11 migration/1 对象签名隔离恢复通过；productionRestoreEntrypointExecuted=false。"
         },
         {
+          "kind": "target_environment",
+          "result": "success",
+          "reference": "docs/delivery/evidence/remote-server-acceptance-9de2b56-20260721.json#restoreDrill",
+          "verifiedAt": "2026-07-21T01:25:52+08:00",
+          "subjectCommit": "9de2b56a2fe2943c9ddf038eefe5a5b11b53eb06",
+          "sha256": "18ebaf92188def38a4c42569cc0a07cecd0761e62baf54451a66255e6432ecc1",
+          "note": "远端最终恢复点 46303002…ff62 通过签名、批准摘要、错误 S3 凭据负向、38 表、11 migrations、pg-boss 24、3 对象逐字节恢复及清理；加密归档另有异主机校验副本，但未证明两份独立介质或独立生产批准。"
+        },
+        {
           "kind": "approval",
           "result": "not_run",
           "reference": "approval:v1:production-backup-restore:pending",
@@ -364,9 +409,9 @@
       ],
       "blockers": [
         "经审批生产 restore.sh 破坏性入口尚未使用最终不可变制品在目标环境执行。",
-        "异介质事实、目标 RPO/RTO、原始 0600 操作报告和独立生产批准尚未取得。"
+        "第二份独立加密离线介质、业务目标 RPO/RTO、原始 0600 生产操作报告和独立生产批准尚未取得。"
       ],
-      "reviewedAt": "2026-07-20T15:54:39+08:00"
+      "reviewedAt": "2026-07-21T01:25:52+08:00"
     },
     {
       "id": "real_llm_github_adapters",

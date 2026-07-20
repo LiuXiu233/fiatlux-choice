@@ -1,6 +1,6 @@
 # FIAT LUX CHOICE 受控候选交付报告
 
-报告日期：2026-07-20
+报告日期：2026-07-21
 
 报告状态：**受控候选记录，不是 V1 已完成、已批准上线或 GitHub CI 已通过的声明**
 
@@ -9,6 +9,8 @@
 当前又增加不可变 WordPress 内部审阅包实现 `9c5633e…` 及其[脱敏证据](./evidence/education-wordpress-review-bundle-acceptance-9c5633e-20260720.json)。它只接受 12 篇 review-only 产物、无网络/路径失败关闭、全仓/浏览器和三张受影响镜像增量，不把未重跑的 full Compose、七镜像、专业复核或发布写成通过。
 
 当前不可变受控审计导出实现 `4391837…` 及其[脱敏证据](./evidence/governed-audit-export-acceptance-4391837-20260720.json)覆盖双权限、范围/容量边界、CSV/NDJSON、公式注入保护、响应/浏览器 SHA-256、导出自身审计、PostgreSQL、desktop/mobile 真实下载和三张受影响镜像；它不把下载后的保留/转发/销毁、完整七镜像、GHCR 或目标环境写成通过。
+
+`9de2b56a2fe2943c9ddf038eefe5a5b11b53eb06` 已作为 `v0.1.0-acceptance.20260721.1` 在 `43.165.189.222` 的 Ubuntu 24.04 / linux/amd64 从源码构建并部署到 [choice.fiatlux.gg](https://choice.fiatlux.gg)。[远端服务器验收证据](./evidence/remote-server-acceptance-9de2b56-20260721.json)记录可信 HTTPS、六服务、首次改密、desktop/mobile/PWA、真实栈 6/6、七类运行镜像扫描/SPDX、重启持久性及最终签名隔离恢复全部通过；同时固定记录该 2 CPU / 约 2 GB / 40 GB 公网主机低于生产建议、仅有 amd64 image ID、LLM 为 mock、GitHub 为 manual，且没有广州办公内网、物理真机或生产批准。
 
 前一候选增加了[真实适配器失败关闭机器证据](./evidence/real-adapter-guard-acceptance-d7cc156-20260720.json)：它绑定 `d7cc156ef2c44a531416c60ed88023681b113ecf`，完整记录本地工程成功及真实凭据、真实调用、目标会话和独立批准均未发生。该记录只更新本地核心/安全证据，不关闭真实适配器或任何外部门禁。
 
@@ -22,11 +24,12 @@
 | --- | --- | --- |
 | 产品版本 | V1 受控候选 | 所有阻断闸门关闭并取得业务负责人批准后才能改为 V1 完成 |
 | 目标仓库 | 私有 `LiuXiu233/fiatlux-choice`；候选分支已推送；[Draft PR #12](https://github.com/LiuXiu233/fiatlux-choice/pull/12) | 解除 Actions 计费阻断，取得绿色 CI/security；批准后再合并 |
-| Git SHA / tag | 当前候选实现为 `4391837e0c2b91fa58b2269a26b2cbb3294347b6`，证据提交为 `49278ce7f8de5c5a8fe57d0854f138e83652349f`；最近完整空卷/七镜像基线 `f4c12b5…`、完整恢复基线 `101d2f0…`；未创建发布 tag | 生产发布仍须确定 commit/tag 签名政策，并统一最终 Git/GitHub/GHCR/目标身份 |
+| Git SHA / tag | 当前候选实现为 `4391837e0c2b91fa58b2269a26b2cbb3294347b6`，远端部署源码为 `9de2b56a2fe2943c9ddf038eefe5a5b11b53eb06`，远端证据提交为 `4f309791fef7271a2919135393ab8b88167cd4c9`；未创建发布 tag | 生产发布仍须确定 commit/tag 签名政策，并统一最终 Git/GitHub/GHCR/目标身份 |
 | GitHub PR / CI | Draft PR #12；证据提交 `49278ce…` 的 [CI run 29758151603](https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29758151603) 与 [Security run 29758151588](https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29758151588) 均在 runner 启动前失败；PR Checks 是后续远端状态权威来源 | 六个首级失败 job 均为 `runner_id=0`、`steps=[]`，由账户付款或 Actions spending limit 阻断；不反复盲目重跑 |
 | 数据库 | PostgreSQL 17.10；38 张业务表；11 个业务迁移 `0000`–`0010`；`101d2f0…` fresh、`0009→0010` 数据保留/幂等、fresh/legacy 五职责和签名恢复逐 migration hash 均本地通过 | GitHub CI、GHCR 与目标内网重新执行 |
-| 候选 QA 环境 | 最近完整 Compose/七镜像栈 `f4c12b5…` 已完成空卷、数据库/MinIO、六服务和 desktop/mobile/PWA；当前 `4391837…` 另完成全仓、PostgreSQL API 95/95、全新 PostgreSQL+MinIO 真实栈 6/6 及 API/worker/Web 三张受影响镜像，未重标未运行层 | 本机 loopback 环境不得改写成耀光广州办公内网、GHCR 双平台、真实适配器、真实内容发布或目标制品；目标环境必须独立复现 |
-| 目标办公内网 | 失败关闭机器证明入口已实现并完成 stub/macOS/Linux 验收；**真实目标仍未部署或运行该入口** | 补主机、OS、架构、DNS、CA、防火墙、受管设备、备份介质、运行观察和独立运维批准 |
+| 候选 QA 环境 | 本地分层证据之外，`9de2b56…` 已在远端真实 Ubuntu/amd64 完成源码构建、38 表/11 migration、六服务、可信 HTTPS、desktop/mobile/PWA、Playwright 6/6、七镜像安全和隔离恢复 | 该环境属于 remote acceptance；不得改写成 GHCR 双平台、广州办公内网、真实适配器、真实内容发布或生产批准 |
+| 远端验收环境 | [choice.fiatlux.gg](https://choice.fiatlux.gg) 已可用；仅发布 443，UFW 放行 22/443，systemd 应用、每日备份、月度恢复演练和自动安全更新 active；服务器覆盖配置存放于 `/etc/fiatlux-choice` | 2 CPU / 约 2 GB / 40 GB 低于 8 GB / 100 GB 建议，公网暴露且无 MFA；不得导入真实敏感公司数据，须继续监控证书、容量和备份 |
+| 目标办公内网 | 远端公网验收不等于耀光广州办公内网；尚未以最终绿色 GitHub/GHCR 七制品清单运行 `verify-target-intranet.sh` | 补已批准办公内网或 VPN/访问源限制、生产容量、受管设备、两份独立介质、运行观察和独立运维批准 |
 | 业务、风险与运维批准 | **未取得** | 公司和安全/运维负责人基于终态证据签署 |
 | 法务合规/财税批准 | **未取得** | 专业人员说明资质、事实、范围、复核日期和有效期 |
 
@@ -133,6 +136,7 @@
 - 恢复脚本有 Ed25519 公钥类型/独立指纹/规范化 attestation/签名/来源/版本门禁，以及归档路径/链接/设备/FIFO/sparse/重复项/父子冲突/尾随数据与资源上限防护，使用受保护 scratch 和跨 backup/restore/upgrade/rollback 的 maintenance lock；陈旧锁、partial 或异常明文暂存必须人工调查。签名失败在任何 Compose 或数据动作前退出；在线文件私钥不是 HSM，仍需独立 SHA 与人工批准。
 - `101d2f0…` 的七个 `linux/arm64` 本地镜像均由固定镜像 digest `aquasec/trivy@sha256:be1190…a41e`（0.70.0）扫描；HIGH、CRITICAL、fixable 和 unfixed 四个汇总均为 0。API/worker 另有 `linux/amd64` 实构、x64 Argon2id、worker `pg_dump 17.10`/age roundtrip 和 Trivy 0 的补偿证据。
 - 固定 digest `anchore/syft@sha256:5999d2…1d36`（1.42.3）为七镜像生成 7 份结构化 SPDX，包数分别为 API 204、worker 225、Web/gateway 各 176、MinIO 372、backup 178、PostgreSQL 47；每份 SPDX 和 Trivy 报告 SHA-256 记录在[机器证据](./evidence/production-like-acceptance-101d2f0-20260720.json)。原始报告在验收期间只留于 ignored 临时目录，固化哈希后删除，不提交业务或恢复数据。
+- `9de2b56…` 在远端 Ubuntu/amd64 对实际运行的 PostgreSQL、API、worker、Web、gateway、MinIO、backup 七类镜像再次使用固定 Trivy 0.70.0 扫描，HIGH/CRITICAL 均为 0，并生成 47/204/214/178/178/375/168 packages 的七份 SPDX。报告哈希记录在[远端服务器验收证据](./evidence/remote-server-acceptance-9de2b56-20260721.json)；扫描缓存和无用构建缓存随后删除。这里的七个 amd64 image ID 仍不是 GHCR root digest、双平台 provenance 或签名。
 - Buildx `v0.35.0`、BuildKit `v0.31.2@sha256:2f5ada…`、QEMU/binfmt `qemu-v10.2.3@sha256:400a48…`、Trivy `v0.70.0` 和 Syft `v1.42.3` 固定到明确版本/摘要。真实 BuildKit 0.31.2 双平台 fixture 已通过，verifier 按 in-toto `https://in-toto.io/Statement/v1`、双平台 subject、来源 Git SHA、双平台 SPDX 与 sidecar 摘要做正/负向校验。
 - 以上 image ID 是本地 arm64 manifest-list 内容 ID，不是已发布 GHCR 多架构 root digest，也不是签名；最终 release workflow 仍须构建和验证 registry 证据。
 - 旧报告关于当前 MinIO 镜像“6 项 HIGH”的结论已被最终镜像重建和 Trivy 0 结果取代。剩余问题是 MinIO OSS 的长期维护/支持与迁移退出风险，而不是把旧扫描数继续当作当前漏洞；目标生产前仍须由负责人选择受支持实现或形成有期限的风险接受。
@@ -186,6 +190,24 @@
 
 旧不可变提交 `6545c186753b5b7ba9a84d41d20879e6197362aa` 的 38 表/10 migration 恢复记录继续保留为[历史签名恢复证据](./evidence/signed-backup-restore-drill-20260720.json)，但不再承担当前 schema 门禁。2026-07-19 更早的无 Ed25519 v2 演练和 2026-07-18 的 v1/同内容标签数字同样只作历史背景。下一节的 synthetic bridge 证明本地相邻兼容，不能冒充历史生产 N−1 或目标环境发布演练。
 
+### 7.1 远端 Ubuntu 验收部署与最终恢复点
+
+2026-07-21 已从源码 SHA `9de2b56a2fe2943c9ddf038eefe5a5b11b53eb06` 在 Ubuntu 24.04 / linux/amd64 远端主机完成真实部署，版本为 `v0.1.0-acceptance.20260721.1`。公开入口为 [https://choice.fiatlux.gg](https://choice.fiatlux.gg)，脱敏事实以[远端服务器验收证据](./evidence/remote-server-acceptance-9de2b56-20260721.json)为准：
+
+| 项目 | 远端验收结果与边界 |
+| --- | --- |
+| 主机与运行时 | 2 CPU、约 2 GB 内存、40 GB 根盘；Docker 29.6.2、Compose 5.3.1、Buildx 0.35.0；源码在目标机仅构建 linux/amd64。规格低于 8 GB/100 GB 建议，因此仅分类为 `remote_acceptance` |
+| 网络与 TLS | DNS A 记录指向 `43.165.189.222`；Let's Encrypt SAN 为 `choice.fiatlux.gg`，证书有效至 2026-10-18；TLS 1.2/1.3、HTTP/2、HSTS、CSP 通过，TLS 1.0 拒绝；应用仅发布 443，数据库和对象存储未发布；UFW 仅放行 22/443 |
+| 服务与数据 | PostgreSQL、MinIO、API、worker、Web、Caddy 六服务均 healthy，restart count 为 0；38 张业务表、11 migrations、pg-boss 24、五类数据库身份和 73 条保守状态官方来源通过；整体重启后 database/queue/objectStorage 均 ready |
+| 运行治理 | 应用 systemd 服务、每日加密备份 timer、月度隔离恢复 timer、自动安全更新均 active；API、worker、证书签发后 Caddy 日志的 error/fatal 匹配均为 0；服务器专用公网 TLS 覆盖存放于 checkout 外的 `/etc/fiatlux-choice` |
+| 身份交付 | bootstrap 登录、强制改密和重新登录通过；最终交付前再次轮换管理员密码并撤销 12 个自动化会话，有效会话为 0。交付文件仅在服务器以 `0600` 保存，密码未进入证据、仓库或本报告 |
+| 浏览器与 PWA | Python Playwright 以 1440×1000 和 390×844 验证 12 篇教育文章、无横向溢出、登录后 0 console/page/network error；manifest standalone、service worker active、Chromium installability error 0；仓库真实栈 Playwright desktop 3 + mobile 3，共 6/6 通过。移动结果仍是仿真 viewport，不是物理受管设备 |
+| 七镜像供应链 | 实际运行的 PostgreSQL/API/worker/Web/gateway/MinIO/backup 七类 amd64 镜像 Trivy HIGH/CRITICAL 0，并生成七份 SPDX；属于本地 image ID，不是 GHCR 双平台 digest 或签名 |
+| 最终恢复点 | 最终认证状态归档 `fiatlux-20260720T172259Z.tar.gz.age`，SHA-256 `463030024680a82078e05289fd25233225e33561ce0c907a77e53ea0e1e4ff62`；attestation SHA-256 `445b945d5857b6f6eceb112a258e1bed0a85c64e99ff63ccf6d672f18aa66b94`；Ed25519 指纹 `249dd49b…f54b` |
+| 隔离恢复 | 报告 `drill-20260720172412-96208`、SHA-256 `9cb37cd4…2cea`；错误 S3 凭据无变更失败，随后恢复 38 表、11 migrations、pg-boss 24、3 对象/208 bytes，worker 和三依赖 ready；隔离容器、网络和卷已清理，源栈保持健康 |
+| 备份边界 | 加密归档已有异主机逐字节校验副本，identity 与签名私钥存于分离的受限目录；尚未确认两份独立加密离线介质，未执行经审批生产 `restore.sh`，没有独立生产批准或业务 RPO/RTO |
+| 外部集成与批准 | LLM 保持 mock、GitHub 保持 manual；没有真实模型/凭据、广州办公内网、物理真机、73 条专业复核、十二篇内容权利/发布批准或公司最终批准；公网环境无 MFA，不应导入真实敏感公司数据 |
+
 ## 8. 本地相邻版本升级／应用回滚证据
 
 - 首轮隔离演练的升级和回滚脚本均 exit 0，但回滚后的常驻 API 在旧 20 秒 idle 阈值之后连续两次登录返回 HTTP 500，底层为 postgres.js `CONNECT_TIMEOUT`，所以任务 CRUD 未执行且报告正确标记为 BLOCKED。该脱敏报告 SHA-256 为 `f1e286108cd1aa3e731abaf7b766e591bb6ee9aa63591b45ee59d51f133210dd`。
@@ -225,6 +247,7 @@
 - [x] `f4c12b5…` 完成教育内容逐篇放行失败关闭入口的 exact-SHA 全仓、隔离依赖、七镜像、全新 Compose、桌面/移动/PWA、恢复回归和安全验证；证据明确记录真实问卷、复核、试讲、WordPress 发布和批准均未发生，因此门禁保持 blocked。
 - [x] `9c5633e…` 完成 review-only WordPress 内部审阅包、全仓、桌面/移动/PWA 和三张受影响应用镜像验证；12 篇仍全部 blocked，没有登录、凭据、外部写入或专业/权利/批准替代。
 - [x] `4391837…` 完成双权限受控审计导出、PostgreSQL API 95/95、mock 51+7、全新真实栈 6/6、浏览器下载 SHA-256、导出自身审计和三张受影响应用镜像验证；没有把浏览器保存后的保留/转发/销毁、七镜像、GHCR 或目标环境写成通过。
+- [x] `9de2b56…` 已真实部署到远端 Ubuntu/amd64 和可信 HTTPS，完成六服务、首登改密、desktop/mobile/PWA、仓库真实栈 6/6、重启持久性、七类运行镜像 Trivy/SPDX 及最终认证状态签名隔离恢复；[证据](./evidence/remote-server-acceptance-9de2b56-20260721.json)明确标记低规格公网验收、单平台 image ID、mock/manual、非广州办公内网、非物理真机和非生产批准。
 - [x] `101d2f0…` 的 production-like Compose 已在新卷完成 38 表/11 migration、HTTPS/PWA、六服务、最小权限和重启持久性验证；目标内网仍待复现。
 - [x] 首次强制改密、成员生命周期、版本化角色审批、归档角色即时失权、通知 queued-only、GitHub 刷新 CAS、工作流不可变快照、付款取消/驳回解链、顾问 requester-only/read-all、合规专业 provenance/source/evidence、typed refs 和文件并发场景已在分层测试覆盖。
 - [x] fresh/legacy 数据库、PostgreSQL 五职责和 MinIO 四身份的正/负向最小权限验证通过；目标凭据仍须重新执行。
@@ -243,4 +266,4 @@
 
 FIAT LUX CHOICE 已形成可运行的模块化单体候选，不是脚手架、静态仪表盘或仅有数据库模型。身份、权限、审计、业务模块、八类人工批准、七类顾问、后台任务、PWA、最小权限、七镜像供应链和 Ed25519 签名 formatVersion 2 独立恢复路径均有分层实证。
 
-不可变基线 `101d2f0…` 已完成 11 migration age+Ed25519 隔离恢复；运行异常、电竞教育、目标内网/真机入口、生产恢复防护和真实适配器均有各自 exact-SHA 证据；教育放行入口 `f4c12b5…` 完成全层本地与七镜像验收，审阅包 `9c5633e…` 完成 review-only 生成，当前受控审计导出 `4391837…` 又完成全仓、PostgreSQL、桌面/移动真实下载和三张受影响镜像增量。各证据都固定记录未发生的真实复核、发布、目标环境、外部动作或下载后保留销毁，未重跑层也已分列。14 项机器发布门禁当前为 2 项通过、12 项阻断；GitHub CI/security、GHCR、历史生产 N−1/目标发布、经审批生产恢复入口、耀光目标办公内网/真机、真实 LLM/GitHub、73 条真实专业复核、十二篇内容权利/发布复核、MinIO 支持风险决策及责任人批准仍未完成。因此唯一合法结论仍是：**受控候选，尚不可宣布 V1 已完成或已批准生产上线。**
+不可变基线 `101d2f0…` 已完成 11 migration age+Ed25519 隔离恢复；当前业务能力与受控审计导出绑定 `4391837…`。在此之上，部署源码 `9de2b56…` 已在真实远端 Ubuntu/amd64 与可信 HTTPS 完成六服务、首登改密、桌面/移动/PWA、真实栈 6/6、七镜像 Trivy/SPDX、重启和最终签名隔离恢复，证明系统已可供受控远端验收，不再只是本地环境。该证据同时固定记录服务器规格不足、公网暴露、无 MFA、单平台 image ID、mock/manual 集成和无生产批准。14 项机器发布门禁仍为 2 项通过、12 项阻断；GitHub CI/security、GHCR 双平台制品、历史生产 N−1/最终目标发布、经审批生产恢复入口、耀光广州办公内网或受限访问环境、物理真机、真实 LLM/GitHub、73 条专业复核、十二篇内容权利/发布复核、第二份独立介质、MinIO 支持风险决策及责任人批准仍未完成。因此唯一合法结论仍是：**受控候选，尚不可宣布 V1 已完成或已批准生产上线。**
