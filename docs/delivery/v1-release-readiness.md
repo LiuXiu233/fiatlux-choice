@@ -22,6 +22,10 @@
 | `packages/contracts/src/real-adapter-acceptance.ts` | 定义真实适配器的七顾问、质量、成本、权限、轮换、回退和附件契约 |
 | `scripts/create-real-adapter-acceptance-template.ts` | 在受保护目录独占创建故意失败关闭的 `0600` 会话模板 |
 | `scripts/verify-real-adapter-acceptance-evidence.ts` | 离线绑定候选/环境/供应商/仓库身份并校验附件哈希、权限和文本密钥模式 |
+| `packages/contracts/src/education-content-clearance.ts` | 定义两份候选内容快照、九项问卷、逐篇八类复核/权利/批准/公开页及七篇旧模板处置契约 |
+| `scripts/create-education-content-clearance-template.ts` | 从不可变候选提交生成绑定 12 篇哈希且故意失败关闭的 `0600` 会话模板 |
+| `scripts/verify-education-content-clearance-evidence.ts` | 离线校验候选/附件/批准后，以无 Cookie、无登录、无重定向的只读 HTTP 核验公开页面并原子生成报告 |
+| `docs/admin/education-content-clearance.md` | 规定真实问卷、复核、试讲、逐篇批准、WordPress 人工发布与门禁回填操作流程 |
 | `scripts/restore.sh` | 在破坏性恢复前校验操作身份、批准断言、归档/发布身份和隔离路径，成功后生成绑定技术报告与最终健康状态的不可覆盖主机报告 |
 | `scripts/test-restore-prebackup-dir-security.sh` | 覆盖操作元数据、二次风险确认、路径/容器挂载隔离、报告身份、权限、拒绝覆盖和失败关闭 |
 | `.github/workflows/v1-readiness.yml` | 在候选制品和全部批准齐备后生成只读最终就绪证明，不执行生产操作 |
@@ -58,6 +62,8 @@ pnpm exec tsx scripts/verify-v1-release-readiness.ts --file /absolute/path/to/ma
 生产恢复入口在 `231d8e82164f8e31b1cc978975bf56e7ac6a26bb` 完成了操作身份、外部批准引用、业务理由、跳过恢复前备份二次确认、每 operation 独占技术挂载、技术报告 SHA 和最终主机健康报告绑定。exact-SHA 本地栈又完成 38 表、11 migrations、pg-boss 24、错误 S3 凭据破坏前拒绝和 1 个 41-byte 对象的 age+Ed25519 隔离恢复；证据见[生产恢复防护验收](./evidence/production-restore-guard-acceptance-231d8e8-20260720.json)。该证据固定记录 `productionRestoreEntrypointExecuted=false`、`approvalIndependentlyVerified=false` 和 `productionBackupRestoreGateClosed=false`，不能替代经审批的目标环境 `restore.sh`、物理异介质、原始 `0600` 报告或业务 RPO/RTO。
 
 真实适配器工程入口要求 API 不持有 LLM/GitHub token，真实探测由 worker 执行；会话必须覆盖七类真实顾问、提示词/工具/人工修改审计、供应商数据处理、账户硬预算、GitHub 单仓库 Metadata-only 权限、两类凭据撤销/替换/恢复和 disabled/manual 无网络回退。操作顺序、模板和校验命令见[真实适配器验收手册](../admin/real-adapter-acceptance.md)。`d7cc156ef2c44a531416c60ed88023681b113ecf` 已完成 exact-SHA 全仓、独立 PostgreSQL/MinIO、七镜像、空卷 Compose、desktop/mobile/PWA、重启、部署和安全验收，脱敏记录见[真实适配器防护验收](./evidence/real-adapter-guard-acceptance-d7cc156-20260720.json)。该会话刻意使用 mock/manual 且没有真实凭据、调用、目标会话或独立批准；本地通过只证明工程门禁会失败关闭，不能把 `real_llm_github_adapters` 改为 passed。
+
+电竞教育逐篇放行入口在 `f4c12b596afd90d5781a0d192f381315c39790bc` 把两份候选 Git 内容及逐篇哈希、九项上线问卷、每篇八类复核、来源适用性、素材权利、同人多角色披露、内部试讲、逐篇批准、WordPress post ID/URL、12 个公开页和七篇旧模板处置组成失败关闭证据链。exact-SHA 全仓、隔离依赖/Compose、桌面/移动/PWA、恢复回归与七镜像安全验收见[放行验证器机器证据](./evidence/education-content-clearance-verifier-acceptance-f4c12b5-20260720.json)。未填写 `0600` 模板以退出码 1 拒绝且不生成报告；真实问卷、复核、试讲、发布和批准均未发生，因此该记录只能更新本地核心/安全证据，不能把 `education_content_clearance` 改为 passed。
 
 退出码定义：
 
@@ -125,4 +131,4 @@ pnpm exec tsx scripts/verify-v1-release-readiness.ts --file /absolute/path/to/ma
 
 ## 7. 当前阻断边界
 
-当前只有本地核心验收和本地安全/敏感数据两项通过。候选 `d7cc156ef2c44a531416c60ed88023681b113ecf` 在生产恢复和受管真机失败关闭入口基础上补齐了真实适配器工程防护及全层本地证据，但没有真实适配器凭据/调用、物理设备、MDM 原始记录、真实生产恢复或独立批准，不能增加通过门禁。GitHub runner 受账户付款或额度限制，GHCR、目标办公内网、真实受管手机、生产范围恢复、真实 LLM/GitHub 适配器、73 条专业复核、十二篇教育内容权利/发布复核、真实责任人演练、残余风险决定、缺陷关闭确认和最终业务批准均未完成。清单如实保留这些状态；修复一个外部条件后，只更新有新证据覆盖的对应门禁。
+当前只有本地核心验收和本地安全/敏感数据两项通过。候选 `f4c12b596afd90d5781a0d192f381315c39790bc` 在生产恢复、受管真机和真实适配器失败关闭入口基础上补齐了电竞教育逐篇放行工程防护及全层本地证据，但没有真实问卷/复核/发布/批准、真实适配器凭据/调用、物理设备、MDM 原始记录、真实生产恢复或独立批准，不能增加通过门禁。证据提交 `39801ebcf84257fe639e4a0be35bd60b8bcf75e3` 的 CI `29741910154` 与 Security `29741910245` 均由账户付款或额度限制在 runner 前阻断。GHCR、目标办公内网、真实受管手机、生产范围恢复、真实 LLM/GitHub 适配器、73 条专业复核、十二篇教育内容权利/发布复核、真实责任人演练、残余风险决定、缺陷关闭确认和最终业务批准均未完成。清单如实保留这些状态；修复一个外部条件后，只更新有新证据覆盖的对应门禁。

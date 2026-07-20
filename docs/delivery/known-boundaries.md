@@ -29,7 +29,9 @@
 
 不可变真实适配器防护候选 `d7cc156ef2c44a531416c60ed88023681b113ecf` 将 API 无密钥、worker-only 真实探测、七顾问质量/审计、供应商处理与预算、GitHub 单仓库 Metadata-only、撤销轮换和 disabled/manual 回退固化为失败关闭契约。精确 SHA 已完成 246 文件、7 项类型、239 单元、API 94/94、worker 33/33、MinIO 2/2、七镜像、空卷 Compose、desktop/mobile/PWA、重启、部署验证、Gitleaks、生产依赖、Semgrep 100 目标及七镜像 Trivy/SPDX；全部 QA 资源已清理。运行时故意为 LLM mock、GitHub manual 且没有真实凭据、调用、目标会话或批准，所以该证据只能巩固本地门禁，不能关闭真实适配器门禁，详见[防护验收证据](./evidence/real-adapter-guard-acceptance-d7cc156-20260720.json)。
 
-当前 schema 为 38 张业务表和 11 个迁移（`0000`–`0010`）。专用迁移测试已证明 `0000`–`0009` 数据原样保留、不会为 legacy reviewed 记录发明专业 provenance；当前签名恢复又逐项匹配 11 个 migration SQL hash，但这仍不是 GitHub runner、生产副本或目标内网升级证明。本地 synthetic bridge 只覆盖旧 10 迁移基线，历史生产 N−1、目标发布复演和经审批的破坏性 `restore.sh` 生产入口没有实跑。GitHub CI、最终 GHCR 镜像、目标内网、真实设备、MinIO 长期维护/支持风险处置和责任人批准仍是发布闸门，以[验收矩阵](./v1-acceptance-matrix.md)为准。
+不可变教育放行入口候选 `f4c12b596afd90d5781a0d192f381315c39790bc` 将两份候选内容/逐篇哈希、九项上线问卷、每篇八类复核、来源/权利、同人多角色披露、内部试讲、逐篇批准、WordPress post ID/URL、12 个公开页、七篇旧模板处置和最终批准固化为失败关闭契约。精确 SHA 已完成 253 文件、7 项类型、264 单元、API 94/94、worker 33/33、MinIO 2/2、七镜像、空卷 Compose、desktop/mobile/PWA、恢复回归、Gitleaks、生产依赖、Semgrep 104 目标及七镜像 Trivy/SPDX；证据冻结后候选镜像、测试镜像、空缓存卷和全部 QA 临时资源均已清理。未填写模板被拒绝且没有成功报告；没有登录或写入 WordPress，也没有完成真实问卷、复核、试讲、发布或批准，所以该证据只能巩固本地门禁，不能关闭教育内容放行门禁，详见[放行入口证据](./evidence/education-content-clearance-verifier-acceptance-f4c12b5-20260720.json)。
+
+当前 schema 为 38 张业务表和 11 个迁移（`0000`–`0010`）。专用迁移测试已证明 `0000`–`0009` 数据原样保留、不会为 legacy reviewed 记录发明专业 provenance；当前签名恢复又逐项匹配 11 个 migration SQL hash，但这仍不是 GitHub runner、生产副本或目标内网升级证明。本地 synthetic bridge 只覆盖旧 10 迁移基线，历史生产 N−1、目标发布复演和经审批的破坏性 `restore.sh` 生产入口没有实跑。GitHub CI、最终 GHCR 镜像、目标内网、真实设备、真实教育内容放行、MinIO 长期维护/支持风险处置和责任人批准仍是发布闸门，以[验收矩阵](./v1-acceptance-matrix.md)为准。
 
 ## 3. 身份与权限
 

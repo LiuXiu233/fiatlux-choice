@@ -2,19 +2,19 @@
   "schemaVersion": 1,
   "versionLabel": "V1 controlled candidate",
   "overallStatus": "blocked",
-  "evaluatedAt": "2026-07-20T18:28:54+08:00",
+  "evaluatedAt": "2026-07-20T20:21:43+08:00",
   "candidate": {
     "repository": "https://github.com/LiuXiu233/fiatlux-choice",
     "branch": "codex/v1-acceptance-hardening",
-    "implementationCommit": "d7cc156ef2c44a531416c60ed88023681b113ecf",
-    "evidenceCommit": "54471e735ecc915b7784a10a00e218dec149a2f4"
+    "implementationCommit": "f4c12b596afd90d5781a0d192f381315c39790bc",
+    "evidenceCommit": "39801ebcf84257fe639e4a0be35bd60b8bcf75e3"
   },
   "gates": [
     {
       "id": "local_core_acceptance",
       "status": "passed",
       "ownerRole": "研发与交付负责人",
-      "summary": "核心闭环、真实栈、浏览器、移动端、PWA、运行异常、教育内容、生产恢复防护和真实适配器失败关闭入口已有分层本地机器证据。",
+      "summary": "核心闭环、真实栈、浏览器、移动端、PWA、运行异常、教育内容、生产恢复防护、真实适配器和逐篇内容放行失败关闭入口已有分层本地机器证据。",
       "evidence": [
         {
           "kind": "machine_evidence",
@@ -95,11 +95,20 @@
           "verifiedAt": "2026-07-20T18:16:58+08:00",
           "subjectCommit": "d7cc156ef2c44a531416c60ed88023681b113ecf",
           "sha256": "fa8cb3357cbf32cc38a9ba491e312e8467dd2addcecf0614e7449cc6b1f82463",
-          "note": "当前候选的全仓、API 94/94、worker 33/33、MinIO 2/2、七镜像、空卷 Compose、桌面/移动/PWA、重启和部署验证；真实适配器仍为 mock/manual。"
+          "note": "真实适配器候选的全仓、API 94/94、worker 33/33、MinIO 2/2、七镜像、空卷 Compose、桌面/移动/PWA、重启和部署验证；真实适配器仍为 mock/manual。"
+        },
+        {
+          "kind": "machine_evidence",
+          "result": "success",
+          "reference": "docs/delivery/evidence/education-content-clearance-verifier-acceptance-f4c12b5-20260720.json",
+          "verifiedAt": "2026-07-20T20:16:13+08:00",
+          "subjectCommit": "f4c12b596afd90d5781a0d192f381315c39790bc",
+          "sha256": "1aa8974fec37cf0cfe6dc5c8a2313185ce2f958b79e9d8e7825621f3c027ae42",
+          "note": "当前候选 exact-SHA 的逐篇放行合同/模板/离线验证器、全仓、隔离依赖、空卷 Compose、桌面/移动/PWA 和七镜像验收；只证明工程入口，不代表真实内容放行。"
         }
       ],
       "blockers": [],
-      "reviewedAt": "2026-07-20T18:16:58+08:00"
+      "reviewedAt": "2026-07-20T20:16:13+08:00"
     },
     {
       "id": "local_security_and_sensitive_data",
@@ -168,11 +177,20 @@
           "verifiedAt": "2026-07-20T18:16:58+08:00",
           "subjectCommit": "d7cc156ef2c44a531416c60ed88023681b113ecf",
           "sha256": "fa8cb3357cbf32cc38a9ba491e312e8467dd2addcecf0614e7449cc6b1f82463",
-          "note": "当前候选 Gitleaks、官方生产依赖审计、Semgrep 100 个生产目标和七镜像 Trivy HIGH/CRITICAL 0、SPDX 均通过；本地镜像不冒充 GHCR。"
+          "note": "真实适配器候选 Gitleaks、官方生产依赖审计、Semgrep 100 个生产目标和七镜像 Trivy HIGH/CRITICAL 0、SPDX 均通过；本地镜像不冒充 GHCR。"
+        },
+        {
+          "kind": "machine_evidence",
+          "result": "success",
+          "reference": "docs/delivery/evidence/education-content-clearance-verifier-acceptance-f4c12b5-20260720.json#sourceSecurity",
+          "verifiedAt": "2026-07-20T20:16:13+08:00",
+          "subjectCommit": "f4c12b596afd90d5781a0d192f381315c39790bc",
+          "sha256": "1aa8974fec37cf0cfe6dc5c8a2313185ce2f958b79e9d8e7825621f3c027ae42",
+          "note": "当前候选精确 HEAD 与完整历史 Gitleaks 0、生产依赖 0、Semgrep 104 个生产目标 0 finding，以及七镜像 Trivy HIGH/CRITICAL 0 和 SPDX 包清单通过。"
         }
       ],
       "blockers": [],
-      "reviewedAt": "2026-07-20T18:16:58+08:00"
+      "reviewedAt": "2026-07-20T20:16:13+08:00"
     },
     {
       "id": "github_ci_security",
@@ -183,18 +201,18 @@
         {
           "kind": "github_run",
           "result": "blocked",
-          "reference": "https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29735200938",
-          "verifiedAt": "2026-07-20T18:28:54+08:00",
-          "subjectCommit": "54471e735ecc915b7784a10a00e218dec149a2f4",
+          "reference": "https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29741910154",
+          "verifiedAt": "2026-07-20T20:21:43+08:00",
+          "subjectCommit": "39801ebcf84257fe639e4a0be35bd60b8bcf75e3",
           "githubWorkflow": "ci",
           "note": "CI 两个首级失败 job 均为 runner_id=0、steps=[]，没有执行仓库步骤；不能记为代码失败或绿色通过。"
         },
         {
           "kind": "github_run",
           "result": "blocked",
-          "reference": "https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29735200932",
-          "verifiedAt": "2026-07-20T18:28:53+08:00",
-          "subjectCommit": "54471e735ecc915b7784a10a00e218dec149a2f4",
+          "reference": "https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29741910245",
+          "verifiedAt": "2026-07-20T20:21:43+08:00",
+          "subjectCommit": "39801ebcf84257fe639e4a0be35bd60b8bcf75e3",
           "githubWorkflow": "security",
           "note": "Security 四个首级失败 job 均为 runner_id=0、steps=[]，文件系统与 CodeQL 下游 job 被跳过。"
         }
@@ -203,7 +221,7 @@
         "GitHub 账户付款或 Actions spending limit 尚未恢复，CI 与 Security 没有实际 runner steps。",
         "尚无两个绑定同一 evidenceCommit 的独立绿色 CI 与 Security run。"
       ],
-      "reviewedAt": "2026-07-20T18:28:54+08:00"
+      "reviewedAt": "2026-07-20T20:21:43+08:00"
     },
     {
       "id": "ghcr_release_artifacts",
@@ -383,10 +401,12 @@
       "evidence": [
         {
           "kind": "machine_evidence",
-          "result": "not_run",
-          "reference": "docs/admin/education-content-clearance.md#8-当前状态与门禁回填",
-          "verifiedAt": "2026-07-20T18:58:00+08:00",
-          "note": "只有合同、模板和模拟公开 HTTP 的实现测试；尚无绑定候选提交及真实 19 个公开 URL 的放行报告。"
+          "result": "blocked",
+          "reference": "docs/delivery/evidence/education-content-clearance-verifier-acceptance-f4c12b5-20260720.json#truthBoundary",
+          "verifiedAt": "2026-07-20T20:16:13+08:00",
+          "subjectCommit": "f4c12b596afd90d5781a0d192f381315c39790bc",
+          "sha256": "1aa8974fec37cf0cfe6dc5c8a2313185ce2f958b79e9d8e7825621f3c027ae42",
+          "note": "exact-SHA 工程验收通过，但真实逐篇放行机器报告没有创建；问卷、复核、批准、12 个公开 URL 和 7 个旧模板处置均未发生。"
         },
         {
           "kind": "professional_review",
@@ -418,7 +438,7 @@
         "九项真实上线问卷及十二篇专业事实、来源、权利、隐私、健康、内容安全和内部试讲尚未完成。",
         "尚未取得逐篇和最终可识别批准，没有 WordPress 真实发布回填，也未处置并验证七篇旧模板页面。"
       ],
-      "reviewedAt": "2026-07-20T18:58:00+08:00"
+      "reviewedAt": "2026-07-20T20:16:13+08:00"
     },
     {
       "id": "operational_responsibility_drills",

@@ -108,7 +108,7 @@ pnpm delivery:education-content:verify -- \
 
 ## 8. 当前状态与门禁回填
 
-截至 2026-07-20，仓库只有失败关闭合同、模板、验证器和模拟公开 HTTP 的实现测试；十二篇真实专业/事实/权利/隐私/内容安全复核、九项真实问卷、内部试讲、WordPress 发布、七篇旧模板处置和公司批准均未发生。因此 `education_content_clearance` 必须保持 `blocked`，不得运行一个本地测试后改写为通过。
+截至 2026-07-20，仓库已有失败关闭合同、模板、验证器和模拟公开 HTTP 的实现测试；`f4c12b596afd90d5781a0d192f381315c39790bc` 的[脱敏机器证据](../delivery/evidence/education-content-clearance-verifier-acceptance-f4c12b5-20260720.json)又证明了 exact-SHA 工程、隔离栈、浏览器和安全边界。它不是逐篇真实放行报告：十二篇真实专业/事实/权利/隐私/内容安全复核、九项真实问卷、内部试讲、WordPress 发布、七篇旧模板处置和公司批准均未发生。因此 `education_content_clearance` 必须保持 `blocked`，不得运行一个本地测试或引用这份工程证据后改写为通过。
 
 真实报告完成后仍需由独立负责人核对：原始批准渠道、人员角色、报告 SHA-256、候选提交、全部原始附件和 19 个公开 URL。只有核对完成，发布清单才可同时加入：
 
