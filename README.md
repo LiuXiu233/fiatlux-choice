@@ -14,6 +14,8 @@
 
 电竞教育扩展实现 `fccbaf9c5718c18c588f8ee1d21d3a3997053187` 将 4 篇基础包和 8 篇扩展包合并为 12 篇版本化内部内容库，并对共享来源冲突、重复文章和结构版本漂移失败关闭。该 SHA 已推送并通过内容治理 5/5、Biome 220 文件、7 项类型、191/191 单元、真实 MinIO 2/2、API 93/93、worker 29/29、10→11 与 fresh 迁移、mock 48 passed/6 条件 skip、真实栈 desktop/mobile 6/6、独立 Chromium/PWA 和生产 Web 镜像重启验证；变更后的 Web 镜像为 UID 10001、只读根、cap-drop ALL、no-new-privileges，Trivy HIGH/CRITICAL 为 0，Syft SPDX-2.3 为 176 packages。脱敏结果与报告哈希见[电竞教育扩展证据](docs/delivery/evidence/esports-education-expansion-acceptance-fccbaf9-20260720.json)。十二篇仍全部待人工复核、权利确认和 WordPress 手工发布；官网模板文章没有被本次仓库提交撤回。对应 GitHub CI/Security 继续因付款或 Actions spending limit 在 runner 前阻断，不构成代码测试结果。
 
+发布治理实现 `213d9b65b927d679b1afc927cb077f7a1aedd3d1` 将 V1 完成定义固化为 14 项结构化、失败关闭门禁，要求本地证据绑定实现提交、CI/Security 两个绿色 run、七类 GHCR 制品以及目标环境和真实责任人批准。该 SHA 在干净工作树上通过 Biome 224 文件、ShellCheck、7 项类型、199 个单元测试、生产构建、门禁正反向、Gitleaks 与生产依赖审计；标准入口未配置 PostgreSQL/MinIO 时的 2/93/29 项 skip 没有计为通过。脱敏事实见[发布门禁证据](docs/delivery/evidence/v1-release-gate-acceptance-213d9b6-20260720.json)。GitHub CI `29717068798` 与 Security `29717068861` 的六个首级失败 job 均为 `runner_id=0`、`steps=[]`，当前机器结论仍为 2 项通过、12 项阻断。
+
 ## 能力
 
 - 用户、组织、数据库会话、四级 RBAC 和追加审计。

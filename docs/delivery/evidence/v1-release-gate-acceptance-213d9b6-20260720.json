@@ -1,0 +1,159 @@
+{
+  "schemaVersion": 1,
+  "evidenceType": "v1_release_gate_acceptance",
+  "generatedAt": "2026-07-20T04:31:57Z",
+  "implementation": {
+    "commit": "213d9b65b927d679b1afc927cb077f7a1aedd3d1",
+    "parentCommit": "46ce2d7643e390a68149c0bdf01e5ff179dc47b6",
+    "branch": "codex/v1-acceptance-hardening",
+    "remoteBranch": "origin/codex/v1-acceptance-hardening",
+    "implementationCommitPushed": true,
+    "workingTreeCleanDuringExactShaCheck": true,
+    "changedPathCount": 9,
+    "subject": "Fail-closed, machine-verifiable V1 release readiness gate"
+  },
+  "scope": {
+    "gateCount": 14,
+    "passedGateCount": 2,
+    "blockedGateCount": 12,
+    "fixedGateSet": true,
+    "overallStatusDerivedFromGates": true,
+    "passedGatesRequireOnlySuccessEvidence": true,
+    "blockedGatesRequireConcreteBlockers": true,
+    "localEvidenceBoundToImplementationCommit": true,
+    "githubWorkflowsRequired": ["ci", "security"],
+    "releaseArtifactsRequired": ["api", "postgres", "minio", "worker", "web", "gateway", "backup"],
+    "humanApprovalGates": [
+      "target_intranet_deployment",
+      "managed_device_pwa",
+      "production_backup_restore",
+      "real_llm_github_adapters",
+      "compliance_professional_review",
+      "education_content_clearance",
+      "operational_responsibility_drills",
+      "residual_risk_decisions",
+      "known_blocking_defects_closed",
+      "business_release_approval"
+    ]
+  },
+  "validation": {
+    "exactShaStandardCheck": {
+      "command": "pnpm check",
+      "status": "passed",
+      "commit": "213d9b65b927d679b1afc927cb077f7a1aedd3d1",
+      "biomeFilesChecked": 224,
+      "shellcheck": "passed",
+      "typescriptProjectsPassed": 7,
+      "unitTestFilesPassed": 37,
+      "unitTestsPassed": 199,
+      "workspaceProductionBuild": "passed",
+      "standardIntegrationWithoutDependencies": {
+        "objectStorageTestsSkipped": 2,
+        "apiTestsSkipped": 93,
+        "workerTestsSkipped": 29,
+        "countedAsPassed": false,
+        "reason": "No PostgreSQL or MinIO integration credentials were configured for the standard local entrypoint; unchanged runtime layers retain their separately recorded isolated evidence."
+      }
+    },
+    "releaseGateUnitTests": {
+      "command": "pnpm --filter @fiatlux/contracts exec vitest run test/v1-release-readiness.test.ts",
+      "status": "passed",
+      "testFilesPassed": 1,
+      "testsPassed": 8,
+      "coveredFailures": [
+        "missing or duplicate gate",
+        "passed gate with non-success evidence",
+        "local evidence commit mismatch",
+        "missing or duplicate GitHub workflow scope",
+        "GitHub evidence commit mismatch",
+        "missing or duplicate GHCR artifact scope",
+        "GHCR evidence commit mismatch",
+        "missing or mismatched human approval",
+        "overall status mismatch"
+      ]
+    },
+    "cli": {
+      "validateCommand": "pnpm delivery:v1:validate",
+      "validateStatus": "passed",
+      "statusCommand": "pnpm delivery:v1:status",
+      "reportedOverallStatus": "blocked",
+      "reportedPassedGateCount": 2,
+      "reportedBlockedGateCount": 12,
+      "requireReadyCommand": "pnpm delivery:v1:require-ready",
+      "requireReadyExitCode": 2,
+      "missingFileExitCode": 1,
+      "missingFileErrorWasStructuredJson": true
+    }
+  },
+  "sourceSecurity": {
+    "gitleaks": {
+      "runtime": "gitleaks 8.28.0",
+      "currentTreeIncludingNonIgnoredUntracked": "passed",
+      "completeGitHistory": "passed",
+      "defaultAndCustomCanaries": "passed",
+      "findings": 0
+    },
+    "productionDependencyAudit": {
+      "command": "pnpm audit --prod --audit-level high --registry=https://registry.npmjs.org/",
+      "status": "passed",
+      "knownVulnerabilities": 0,
+      "defaultMirrorLimitation": "The configured npmmirror endpoint did not implement the npm audit bulk endpoint, so the check was rerun explicitly against registry.npmjs.org and passed."
+    }
+  },
+  "github": {
+    "pullRequest": {
+      "number": 12,
+      "url": "https://github.com/LiuXiu233/fiatlux-choice/pull/12",
+      "draft": true,
+      "head": "codex/v1-acceptance-hardening",
+      "base": "main"
+    },
+    "ciRun": {
+      "id": 29717068798,
+      "url": "https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29717068798",
+      "headSha": "213d9b65b927d679b1afc927cb077f7a1aedd3d1",
+      "status": "completed",
+      "conclusion": "failure",
+      "primaryFailedJobs": 2,
+      "primaryFailedJobsWithRunnerIdZero": 2,
+      "primaryFailedJobsWithNoSteps": 2,
+      "dependentSkippedJobs": 2
+    },
+    "securityRun": {
+      "id": 29717068861,
+      "url": "https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29717068861",
+      "headSha": "213d9b65b927d679b1afc927cb077f7a1aedd3d1",
+      "status": "completed",
+      "conclusion": "failure",
+      "primaryFailedJobs": 4,
+      "primaryFailedJobsWithRunnerIdZero": 4,
+      "primaryFailedJobsWithNoSteps": 4,
+      "dependentSkippedJobs": 2
+    },
+    "platformAnnotation": "The job was not started because recent account payments have failed or your spending limit needs to be increased.",
+    "codeStepsExecutedOnGitHub": 0,
+    "blindRerunPerformed": false,
+    "mergeState": "UNSTABLE"
+  },
+  "hashesSha256": {
+    "contracts": "c417dddf855dc6c750f45e6b321bca715253a7f532d221c63ba2ec9be75d5000",
+    "releaseGateTests": "5c181f1017a66ddd13f2e5be71ab9318497801bf88fc1c29a6eb460345d9f30c",
+    "cli": "9bce56bde4847abb987846554b84be9167d5455bdefd373ea3375ba26a373e4c",
+    "initialManifest": "1de8e11b648ef1d1792ef6a33b10eebad7725b1b4567c4282196939a36e3be29",
+    "maintenanceGuide": "955af7fdc603d7f1e0e0629d0fc71189f599226a7f66049b40f0c2073f980cc2"
+  },
+  "boundaries": [
+    "This increment adds release governance contracts, tests, CLI, status data and documentation. It does not change database migrations, API routes, worker behavior, Web UI behavior, Docker images or production infrastructure.",
+    "The exact-SHA standard integration entrypoint skipped PostgreSQL and MinIO tests because credentials were not configured; those skips are explicitly not counted as passes. Runtime integration, browser, PWA, image and restore evidence remains bound to the earlier immutable implementation records.",
+    "The GitHub failures are platform billing or spending-limit pre-run blocks with runner_id=0 and steps=[]; they are neither code failures nor green checks.",
+    "The current manifest intentionally remains blocked for GitHub, GHCR, target intranet, managed device, production restore, real adapters, professional review, content clearance, operational drills, risk decisions, defect closure and business approval.",
+    "This evidence does not authorize any bank, tax, invoice, signature, employment, permission or external legal action and does not declare V1 complete."
+  ],
+  "cleanup": {
+    "temporaryTestFilesCreated": false,
+    "rawLogsCommitted": false,
+    "credentialsCommitted": false,
+    "workingTreeCleanAfterValidation": true
+  },
+  "conclusion": "The fail-closed V1 readiness schema, evaluator, CLI, current blocked manifest and maintenance documentation passed the recorded exact-SHA local checks and source-security review. GitHub runners were blocked before steps, and all GHCR, target-environment, real-adapter, professional and human-approval gates remain open, so this evidence does not declare V1 complete."
+}
