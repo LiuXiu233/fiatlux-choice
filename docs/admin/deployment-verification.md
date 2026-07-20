@@ -14,6 +14,7 @@ MIGRATION_TEST_DATABASE_URL=postgresql://USER:PASSWORD@127.0.0.1:5432/fiatlux_ch
 ./scripts/test-database-privileges.sh
 DB_PRIVILEGE_TEST_SIMULATE_LEGACY=1 ./scripts/test-database-privileges.sh
 ./scripts/test-release-image-verification.sh
+pnpm test:target-intranet-verification
 ./scripts/test-release-transition-security.sh
 ./scripts/test-maintenance-lock-security.sh
 ./scripts/test-backup-container-security.sh
@@ -65,6 +66,37 @@ docker system df
 ```
 
 `verify-deployment.sh` 要求 PostgreSQL、MinIO、API、worker、Web 和 Caddy 六个常驻服务都存在 Docker healthcheck 且实际为 `healthy`，并检查应用容器非 root、只读根文件系统、`no-new-privileges`、API/worker 不持有一次性 seed/bootstrap/migration/backup/restore 变量，以及除 Caddy 外无宿主端口。API 容器健康检查使用 bounded ready，同时覆盖 PostgreSQL、pg-boss 与 MinIO；worker 只有在全部七类订阅经封装注册、pg-boss 自身连接能读到全部声明队列且常驻 Drizzle 客户端能查询数据库时才刷新心跳。Caddy 健康检查覆盖代理后的 API live 与 Web 登录壳，而脚本另以外部硬超时请求代理后的 ready；Docker 的 `unhealthy` 状态本身不等于自动恢复。脚本还从实际常驻容器确认 API/worker 都连接为 `fiatlux_runtime`，并查询该角色不是 SUPERUSER/CREATEDB/CREATEROLE/BYPASSRLS、无 public schema CREATE、无 audit UPDATE/DELETE，审计触发器为 ENABLE ALWAYS 且所有者是 migrator。检查不输出连接串或口令。
+
+### 目标办公内网机器证明
+
+在耀光广州目标主机已经使用不可变发布清单部署、受控 CA 已安装且当前源码目录为待验收提交的干净 checkout 后，由目标环境运维负责人运行：
+
+```sh
+export RELEASE_VERSION=v1.0.0-rc.1
+export RELEASE_GIT_SHA=<40位已批准发布提交>
+export RELEASE_MANIFEST=/srv/fiatlux-choice/release-manifest.tsv
+export RELEASE_MANIFEST_SHA256=<64位已批准清单SHA-256>
+export APP_DOMAIN=choice.internal.example
+export CADDY_ROOT_CA_FILE=/etc/fiatlux-choice/caddy-root.crt
+
+FIATLUX_ENV=production \
+FIATLUX_ENV_FILE=/etc/fiatlux-choice/production.env \
+./scripts/verify-target-intranet.sh \
+  --version "$RELEASE_VERSION" \
+  --expected-git-sha "$RELEASE_GIT_SHA" \
+  --release-manifest "$RELEASE_MANIFEST" \
+  --manifest-sha256 "$RELEASE_MANIFEST_SHA256" \
+  --url "https://$APP_DOMAIN:8443" \
+  --ca "$CADDY_ROOT_CA_FILE" \
+  --report-dir /var/lib/fiatlux-choice/deployment-reports \
+  --environment-id fiatlux-guangzhou-office-prod \
+  --operator-identity <受控运维身份> \
+  --approval-reference <真实变更审批编号>
+```
+
+包装器依次失败关闭地调用源码、七类发布镜像/实际运行容器和 HTTPS/最小权限三个只读 verifier；只有全部成功且 CA DER 指纹、Docker/Compose 版本可读取时，才原子生成目录 mode `0700`、文件 mode `0600` 的 JSON，并在终端打印报告路径及 SHA-256。输入清单哈希、完整 Git SHA、无路径 HTTPS URL、端口和 DNS label 都会先校验；既有同名报告不会覆盖，失败或中断不会留下可被误认的成功 JSON。
+
+报告中的 `operatorIdentity`、`environmentId` 和 `assertedApprovalReference` 都是操作者提供的标识，其中 `approvalIndependentlyVerified` 固定为 `false`。报告只证明执行时的干净源码、清单绑定、七镜像运行身份、六服务健康、运行时最小权限、目标 HTTPS 与 CA 指纹；**不证明**防火墙策略、真实受管手机/PWA、备份恢复、真实外部适配器、专业意见、审批真实性或最终业务批准。原始报告可能暴露内部主机名和人员/审批标识，应保存在受控证据库；进入 Git 仓库前必须脱敏并保留原件哈希与独立审批渠道引用，不能仅凭该 JSON 将 V1 目标内网门禁改为通过。
 
 独立权限脚本在随机新卷上执行正向/负向测试：runtime 业务 DML、组织级业务引用链 advisory transaction lock、audit append 和 pg-boss 可用；DDL、建库、建角色、SET ROLE、replica bypass、禁用触发器和审计修改失败；backup 可 pg_dump 但不可写；restore 可在维护边界建库并 SET ROLE migrator、但不可建角色。第二次命令先模拟旧单超级用户拥有所有业务/pg-boss 对象，再验证所有权完整转移。
 

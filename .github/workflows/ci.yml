@@ -76,6 +76,8 @@ jobs:
       - run: pnpm test:unit
       - name: Test release-manifest and seven-image digest enforcement
         run: ./scripts/test-release-image-verification.sh
+      - name: Test fail-closed target-intranet evidence generation
+        run: pnpm test:target-intranet-verification
       - name: Test release transition ordering and N-1 backup image selection
         run: ./scripts/test-release-transition-security.sh
       - name: Test cross-operation maintenance lock and stale residue fail-closed behavior

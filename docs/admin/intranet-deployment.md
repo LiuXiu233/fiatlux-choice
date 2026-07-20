@@ -211,10 +211,14 @@ systemd 单元默认每日备份、每月在独立卷恢复演练。首次启用
 
 ## 8. 上线验收
 
+先按[部署验证清单](./deployment-verification.md#目标办公内网机器证明)在目标主机运行 `verify-target-intranet.sh`。该命令必须绑定已批准的完整 Git SHA、发布版本、七镜像清单及清单 SHA-256，并使用真实内网 URL、受控 CA、环境标识、运维身份和变更审批编号；成功输出的 `0600` JSON 与终端报告 SHA-256 一并进入受控证据库。不得在开发机、CI 模拟环境或本地 production-like Compose 生成报告后改称目标内网证明。
+
+机器报告不会验证防火墙、受管设备、恢复、外部适配器或任何人工批准，且批准编号明确是未独立核验的操作者断言。因此仍需逐项取得下列原始证据和真实责任人批准；机器报告缺失或任一人工项缺失时都保持“待验证”。
+
 至少保存以下证据：
 
 - 发布 Git SHA、镜像 tag 与 digest、数据库迁移版本。
-- `verify-deployment.sh` 输出，以及 `/health/live`、`/health/ready` 响应。
+- `verify-target-intranet.sh` JSON、报告 SHA-256、其内三个输出摘要哈希，以及必要时受控保存的 `verify-deployment.sh`、`/health/live`、`/health/ready` 原始输出。
 - 桌面 Playwright/PWA 结果、真实受管手机浏览器结果；iPhone 14 Chromium 仿真只能作为补充，不能标作真机。
 - RBAC 拒绝、审计追踪、高风险人工审批的端到端结果。
 - Trivy、CodeQL、依赖审计、secret scan 与 SBOM。
