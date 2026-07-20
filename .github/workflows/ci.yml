@@ -70,6 +70,8 @@ jobs:
       - run: pnpm lint
       - name: ShellCheck operational and recovery scripts
         run: pnpm lint:shell
+      - name: Validate every GitHub Actions workflow with pinned actionlint
+        run: pnpm lint:actions
       - run: pnpm typecheck
       - run: pnpm test:unit
       - name: Test release-manifest and seven-image digest enforcement

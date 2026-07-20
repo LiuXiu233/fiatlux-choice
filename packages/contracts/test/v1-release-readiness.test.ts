@@ -126,7 +126,17 @@ function makeReadyManifest(): V1ReleaseReadinessManifest {
           githubWorkflow: "security",
         },
       ]),
-      passedGate("ghcr_release_artifacts", registryEvidence),
+      passedGate("ghcr_release_artifacts", [
+        ...registryEvidence,
+        {
+          ...evidence(
+            "github_run",
+            "https://github.com/example/fiatlux-choice/actions/runs/1003",
+            evidenceCommit,
+          ),
+          githubWorkflow: "release",
+        },
+      ]),
       passedGate(
         "target_intranet_deployment",
         [
@@ -336,6 +346,13 @@ describe("V1 release readiness manifest", () => {
     const duplicateArtifact = structuredClone(makeReadyManifest());
     evidenceAt(gateById(duplicateArtifact, "ghcr_release_artifacts"), 0).releaseArtifact = "web";
     expect(v1ReleaseReadinessManifestSchema.safeParse(duplicateArtifact).success).toBe(false);
+
+    const missingReleaseRun = structuredClone(makeReadyManifest());
+    gateById(missingReleaseRun, "ghcr_release_artifacts").evidence = gateById(
+      missingReleaseRun,
+      "ghcr_release_artifacts",
+    ).evidence.filter(({ githubWorkflow }) => githubWorkflow !== "release");
+    expect(v1ReleaseReadinessManifestSchema.safeParse(missingReleaseRun).success).toBe(false);
   });
 
   it("requires identifiable approval metadata and matching approval evidence", () => {

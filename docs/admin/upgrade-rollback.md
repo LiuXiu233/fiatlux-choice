@@ -4,7 +4,7 @@
 
 每个发布版本必须对应：Git tag、Git SHA、七个不可变镜像（api、worker、web、gateway、minio、backup、postgres）、严格四列 `version/git_sha/component/digest` 的 `release-manifest.tsv`、清单 SHA-256、SPDX SBOM、构建来源证明、迁移清单和测试报告。七行组件必须绑定同一完整 Git SHA；禁止使用 `latest`。backup 仍是按需工具镜像，其余六个组件是常驻服务。
 
-Git tag、GHCR semver tag、绿色 release workflow 和完整清单只表示形成了**不可变候选制品**，不等于获准部署生产。仓库当前没有可由代码证明的 GitHub production environment 审批；部署前仍须完成本章的 CI、安全、未修复漏洞处置、恢复演练、目标环境和真实责任人批准，并由部署操作人通过独立渠道取得受审 Git SHA 与清单 SHA-256。不得把候选 tag 的存在写成“已上线”或“已批准生产”。
+Git tag、GHCR semver tag、绿色 release workflow 和完整清单只表示形成了**不可变候选制品**，不等于获准部署生产。仓库提供后置、只读的 `v1-readiness.yml`，但 YAML 不能证明 GitHub `v1-production-approval` environment 已配置 required reviewers 或分支限制；仓库管理员必须在 Settings 中实际配置并保留复核证据。部署前仍须完成本章的 CI、安全、未修复漏洞处置、恢复演练、目标环境和真实责任人批准，取得绿色最终就绪证明 artifact，并由部署操作人通过独立渠道取得受审 Git SHA 与清单 SHA-256。不得把候选 tag 或未受保护的 workflow run 写成“已上线”或“已批准生产”。
 
 2026-07-19 的本地验证使用 N 10 migrations 与 synthetic bridge 9 migrations、七个内容全异镜像和本机固定 digest registry，完成真实 push/pull、46 秒升级、43 秒应用回滚、双 formatVersion 2 恢复点及回滚后 308 秒 HTTPS CRUD。首轮曾因 idle 后 `CONNECT_TIMEOUT` 正确 BLOCKED，修复后同一 API 进程复验通过。该结果证明脚本和连接修复的本地兼容性，不是历史生产 N−1、GHCR、目标办公内网或批准记录；生产仍须用最终受审制品和真实回滚目标重复本章门禁。
 
@@ -23,6 +23,7 @@ GHCR 不提供七个仓库 tag 的跨仓库原子提交。若 promotion 在创�
 3. 数据库变更遵循 expand/contract：先扩展 schema，等待所有旧进程不再依赖旧结构后，后续版本再收缩。
 4. 最近一次 age+Ed25519 独立恢复演练通过；age identity、签名私钥、公钥及独立批准的公钥指纹可用，备份介质空间充足。
 5. 确认维护窗口、审批人、操作人、回滚目标和沟通渠道。
+6. 机器发布清单已在 `main` 达到 ready；“Attest final V1 readiness” 在受保护 `v1-production-approval` environment 下绿色，并下载核对其 manifest、平台验证 JSON 和 `SHA256SUMS`。该只读证明不替代本次变更批准。
 
 常规升级、回滚和恢复只允许 PostgreSQL 同 major。major 变化必须使用单独设计、测试并批准的 `pg_upgrade` 或逻辑迁移方案，发布脚本没有绕过参数。升级也拒绝 minor 回退；回滚或恢复若确需切到较低 minor，必须先在副本上完成兼容性复核并取得外部人工批准，再显式传入 `--confirm-postgres-minor-rollback POSTGRES-MINOR-ROLLBACK-REVIEWED`。该 token 只证明操作人作了显式确认，不证明审批已存在。
 

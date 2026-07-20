@@ -137,6 +137,7 @@ pnpm install --frozen-lockfile
 
 ~~~sh
 pnpm lint
+pnpm lint:actions
 pnpm typecheck
 pnpm test:unit
 pnpm test:integration

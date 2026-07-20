@@ -13,6 +13,9 @@
 | `packages/contracts/src/index.ts` | 定义 14 个固定门禁、证据、批准和总清单的 Zod Schema，以及只读评估器 |
 | `docs/delivery/v1-release-readiness.json` | 保存当前候选提交、证据提交、逐项状态、证据引用、阻断项和责任角色 |
 | `scripts/verify-v1-release-readiness.ts` | 校验 JSON、输出机器状态，并在要求 ready 时失败关闭 |
+| `packages/integrations/src/v1-release-evidence.ts` | 以只读 GitHub/GHCR API 复核绿色 run 身份和七类不可变 digest |
+| `scripts/verify-v1-platform-evidence.ts` | 仅对 ready 清单执行外部平台实证；blocked 状态在网络请求前失败 |
+| `.github/workflows/v1-readiness.yml` | 在候选制品和全部批准齐备后生成只读最终就绪证明，不执行生产操作 |
 | `packages/contracts/test/v1-release-readiness.test.ts` | 覆盖完整通过、真实阻断、缺失/重复门禁、证据失败、提交不匹配和人工批准缺失 |
 
 ## 2. 使用命令
@@ -27,6 +30,12 @@ pnpm delivery:v1:status
 # 发布前强制门禁；当前应以退出码 2 拒绝发布
 pnpm delivery:v1:require-ready
 
+# 只对 ready 清单查询 GitHub/GHCR 实时状态；当前应在联网前拒绝
+GITHUB_REPOSITORY=owner/repository \
+GITHUB_ACTOR=operator \
+GITHUB_TOKEN=temporary-read-token \
+  pnpm delivery:v1:verify-platform
+
 # 校验其他候选清单
 pnpm exec tsx scripts/verify-v1-release-readiness.ts --file /absolute/path/to/manifest.json --json
 ~~~
@@ -37,7 +46,7 @@ pnpm exec tsx scripts/verify-v1-release-readiness.ts --file /absolute/path/to/ma
 - `1`：文件、JSON、Schema 或跨字段约束无效。
 - `2`：清单有效，但 `--require-ready` 发现至少一个阻断门禁。
 
-`delivery:v1:validate` 只证明清单内部一致，不能证明外部证据真实。真正发布必须运行 `delivery:v1:require-ready`，并人工抽查所有外部引用。
+`delivery:v1:validate` 只证明清单内部一致，不能证明外部证据真实。`delivery:v1:verify-platform` 会通过临时只读令牌查询 GitHub run 与 GHCR digest，不修改 tag、制品或仓库；它仍不能替代目标环境、专业意见和批准记录的人工真实性复核。真正发布必须通过 `delivery:v1:require-ready`、平台实证和人工抽查。
 
 ## 3. 失败关闭规则
 
@@ -46,7 +55,7 @@ pnpm exec tsx scripts/verify-v1-release-readiness.ts --file /absolute/path/to/ma
 - 已通过门禁不得保留 blocker，且其全部证据必须为 `success`；阻断门禁必须说明至少一个具体 blocker。
 - 两个本地门禁必须各有至少一条绑定 `implementationCommit` 的成功机器证据。
 - GitHub 门禁必须有两个不同的绿色 run，分别覆盖 CI 与 Security，并绑定同一 `evidenceCommit`。
-- GHCR 门禁必须分别有 `api`、`postgres`、`minio`、`worker`、`web`、`gateway`、`backup` 七个不同的成功 registry 制品引用，并绑定同一 `evidenceCommit`。本地 image ID 不能代替 registry digest。
+- GHCR 门禁必须有绑定 `evidenceCommit` 的绿色 `release` workflow，并分别有 `api`、`postgres`、`minio`、`worker`、`web`、`gateway`、`backup` 七个不同的成功 registry 制品引用。本地 image ID 不能代替 registry digest。
 - 目标内网、真机 PWA、生产恢复、真实适配器、专业复核、教育发布、运营演练、残余风险、阻断缺陷和业务发布门禁必须保留可识别批准人、角色、时间和批准引用；批准元数据必须与成功 approval 证据引用一致。
 - `pending`、`todo`、`tbd` 等孤立占位值不能作为证据引用；阻断状态可以引用真实存在的待办、审批或受控登记编号，但不能把它改写成成功。
 - 银行、税务、发票红冲、正式签章、人事处分、关键权限和对外法律承诺继续由业务工作流的人工批准控制；本发布清单不执行任何外部动作。
@@ -58,7 +67,7 @@ pnpm exec tsx scripts/verify-v1-release-readiness.ts --file /absolute/path/to/ma
 | `local_core_acceptance` | 绑定实现提交的完整本地机器验收 | 否 |
 | `local_security_and_sensitive_data` | 绑定实现提交的密钥、依赖、SAST、镜像和敏感数据机器复核 | 否 |
 | `github_ci_security` | 两个绑定证据提交的独立绿色 CI/Security run | 否 |
-| `ghcr_release_artifacts` | 七个绑定证据提交的 GHCR 制品、digest、SBOM/provenance 记录 | 否 |
+| `ghcr_release_artifacts` | 绿色 release run 及七个绑定证据提交的 GHCR digest、SBOM/provenance 记录 | 否 |
 | `target_intranet_deployment` | 耀光广州目标内网的部署、网络、身份、健康和运行观察 | 是 |
 | `managed_device_pwa` | 真实受管手机安装、升级、离线与缓存清理 | 是 |
 | `production_backup_restore` | 生产范围备份、异介质隔离恢复及 RPO/RTO | 是 |
@@ -74,12 +83,25 @@ pnpm exec tsx scripts/verify-v1-release-readiness.ts --file /absolute/path/to/ma
 
 1. 冻结实现提交，记录完整小写 40 位 `implementationCommit`；任何功能、迁移、运行时依赖或镜像输入变化都产生新候选。
 2. 在精确提交上完成适当范围的本地测试和安全复核，保存脱敏机器证据、SHA-256、执行时间和范围边界。
-3. 冻结用于 GitHub/GHCR 验证的 `evidenceCommit`。GitHub run 和七个 registry 制品必须精确绑定该提交，不能混用历史绿色结果。
+3. 冻结用于 GitHub/GHCR 验证的 `evidenceCommit`。CI、Security、release run 和七个 registry 制品必须精确绑定该提交，不能混用历史绿色结果。
 4. 逐项更新证据和 blocker。没有真实执行、凭据、设备、目标环境或专业人员时保持 `blocked`，不得预填成功。
 5. 由真实责任人通过公司批准渠道形成批准记录，再将同一记录编号写入 `approval` 元数据和成功的 approval 证据。系统或开发者不能替代法务、财税、运维、风险或公司负责人签署。
-6. 运行 `pnpm check`、`pnpm delivery:v1:status` 和人工证据抽查。准备发布时必须再运行 `pnpm delivery:v1:require-ready`。
+6. 运行 `pnpm check`、`pnpm delivery:v1:status` 和人工证据抽查。准备最终证明时必须再运行 `pnpm delivery:v1:require-ready` 与 `pnpm delivery:v1:verify-platform`。
 7. 机器清单随候选证据提交；后续任何源码漂移都要重新评估受影响门禁。若只提交证据文档，应明确它不改变被验证的实现或制品身份。
 
-## 6. 当前阻断边界
+## 6. 候选制品与最终证明顺序
+
+`release.yml` 和 `v1-readiness.yml` 具有不同职责，不能合并为一个前置门禁：
+
+1. 实现与证据提交先进入 `main`，CI 与 Security 实际绿色。
+2. 对不可变 Git tag 运行 `release.yml`。该 workflow 构建、扫描并发布七类候选 digest、SBOM/provenance 和清单；这些 tag 仍不是生产批准。
+3. 使用 release run、七类真实 registry digest、目标内网、真机、恢复、真实适配器、专业复核和批准记录更新机器清单。全部成功后才能写 `ready`。
+4. 将 ready 清单提交到 `main`，并确认 `implementationCommit → evidenceCommit → manifest_commit` 均为可达祖先关系；最终清单的 `candidate.branch` 必须是 `main`。
+5. 仓库管理员在 GitHub Settings → Environments 建立 `v1-production-approval`，限制为 `main`，配置真实 required reviewers，并复核令牌只有 `actions:read`、`packages:read` 和 `contents:read`。仅在 YAML 中出现 environment 名称不能证明这些设置已配置。
+6. 人工触发 “Attest final V1 readiness”，输入包含 ready 清单的完整 40 位 commit。workflow 在 environment 批准后再次失败关闭 Schema，实时读取 CI/Security/release run，HEAD 核对七类 GHCR digest，并上传 manifest、平台核验 JSON 和 SHA-256。
+
+最终证明 job 是只读的：它不创建或覆盖 GHCR tag，不部署主机，不执行恢复，也不进行银行、税务、发票、签章、人事、权限或法律动作。workflow 绿色、证明 artifact 可下载、environment 设置和所有原始批准均可核对时，才可把它作为最终 V1 门禁的一项外部证据。
+
+## 7. 当前阻断边界
 
 当前只有本地核心验收和本地安全/敏感数据两项通过。GitHub runner 受账户付款或额度限制，GHCR、目标办公内网、真实受管手机、生产范围恢复、真实 LLM/GitHub 适配器、73 条专业复核、十二篇教育内容权利/发布复核、真实责任人演练、残余风险决定、缺陷关闭确认和最终业务批准均未完成。清单如实保留这些状态；修复一个外部条件后，只更新有新证据覆盖的对应门禁。

@@ -52,6 +52,7 @@
 - 发布镜像使用不可变版本与 digest，生成 SPDX SBOM 和 BuildKit 来源证明。MinIO/mc 源码按完整 Git commit 和 codeload tarball SHA-256 固定并在构建前校验，不按 mutable tag clone。部署端必须以独立受审的发布清单 SHA-256 为入口，在拉取后和启动后逐一核对七个本地 RepoDigest，并在启动后核对 api/worker/web/gateway/minio/postgres 六个常驻容器的实际 image ID；backup 保持按需。升级和回滚一致切换 PostgreSQL、MinIO 与应用后才写全局版本状态，禁止留下下一次启动才切换的混合版本。禁止生产使用 `latest`。
 - BuildKit provenance、SBOM 和同 artifact 的 `.sha256` 都不是发布者数字签名。当前没有 cosign/Sigstore/企业签名服务；独立人工批准清单是补偿控制，无法取得时不得升级或回滚。
 - GitHub Actions 第三方 action 固定到审核过的完整 commit SHA，并保留版本注释，由 Dependabot 提交升级。
+- 全部 `.github/workflows/*.yml`/`.yaml` 由 `scripts/lint-actions.sh` 使用精确 actionlint 1.7.12 校验；本机若没有同版本二进制，则使用固定多架构镜像 digest、只读挂载、无网络、无 capabilities 和 no-new-privileges 运行。CI 与 release source verification 都执行该门禁。
 
 ### CI 构建工具链固定记录
 
@@ -69,6 +70,7 @@
 | QEMU/binfmt | `docker.io/tonistiigi/binfmt:qemu-v10.2.3@sha256:400a4873b838d1b89194d982c45e5fb3cda4593fbfd7e08a02e76b03b21166f0` | [Docker Hub 官方 tag API](https://hub.docker.com/v2/repositories/tonistiigi/binfmt/tags/qemu-v10.2.3)；只注册发布需要的 `arm64`，并核对 action 实际平台输出与 BuildKit `linux/arm64` 能力 |
 | Trivy | `v0.70.0` | [Trivy v0.70.0 官方 release](https://github.com/aquasecurity/trivy/releases/tag/v0.70.0)；固定 action commit 的同时在 release/security workflow 显式固定扫描器版本 |
 | Syft | `v1.42.3`，Linux amd64 archive `sha256:0d6be741479eddd2c8644a288990c04f3df0d609bbc1599a005532a9dff63509` | [Syft v1.42.3 官方 release](https://github.com/anchore/syft/releases/tag/v1.42.3) 与该 release 的官方 checksums；checksums 文件本身再固定为 `sha256:3c4a66ddb6e0689fac2be19247064f6053e2a2746035dfbcef8609baa9088f92`，不执行 mutable `main/install.sh` |
+| Actionlint | `docker.io/rhysd/actionlint:1.7.12@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667` | [Actionlint v1.7.12 官方 release](https://github.com/rhysd/actionlint/releases/tag/v1.7.12)；脚本接受同版本本机二进制，否则使用固定 amd64/arm64 index digest 的只读容器 |
 
 `ci.yml` 的原生镜像作业和多架构镜像矩阵、`release.yml` 的验证、构建扫描与 promotion 均使用同一固定 Buildx/BuildKit；多架构作业还使用同一固定 QEMU。`security.yml` 不创建 BuildKit/QEMU builder，不能把其文件系统扫描结果冒充镜像构建验证。`scripts/verify-build-toolchain.sh` 对实际 CLI、daemon、容器引用和平台失败关闭。
 

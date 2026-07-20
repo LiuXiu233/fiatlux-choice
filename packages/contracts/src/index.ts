@@ -898,7 +898,7 @@ export const v1ReleaseEvidenceKindSchema = z.enum([
   "risk_decision",
   "external_publication",
 ]);
-export const v1ReleaseGitHubWorkflowSchema = z.enum(["ci", "security"]);
+export const v1ReleaseGitHubWorkflowSchema = z.enum(["ci", "security", "release"]);
 export const v1ReleaseArtifactSchema = z.enum([
   "api",
   "postgres",
@@ -1006,6 +1006,7 @@ const approvalRequiredGateIds = new Set<(typeof v1ReleaseGateIds)[number]>([
 const requiredEvidenceKinds = {
   local_core_acceptance: ["machine_evidence"],
   local_security_and_sensitive_data: ["machine_evidence"],
+  ghcr_release_artifacts: ["github_run", "registry"],
   target_intranet_deployment: ["target_environment", "approval"],
   managed_device_pwa: ["target_environment", "approval"],
   production_backup_restore: ["machine_evidence", "approval"],
@@ -1150,6 +1151,10 @@ export const v1ReleaseReadinessManifestSchema = z
         const registryEvidence = gate.evidence.filter(
           ({ kind, result }) => kind === "registry" && result === "success",
         );
+        const releaseRuns = gate.evidence.filter(
+          ({ kind, result, githubWorkflow }) =>
+            kind === "github_run" && result === "success" && githubWorkflow === "release",
+        );
         const distinctArtifacts = new Set(registryEvidence.map(({ reference }) => reference));
         const artifactScopes = new Set(
           registryEvidence.map(({ releaseArtifact }) => releaseArtifact),
@@ -1157,6 +1162,10 @@ export const v1ReleaseReadinessManifestSchema = z
         if (
           distinctArtifacts.size < 7 ||
           artifactScopes.size < v1ReleaseArtifactSchema.options.length ||
+          releaseRuns.length < 1 ||
+          releaseRuns.some(
+            ({ subjectCommit }) => subjectCommit !== manifest.candidate.evidenceCommit,
+          ) ||
           registryEvidence.some(
             ({ subjectCommit }) => subjectCommit !== manifest.candidate.evidenceCommit,
           )
@@ -1164,7 +1173,7 @@ export const v1ReleaseReadinessManifestSchema = z
           context.addIssue({
             code: z.ZodIssueCode.custom,
             path: ["gates", index, "evidence"],
-            message: "GHCR 必须有七个绑定 evidenceCommit 的独立发布制品证据",
+            message: "GHCR 必须有绿色 release run 和七个绑定 evidenceCommit 的独立发布制品证据",
           });
         }
       }

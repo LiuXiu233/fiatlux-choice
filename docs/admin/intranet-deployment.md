@@ -38,6 +38,8 @@ docker info --format '{{.OSType}}/{{.Architecture}} {{.ServerVersion}}'
 
 2026-07-20 不可变实现提交 `101d2f0…` 已在开发机用全新卷和 `compose.prod.yml` 完成 production-like 复验：38 张业务表、11 个迁移、pg-boss 24、六常驻服务健康与重启持久性、部署/MinIO 最小权限检查、桌面/390×844 移动仿真、PWA、七镜像扫描/SPDX 和一次 age+Ed25519 隔离恢复均通过；脱敏证据见[当前候选验收记录](../delivery/evidence/production-like-acceptance-101d2f0-20260720.json)。这只证明本机 Docker Desktop arm64、HTTPS 和依赖组合能够运行，不证明目标 Linux 主机、GHCR 多架构发布、广州办公内网 DNS/CA、防火墙、独立备份审批渠道或真实受管移动设备已经验证。
 
+发布顺序必须是“绿色 CI/Security → `release.yml` 生成不可变候选制品 → 完成目标环境/专业/人工证据并把机器清单更新为 ready → 在受保护 `v1-production-approval` environment 人工触发 `v1-readiness.yml` → 下载核对最终证明 → 另行批准并执行部署”。最终证明只读查询 GitHub/GHCR，不会部署；environment 未配置 required reviewers、workflow 未绿色或 artifact 不可核对时，均不得进入生产变更。完整规则见[V1 发布门禁维护说明](../delivery/v1-release-readiness.md)。
+
 ## 3. 目录和账户
 
 Linux 主机建议使用专用账户：

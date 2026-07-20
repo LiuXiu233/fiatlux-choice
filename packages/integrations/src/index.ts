@@ -5,3 +5,4 @@ export * from "./llm.js";
 export * from "./official-source.js";
 export * from "./safe-error.js";
 export * from "./storage.js";
+export * from "./v1-release-evidence.js";
