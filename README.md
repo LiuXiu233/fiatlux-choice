@@ -18,6 +18,8 @@
 
 后置平台证明实现 `6e40b82914e237b0941ad7a5d5496a73d7a65190` 增加只读 `v1-readiness.yml`、GitHub/GHCR 实证适配器和固定 Actionlint 门禁。候选制品生成后，只有 ready 清单进入 `main`、受保护 `v1-production-approval` environment 放行、CI/Security/release 三类 run 实时绿色且七类 GHCR digest 的 HEAD 精确匹配时，才会上传最终证明 artifact；该流程不部署、不建 tag，也不执行高风险外部动作。精确 SHA 已通过 Biome 228 文件、ShellCheck、Actionlint、7 项类型、203 个单元测试、生产构建、Gitleaks、生产依赖审计和 Semgrep 93 个目标 0 finding；当前 blocked 清单在联网前拒绝平台核验。证据见[平台证明验收记录](docs/delivery/evidence/v1-platform-attestation-acceptance-6e40b82-20260720.json)。其 CI `29718120626` 与 Security `29718120610` 仍被同一账户计费问题在 runner 前阻断。
 
+目标办公内网证明入口 `25204d34d865b16941d099658d33fbb561424f09` 将干净源码、七类发布 digest/实际运行容器和 HTTPS/最小权限三个只读 verifier 组合为失败关闭流程；全部通过后才原子生成 `0600` JSON，批准编号固定标为未经独立核验。该精确已推送 SHA 通过 Biome 229 文件、ShellCheck/Actionlint、7 项类型、203 个单元、生产构建、macOS/Linux 正负向包装器、Gitleaks、生产依赖审计和 Semgrep 93 个生产目标 0 finding；[脱敏验收记录](docs/delivery/evidence/target-intranet-verifier-acceptance-25204d3-20260720.json) SHA-256 为 `f1d984528a6d6e992c6ae38fb213fb571eb8acaeaad252bd898c832b699a1852`。测试报告全部来自 disposable stub，不是广州办公内网证据；目标主机、防火墙、设备、恢复和真实运维批准仍未执行，机器结论保持 2/14 通过、12/14 阻断。该 SHA 的 CI `29719190354` 与 Security `29719190355` 仍在 runner 前被计费限制阻断。
+
 ## 能力
 
 - 用户、组织、数据库会话、四级 RBAC 和追加审计。

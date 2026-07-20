@@ -40,6 +40,7 @@
 - `101d2f0…` 已暂停写入完成真实 age+Ed25519 一致性备份；错误 S3 凭据负向路径未改变目标，随机全新卷精确恢复 38 表、11 migrations（到 `0010`）、pg-boss 24、五职责权限、worker/readiness 和 1 对象/94 bytes，完整 drill 23 秒。测试密钥/归档/源 sentinel 已删除；独立生产批准、业务 RPO/RTO、破坏性生产 `restore.sh`、异介质和目标内网仍未执行。旧 `6545c18…` 的 10 migration 结果只保留为历史证据。
 - 2026-07-18 的旧测试总数、镜像 digest、v1 归档、37 表/4 对象/16 秒恢复和同内容标签升级回滚均为历史证据，不能作为当前通过或发布门禁。
 - 首轮本地相邻演练在回滚后 idle 登录暴露 `CONNECT_TIMEOUT` 并正确阻断；修复后以 N 10 migrations、synthetic bridge 9 migrations 和七个全异镜像完成真实 registry push/pull、46 秒升级、43 秒应用回滚、双 formatVersion 2 恢复点和回滚后 308 秒 HTTPS CRUD，数据、审计、索引和对象均保留。该结果不是历史生产 N−1、GHCR 或目标内网证据。
+- 发布治理 `213d9b6…` 已将完成条件固化为 14 项失败关闭门禁，平台证明 `6e40b82…` 已加入只读 GitHub/GHCR 实证；目标证明入口 `25204d34d865b16941d099658d33fbb561424f09` 又把 clean source、七类发布 digest/运行镜像和目标 HTTPS/最小权限组合为只在全部成功后生成 `0600` JSON 的入口。该入口已通过 macOS/Linux stub 正负向测试，但尚未在广州目标主机运行，也未验证防火墙、真机、恢复或批准。
 - 经审批生产恢复入口、绿色 GitHub CI/security、最终 GHCR 镜像、历史生产 N−1 和目标发布复演、目标内网、真实受管手机、真实 LLM/GitHub、73 条合规来源的专业人工复核、MinIO 长期支持风险处置和业务批准仍未完成。
 
 ### 2026-07-19 官网与教育内容基线
@@ -51,8 +52,8 @@
 
 ### 交付
 
-- 以运行异常实现 `f86bff4…` 和证据记录 `56395d4…` 为候选起点；任何功能源码变化后重新冻结完整 Git SHA，并在同一 SHA 重跑 lint、类型、单元、集成、E2E、生产构建和七镜像安全扫描。
-- 在耀光目标办公内网从空环境完成 11 个业务迁移 `0000`–`0010`、pg-boss 迁移和权限收敛；显式运行一次 `SEED_MODE=bootstrap`，验证 owner 首登改密、登录、MinIO、ready、CA 分发和重启持久性。
+- 以当前治理/证明入口提交 `25204d3…` 和分层运行证据为候选起点；任何功能、迁移、运行时依赖或镜像输入变化后重新冻结完整 Git SHA，并在同一 SHA 重跑 lint、类型、单元、集成、E2E、生产构建和七镜像安全扫描。
+- 在耀光目标办公内网从空环境完成 11 个业务迁移 `0000`–`0010`、pg-boss 迁移和权限收敛；显式运行一次 `SEED_MODE=bootstrap`，验证 owner 首登改密、登录、MinIO、ready、CA 分发和重启持久性。随后用 `verify-target-intranet.sh` 绑定最终 Git SHA、七镜像发布清单及清单哈希生成机器报告，并从独立渠道核对防火墙、设备、恢复与运维批准，不能用 fixture JSON 代替。
 - 在 legacy 副本验证 `metadata-only` 不改变组织、用户、membership、assignment 或权限；通过人工批准的 `system-role-maintenance` 演练角色基线升级，并完成一次受控离线 owner 恢复/回滚演练。
 - 对归档角色即时失权、成员停用、最后 owner、两人审批和单人补偿控制完成最终 Web/API E2E 与运维手册演练。
 - 在最终 SHA 复现已实现的 decision objective/project/task 同链校验、opportunity product/project 一致性、父关系/归档保护、API/worker 共用 advisory lock 和 runtime 数据库权限探测；保留特权管理员直接写表的批准与修复边界。

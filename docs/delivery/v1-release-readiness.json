@@ -2,12 +2,12 @@
   "schemaVersion": 1,
   "versionLabel": "V1 controlled candidate",
   "overallStatus": "blocked",
-  "evaluatedAt": "2026-07-20T13:00:43+08:00",
+  "evaluatedAt": "2026-07-20T13:30:13+08:00",
   "candidate": {
     "repository": "https://github.com/LiuXiu233/fiatlux-choice",
     "branch": "codex/v1-acceptance-hardening",
-    "implementationCommit": "6e40b82914e237b0941ad7a5d5496a73d7a65190",
-    "evidenceCommit": "6e40b82914e237b0941ad7a5d5496a73d7a65190"
+    "implementationCommit": "25204d34d865b16941d099658d33fbb561424f09",
+    "evidenceCommit": "25204d34d865b16941d099658d33fbb561424f09"
   },
   "gates": [
     {
@@ -59,11 +59,20 @@
           "verifiedAt": "2026-07-20T13:00:43+08:00",
           "subjectCommit": "6e40b82914e237b0941ad7a5d5496a73d7a65190",
           "sha256": "2b854c0b4fadb26cd1944b06c828fc56a8ea56b47490ccbb2cde5a703f81a06d",
-          "note": "当前只读平台证明提交的 exact-SHA 全仓、workflow、平台适配器和构建验收。"
+          "note": "只读平台证明提交的 exact-SHA 全仓、workflow、平台适配器和构建验收。"
+        },
+        {
+          "kind": "machine_evidence",
+          "result": "success",
+          "reference": "docs/delivery/evidence/target-intranet-verifier-acceptance-25204d3-20260720.json",
+          "verifiedAt": "2026-07-20T13:30:13+08:00",
+          "subjectCommit": "25204d34d865b16941d099658d33fbb561424f09",
+          "sha256": "f1d984528a6d6e992c6ae38fb213fb571eb8acaeaad252bd898c832b699a1852",
+          "note": "当前目标证明入口提交的 exact-SHA 全仓、macOS/Linux 失败关闭包装器和构建验收；不是目标环境成功报告。"
         }
       ],
       "blockers": [],
-      "reviewedAt": "2026-07-20T13:00:43+08:00"
+      "reviewedAt": "2026-07-20T13:30:13+08:00"
     },
     {
       "id": "local_security_and_sensitive_data",
@@ -96,11 +105,20 @@
           "verifiedAt": "2026-07-20T13:00:43+08:00",
           "subjectCommit": "6e40b82914e237b0941ad7a5d5496a73d7a65190",
           "sha256": "2b854c0b4fadb26cd1944b06c828fc56a8ea56b47490ccbb2cde5a703f81a06d",
-          "note": "当前提交的 Gitleaks、官方 registry 生产依赖审计和 Semgrep 93 个目标通过。"
+          "note": "平台证明提交的 Gitleaks、官方 registry 生产依赖审计和 Semgrep 93 个目标通过。"
+        },
+        {
+          "kind": "machine_evidence",
+          "result": "success",
+          "reference": "docs/delivery/evidence/target-intranet-verifier-acceptance-25204d3-20260720.json#sourceSecurity",
+          "verifiedAt": "2026-07-20T13:30:13+08:00",
+          "subjectCommit": "25204d34d865b16941d099658d33fbb561424f09",
+          "sha256": "f1d984528a6d6e992c6ae38fb213fb571eb8acaeaad252bd898c832b699a1852",
+          "note": "当前提交的 Gitleaks、官方 registry 生产依赖审计和 Semgrep 93 个生产目标通过。"
         }
       ],
       "blockers": [],
-      "reviewedAt": "2026-07-20T13:00:43+08:00"
+      "reviewedAt": "2026-07-20T13:30:13+08:00"
     },
     {
       "id": "github_ci_security",
@@ -111,18 +129,18 @@
         {
           "kind": "github_run",
           "result": "blocked",
-          "reference": "https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29718120626",
-          "verifiedAt": "2026-07-20T13:00:43+08:00",
-          "subjectCommit": "6e40b82914e237b0941ad7a5d5496a73d7a65190",
+          "reference": "https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29719190354",
+          "verifiedAt": "2026-07-20T13:30:13+08:00",
+          "subjectCommit": "25204d34d865b16941d099658d33fbb561424f09",
           "githubWorkflow": "ci",
           "note": "CI 首级失败 job 没有执行仓库步骤，不能记为代码失败或绿色通过。"
         },
         {
           "kind": "github_run",
           "result": "blocked",
-          "reference": "https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29718120610",
-          "verifiedAt": "2026-07-20T13:00:43+08:00",
-          "subjectCommit": "6e40b82914e237b0941ad7a5d5496a73d7a65190",
+          "reference": "https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29719190355",
+          "verifiedAt": "2026-07-20T13:30:13+08:00",
+          "subjectCommit": "25204d34d865b16941d099658d33fbb561424f09",
           "githubWorkflow": "security",
           "note": "Security 首级失败 job 没有执行仓库步骤，CodeQL 等下游 job 被跳过。"
         }
@@ -131,7 +149,7 @@
         "GitHub 账户付款或 Actions spending limit 尚未恢复，CI 与 Security 没有实际 runner steps。",
         "尚无两个绑定同一 evidenceCommit 的独立绿色 CI 与 Security run。"
       ],
-      "reviewedAt": "2026-07-20T13:00:43+08:00"
+      "reviewedAt": "2026-07-20T13:30:13+08:00"
     },
     {
       "id": "ghcr_release_artifacts",
@@ -157,14 +175,14 @@
       "id": "target_intranet_deployment",
       "status": "blocked",
       "ownerRole": "目标环境运维负责人",
-      "summary": "本地隔离 Compose 已验证，但尚未在耀光广州办公内网使用真实主机、DNS、CA、防火墙和备份介质部署。",
+      "summary": "目标内网机器证明入口已完成本地失败关闭验收，但尚未在耀光广州办公内网使用真实主机、DNS、CA、防火墙和备份介质部署或运行。",
       "evidence": [
         {
           "kind": "target_environment",
           "result": "not_run",
           "reference": "docs/delivery/v1-acceptance-matrix.md#6-部署运维与安全",
-          "verifiedAt": "2026-07-20T12:07:56+08:00",
-          "note": "本地 production-like Compose 不是耀光广州办公内网验收。"
+          "verifiedAt": "2026-07-20T13:30:13+08:00",
+          "note": "scripts/verify-target-intranet.sh 的 stub/macOS/Linux 测试只证明采集入口；本地 production-like Compose 和测试 JSON 都不是耀光广州办公内网验收。"
         },
         {
           "kind": "approval",
@@ -177,7 +195,7 @@
         "缺少目标办公内网主机、DNS、CA、防火墙、凭据、备份介质和运行观察证据。",
         "缺少目标环境运维负责人的可识别验收批准。"
       ],
-      "reviewedAt": "2026-07-20T12:07:56+08:00"
+      "reviewedAt": "2026-07-20T13:30:13+08:00"
     },
     {
       "id": "managed_device_pwa",
