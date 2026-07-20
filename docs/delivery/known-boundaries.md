@@ -13,6 +13,7 @@
 - 合规知识库中的 effective 或 active 不自动等于适用于公司；reviewed 也需要可识别的人工复核人和事实依据。
 - 电竞教育页面是内部筹备工作台，不是面向学员的报名、直播、考试或支付平台。
 - WordPress 内部审阅包固定为 `review_only`；生成 HTML、审阅表或 `publicationEligible` 结构状态都不是专业复核、素材权利、人工批准或官网发布。
+- 受控审计导出只证明系统生成了组织范围内的文件且浏览器下载前复算 SHA-256；系统无法证明操作者之后如何保存、复制、转发、保留或销毁该文件。
 
 ## 2. 工程验证状态
 
@@ -33,6 +34,8 @@
 不可变教育放行入口候选 `f4c12b596afd90d5781a0d192f381315c39790bc` 将两份候选内容/逐篇哈希、九项上线问卷、每篇八类复核、来源/权利、同人多角色披露、内部试讲、逐篇批准、WordPress post ID/URL、12 个公开页、七篇旧模板处置和最终批准固化为失败关闭契约。精确 SHA 已完成 253 文件、7 项类型、264 单元、API 94/94、worker 33/33、MinIO 2/2、七镜像、空卷 Compose、desktop/mobile/PWA、恢复回归、Gitleaks、生产依赖、Semgrep 104 目标及七镜像 Trivy/SPDX；证据冻结后候选镜像、测试镜像、空缓存卷和全部 QA 临时资源均已清理。未填写模板被拒绝且没有成功报告；没有登录或写入 WordPress，也没有完成真实问卷、复核、试讲、发布或批准，所以该证据只能巩固本地门禁，不能关闭教育内容放行门禁，详见[放行入口证据](./evidence/education-content-clearance-verifier-acceptance-f4c12b5-20260720.json)。
 
 不可变内部审阅包候选 `9c5633e1c3e9650507231106fcd8a451bf32053f` 在上述入口前增加精确候选读取、12 个块 HTML、12 个治理表、README 和哈希 manifest。`pnpm check`、mock 48+6、独立 desktop/mobile/offline/SW、Gitleaks、生产依赖、Semgrep 及 API/worker/Web 三张受影响镜像验证通过；没有把未重跑的 full Compose、PostgreSQL/MinIO 或七镜像写成当前通过。所有 HTML 固定带公开验证器会拒绝的标记，12 篇均仍 blocked，详见[审阅包证据](./evidence/education-wordpress-review-bundle-acceptance-9c5633e-20260720.json)。
+
+不可变受控审计导出候选 `4391837e0c2b91fa58b2269a26b2cbb3294347b6` 增加双权限、明确确认、北京时间 31 天窗口、10,000 条/25 MiB 整体失败上限、CSV 公式注入保护、响应/浏览器双重 SHA-256 和成功前 `export_generated`。精确 SHA 已完成 263 文件静态门禁、49 files/278 单元、PostgreSQL API 95/95、mock 51+7、全新 PostgreSQL+MinIO desktop/mobile 6/6、源码安全及 API/worker/Web 三张受影响镜像的只读运行、Trivy/SPDX；完整记录见[受控审计导出证据](./evidence/governed-audit-export-acceptance-4391837-20260720.json)。现有组织补充 admin 导出权限仍必须经真实批准运行 `system-role-maintenance`；本地下载成功不替代公司保留/销毁制度、目标内网、真机、GitHub/GHCR 或责任人批准。
 
 当前 schema 为 38 张业务表和 11 个迁移（`0000`–`0010`）。专用迁移测试已证明 `0000`–`0009` 数据原样保留、不会为 legacy reviewed 记录发明专业 provenance；当前签名恢复又逐项匹配 11 个 migration SQL hash，但这仍不是 GitHub runner、生产副本或目标内网升级证明。本地 synthetic bridge 只覆盖旧 10 迁移基线，历史生产 N−1、目标发布复演和经审批的破坏性 `restore.sh` 生产入口没有实跑。GitHub CI、最终 GHCR 镜像、目标内网、真实设备、真实教育内容放行、MinIO 长期维护/支持风险处置和责任人批准仍是发布闸门，以[验收矩阵](./v1-acceptance-matrix.md)为准。
 

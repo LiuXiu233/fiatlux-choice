@@ -73,6 +73,8 @@ pnpm exec tsx scripts/verify-v1-release-readiness.ts --file /absolute/path/to/ma
 
 不可变实现 `9c5633e1c3e9650507231106fcd8a451bf32053f` 已完成该审阅包的 exact-SHA `pnpm check`、29 项教育证据 Vitest、真实 CLI 生成/权限/哈希/无网络/负向覆盖、mock 48+6、独立 desktop/mobile/offline/SW、Gitleaks、生产依赖、Semgrep 和 API/worker/Web 三张受影响镜像验证；[脱敏记录](./evidence/education-wordpress-review-bundle-acceptance-9c5633e-20260720.json) SHA-256 为 `62aa22b352005ee7de459e24723ce595041e7775a9c014b85ab80947b3920dae`。本轮没有冒充 full Compose、七镜像、真实发布或人工放行。
 
+受控审计导出在不可变实现 `4391837e0c2b91fa58b2269a26b2cbb3294347b6` 上同时要求读取/导出权限、明确内部确认、北京时间 31 天窗口、10,000 条/25 MiB 整体失败上限、CSV 公式注入保护和响应/浏览器 SHA-256，并在成功响应前追加 `export_generated`。exact-SHA 已完成 `pnpm check`、PostgreSQL API 95/95、mock 51+7、全新 PostgreSQL+MinIO desktop/mobile 6/6、源码安全及 API/worker/Web 三张受影响镜像验收；[脱敏记录](./evidence/governed-audit-export-acceptance-4391837-20260720.json) SHA-256 为 `d7c0be8675e2076a0efcb173d1d37584a5e87b23669997946069a4ce790ccf35`。它证明生成和浏览器下载前字节对账，不证明下载后的保管、转发、保留或销毁，因此不增加 14 项门禁中的通过项。
+
 退出码定义：
 
 - `0`：清单有效；若使用 `--require-ready`，同时表示全部门禁通过。
@@ -139,4 +141,4 @@ pnpm exec tsx scripts/verify-v1-release-readiness.ts --file /absolute/path/to/ma
 
 ## 7. 当前阻断边界
 
-当前只有本地核心验收和本地安全/敏感数据两项通过。候选 `9c5633e1c3e9650507231106fcd8a451bf32053f` 在最近完整空卷/七镜像基线 `f4c12b5…` 上增加审阅包并完成自身全仓、浏览器和三张受影响镜像证据，但没有真实问卷/复核/发布/批准、真实适配器凭据/调用、物理设备、MDM 原始记录、真实生产恢复或独立批准，不能增加通过门禁。证据提交 `c41ef1018358b0e42063082330561a53aa8dc0a4` 的 CI `29747915723` 与 Security `29747915624` 均由账户付款或额度限制在 runner 前阻断，失败 job 为 `runner_id=0`、`steps=[]`。GHCR、目标办公内网、真实受管手机、生产范围恢复、真实 LLM/GitHub 适配器、73 条专业复核、十二篇教育内容权利/发布复核、真实责任人演练、残余风险决定、缺陷关闭确认和最终业务批准均未完成。清单如实保留这些状态；修复一个外部条件后，只更新有新证据覆盖的对应门禁。
+当前只有本地核心验收和本地安全/敏感数据两项通过。候选 `4391837e0c2b91fa58b2269a26b2cbb3294347b6` 在最近完整空卷/七镜像基线 `f4c12b5…` 和审阅包 `9c5633e…` 上增加受控审计导出，并完成自身全仓、PostgreSQL、桌面/移动真实下载和 API/worker/Web 三张受影响镜像证据；下载后保管制度、真实问卷/复核/发布/批准、真实适配器凭据/调用、物理设备、MDM 原始记录、真实生产恢复和独立批准仍未完成，不能增加通过门禁。证据提交 `49278ce7f8de5c5a8fe57d0854f138e83652349f` 的 CI `29758151603` 与 Security `29758151588` 均由账户付款或额度限制在 runner 前阻断，失败 job 为 `runner_id=0`、`steps=[]`。GHCR、目标办公内网、真实受管手机、生产范围恢复、真实 LLM/GitHub 适配器、73 条专业复核、十二篇教育内容权利/发布复核、真实责任人演练、残余风险决定、缺陷关闭确认和最终业务批准均未完成。清单如实保留这些状态；修复一个外部条件后，只更新有新证据覆盖的对应门禁。

@@ -2,19 +2,19 @@
   "schemaVersion": 1,
   "versionLabel": "V1 controlled candidate",
   "overallStatus": "blocked",
-  "evaluatedAt": "2026-07-20T21:50:03+08:00",
+  "evaluatedAt": "2026-07-21T00:06:44+08:00",
   "candidate": {
     "repository": "https://github.com/LiuXiu233/fiatlux-choice",
     "branch": "codex/v1-acceptance-hardening",
-    "implementationCommit": "9c5633e1c3e9650507231106fcd8a451bf32053f",
-    "evidenceCommit": "c41ef1018358b0e42063082330561a53aa8dc0a4"
+    "implementationCommit": "4391837e0c2b91fa58b2269a26b2cbb3294347b6",
+    "evidenceCommit": "49278ce7f8de5c5a8fe57d0854f138e83652349f"
   },
   "gates": [
     {
       "id": "local_core_acceptance",
       "status": "passed",
       "ownerRole": "研发与交付负责人",
-      "summary": "核心闭环、真实栈、浏览器、移动端、PWA、运行异常、教育内容、生产恢复防护、真实适配器、逐篇放行入口和 WordPress 内部审阅包已有分层本地机器证据。",
+      "summary": "核心闭环、真实栈、浏览器、移动端、PWA、运行异常、教育内容、生产恢复防护、真实适配器、逐篇放行入口、WordPress 内部审阅包和受控审计导出已有分层本地机器证据。",
       "evidence": [
         {
           "kind": "machine_evidence",
@@ -113,17 +113,26 @@
           "verifiedAt": "2026-07-20T21:46:01+08:00",
           "subjectCommit": "9c5633e1c3e9650507231106fcd8a451bf32053f",
           "sha256": "62aa22b352005ee7de459e24723ce595041e7775a9c014b85ab80947b3920dae",
-          "note": "当前候选 exact-SHA 的 12 篇 review-only HTML/审阅表/哈希 manifest、无网络与失败关闭 CLI、桌面/移动/PWA 及 API/worker/Web 三张受影响镜像验收；不代表专业复核或 WordPress 发布。"
+          "note": "12 篇 review-only HTML/审阅表/哈希 manifest、无网络与失败关闭 CLI、桌面/移动/PWA 及 API/worker/Web 三张受影响镜像验收；不代表专业复核或 WordPress 发布。"
+        },
+        {
+          "kind": "machine_evidence",
+          "result": "success",
+          "reference": "docs/delivery/evidence/governed-audit-export-acceptance-4391837-20260720.json",
+          "verifiedAt": "2026-07-20T23:51:49+08:00",
+          "subjectCommit": "4391837e0c2b91fa58b2269a26b2cbb3294347b6",
+          "sha256": "d7c0be8675e2076a0efcb173d1d37584a5e87b23669997946069a4ce790ccf35",
+          "note": "当前候选 exact-SHA 的双权限受控审计导出、PostgreSQL API 95/95、mock 51+7、全新真实栈 desktop/mobile 6/6、响应/浏览器 SHA-256、自身追加审计和三张受影响应用镜像验收；不证明下载后保留、转发或销毁。"
         }
       ],
       "blockers": [],
-      "reviewedAt": "2026-07-20T21:46:01+08:00"
+      "reviewedAt": "2026-07-20T23:51:49+08:00"
     },
     {
       "id": "local_security_and_sensitive_data",
       "status": "passed",
       "ownerRole": "信息安全负责人",
-      "summary": "当前实现提交已完成源码、完整历史、生产依赖和 Semgrep 复核，并对三张受影响应用镜像完成 Trivy/SPDX；历史七镜像证据继续分列，未发现敏感数据或阻断漏洞。",
+      "summary": "当前 4391837 实现提交已完成源码、完整历史、生产依赖和 Semgrep 复核，并对 API/worker/Web 三张实际受影响应用镜像完成 Trivy/SPDX；历史七镜像证据继续分列，未发现敏感数据或阻断漏洞。",
       "evidence": [
         {
           "kind": "machine_evidence",
@@ -204,11 +213,20 @@
           "verifiedAt": "2026-07-20T21:46:01+08:00",
           "subjectCommit": "9c5633e1c3e9650507231106fcd8a451bf32053f",
           "sha256": "62aa22b352005ee7de459e24723ce595041e7775a9c014b85ab80947b3920dae",
-          "note": "当前候选 Gitleaks 当前树/完整历史、生产依赖、Semgrep 及 API/worker/Web 三张受影响镜像的 Trivy HIGH/CRITICAL 0 和 SPDX 通过；没有冒充七镜像或 GHCR 全量发布。"
+          "note": "审阅包候选 Gitleaks 当前树/完整历史、生产依赖、Semgrep 及 API/worker/Web 三张受影响镜像的 Trivy HIGH/CRITICAL 0 和 SPDX 通过；没有冒充七镜像或 GHCR 全量发布。"
+        },
+        {
+          "kind": "machine_evidence",
+          "result": "success",
+          "reference": "docs/delivery/evidence/governed-audit-export-acceptance-4391837-20260720.json#sourceSecurity",
+          "verifiedAt": "2026-07-20T23:51:49+08:00",
+          "subjectCommit": "4391837e0c2b91fa58b2269a26b2cbb3294347b6",
+          "sha256": "d7c0be8675e2076a0efcb173d1d37584a5e87b23669997946069a4ce790ccf35",
+          "note": "当前候选 Gitleaks 当前树/完整历史、生产依赖 0、Semgrep 10/10 canary/109 目标 0 finding，以及 API/worker/Web Trivy HIGH/CRITICAL 0 和 SPDX 204/225/176 packages 通过；没有冒充七镜像或 GHCR。"
         }
       ],
       "blockers": [],
-      "reviewedAt": "2026-07-20T21:46:01+08:00"
+      "reviewedAt": "2026-07-20T23:51:49+08:00"
     },
     {
       "id": "github_ci_security",
@@ -219,18 +237,18 @@
         {
           "kind": "github_run",
           "result": "blocked",
-          "reference": "https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29747915723",
-          "verifiedAt": "2026-07-20T21:50:03+08:00",
-          "subjectCommit": "c41ef1018358b0e42063082330561a53aa8dc0a4",
+          "reference": "https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29758151603",
+          "verifiedAt": "2026-07-21T00:06:44+08:00",
+          "subjectCommit": "49278ce7f8de5c5a8fe57d0854f138e83652349f",
           "githubWorkflow": "ci",
           "note": "CI 两个首级失败 job 均为 runner_id=0、steps=[]，没有执行仓库步骤；不能记为代码失败或绿色通过。"
         },
         {
           "kind": "github_run",
           "result": "blocked",
-          "reference": "https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29747915624",
-          "verifiedAt": "2026-07-20T21:50:03+08:00",
-          "subjectCommit": "c41ef1018358b0e42063082330561a53aa8dc0a4",
+          "reference": "https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29758151588",
+          "verifiedAt": "2026-07-21T00:06:44+08:00",
+          "subjectCommit": "49278ce7f8de5c5a8fe57d0854f138e83652349f",
           "githubWorkflow": "security",
           "note": "Security 四个首级失败 job 均为 runner_id=0、steps=[]，文件系统与 CodeQL 下游 job 被跳过。"
         }
@@ -239,13 +257,13 @@
         "GitHub 账户付款或 Actions spending limit 尚未恢复，CI 与 Security 没有实际 runner steps。",
         "尚无两个绑定同一 evidenceCommit 的独立绿色 CI 与 Security run。"
       ],
-      "reviewedAt": "2026-07-20T21:50:03+08:00"
+      "reviewedAt": "2026-07-21T00:06:44+08:00"
     },
     {
       "id": "ghcr_release_artifacts",
       "status": "blocked",
       "ownerRole": "发布与供应链负责人",
-      "summary": "本地历史七镜像与当前三张受影响应用镜像的扫描和 SPDX 已有证据，但最终提交的七个 GHCR 双平台制品、摘要和来源证明尚未发布。",
+      "summary": "本地历史七镜像与当前 4391837 的 API/worker/Web 三张受影响应用镜像扫描和 SPDX 已有证据，但最终提交的七个 GHCR 双平台制品、摘要和来源证明尚未发布。",
       "evidence": [
         {
           "kind": "registry",
