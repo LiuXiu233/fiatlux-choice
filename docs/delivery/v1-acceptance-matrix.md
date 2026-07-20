@@ -101,7 +101,7 @@ lease 到期不等于“安全重试”。操作员必须从“运行异常处�
 | synthetic bridge 相邻版本 | N `859841f…`/10 migrations 与本地 bridge `b44a8d1…`/9 migrations；七 digest 全异，真实 push/pull，升级 46s、回滚 43s、双 v2 恢复点；回滚后 308s 登录与 CRUD 通过 | 本地演练已验证 / 范围受限 | 不是历史生产 N−1、GHCR 或目标内网；经批准生产候选仍须复演 |
 | 归档、签名与维护安全 | `231d8e8…` 增加必填操作身份/理由/批准断言、跳过备份二次确认、每 operation 独占技术挂载和不可覆盖 `0600` 主机报告；archive guard、资源上限、scratch、preflight、maintenance lock、Ed25519 及正负向测试通过 | exact-SHA 本地通过；38 表/11 migration/1 对象签名隔离恢复通过 | 主机文件私钥不是 HSM；批准真实性固定未独立验证；经审批生产 `restore.sh` 破坏性入口仍待目标演练 |
 | 七镜像与供应链 | `d7cc156…` arm64 七镜像 Trivy HIGH/CRITICAL/fixable/unfixed 均 0，SPDX 包数为 204/225/176/176/372/47/178；本地报告哈希见机器证据 | 不可变当前候选本地通过 / GHCR 待发布 | 最终发布 SHA 的双平台 registry digest、GitHub workflow 和残余风险批准 |
-| GitHub 交付 | 目标证明入口 `25204d34d865b16941d099658d33fbb561424f09` 已推送，Draft PR #12 保持开放；最新 CI `29719190354` 与 Security `29719190355` 的六个首级失败 job 均为 `runner_id=0`、`steps=[]`，仍由账户付款或 spending limit 在 runner 前阻断 | 部分完成 / 外部计费阻断 | PR Checks 为实时权威状态；修复 Billing & plans 后重跑并取得绿色 CI/security、候选制品、最终证明和批准；再合并 |
+| GitHub 交付 | 证据提交 `54471e735ecc915b7784a10a00e218dec149a2f4` 已推送，Draft PR #12 保持开放；CI `29735200938` 与 Security `29735200932` 的六个首级失败 job 均为 `runner_id=0`、`steps=[]`，仍由账户付款或 spending limit 在 runner 前阻断 | 部分完成 / 外部计费阻断 | PR Checks 为实时权威状态；修复 Billing & plans 后重跑并取得绿色 CI/security、候选制品、最终证明和批准；再合并 |
 | 目标办公内网 | `verify-target-intranet.sh` 已在 stub 的 macOS/Linux 环境证明成功/失败原子边界；尚未在耀光广州办公内网部署或运行 | 采集入口本地通过 / 真实目标待执行且阻断 | 绑定最终 SHA/清单在目标主机执行；另验主机基线、DNS、CA、防火墙、设备、备份介质、运行观察和独立批准 |
 
 ## 7. 核心场景状态
@@ -134,7 +134,7 @@ lease 到期不等于“安全重试”。操作员必须从“运行异常处�
 | 字段 | 当前值 | 要求 |
 | --- | --- | --- |
 | 完整 Git SHA / tag | 当前候选实现为 `d7cc156ef2c44a531416c60ed88023681b113ecf`；生产恢复防护为 `231d8e8…`、受管真机入口为 `ffe102e…`、完整恢复基线为 `101d2f0…`；发布 tag 待创建 | 确定 commit/tag 签名政策，统一最终 Git/GitHub/GHCR/目标身份并记录受保护 tag |
-| GitHub PR / CI / 安全 run | Draft PR #12；`ffe102e…` 的 CI `29722396559` 与 Security `29722396542` 均由账户付款/spending limit 在 runner 前阻断，六个首级失败 job 为 `runner_id=0`、`steps=[]`，下游四项 skipped | PR Checks 是实时权威状态；修复 Billing & plans 后重跑，只有实际 step 执行且绿色才能关闭门禁 |
+| GitHub PR / CI / 安全 run | Draft PR #12；证据提交 `54471e7…` 的 CI `29735200938` 与 Security `29735200932` 均由账户付款/spending limit 在 runner 前阻断，六个首级失败 job 为 `runner_id=0`、`steps=[]`，下游四项 skipped | PR Checks 是实时权威状态；修复 Billing & plans 后重跑，只有实际 step 执行且绿色才能关闭门禁 |
 | 38 表 / 11 migrations（`0000`–`0010`）证据 | **`101d2f0…` fresh/legacy、Compose、五职责与签名恢复本地通过** | GitHub runner、GHCR 与目标环境复现 |
 | 七镜像 digest / SBOM / provenance | **`d7cc156…` 本地 arm64 七镜像、Trivy 0、七份 SPDX 通过** | 从最终发布 SHA 生成并记录 GHCR 双平台 registry digest；本地 image ID 不能替代 |
 | 最终测试报告 | **`d7cc156…` 完成 246 文件、239 单元、7 项类型、API 94/94、worker 33/33、MinIO 2/2、空卷 Compose、desktop/mobile/PWA、重启、部署、Gitleaks、依赖审计、Semgrep 100 目标和七镜像 Trivy/SPDX；标准入口的 2/94/33 skip 未计作通过** | 记录绿色 GitHub run；目标环境、真机、恢复和真实适配器仍分别验收 |

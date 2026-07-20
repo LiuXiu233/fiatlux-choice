@@ -2,12 +2,12 @@
   "schemaVersion": 1,
   "versionLabel": "V1 controlled candidate",
   "overallStatus": "blocked",
-  "evaluatedAt": "2026-07-20T18:16:58+08:00",
+  "evaluatedAt": "2026-07-20T18:28:54+08:00",
   "candidate": {
     "repository": "https://github.com/LiuXiu233/fiatlux-choice",
     "branch": "codex/v1-acceptance-hardening",
     "implementationCommit": "d7cc156ef2c44a531416c60ed88023681b113ecf",
-    "evidenceCommit": "d7cc156ef2c44a531416c60ed88023681b113ecf"
+    "evidenceCommit": "54471e735ecc915b7784a10a00e218dec149a2f4"
   },
   "gates": [
     {
@@ -183,27 +183,27 @@
         {
           "kind": "github_run",
           "result": "blocked",
-          "reference": "https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29722396559",
-          "verifiedAt": "2026-07-20T14:44:36+08:00",
-          "subjectCommit": "ffe102e75526c510a14c60ef90a29e174b40a00a",
+          "reference": "https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29735200938",
+          "verifiedAt": "2026-07-20T18:28:54+08:00",
+          "subjectCommit": "54471e735ecc915b7784a10a00e218dec149a2f4",
           "githubWorkflow": "ci",
-          "note": "CI 首级失败 job 没有执行仓库步骤，不能记为代码失败或绿色通过。"
+          "note": "CI 两个首级失败 job 均为 runner_id=0、steps=[]，没有执行仓库步骤；不能记为代码失败或绿色通过。"
         },
         {
           "kind": "github_run",
           "result": "blocked",
-          "reference": "https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29722396542",
-          "verifiedAt": "2026-07-20T14:44:36+08:00",
-          "subjectCommit": "ffe102e75526c510a14c60ef90a29e174b40a00a",
+          "reference": "https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29735200932",
+          "verifiedAt": "2026-07-20T18:28:53+08:00",
+          "subjectCommit": "54471e735ecc915b7784a10a00e218dec149a2f4",
           "githubWorkflow": "security",
-          "note": "Security 首级失败 job 没有执行仓库步骤，CodeQL 等下游 job 被跳过。"
+          "note": "Security 四个首级失败 job 均为 runner_id=0、steps=[]，文件系统与 CodeQL 下游 job 被跳过。"
         }
       ],
       "blockers": [
         "GitHub 账户付款或 Actions spending limit 尚未恢复，CI 与 Security 没有实际 runner steps。",
         "尚无两个绑定同一 evidenceCommit 的独立绿色 CI 与 Security run。"
       ],
-      "reviewedAt": "2026-07-20T14:44:36+08:00"
+      "reviewedAt": "2026-07-20T18:28:54+08:00"
     },
     {
       "id": "ghcr_release_artifacts",
