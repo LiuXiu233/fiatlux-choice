@@ -110,7 +110,7 @@ interface SeedCliResult {
 
 function runSeedCli(env: NodeJS.ProcessEnv): Promise<SeedCliResult> {
   return new Promise((resolve, reject) => {
-    const child = spawn("pnpm", ["--filter", "@fiatlux/db", "exec", "tsx", "src/seed-cli.ts"], {
+    const child = spawn("pnpm", ["--filter", "@fiatlux/db", "db:seed"], {
       cwd: workspaceRoot,
       env,
       stdio: ["ignore", "pipe", "pipe"],
