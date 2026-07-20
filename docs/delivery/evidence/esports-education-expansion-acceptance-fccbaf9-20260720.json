@@ -1,0 +1,327 @@
+{
+  "schemaVersion": 1,
+  "evidenceType": "esports_education_expansion_acceptance",
+  "generatedAt": "2026-07-20T03:37:35Z",
+  "implementation": {
+    "commit": "fccbaf9c5718c18c588f8ee1d21d3a3997053187",
+    "branch": "codex/v1-acceptance-hardening",
+    "remoteBranch": "origin/codex/v1-acceptance-hardening",
+    "implementationCommitPushed": true,
+    "workingTreeCleanDuringExactShaCheck": true,
+    "changedPathCount": 15
+  },
+  "contentLibrary": {
+    "datasetId": "fiatlux-choice-esports-education-library",
+    "schemaVersion": "1.0.0",
+    "status": "internal_draft",
+    "packageCount": 2,
+    "foundationArticleCount": 4,
+    "expansionArticleCount": 8,
+    "mergedArticleCount": 12,
+    "mergedReferenceCount": 10,
+    "officialReferenceCount": 8,
+    "internalReferenceCount": 2,
+    "articleIds": [
+      "four-week-competitive-training-goal",
+      "effective-replay-review",
+      "minimum-team-voice-protocol",
+      "ergonomics-and-rest-self-check",
+      "player-to-coach-skill-and-duty-boundary",
+      "tournament-registration-to-archive-checkpoints",
+      "structured-review-after-a-loss",
+      "esports-career-probability-cost-and-alternatives",
+      "game-account-device-community-security",
+      "coach-actionable-feedback",
+      "small-esports-event-risk-register",
+      "adult-team-training-pilot-retrospective"
+    ],
+    "governanceState": {
+      "reviewStatus": "pending",
+      "rightsStatus": "pending_clearance",
+      "publicationStatus": "not_published",
+      "publicationEvidenceUrlsPresent": 0,
+      "publicationDatesPresent": 0,
+      "externalStateLabel": "WordPress 未发布"
+    },
+    "mergeSafety": {
+      "eachPackageValidatedIndependently": true,
+      "identicalSharedReferencesDeduplicated": true,
+      "conflictingSharedReferencesRejected": true,
+      "duplicateArticleIdsRejected": true,
+      "duplicateArticleSlugsRejected": true,
+      "schemaVersionMismatchRejected": true,
+      "finalMergedDocumentRevalidated": true
+    },
+    "officialSourceAlignment": {
+      "catalog": "content/compliance/official-sources.json",
+      "matchingFields": [
+        "id",
+        "title",
+        "authority",
+        "sourceUrl",
+        "published",
+        "lastVerifiedAt",
+        "reviewStatus"
+      ],
+      "allOfficialReferencesMatched": true,
+      "allOfficialReferencesPendingHumanReview": true
+    },
+    "hashesSha256": {
+      "foundationPackage": "bbb61ba75bde3dbd0c4023898f87b111c0d4f74885aee96d3cab3a17a1af210f",
+      "expansionPackage": "05241c62e9cde5b4763b9975e8cfa6bd07d747d2482ea0f67781f82ff3f3e388",
+      "mergeModule": "6365782c88ee5562571cc7202a53ac08603967a4b2c03dc7da443759d06a9ad1",
+      "educationPage": "785f852f5d8635799ab3bdf5d4eea78e9f2bf4aa207253aea5bd32047db06070",
+      "mockE2eSpec": "c1500d6eed273087e775007fb0f29dfd6af0a195f82324883e5bc9d2c187c405",
+      "realE2eSpec": "fc7782be8111a00bd0cfc64653bf436cd91e255e625c5af6527730af5868f078"
+    }
+  },
+  "validation": {
+    "contentSchema": {
+      "command": "pnpm content:education:validate",
+      "status": "passed",
+      "testFilesPassed": 1,
+      "testsPassed": 5
+    },
+    "exactShaStandardCheck": {
+      "command": "pnpm check",
+      "status": "passed",
+      "commit": "fccbaf9c5718c18c588f8ee1d21d3a3997053187",
+      "biomeFilesChecked": 220,
+      "shellcheck": "passed",
+      "typescriptProjectsPassed": 7,
+      "unitTestsPassed": 191,
+      "workspaceProductionBuild": "passed",
+      "standardIntegrationWithoutDependencies": {
+        "objectStorageTestsSkipped": 2,
+        "apiTestsSkipped": 93,
+        "workerTestsSkipped": 29,
+        "countedAsPassed": false,
+        "compensatingIsolatedRun": "validation.isolatedIntegration"
+      }
+    },
+    "isolatedIntegration": {
+      "status": "passed",
+      "loopbackOnly": true,
+      "postgres": {
+        "imageRef": "postgres:17.10-alpine",
+        "imageId": "sha256:742f40ea20b9ff2ff31db5458d127452988a2164df9e17441e191f3b72252193"
+      },
+      "minio": {
+        "imageRef": "ghcr.io/liuxiu233/fiatlux-choice-minio:finalqa",
+        "imageId": "sha256:74bd0fc3fa45b7eec2647b1f483847373c6a35dac8ec0f26782977c2a5569ef8"
+      },
+      "objectStorageTestsPassed": 2,
+      "apiTestFilesPassed": 19,
+      "apiTestsPassed": 93,
+      "workerTestFilesPassed": 5,
+      "workerTestsPassed": 29
+    },
+    "databaseMigration": {
+      "command": "pnpm test:database-migrations",
+      "status": "passed",
+      "previousReleaseMigrationCount": 10,
+      "currentMigrationCount": 11,
+      "publicTableCount": 38,
+      "legacyDataPreserved": true,
+      "inventedProfessionalProvenance": false,
+      "freshMigrationVerified": true
+    },
+    "mockPlaywright": {
+      "command": "pnpm test:e2e:mock",
+      "status": "passed",
+      "projects": ["desktop-chromium", "mobile-chromium"],
+      "testsPassed": 48,
+      "conditionalTestsSkipped": 6,
+      "testsFailed": 0,
+      "educationAssertions": [
+        "12 article buttons",
+        "foundation and expansion titles",
+        "security article body and template",
+        "official cybersecurity source",
+        "WordPress not published boundary",
+        "no horizontal overflow"
+      ]
+    },
+    "realStackPlaywright": {
+      "command": "scripts/e2e-real-stack.sh with isolated loopback PostgreSQL and MinIO",
+      "status": "passed",
+      "projects": ["real-desktop-chromium", "real-mobile-chromium"],
+      "testsPassed": 6,
+      "testsFailed": 0,
+      "educationScenarioPassedOnDesktop": true,
+      "educationScenarioPassedOnMobile": true,
+      "diagnosticIteration": {
+        "observedBeforeFix": "4 passed and 2 failed with HTTP 429 after tests repeatedly tried the already-rotated bootstrap password",
+        "rootCause": "the sequential real-stack login helper did not remember a successful password rotation",
+        "fixIncludedInImplementationCommit": true,
+        "securityRateLimitWeakened": false,
+        "freshDatabaseRerun": "6 passed"
+      }
+    },
+    "independentBrowser": {
+      "runtime": "Python Playwright headless Chromium",
+      "status": "passed",
+      "profiles": [
+        {
+          "name": "desktop-1440x1000",
+          "articleCount": 12,
+          "scrollWidth": 1440,
+          "clientWidth": 1440,
+          "consoleErrorsAfterLogin": 0,
+          "pageErrorsAfterLogin": 0,
+          "serviceWorkerActive": true,
+          "screenshotSha256": "9d5be46fef65a5c9f0bc86867dafd3e46071b7c6f18606ff97bf9aee8d5849eb",
+          "screenshotBytes": 555838
+        },
+        {
+          "name": "mobile-390x844",
+          "articleCount": 12,
+          "scrollWidth": 390,
+          "clientWidth": 390,
+          "consoleErrorsAfterLogin": 0,
+          "pageErrorsAfterLogin": 0,
+          "serviceWorkerActive": true,
+          "screenshotSha256": "e0eaf581b846c6da2706ccbeb20be506163cf11200c2c2f582ecd0e65d416bb2",
+          "screenshotBytes": 488244
+        }
+      ],
+      "manifestDisplay": "standalone",
+      "manifestIconSizes": ["192x192", "512x512"],
+      "screenshotsCommitted": false
+    }
+  },
+  "productionWebArtifact": {
+    "sourceCommit": "fccbaf9c5718c18c588f8ee1d21d3a3997053187",
+    "localImageRef": "ghcr.io/liuxiu233/fiatlux-choice-web:education-fccbaf9",
+    "localImageId": "sha256:7eb42853aa7fe19e9abc477452a91829e5b5206835870f1e56da96df64ffff89",
+    "platform": "linux/arm64",
+    "imageBytes": 37854005,
+    "runtimeUser": "10001:10001",
+    "educationChunk": {
+      "file": "education-page-CZq5xgHU.js",
+      "bytes": 190919,
+      "viteReportedGzipKb": 61.57,
+      "sha256": "ee3739389117009c4f19c388d8b8e6d155408b9862d58ee1c515be711c003ed0"
+    },
+    "pwa": {
+      "precacheEntryCount": 11,
+      "precacheKiB": 786.01,
+      "manifestSha256": "dce1acfbfa87a2f5bdbbcf51a5e862ac34b55bf25d0771819cfa3ad5211d83b9",
+      "serviceWorkerSha256": "d3551b8f56158cc7eca6f7595dff18bf239179efff2270d17b9562f8ac9fd7bc"
+    },
+    "runtimeHardening": {
+      "readOnlyRootFilesystem": true,
+      "tmpfs": "/tmp:rw,noexec,nosuid,size=64m",
+      "capDrop": ["ALL"],
+      "noNewPrivileges": true,
+      "loopbackHostPublishing": true,
+      "healthEndpointStatus": 200,
+      "manualRestartPerformed": true,
+      "dynamicHostPortReResolvedAfterRestart": true,
+      "browserVerificationPassedAfterRestart": true
+    },
+    "trivy": {
+      "runtime": "aquasec/trivy 0.70.0",
+      "runtimeImageDigest": "sha256:be1190afcb28352bfddc4ddeb71470835d16462af68d310f9f4bca710961a41e",
+      "os": "alpine 3.23.5",
+      "high": 0,
+      "critical": 0,
+      "fixable": 0,
+      "unfixed": 0,
+      "reportSha256": "b85797c59cac1f8bcffe2d0aceb6bcf419ed9fb0ee9e69da9f8cad48fcbcd521"
+    },
+    "syft": {
+      "runtime": "anchore/syft 1.42.3",
+      "runtimeImageDigest": "sha256:5999d209a342e55e9edf70bf8930fb5b86d8f2a783fa401178372c50e21b1d36",
+      "format": "SPDX-2.3",
+      "packageCount": 176,
+      "fileCount": 203,
+      "relationshipCount": 737,
+      "reportSha256": "70a080d7cb1b93bbb0c4b83059cb6321105cfe5dba2bb8afa1620afdd00a1add"
+    },
+    "registryPublished": false
+  },
+  "sourceSecurity": {
+    "gitleaks": {
+      "runtime": "gitleaks 8.28.0",
+      "currentTreeIncludingNonIgnoredUntracked": "passed",
+      "completeGitHistory": "passed",
+      "defaultAndCustomCanaries": "passed",
+      "findings": 0
+    },
+    "productionDependencyAudit": {
+      "command": "pnpm audit --prod --audit-level high",
+      "status": "passed",
+      "knownVulnerabilities": 0
+    },
+    "semgrep": {
+      "runtime": "Semgrep OSS 1.170.0",
+      "ruleCount": 10,
+      "canaryFindingsExpectedAndObserved": 10,
+      "productionTargetsScanned": 90,
+      "productionFindings": 0
+    }
+  },
+  "github": {
+    "pullRequest": {
+      "number": 12,
+      "url": "https://github.com/LiuXiu233/fiatlux-choice/pull/12",
+      "draft": true,
+      "head": "codex/v1-acceptance-hardening",
+      "base": "main"
+    },
+    "ciRun": {
+      "id": 29714857746,
+      "url": "https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29714857746",
+      "headSha": "fccbaf9c5718c18c588f8ee1d21d3a3997053187",
+      "status": "completed",
+      "conclusion": "failure",
+      "primaryFailedJobs": 2,
+      "primaryFailedJobsWithRunnerIdZero": 2,
+      "primaryFailedJobsWithNoSteps": 2,
+      "dependentSkippedJobs": 2
+    },
+    "securityRun": {
+      "id": 29714857703,
+      "url": "https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29714857703",
+      "headSha": "fccbaf9c5718c18c588f8ee1d21d3a3997053187",
+      "status": "completed",
+      "conclusion": "failure",
+      "primaryFailedJobs": 4,
+      "primaryFailedJobsWithRunnerIdZero": 4,
+      "primaryFailedJobsWithNoSteps": 4,
+      "dependentSkippedJobs": 2
+    },
+    "platformAnnotation": "The job was not started because recent account payments have failed or your spending limit needs to be increased.",
+    "codeStepsExecutedOnGitHub": 0,
+    "blindRerunPerformed": false,
+    "mergeState": "UNSTABLE"
+  },
+  "cleanup": {
+    "temporaryWebContainerRemoved": true,
+    "temporaryPostgresContainerRemoved": true,
+    "temporaryMinioContainerRemoved": true,
+    "temporaryContainersRemaining": 0,
+    "credentialsCommitted": false,
+    "rawScreenshotsCommitted": false,
+    "rawScanReportsCommitted": false
+  },
+  "boundaries": {
+    "wordpressWritten": false,
+    "wordpressTemplatesWithdrawnOrReplaced": false,
+    "professionalContentReviewCompleted": false,
+    "rightsClearanceCompleted": false,
+    "realLearnerOrPilotDataUsed": false,
+    "apiWorkerDatabaseOrRestoreImplementationChanged": false,
+    "apiWorkerAndObjectStorageIntegrationReRun": true,
+    "productionRestoreReRun": false,
+    "baselineRestoreEvidence": "docs/delivery/evidence/production-like-acceptance-101d2f0-20260720.json",
+    "latestUnchangedOperationalRuntimeEvidence": "docs/delivery/evidence/operational-incident-final-acceptance-f86bff4-20260720.json",
+    "ghcrMultiPlatformArtifactPublished": false,
+    "targetGuangzhouIntranetVerified": false,
+    "managedPhysicalMobileDeviceVerified": false,
+    "realLlmOrGitHubAdapterVerified": false,
+    "v1CompletionAnnounced": false
+  },
+  "conclusion": "The 12-article governed internal esports education library and its changed Web artifact passed the recorded local content, static, type, unit, isolated integration, migration, browser, PWA, source-security and image-security checks. All articles remain pending human review, rights clearance and manual WordPress publication. GitHub runners, GHCR, target intranet, managed-device, real-adapter and professional approval gates remain open, so this evidence does not declare V1 complete."
+}

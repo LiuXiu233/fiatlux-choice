@@ -12,6 +12,8 @@
 
 不可变运行异常最终候选 `f86bff4dcc7d2b61e05c8a6b44078d039aad1e38` 为顾问、工作流和数据库备份 `lease_expired` 增加 owner/admin 专用处置队列、证据化人工结论和事件级事务锁，并澄清未知 partial 数量与补偿主记录。原失败记录与 partial output 保持不变，提交只追加审计且不重放模型、工作流、队列或备份命令。该 SHA 已推送并通过 Biome 218 文件、7 项类型、191/191 单元、API 19 files/93 tests、worker 5 files/29 tests、OpenAPI 78 paths/143 operations、生产构建和 Gitleaks；同一 SHA 重建并扫描 API/worker/Web，Trivy HIGH/CRITICAL 与可修复项均为 0，SPDX 包数为 204/225/176。独立 production Compose 又从空卷完成五职责、38 表/11 migration、73 条来源、六服务和 MinIO 最小权限；真实 HTTPS 桌面/390×844 移动端分别处置 advisor、workflow、backup 三类事件，验证两条独立补偿主记录、重复 409、原记录不变、首登改密、PWA 11 条静态缓存/0 API 或 health 缓存/0 安装性错误及整体重启持久性。脱敏事实与报告哈希见[运行异常最终证据](docs/delivery/evidence/operational-incident-final-acceptance-f86bff4-20260720.json)。本增量未修改或重跑恢复层，也不关闭 GitHub CI、GHCR、目标内网、真机、真实适配器或专业批准闸门。
 
+电竞教育扩展实现 `fccbaf9c5718c18c588f8ee1d21d3a3997053187` 将 4 篇基础包和 8 篇扩展包合并为 12 篇版本化内部内容库，并对共享来源冲突、重复文章和结构版本漂移失败关闭。该 SHA 已推送并通过内容治理 5/5、Biome 220 文件、7 项类型、191/191 单元、真实 MinIO 2/2、API 93/93、worker 29/29、10→11 与 fresh 迁移、mock 48 passed/6 条件 skip、真实栈 desktop/mobile 6/6、独立 Chromium/PWA 和生产 Web 镜像重启验证；变更后的 Web 镜像为 UID 10001、只读根、cap-drop ALL、no-new-privileges，Trivy HIGH/CRITICAL 为 0，Syft SPDX-2.3 为 176 packages。脱敏结果与报告哈希见[电竞教育扩展证据](docs/delivery/evidence/esports-education-expansion-acceptance-fccbaf9-20260720.json)。十二篇仍全部待人工复核、权利确认和 WordPress 手工发布；官网模板文章没有被本次仓库提交撤回。对应 GitHub CI/Security 继续因付款或 Actions spending limit 在 runner 前阻断，不构成代码测试结果。
+
 ## 能力
 
 - 用户、组织、数据库会话、四级 RBAC 和追加审计。
