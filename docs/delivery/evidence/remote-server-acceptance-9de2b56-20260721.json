@@ -1,0 +1,311 @@
+{
+  "schemaVersion": 1,
+  "evidenceType": "remote-server-acceptance",
+  "status": "passed_with_release_and_environment_boundaries",
+  "candidate": {
+    "repository": "LiuXiu233/fiatlux-choice",
+    "branch": "codex/v1-acceptance-hardening",
+    "sourceGitSha": "9de2b56a2fe2943c9ddf038eefe5a5b11b53eb06",
+    "implementationCommit": "4391837e0c2b91fa58b2269a26b2cbb3294347b6",
+    "imageTag": "acceptance-9de2b56",
+    "releaseVersion": "v0.1.0-acceptance.20260721.1",
+    "serverCheckoutCleanBeforeAndAfter": true,
+    "trackedSecretsCommitted": false,
+    "sshPrivateKeyIgnoredByGit": true
+  },
+  "execution": {
+    "completedAt": "2026-07-21T01:25:52+08:00",
+    "operatorTimezone": "Asia/Shanghai",
+    "deploymentClassification": "remote_acceptance",
+    "host": {
+      "address": "43.165.189.222",
+      "domain": "choice.fiatlux.gg",
+      "os": "Ubuntu 24.04 LTS",
+      "kernel": "6.8.0-124-generic",
+      "architecture": "linux/amd64",
+      "cpuCount": 2,
+      "memoryBytes": 2029678592,
+      "rootDiskBytes": 42156257280,
+      "diskUtilizationAfterCleanupPercent": 35,
+      "ntpSynchronized": true,
+      "swapConfiguredForSourceBuild": true,
+      "belowDocumentedProductionSizing": true
+    },
+    "runtime": {
+      "dockerEngine": "29.6.2",
+      "dockerCompose": "5.3.1",
+      "dockerBuildx": "0.35.0",
+      "sourceBuildOnTarget": true,
+      "singlePlatformOnly": "linux/amd64",
+      "ghcrImagesUsed": false
+    }
+  },
+  "networkAndTls": {
+    "dnsARecord": "43.165.189.222",
+    "trustedPublicHttps": true,
+    "certificate": {
+      "subject": "CN=choice.fiatlux.gg",
+      "issuer": "C=US, O=Let's Encrypt, CN=YE2",
+      "notBefore": "2026-07-20T16:00:42Z",
+      "notAfter": "2026-10-18T16:00:41Z",
+      "san": ["DNS:choice.fiatlux.gg"],
+      "derSha256": "6f0b4a5bc823c18299b00e869f050ef2f9e0b55ea2f52d9875fed1775c7c7d3a"
+    },
+    "tls12Verified": true,
+    "tls13Verified": true,
+    "tls10Rejected": true,
+    "http2Verified": true,
+    "http3DisabledBecauseExternal443MapsToContainer8443": true,
+    "hsts": "max-age=31536000; includeSubDomains",
+    "cspPresent": true,
+    "onlyPublishedApplicationHostPort": "443/tcp",
+    "ufwActive": true,
+    "ufwInboundRules": ["22/tcp", "443/tcp"],
+    "databaseOrObjectStoragePublished": false
+  },
+  "deployment": {
+    "productionComposeOverlayUsed": true,
+    "serverSpecificPublicTlsOverlayUsed": true,
+    "publicTlsOverlayStoredOutsideGitCheckout": true,
+    "services": ["postgres", "minio", "api", "worker", "web", "caddy"],
+    "allSixServicesHealthy": true,
+    "allContainerRestartCountsZero": true,
+    "deploymentVerifierPassed": true,
+    "minioLeastPrivilegeProbePassed": true,
+    "restartPersistencePassed": true,
+    "healthAfterRestart": {
+      "live": "alive",
+      "database": "ready",
+      "queue": "ready",
+      "objectStorage": "ready"
+    },
+    "database": {
+      "publicTableCount": 38,
+      "migrationCount": 11,
+      "firstMigration": "0000_dusty_wither",
+      "lastMigration": "0010_aspiring_maverick",
+      "pgBossSchemaVersion": 24,
+      "fiveDatabaseIdentitiesConfigured": true,
+      "runtimeAuditAppendOnlyPostureVerified": true
+    },
+    "seed": {
+      "organization": "耀光（广州）电子竞技有限公司",
+      "organizationSlug": "fiat-lux",
+      "bootstrapOwnerCreated": true,
+      "officialComplianceSourcesImported": 73,
+      "skippedComplianceSources": 0
+    },
+    "systemd": {
+      "applicationServiceActive": true,
+      "applicationEnabledAtBoot": true,
+      "dailyEncryptedBackupTimerActive": true,
+      "monthlyIsolatedRestoreDrillTimerActive": true,
+      "unattendedSecurityUpgradesActive": true,
+      "failedUnits": 0
+    },
+    "runtimeLogReview": {
+      "apiErrorOrFatalMatches": 0,
+      "workerErrorOrFatalMatches": 0,
+      "gatewayErrorOrFatalMatchesAfterCertificateIssuance": 0
+    }
+  },
+  "authentication": {
+    "bootstrapLoginStatus": 200,
+    "mandatoryPasswordChangeStatus": 200,
+    "postChangeReloginStatus": 200,
+    "bootstrapPasswordRemovedFromProductionEnvironment": true,
+    "apiNeverReceivedBootstrapPassword": true,
+    "finalHandoffPasswordRotatedAfterTesting": true,
+    "automationSessionsRevokedAtHandoff": 12,
+    "activeSessionsAfterHandoff": 0,
+    "secureHttpOnlySameSiteStrictCookieVerifiedExternally": true,
+    "credentialHandoffFile": "/home/ubuntu/.fiatlux-choice-admin-credential",
+    "credentialHandoffFileMode": "0600",
+    "credentialValueRecordedInEvidence": false
+  },
+  "browser": {
+    "nativePythonPlaywright": {
+      "testedAt": "2026-07-20T17:05:18.904261Z",
+      "reportSha256": "fd095f764176dabe6c3315489695640a99906ae1d6366abee3869a6ca299d7ba",
+      "desktopViewport": "1440x1000",
+      "mobileEmulationViewport": "390x844",
+      "desktopHorizontalOverflow": false,
+      "mobileHorizontalOverflow": false,
+      "desktopConsoleErrorsAfterLogin": 0,
+      "mobileConsoleErrorsAfterLogin": 0,
+      "pageErrors": 0,
+      "unexpectedFailedRequests": 0,
+      "expectedPrelogin401ConsoleEvents": 2,
+      "educationArticleCount": 12,
+      "desktopScreenshotSha256": "381900ad4784a169c334dd3272cce677f978b40ecab9bbda9bfa34448bf03530",
+      "mobileScreenshotSha256": "fc9fee0abd3f079322a0602827fb0e574bd0d12bae6e9fe9633a1b0297d47df5",
+      "loginReconnaissanceScreenshotSha256": "ae5e2e86b9e6f039733d2dbdcca6d13c82d53ad948cfe7c27dcffe414ef47a5b"
+    },
+    "pwa": {
+      "manifestUrl": "https://choice.fiatlux.gg/manifest.webmanifest",
+      "manifestName": "FIAT LUX CHOICE",
+      "display": "standalone",
+      "serviceWorkerActive": true,
+      "scope": "https://choice.fiatlux.gg/",
+      "chromiumInstallabilityErrors": 0
+    },
+    "repositoryRealStackPlaywright": {
+      "desktopTestsPassed": 3,
+      "mobileEmulationTestsPassed": 3,
+      "totalTestsPassed": 6,
+      "failedTests": 0,
+      "lastRunJsonSha256": "91d1c43004802cd49950d78eb11c8fa7d05da8ffffe219a8b13b2f561bc00903",
+      "covered": [
+        "12 controlled esports education articles and publication boundary",
+        "evidence-backed synthetic professional review and history protection",
+        "goal-project-task-decision chain",
+        "MinIO upload and byte-identical download",
+        "manual approval and external receipt boundary",
+        "mock advisor execution and model/tool audit",
+        "governed audit export",
+        "mobile task creation and responsive navigation"
+      ]
+    },
+    "physicalManagedMobileDeviceValidated": false
+  },
+  "backup": {
+    "finalRecoveryPointCreatedAt": "2026-07-20T17:22:59Z",
+    "archiveFile": "fiatlux-20260720T172259Z.tar.gz.age",
+    "archiveSizeBytes": 73140,
+    "archiveSha256": "463030024680a82078e05289fd25233225e33561ce0c907a77e53ea0e1e4ff62",
+    "attestationSha256": "445b945d5857b6f6eceb112a258e1bed0a85c64e99ff63ccf6d672f18aa66b94",
+    "configurationArchiveFile": "fiatlux-20260720T172259Z.config.tar.gz.age",
+    "configurationArchiveSizeBytes": 1996,
+    "configurationArchiveSha256": "61a3e66e05390d3193caeb2cb1fff59e02cf7e0479dea49856564083181ec17a",
+    "signingKeyFingerprintSha256": "249dd49ba655329fb110d5ed4d266d84c89a7b3225cc4d4f097778b30c40f54b",
+    "ageEncrypted": true,
+    "ed25519Signed": true,
+    "approvedDigestMatchedForTechnicalDrill": true,
+    "servicesQuiescedAndResumedHealthy": true,
+    "offHostEncryptedArchiveCopyByteVerified": true,
+    "offHostAttestationSignaturesVerified": true,
+    "ageIdentityAndSigningPrivateKeyCopiedToSeparateRestrictedDirectories": true,
+    "twoIndependentEncryptedOfflineMediaConfirmed": false
+  },
+  "restoreDrill": {
+    "reportId": "drill-20260720172412-96208",
+    "completedAt": "2026-07-20T17:24:32Z",
+    "result": "success",
+    "wrongS3CredentialFailedWithoutMutation": true,
+    "archiveChecksumVerified": true,
+    "signatureVerified": true,
+    "metadataVerified": true,
+    "objectsVerified": true,
+    "publicTableCount": 38,
+    "migrationCount": 11,
+    "pgBossSchemaVersion": 24,
+    "workerHealthy": true,
+    "apiDatabaseQueueAndObjectStorageReady": true,
+    "objectCount": 3,
+    "objectBytes": 208,
+    "objectManifestSha256": "683b08cfc416a324afb435ee3f50308dddab426e0ff0454a0481869c413a915d",
+    "technicalReportSha256": "9cb37cd4d57a4b3e19400e8132dc56cc83fbbbb7c5a91116ee2b722f3ea82cea",
+    "hostLogSha256": "0e7d4ae193f2d9910f697bb9aa5a3c426190cf0f6c00452cef53d5ffa4efa12f",
+    "isolatedContainersNetworksAndVolumesRemoved": true,
+    "sourceStackHealthyAndUnchangedAfterDrill": true,
+    "productionRestoreEntrypointExecuted": false,
+    "independentProductionApprovalObtained": false
+  },
+  "supplyChain": {
+    "scanner": {
+      "name": "aquasec/trivy",
+      "version": "0.70.0",
+      "imageDigest": "sha256:be1190afcb28352bfddc4ddeb71470835d16462af68d310f9f4bca710961a41e",
+      "severities": ["HIGH", "CRITICAL"],
+      "ignoreUnfixed": false
+    },
+    "platform": "linux/amd64",
+    "components": [
+      {
+        "component": "postgres",
+        "imageId": "sha256:ec330df1b0f0210ff95554b4eb7c26fc369c08e9a33b96eedf4f0923c64bfb01",
+        "sizeBytes": 116847602,
+        "highCriticalFindings": 0,
+        "trivyReportSha256": "a4048d40c0574f06cc84ef3efd688294a982b648df157fcc09f879b63f264451",
+        "spdxPackages": 47,
+        "spdxSha256": "0166a1e3d235f57272a69f6fb8c88b2b3d77b45657af33c30075abb6be29c6ef"
+      },
+      {
+        "component": "api",
+        "imageId": "sha256:c20b00385ae9edbe6632a99a617425691152968a583473c93f411358eeb93aa7",
+        "sizeBytes": 76061681,
+        "highCriticalFindings": 0,
+        "trivyReportSha256": "3491cbb93d55ee679b81b426213f19d20ce4881115af81dcba3ac20ae0cdf570",
+        "spdxPackages": 204,
+        "spdxSha256": "1d0374657cee4dacf4b81f8e3b7debc970efbc16653ed3626e98521da5c453cf"
+      },
+      {
+        "component": "worker",
+        "imageId": "sha256:1e0f96697f15de1b526028e0b5de60abcfaf50ebec6b9faf833863114be2673a",
+        "sizeBytes": 81258172,
+        "highCriticalFindings": 0,
+        "trivyReportSha256": "79073cbea19f450d512ccdd09f3bda89579564e59ab0ff832789daa6717f7d29",
+        "spdxPackages": 214,
+        "spdxSha256": "62f674c9045a44072d68db55aa10dfb6a9dfa8d8408d73874ca471fbb2e5722f"
+      },
+      {
+        "component": "web",
+        "imageId": "sha256:6253aacc9a7ff78d36733e34478d6cc8f4ec5869afaf9116647bf19d37bc2b5f",
+        "sizeBytes": 40511309,
+        "highCriticalFindings": 0,
+        "trivyReportSha256": "f188e07dc2ee22ab05d7ee26304bf686f84714774cff63cb790b1a7a0a7918e6",
+        "spdxPackages": 178,
+        "spdxSha256": "eed69b76488b0011f27cdb4ad88872f6d0d5df26649a96d2352b0cf59a7f486d"
+      },
+      {
+        "component": "gateway",
+        "imageId": "sha256:aa72b6eb70808718cada78f3605aeb2eb05fbe10197ea350d1e5eff97154ff22",
+        "sizeBytes": 39922308,
+        "highCriticalFindings": 0,
+        "trivyReportSha256": "6630d44e88a87c76213d55fcbbf81ba3aa80b74a1bda378bc6978d1c5f355acf",
+        "spdxPackages": 178,
+        "spdxSha256": "70d3e7e0d1c40158c1872d8730eef06c411936a8ce6a3873e12624db8bff6b0a"
+      },
+      {
+        "component": "minio",
+        "imageId": "sha256:29879c3bb932fefe92b618b14661da7a4c0dd9fa583d208170674f8463277670",
+        "sizeBytes": 55637577,
+        "highCriticalFindings": 0,
+        "trivyReportSha256": "75956c3b5f152b2ee44bef4dc5951137d5b9521c7c422b60cbffbf4347f0baea",
+        "spdxPackages": 375,
+        "spdxSha256": "18f828e9cb26b60fcacf146cad356bb68f0b9cf2ea3d5ed4eb754d3cdbb51a62"
+      },
+      {
+        "component": "backup",
+        "imageId": "sha256:e5104aa814d152458dc299274ec78263eb7dc9ab81433035e4869a1b5a033578",
+        "sizeBytes": 134226742,
+        "highCriticalFindings": 0,
+        "trivyReportSha256": "15c7e0431edfb3cb1a3a62d320bb11bae6a1267fb46239433f12e592c25c7bd3",
+        "spdxPackages": 168,
+        "spdxSha256": "8509d898860ff8f2cb30929c8df0239b04f443bca0cbe71a9ab2ee07f2dad5cb"
+      }
+    ],
+    "allHighCriticalFindings": 0,
+    "allSpdxDocumentsGenerated": true,
+    "scanCacheRemovedAfterEvidenceCapture": true,
+    "unusedBuildCachePruned": true
+  },
+  "scopeBoundary": {
+    "remoteServerTechnicallyDeployedAndUsable": true,
+    "v1CompletionClaimed": false,
+    "approvedGuangzhouOfficeIntranetValidated": false,
+    "publicInternetExposureReviewedAsProduction": false,
+    "serverMeetsDocumentedEightGigabyteHundredGigabyteSizing": false,
+    "managedPhysicalMobileDeviceValidated": false,
+    "ghcrMultiArchitectureDigestValidated": false,
+    "githubCiAndSecurityGreen": false,
+    "realLlmValidated": false,
+    "realGithubAdapterValidated": false,
+    "professionalReviewOfOfficialSourcesCompleted": false,
+    "educationContentRightsAndWordPressPublicationApproved": false,
+    "independentProductionRestoreApprovalAndBusinessRpoRtoApproved": false,
+    "syntheticE2eDataPresent": true,
+    "llmDriver": "mock",
+    "githubIntegrationMode": "manual"
+  }
+}
