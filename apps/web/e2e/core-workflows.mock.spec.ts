@@ -113,7 +113,9 @@ test("租约失效运行必须经证据化人工补偿且不会自动重放", as
 
   await page.getByRole("tab", { name: "已记录处置" }).click();
   await expect(page.getByText("已完成并核对人工补偿")).toBeVisible();
-  await expect(page.getByText("task:compensation-20260720")).toBeVisible();
+  const compensation = page.locator(".incident-compensation-reference");
+  await expect(compensation.getByText("补偿主记录")).toBeVisible();
+  await expect(compensation.getByText("task:compensation-20260720")).toBeVisible();
   await expect(page.getByRole("button", { name: "调查并记录处置" })).toHaveCount(0);
 
   const dimensions = await page.evaluate(() => ({

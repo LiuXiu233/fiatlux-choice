@@ -90,6 +90,20 @@ describe("operational incident handling", () => {
     });
   });
 
+  it("describes a recorded partial effect without inventing a count", () => {
+    render(
+      <OperationalIncidentResolutionForm
+        incident={{ ...openIncident, recordedPartialCount: 0 }}
+        busy={false}
+        onSubmit={() => {}}
+        onCancel={() => {}}
+      />,
+    );
+
+    expect(screen.getByText(/部分结果（数量未知）/)).not.toBeNull();
+    expect(screen.queryByText(/至少一项 个/)).toBeNull();
+  });
+
   it("renders completed human evidence without offering another resolution", () => {
     const resolved: OperationalIncident = {
       ...openIncident,
@@ -113,7 +127,9 @@ describe("operational incident handling", () => {
 
     expect(screen.getByText("已记录处置")).not.toBeNull();
     expect(screen.getByText("已完成并核对人工补偿")).not.toBeNull();
-    expect(screen.getByText("task:compensation-1")).not.toBeNull();
+    const compensation = screen.getByText("补偿主记录").parentElement;
+    expect(compensation).not.toBeNull();
+    expect(within(compensation as HTMLElement).getByText("task:compensation-1")).not.toBeNull();
     expect(screen.queryByRole("button", { name: "调查并记录处置" })).toBeNull();
   });
 });

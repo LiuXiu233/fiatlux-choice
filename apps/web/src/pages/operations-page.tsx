@@ -123,8 +123,9 @@ export function OperationalIncidentResolutionForm({
       </p>
       {incident.recordedPartialEffects ? (
         <p className="incident-recorded-warning" role="alert">
-          系统已记录 {incident.recordedPartialCount || "至少一项"}{" "}
-          个部分结果，不能选择“未发现部分副作用”。
+          {incident.recordedPartialCount > 0
+            ? `系统已记录 ${incident.recordedPartialCount} 个部分结果，不能选择“未发现部分副作用”。`
+            : "系统已记录部分结果（数量未知），不能选择“未发现部分副作用”。"}
         </p>
       ) : null}
       <div className="form-grid">
@@ -278,6 +279,12 @@ export function OperationalIncidentCard({
                 incident.resolution.resolvedByUserId ??
                 "未知复核人"}
             </small>
+            {incident.resolution.compensationReference ? (
+              <div className="incident-compensation-reference">
+                <span>补偿主记录</span>
+                <code>{incident.resolution.compensationReference}</code>
+              </div>
+            ) : null}
             <ul>
               {incident.resolution.evidenceReferences.map((reference) => (
                 <li key={reference}>{reference}</li>

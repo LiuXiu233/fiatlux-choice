@@ -3907,6 +3907,27 @@ select:focus-visible {
   font-size: 9px;
 }
 
+.incident-compensation-reference {
+  display: grid;
+  gap: 3px;
+  margin-top: 9px;
+  padding: 7px 8px;
+  color: var(--ink-soft);
+  background: rgba(255, 255, 255, 0.65);
+  border: 1px solid #b6ddc3;
+  border-radius: 4px;
+}
+
+.incident-compensation-reference span {
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.incident-compensation-reference code {
+  overflow-wrap: anywhere;
+  font-size: 9px;
+}
+
 .incident-resolution-record ul {
   margin: 8px 0 0;
   padding-left: 18px;
