@@ -1,0 +1,380 @@
+{
+  "schemaVersion": 1,
+  "versionLabel": "V1 controlled candidate",
+  "overallStatus": "blocked",
+  "evaluatedAt": "2026-07-20T12:07:56+08:00",
+  "candidate": {
+    "repository": "https://github.com/LiuXiu233/fiatlux-choice",
+    "branch": "codex/v1-acceptance-hardening",
+    "implementationCommit": "fccbaf9c5718c18c588f8ee1d21d3a3997053187",
+    "evidenceCommit": "46ce2d7643e390a68149c0bdf01e5ff179dc47b6"
+  },
+  "gates": [
+    {
+      "id": "local_core_acceptance",
+      "status": "passed",
+      "ownerRole": "研发与交付负责人",
+      "summary": "核心闭环、真实栈、浏览器、移动端、PWA、运行异常和教育内容增量已有分层本地机器证据。",
+      "evidence": [
+        {
+          "kind": "machine_evidence",
+          "result": "success",
+          "reference": "docs/delivery/evidence/production-like-acceptance-101d2f0-20260720.json",
+          "verifiedAt": "2026-07-20T12:07:56+08:00",
+          "subjectCommit": "101d2f0938adfa0caa8ed576f6587a5c78ae74a5",
+          "sha256": "40ba35bd6de0cb130aeca8a91faea53a60a82c54f8b6c7f1c0f1acba49855bdc",
+          "note": "完整 production-like、迁移、镜像、浏览器和恢复基线。"
+        },
+        {
+          "kind": "machine_evidence",
+          "result": "success",
+          "reference": "docs/delivery/evidence/operational-incident-final-acceptance-f86bff4-20260720.json",
+          "verifiedAt": "2026-07-20T12:07:56+08:00",
+          "subjectCommit": "f86bff4dcc7d2b61e05c8a6b44078d039aad1e38",
+          "sha256": "e3070a802c7a646345bae67dd09453f70938c0fed669a69429319d4f769981cb",
+          "note": "运行异常证据化调查、补偿和真实 HTTPS 处置增量。"
+        },
+        {
+          "kind": "machine_evidence",
+          "result": "success",
+          "reference": "docs/delivery/evidence/esports-education-expansion-acceptance-fccbaf9-20260720.json",
+          "verifiedAt": "2026-07-20T12:07:56+08:00",
+          "subjectCommit": "fccbaf9c5718c18c588f8ee1d21d3a3997053187",
+          "sha256": "7cd948a9e774c1d225a67151a8fdc306f992e2701de3dfa06394740938e118d5",
+          "note": "当前实现提交的完整源码、隔离集成、迁移、浏览器、移动端和 PWA 回归。"
+        }
+      ],
+      "blockers": [],
+      "reviewedAt": "2026-07-20T12:07:56+08:00"
+    },
+    {
+      "id": "local_security_and_sensitive_data",
+      "status": "passed",
+      "ownerRole": "信息安全负责人",
+      "summary": "当前实现提交已完成源码、历史、生产依赖、SAST canary、镜像和 SPDX 安全复核且未发现敏感数据。",
+      "evidence": [
+        {
+          "kind": "machine_evidence",
+          "result": "success",
+          "reference": "docs/delivery/evidence/esports-education-expansion-acceptance-fccbaf9-20260720.json#sourceSecurity",
+          "verifiedAt": "2026-07-20T12:07:56+08:00",
+          "subjectCommit": "fccbaf9c5718c18c588f8ee1d21d3a3997053187",
+          "sha256": "7cd948a9e774c1d225a67151a8fdc306f992e2701de3dfa06394740938e118d5",
+          "note": "Gitleaks 当前树与历史、生产依赖审计、Semgrep、Web 镜像 Trivy 和 SPDX 均记录在案。"
+        }
+      ],
+      "blockers": [],
+      "reviewedAt": "2026-07-20T12:07:56+08:00"
+    },
+    {
+      "id": "github_ci_security",
+      "status": "blocked",
+      "ownerRole": "仓库管理员",
+      "summary": "CI 与 Security 工作流均在 GitHub runner 启动前被账户付款或 Actions spending limit 阻断。",
+      "evidence": [
+        {
+          "kind": "github_run",
+          "result": "blocked",
+          "reference": "https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29715365636",
+          "verifiedAt": "2026-07-20T12:07:56+08:00",
+          "subjectCommit": "46ce2d7643e390a68149c0bdf01e5ff179dc47b6",
+          "githubWorkflow": "ci",
+          "note": "CI 首级失败 job 没有执行仓库步骤，不能记为代码失败或绿色通过。"
+        },
+        {
+          "kind": "github_run",
+          "result": "blocked",
+          "reference": "https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29715365659",
+          "verifiedAt": "2026-07-20T12:07:56+08:00",
+          "subjectCommit": "46ce2d7643e390a68149c0bdf01e5ff179dc47b6",
+          "githubWorkflow": "security",
+          "note": "Security 首级失败 job 没有执行仓库步骤，CodeQL 等下游 job 被跳过。"
+        }
+      ],
+      "blockers": [
+        "GitHub 账户付款或 Actions spending limit 尚未恢复，CI 与 Security 没有实际 runner steps。",
+        "尚无两个绑定同一 evidenceCommit 的独立绿色 CI 与 Security run。"
+      ],
+      "reviewedAt": "2026-07-20T12:07:56+08:00"
+    },
+    {
+      "id": "ghcr_release_artifacts",
+      "status": "blocked",
+      "ownerRole": "发布与供应链负责人",
+      "summary": "本地镜像扫描和 SPDX 已有证据，但最终提交的七个 GHCR 双平台制品、摘要和来源证明尚未发布。",
+      "evidence": [
+        {
+          "kind": "registry",
+          "result": "not_run",
+          "reference": "ghcr.io/liuxiu233/fiatlux-choice final evidenceCommit artifact set",
+          "verifiedAt": "2026-07-20T12:07:56+08:00",
+          "note": "不得用本地 arm64 image ID 冒充 GHCR 双平台 root digest。"
+        }
+      ],
+      "blockers": [
+        "尚无七个绑定 evidenceCommit 的独立 GHCR 发布制品证据。",
+        "最终双平台 digest、SBOM、provenance、升级与回滚身份尚未统一。"
+      ],
+      "reviewedAt": "2026-07-20T12:07:56+08:00"
+    },
+    {
+      "id": "target_intranet_deployment",
+      "status": "blocked",
+      "ownerRole": "目标环境运维负责人",
+      "summary": "本地隔离 Compose 已验证，但尚未在耀光广州办公内网使用真实主机、DNS、CA、防火墙和备份介质部署。",
+      "evidence": [
+        {
+          "kind": "target_environment",
+          "result": "not_run",
+          "reference": "docs/delivery/v1-acceptance-matrix.md#6-部署运维与安全",
+          "verifiedAt": "2026-07-20T12:07:56+08:00",
+          "note": "本地 production-like Compose 不是耀光广州办公内网验收。"
+        },
+        {
+          "kind": "approval",
+          "result": "not_run",
+          "reference": "approval:v1:target-intranet-deployment:pending",
+          "verifiedAt": "2026-07-20T12:07:56+08:00"
+        }
+      ],
+      "blockers": [
+        "缺少目标办公内网主机、DNS、CA、防火墙、凭据、备份介质和运行观察证据。",
+        "缺少目标环境运维负责人的可识别验收批准。"
+      ],
+      "reviewedAt": "2026-07-20T12:07:56+08:00"
+    },
+    {
+      "id": "managed_device_pwa",
+      "status": "blocked",
+      "ownerRole": "终端与业务验收负责人",
+      "summary": "390 像素移动浏览器和 PWA 边界已在自动化环境通过，但尚未在真实受管手机安装、升级和清理缓存。",
+      "evidence": [
+        {
+          "kind": "target_environment",
+          "result": "not_run",
+          "reference": "docs/delivery/v1-acceptance-matrix.md#7-核心场景状态",
+          "verifiedAt": "2026-07-20T12:07:56+08:00",
+          "note": "模拟 viewport 与桌面 Chromium 不等于真实受管设备。"
+        },
+        {
+          "kind": "approval",
+          "result": "not_run",
+          "reference": "approval:v1:managed-device-pwa:pending",
+          "verifiedAt": "2026-07-20T12:07:56+08:00"
+        }
+      ],
+      "blockers": [
+        "缺少真实受管手机上的 PWA 安装、升级、离线边界和缓存清理证据。",
+        "缺少终端与业务验收负责人的可识别批准。"
+      ],
+      "reviewedAt": "2026-07-20T12:07:56+08:00"
+    },
+    {
+      "id": "production_backup_restore",
+      "status": "blocked",
+      "ownerRole": "备份恢复批准人与运维负责人",
+      "summary": "formatVersion 2 的本地隔离签名恢复已通过，生产恢复入口、异介质、目标 RPO/RTO 和独立批准尚未执行。",
+      "evidence": [
+        {
+          "kind": "machine_evidence",
+          "result": "success",
+          "reference": "docs/delivery/evidence/signed-backup-restore-drill-20260720.json",
+          "verifiedAt": "2026-07-20T12:07:56+08:00",
+          "subjectCommit": "101d2f0938adfa0caa8ed576f6587a5c78ae74a5",
+          "sha256": "d2f7fcad840380e9ce3cdc31c71ef1fa14668f4529035b38dd6a977bafc587c9",
+          "note": "本地随机全新卷恢复通过，但不属于生产范围。"
+        },
+        {
+          "kind": "approval",
+          "result": "not_run",
+          "reference": "approval:v1:production-backup-restore:pending",
+          "verifiedAt": "2026-07-20T12:07:56+08:00"
+        }
+      ],
+      "blockers": [
+        "经审批生产 restore.sh 破坏性入口尚未在目标环境执行。",
+        "异介质恢复、目标 RPO/RTO 和独立生产批准尚未取得。"
+      ],
+      "reviewedAt": "2026-07-20T12:07:56+08:00"
+    },
+    {
+      "id": "real_llm_github_adapters",
+      "status": "blocked",
+      "ownerRole": "信息安全与产品负责人",
+      "summary": "LLM 与 GitHub 的适配器边界、mock 和人工模式可用，真实最小权限凭据、供应商数据处理和停用演练尚未批准。",
+      "evidence": [
+        {
+          "kind": "machine_evidence",
+          "result": "blocked",
+          "reference": "docs/delivery/known-boundaries.md#6-ai-顾问",
+          "verifiedAt": "2026-07-20T12:07:56+08:00",
+          "note": "manual/mock 回执不得冒充真实模型或 GitHub 外部操作成功。"
+        },
+        {
+          "kind": "approval",
+          "result": "not_run",
+          "reference": "approval:v1:real-llm-github-adapters:pending",
+          "verifiedAt": "2026-07-20T12:07:56+08:00"
+        }
+      ],
+      "blockers": [
+        "缺少真实 LLM 与 GitHub 最小权限凭据和目标环境验收。",
+        "缺少供应商数据处理、质量、成本、撤销与停用的负责人批准。"
+      ],
+      "reviewedAt": "2026-07-20T12:07:56+08:00"
+    },
+    {
+      "id": "compliance_professional_review",
+      "status": "blocked",
+      "ownerRole": "法务合规与财税专业复核人",
+      "summary": "73 条官方来源已建立可维护目录和专业复核工作流，但真实适用性、时效性和结论尚未逐条由专业人员签署。",
+      "evidence": [
+        {
+          "kind": "professional_review",
+          "result": "blocked",
+          "reference": "content/compliance/official-sources.json:73-source-catalog",
+          "verifiedAt": "2026-07-20T12:07:56+08:00",
+          "note": "目录中的 pending 状态是诚实边界，不构成法律或财税意见。"
+        },
+        {
+          "kind": "approval",
+          "result": "not_run",
+          "reference": "approval:v1:compliance-professional-review:pending",
+          "verifiedAt": "2026-07-20T12:07:56+08:00"
+        }
+      ],
+      "blockers": [
+        "73 条来源尚未在适用范围内完成真实专业人工复核和可识别签署。",
+        "目标环境首次抓取、变化处置和负责人复演尚未完成。"
+      ],
+      "reviewedAt": "2026-07-20T12:07:56+08:00"
+    },
+    {
+      "id": "education_content_clearance",
+      "status": "blocked",
+      "ownerRole": "教育内容与法务发布负责人",
+      "summary": "十二篇成年人电竞教育内部草案已完成结构化实现，但事实、专业、著作权、肖像隐私和官网发布批准均保持待审。",
+      "evidence": [
+        {
+          "kind": "professional_review",
+          "result": "blocked",
+          "reference": "content/education/foundation-articles.json:review.status=pending",
+          "verifiedAt": "2026-07-20T12:07:56+08:00"
+        },
+        {
+          "kind": "professional_review",
+          "result": "blocked",
+          "reference": "content/education/expansion-articles.json:review.status=pending",
+          "verifiedAt": "2026-07-20T12:07:56+08:00"
+        },
+        {
+          "kind": "external_publication",
+          "result": "not_run",
+          "reference": "content/education/README.md#内容边界",
+          "verifiedAt": "2026-07-20T12:07:56+08:00",
+          "note": "WordPress 未发布；没有伪造 URL 或发布时间。"
+        },
+        {
+          "kind": "approval",
+          "result": "not_run",
+          "reference": "approval:v1:education-content-clearance:pending",
+          "verifiedAt": "2026-07-20T12:07:56+08:00"
+        }
+      ],
+      "blockers": [
+        "十二篇草案尚未逐篇完成专业事实、来源、权利、隐私和内容安全核验。",
+        "尚未取得可识别发布批准，也没有 WordPress 真实发布回填证据。"
+      ],
+      "reviewedAt": "2026-07-20T12:07:56+08:00"
+    },
+    {
+      "id": "operational_responsibility_drills",
+      "status": "blocked",
+      "ownerRole": "公司负责人和运维安全负责人",
+      "summary": "本地已验证高风险审批与运行异常人工处置路径，真实责任人仍未在目标环境完成两人和单人补偿控制演练。",
+      "evidence": [
+        {
+          "kind": "target_environment",
+          "result": "not_run",
+          "reference": "docs/delivery/v1-acceptance-matrix.md#7-核心场景状态",
+          "verifiedAt": "2026-07-20T12:07:56+08:00"
+        },
+        {
+          "kind": "approval",
+          "result": "not_run",
+          "reference": "approval:v1:operational-responsibility-drills:pending",
+          "verifiedAt": "2026-07-20T12:07:56+08:00"
+        }
+      ],
+      "blockers": [
+        "八类高风险动作、成员权限和运行异常尚未由真实责任人在目标环境复演。",
+        "一人团队补偿控制、升级规则和演练结果尚未获得批准。"
+      ],
+      "reviewedAt": "2026-07-20T12:07:56+08:00"
+    },
+    {
+      "id": "residual_risk_decisions",
+      "status": "blocked",
+      "ownerRole": "公司与信息安全风险负责人",
+      "summary": "单主机、无病毒查杀或 DLP、主机文件密钥、MinIO 支持边界等残余风险尚未形成可识别接受或整改决定。",
+      "evidence": [
+        {
+          "kind": "risk_decision",
+          "result": "not_run",
+          "reference": "docs/delivery/known-boundaries.md#12-风险接受格式",
+          "verifiedAt": "2026-07-20T12:07:56+08:00"
+        },
+        {
+          "kind": "approval",
+          "result": "not_run",
+          "reference": "approval:v1:residual-risk-decisions:pending",
+          "verifiedAt": "2026-07-20T12:07:56+08:00"
+        }
+      ],
+      "blockers": ["适用残余风险尚未逐项记录处置、期限、负责人和可识别接受决定。"],
+      "reviewedAt": "2026-07-20T12:07:56+08:00"
+    },
+    {
+      "id": "known_blocking_defects_closed",
+      "status": "blocked",
+      "ownerRole": "V1 缺陷与发布负责人",
+      "summary": "本地实现未发现阻断核心使用的代码缺陷，但发布依赖、目标环境、真机、真实适配器和专业复核仍是明确开放阻断项。",
+      "evidence": [
+        {
+          "kind": "risk_decision",
+          "result": "blocked",
+          "reference": "docs/delivery/v1-release-readiness.json:blocked-gates",
+          "verifiedAt": "2026-07-20T12:07:56+08:00",
+          "note": "外部和人工门禁未关闭时不得宣称所有阻断缺陷已关闭。"
+        },
+        {
+          "kind": "approval",
+          "result": "not_run",
+          "reference": "approval:v1:known-blocking-defects-closed:pending",
+          "verifiedAt": "2026-07-20T12:07:56+08:00"
+        }
+      ],
+      "blockers": [
+        "本清单中的十项上游发布、目标环境和人工门禁仍处于 blocked。",
+        "尚未取得缺陷清零或经批准不阻断的最终书面确认。"
+      ],
+      "reviewedAt": "2026-07-20T12:07:56+08:00"
+    },
+    {
+      "id": "business_release_approval",
+      "status": "blocked",
+      "ownerRole": "公司负责人",
+      "summary": "公司负责人尚未在全部技术、目标环境、专业和风险门禁关闭后签署 V1 最终发布批准。",
+      "evidence": [
+        {
+          "kind": "approval",
+          "result": "not_run",
+          "reference": "approval:v1:business-release:pending",
+          "verifiedAt": "2026-07-20T12:07:56+08:00"
+        }
+      ],
+      "blockers": ["全部上游门禁尚未关闭，当前不得请求或记录最终业务发布批准。"],
+      "reviewedAt": "2026-07-20T12:07:56+08:00"
+    }
+  ]
+}

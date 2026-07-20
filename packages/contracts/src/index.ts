@@ -868,3 +868,346 @@ export interface ApiResponse<T> {
   data: T;
   meta?: Record<string, unknown>;
 }
+
+export const v1ReleaseGateIds = [
+  "local_core_acceptance",
+  "local_security_and_sensitive_data",
+  "github_ci_security",
+  "ghcr_release_artifacts",
+  "target_intranet_deployment",
+  "managed_device_pwa",
+  "production_backup_restore",
+  "real_llm_github_adapters",
+  "compliance_professional_review",
+  "education_content_clearance",
+  "operational_responsibility_drills",
+  "residual_risk_decisions",
+  "known_blocking_defects_closed",
+  "business_release_approval",
+] as const;
+
+export const v1ReleaseGateIdSchema = z.enum(v1ReleaseGateIds);
+export const v1ReleaseEvidenceKindSchema = z.enum([
+  "repository",
+  "machine_evidence",
+  "github_run",
+  "registry",
+  "target_environment",
+  "approval",
+  "professional_review",
+  "risk_decision",
+  "external_publication",
+]);
+export const v1ReleaseGitHubWorkflowSchema = z.enum(["ci", "security"]);
+export const v1ReleaseArtifactSchema = z.enum([
+  "api",
+  "postgres",
+  "minio",
+  "worker",
+  "web",
+  "gateway",
+  "backup",
+]);
+
+const gitCommitSchema = z.string().regex(/^[0-9a-f]{40}$/, "必须使用完整小写 Git commit SHA");
+const sha256Schema = z.string().regex(/^[0-9a-f]{64}$/, "必须使用 64 位小写 SHA-256");
+const evidenceReferenceSchema = z
+  .string()
+  .trim()
+  .min(5)
+  .max(2_000)
+  .refine(
+    (value) => !/^(?:pending|todo|tbd|unknown|none|n\/a|placeholder)$/i.test(value),
+    "证据引用不能使用占位值",
+  );
+
+export const v1ReleaseEvidenceSchema = z
+  .object({
+    kind: v1ReleaseEvidenceKindSchema,
+    result: z.enum(["success", "blocked", "failure", "not_run"]),
+    reference: evidenceReferenceSchema,
+    verifiedAt: offsetDateTimeSchema,
+    subjectCommit: gitCommitSchema.optional(),
+    sha256: sha256Schema.optional(),
+    githubWorkflow: v1ReleaseGitHubWorkflowSchema.optional(),
+    releaseArtifact: v1ReleaseArtifactSchema.optional(),
+    note: z.string().trim().min(5).max(2_000).optional(),
+  })
+  .strict()
+  .superRefine((evidence, context) => {
+    if (evidence.kind === "github_run" && !evidence.githubWorkflow) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["githubWorkflow"],
+        message: "GitHub run 证据必须标识 ci 或 security workflow",
+      });
+    } else if (evidence.kind !== "github_run" && evidence.githubWorkflow) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["githubWorkflow"],
+        message: "只有 GitHub run 证据可以标识 githubWorkflow",
+      });
+    }
+
+    if (
+      evidence.kind === "registry" &&
+      evidence.result === "success" &&
+      !evidence.releaseArtifact
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["releaseArtifact"],
+        message: "成功 registry 证据必须标识七类发布制品之一",
+      });
+    } else if (evidence.kind !== "registry" && evidence.releaseArtifact) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["releaseArtifact"],
+        message: "只有 registry 证据可以标识 releaseArtifact",
+      });
+    }
+  });
+
+export const v1ReleaseApprovalSchema = z
+  .object({
+    approverIdentity: z.string().trim().min(2).max(200),
+    approverRole: z.string().trim().min(2).max(200),
+    approvalReference: evidenceReferenceSchema,
+    approvedAt: offsetDateTimeSchema,
+  })
+  .strict();
+
+export const v1ReleaseGateSchema = z
+  .object({
+    id: v1ReleaseGateIdSchema,
+    status: z.enum(["passed", "blocked"]),
+    ownerRole: z.string().trim().min(2).max(200),
+    summary: z.string().trim().min(10).max(2_000),
+    evidence: z.array(v1ReleaseEvidenceSchema).min(1).max(30),
+    blockers: z.array(z.string().trim().min(10).max(2_000)).max(20),
+    approval: v1ReleaseApprovalSchema.optional(),
+    reviewedAt: offsetDateTimeSchema,
+  })
+  .strict();
+
+const approvalRequiredGateIds = new Set<(typeof v1ReleaseGateIds)[number]>([
+  "target_intranet_deployment",
+  "managed_device_pwa",
+  "production_backup_restore",
+  "real_llm_github_adapters",
+  "compliance_professional_review",
+  "education_content_clearance",
+  "operational_responsibility_drills",
+  "residual_risk_decisions",
+  "known_blocking_defects_closed",
+  "business_release_approval",
+]);
+
+const requiredEvidenceKinds = {
+  local_core_acceptance: ["machine_evidence"],
+  local_security_and_sensitive_data: ["machine_evidence"],
+  target_intranet_deployment: ["target_environment", "approval"],
+  managed_device_pwa: ["target_environment", "approval"],
+  production_backup_restore: ["machine_evidence", "approval"],
+  real_llm_github_adapters: ["machine_evidence", "approval"],
+  compliance_professional_review: ["professional_review", "approval"],
+  education_content_clearance: ["professional_review", "external_publication", "approval"],
+  operational_responsibility_drills: ["target_environment", "approval"],
+  residual_risk_decisions: ["risk_decision", "approval"],
+  known_blocking_defects_closed: ["risk_decision", "approval"],
+  business_release_approval: ["approval"],
+} as const satisfies Partial<
+  Record<(typeof v1ReleaseGateIds)[number], readonly z.infer<typeof v1ReleaseEvidenceKindSchema>[]>
+>;
+
+export const v1ReleaseReadinessManifestSchema = z
+  .object({
+    schemaVersion: z.literal(1),
+    versionLabel: z.string().trim().min(3).max(100),
+    overallStatus: z.enum(["ready", "blocked"]),
+    evaluatedAt: offsetDateTimeSchema,
+    candidate: z
+      .object({
+        repository: z.string().url().startsWith("https://github.com/"),
+        branch: z.string().trim().min(1).max(255),
+        implementationCommit: gitCommitSchema,
+        evidenceCommit: gitCommitSchema,
+      })
+      .strict(),
+    gates: z.array(v1ReleaseGateSchema).length(v1ReleaseGateIds.length),
+  })
+  .strict()
+  .superRefine((manifest, context) => {
+    const seen = new Set<string>();
+    for (const [index, gate] of manifest.gates.entries()) {
+      if (seen.has(gate.id)) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["gates", index, "id"],
+          message: `V1 门禁重复：${gate.id}`,
+        });
+      }
+      seen.add(gate.id);
+
+      if (gate.status === "passed") {
+        if (gate.blockers.length > 0) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["gates", index, "blockers"],
+            message: "已通过门禁不得保留阻断项",
+          });
+        }
+        const nonSuccessEvidence = gate.evidence.find(({ result }) => result !== "success");
+        if (nonSuccessEvidence) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["gates", index, "evidence"],
+            message: "已通过门禁的全部证据必须为 success",
+          });
+        }
+        if (approvalRequiredGateIds.has(gate.id) && !gate.approval) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["gates", index, "approval"],
+            message: "该门禁必须保留可识别人工批准",
+          });
+        }
+        if (
+          gate.approval &&
+          !gate.evidence.some(
+            ({ kind, result, reference }) =>
+              kind === "approval" &&
+              result === "success" &&
+              reference === gate.approval?.approvalReference,
+          )
+        ) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["gates", index, "evidence"],
+            message: "人工批准元数据必须与一条 success approval 证据引用一致",
+          });
+        }
+        const requiredKinds = requiredEvidenceKinds[gate.id as keyof typeof requiredEvidenceKinds];
+        for (const requiredKind of requiredKinds ?? []) {
+          if (
+            !gate.evidence.some(({ kind, result }) => kind === requiredKind && result === "success")
+          ) {
+            context.addIssue({
+              code: z.ZodIssueCode.custom,
+              path: ["gates", index, "evidence"],
+              message: `已通过门禁缺少 ${requiredKind} 成功证据`,
+            });
+          }
+        }
+      } else if (gate.blockers.length === 0) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["gates", index, "blockers"],
+          message: "阻断门禁必须说明至少一个具体阻断项",
+        });
+      }
+
+      if (gate.id === "github_ci_security" && gate.status === "passed") {
+        const githubRuns = gate.evidence.filter(
+          ({ kind, result }) => kind === "github_run" && result === "success",
+        );
+        const distinctRunReferences = new Set(githubRuns.map(({ reference }) => reference));
+        const workflowScopes = new Set(githubRuns.map(({ githubWorkflow }) => githubWorkflow));
+        if (
+          distinctRunReferences.size < 2 ||
+          !workflowScopes.has("ci") ||
+          !workflowScopes.has("security") ||
+          githubRuns.some(
+            ({ subjectCommit }) => subjectCommit !== manifest.candidate.evidenceCommit,
+          )
+        ) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["gates", index, "evidence"],
+            message: "GitHub CI 与 Security 必须有两个绑定 evidenceCommit 的独立绿色 run",
+          });
+        }
+      }
+
+      if (
+        (gate.id === "local_core_acceptance" || gate.id === "local_security_and_sensitive_data") &&
+        gate.status === "passed" &&
+        !gate.evidence.some(
+          ({ kind, result, subjectCommit }) =>
+            kind === "machine_evidence" &&
+            result === "success" &&
+            subjectCommit === manifest.candidate.implementationCommit,
+        )
+      ) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["gates", index, "evidence"],
+          message: "本地通过门禁必须有绑定 implementationCommit 的成功机器证据",
+        });
+      }
+
+      if (gate.id === "ghcr_release_artifacts" && gate.status === "passed") {
+        const registryEvidence = gate.evidence.filter(
+          ({ kind, result }) => kind === "registry" && result === "success",
+        );
+        const distinctArtifacts = new Set(registryEvidence.map(({ reference }) => reference));
+        const artifactScopes = new Set(
+          registryEvidence.map(({ releaseArtifact }) => releaseArtifact),
+        );
+        if (
+          distinctArtifacts.size < 7 ||
+          artifactScopes.size < v1ReleaseArtifactSchema.options.length ||
+          registryEvidence.some(
+            ({ subjectCommit }) => subjectCommit !== manifest.candidate.evidenceCommit,
+          )
+        ) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["gates", index, "evidence"],
+            message: "GHCR 必须有七个绑定 evidenceCommit 的独立发布制品证据",
+          });
+        }
+      }
+    }
+
+    const missingGateIds = v1ReleaseGateIds.filter((gateId) => !seen.has(gateId));
+    if (missingGateIds.length > 0) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["gates"],
+        message: `缺少 V1 门禁：${missingGateIds.join("、")}`,
+      });
+    }
+
+    const computedStatus = manifest.gates.every(({ status }) => status === "passed")
+      ? "ready"
+      : "blocked";
+    if (manifest.overallStatus !== computedStatus) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["overallStatus"],
+        message: `overallStatus 必须与逐项门禁一致：${computedStatus}`,
+      });
+    }
+  });
+
+export type V1ReleaseGateId = z.infer<typeof v1ReleaseGateIdSchema>;
+export type V1ReleaseReadinessManifest = z.infer<typeof v1ReleaseReadinessManifestSchema>;
+
+export function evaluateV1ReleaseReadiness(manifest: V1ReleaseReadinessManifest) {
+  const passedGateIds = manifest.gates
+    .filter(({ status }) => status === "passed")
+    .map(({ id }) => id);
+  const blockedGates = manifest.gates
+    .filter(({ status }) => status === "blocked")
+    .map(({ id, blockers, ownerRole }) => ({ id, blockers, ownerRole }));
+  return {
+    ready: blockedGates.length === 0,
+    overallStatus: manifest.overallStatus,
+    totalGateCount: manifest.gates.length,
+    passedGateCount: passedGateIds.length,
+    blockedGateCount: blockedGates.length,
+    passedGateIds,
+    blockedGates,
+  } as const;
+}

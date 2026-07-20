@@ -142,9 +142,11 @@ pnpm test:database-migrations
 pnpm test:e2e
 pnpm build
 pnpm check
+pnpm delivery:v1:status
+pnpm delivery:v1:require-ready
 ~~~
 
-pnpm check 必须全部通过才能发布。不要因为单独的 build 通过就跳过类型、测试或生产部署验证。
+pnpm check 必须全部通过，但它仍不足以单独批准发布。`pnpm delivery:v1:require-ready` 会读取结构化 V1 门禁并在任何外部或人工阻断项存在时以退出码 2 失败关闭；不要因为单独的 build 或本地测试通过就跳过目标环境、GitHub/GHCR、专业复核和业务批准。
 
 数据库：
 
@@ -208,6 +210,8 @@ SEED_MODE=bootstrap pnpm db:seed
 
 ### 交付与路线图
 
+- [V1 发布门禁与维护说明](docs/delivery/v1-release-readiness.md)
+- [V1 发布门禁机器清单](docs/delivery/v1-release-readiness.json)
 - [V1 验收矩阵](docs/delivery/v1-acceptance-matrix.md)
 - [已知边界](docs/delivery/known-boundaries.md)
 - [受控候选交付报告](docs/delivery/final-delivery-report.md)
