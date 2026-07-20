@@ -37,7 +37,7 @@
 
 不可变受控审计导出候选 `4391837e0c2b91fa58b2269a26b2cbb3294347b6` 增加双权限、明确确认、北京时间 31 天窗口、10,000 条/25 MiB 整体失败上限、CSV 公式注入保护、响应/浏览器双重 SHA-256 和成功前 `export_generated`。精确 SHA 已完成 263 文件静态门禁、49 files/278 单元、PostgreSQL API 95/95、mock 51+7、全新 PostgreSQL+MinIO desktop/mobile 6/6、源码安全及 API/worker/Web 三张受影响镜像的只读运行、Trivy/SPDX；完整记录见[受控审计导出证据](./evidence/governed-audit-export-acceptance-4391837-20260720.json)。现有组织补充 admin 导出权限仍必须经真实批准运行 `system-role-maintenance`；本地下载成功不替代公司保留/销毁制度、目标内网、真机、GitHub/GHCR 或责任人批准。
 
-当前 schema 为 38 张业务表和 11 个迁移（`0000`–`0010`）。专用迁移测试已证明 `0000`–`0009` 数据原样保留、不会为 legacy reviewed 记录发明专业 provenance；当前签名恢复又逐项匹配 11 个 migration SQL hash，但这仍不是 GitHub runner、生产副本或目标内网升级证明。本地 synthetic bridge 只覆盖旧 10 迁移基线，历史生产 N−1、目标发布复演和经审批的破坏性 `restore.sh` 生产入口没有实跑。GitHub CI、最终 GHCR 镜像、目标内网、真实设备、真实教育内容放行、MinIO 长期维护/支持风险处置和责任人批准仍是发布闸门，以[验收矩阵](./v1-acceptance-matrix.md)为准。
+当前 schema 为 38 张业务表和 11 个迁移（`0000`–`0010`）。专用迁移测试已证明 `0000`–`0009` 数据原样保留、不会为 legacy reviewed 记录发明专业 provenance；当前签名恢复又逐项匹配 11 个 migration SQL hash，但这仍不是生产副本或目标办公内网升级证明。本地 synthetic bridge 只覆盖旧 10 迁移基线，历史生产 N−1、目标发布复演和经审批的破坏性 `restore.sh` 生产入口没有实跑。`393f4ed…` 的 GitHub CI/Security 已绿色，但 CodeQL 明确跳过；最终 GHCR 镜像、CodeQL/等效 SAST 风险决定、目标办公内网、真实设备、真实教育内容放行、MinIO 长期维护/支持风险处置和责任人批准仍是发布闸门，以[验收矩阵](./v1-acceptance-matrix.md)为准。
 
 ## 3. 身份与权限
 
@@ -141,15 +141,15 @@
 - 首轮新演练虽完成升级和回滚脚本，但回滚后的常驻 API 在 idle 后连续两次登录 `CONNECT_TIMEOUT`/HTTP 500，任务 CRUD 未执行，因此正确 BLOCKED。连接恢复修复提交 `859841f…` 经 162 单元、API 83、worker 23、暖连接/断链/黑洞同句柄恢复与生产构建复验。
 - 第二轮以 N 10 migrations、synthetic bridge 9 migrations 和七个全异 digest 完成真实 registry push/pull、46 秒升级、43 秒应用回滚及双 formatVersion 2 恢复点；回滚后同一 API 启动 308.138 秒登录 200，任务 CRUD/审计通过，日志无 `CONNECT_TIMEOUT`。该证据仅证明本地相邻兼容，不是历史生产 N−1、GHCR 或目标内网。
 - 新升级/回滚入口强制校验严格七组件发布清单和独立批准的清单 SHA-256，并在 pull 后、迁移前及启动后核对本地 RepoDigest；切换时一致重建 PostgreSQL、MinIO 与应用，并核对六个常驻容器 image ID 后才写全局版本，避免任一常驻组件延迟切换。backup 保持按需。BuildKit provenance 与 SBOM 不是签名；当前未集成 cosign/Sigstore，不能声称镜像已由发布者签名。
-- 尚未完成的目标验证包括耀光办公内网主机、DNS、CA 分发、防火墙、seed/owner 首登改密、真实设备、异介质恢复和运行观察。
+- `choice.fiatlux.gg` 已在公网 Ubuntu 验收环境完成 DNS、可信 TLS、防火墙、显式 seed/owner 首登改密、桌面/移动自动化、备份恢复和运行观察；该服务器规格不足、公网暴露且无 MFA，不得替代耀光广州办公内网或 VPN/访问源受限目标、公司受管真机、第二份独立介质和真实责任人批准。
 - Caddy internal CA 需要逐台受控分发；它不是成熟企业 PKI。
-- 当前运行异常实现 `f86bff4dcc7d2b61e05c8a6b44078d039aad1e38` 与证据记录 `56395d4f6764fafa2eeb4459f1a751b0daf45058` 已推送到私有 `LiuXiu233/fiatlux-choice` 的 Draft PR #12 候选分支。证据提交的 CI `29712259090` 和 Security `29712259101` 中，六个首级失败 job 均为 `runner_id=0`、`steps=[]`，annotation 明确提示近期账户付款失败或 Actions spending limit 不足；因此不能声称 GitHub CI、安全扫描、合并或发布已完成。PR Checks 是后续远端状态权威来源；修复 Billing & plans 后必须重跑。
+- 当前候选分支已推送到私有 `LiuXiu233/fiatlux-choice` 的 Draft PR #12。证据提交 `393f4edbd48dea617f48277a278f91da78558bd8` 的 CI `29767089892` 与 Security `29767090155` 已在真实 runner 上整体绿色；前者完成静态、类型、单元、迁移、集成、mock/真实栈 E2E 和七类生产镜像构建，后者实跑 Gitleaks、生产依赖、Semgrep 与 Trivy。CodeQL entitlement 不可用而明确跳过，PR 构建没有发布 GHCR，合并与 V1 发布也尚未批准；PR Checks 继续作为实时权威来源。
 - 当前仓库没有把 Git commit/tag 签名作为已验证控制。本地测试事实不能充当发布者签名；生产 tag 前必须确定并执行签名政策，或由有权负责人记录替代控制与风险决定。
 
 ## 11. 安全剩余风险
 
 - 容器与应用控制不能抵御已控制 Docker 主机的攻击者。
-- 安全工作流已配置，所有第三方 GitHub Actions 已固定到完整 commit SHA；当前树与历史的本地 secret scan 作为提交前门禁，GitHub workflow 仍需实际运行。
+- 安全工作流已配置，所有第三方 GitHub Actions 已固定到完整 commit SHA；`393f4ed…` 已在 GitHub 实跑历史/当前树 Gitleaks、生产依赖、固定 Semgrep+canary 与 Trivy HIGH/CRITICAL 门禁。CodeQL 因 entitlement 不可用未运行，仍需由责任人启用 CodeQL 或批准等效 SAST 与剩余风险决定。
 - 日志脱敏依赖代码和运维纪律；异常栈仍可能携带输入。
 - Fastify Helmet 的 CSP 单独关闭，生产安全边界依赖 Caddy 注入 CSP；冻结候选经 Caddy 浏览器验证通过，但 API/Web 仍不得绕过 Caddy 直接暴露，否则没有同等 CSP 保证。
 - 上传附件和 GitHub 内容是不可信输入，真实模型启用后仍有间接提示注入风险。

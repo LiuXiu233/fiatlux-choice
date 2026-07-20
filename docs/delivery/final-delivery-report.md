@@ -2,7 +2,7 @@
 
 报告日期：2026-07-21
 
-报告状态：**受控候选记录，不是 V1 已完成、已批准上线或 GitHub CI 已通过的声明**
+报告状态：**受控候选记录；GitHub CI/Security 已通过，但不是 V1 已完成或已批准上线的声明**
 
 本报告区分“不可变基线实现 `101d2f0…` 的完整本地工程/Compose/镜像/恢复证据”“不可变协调增量 `5eec8cc…`”“不可变容量保护增量 `51ebb28…`”“不可变运营状态增量 `ba25c69…`”“不可变运行异常实现 `f86bff4…`”“不可变电竞教育实现 `fccbaf9…`”“不可变发布门禁实现 `213d9b6…`”“不可变平台证明实现 `6e40b82…`”“不可变目标内网证明入口 `25204d3…`”“不可变受管真机证据入口 `ffe102e…`”“不可变真实适配器防护 `d7cc156…`”“不可变教育放行入口 `f4c12b5…`”“最终 GitHub/GHCR”和“目标办公内网验收”。完整 age+Ed25519 恢复绑定 `101d2f0…`；后续实现分别绑定自己的增量证据。脱敏机器记录见[基线证据](./evidence/production-like-acceptance-101d2f0-20260720.json)、[协调证据](./evidence/compliance-coordinator-acceptance-5eec8cc-20260720.json)、[容量证据](./evidence/compliance-monitor-batch-acceptance-51ebb28-20260720.json)、[监控运营状态证据](./evidence/compliance-monitoring-status-acceptance-ba25c69-20260720.json)、[运行异常最终证据](./evidence/operational-incident-final-acceptance-f86bff4-20260720.json)、[教育扩展证据](./evidence/esports-education-expansion-acceptance-fccbaf9-20260720.json)、[发布门禁证据](./evidence/v1-release-gate-acceptance-213d9b6-20260720.json)、[平台证明证据](./evidence/v1-platform-attestation-acceptance-6e40b82-20260720.json)、[目标内网证明入口证据](./evidence/target-intranet-verifier-acceptance-25204d3-20260720.json)、[受管真机入口证据](./evidence/managed-device-pwa-verifier-acceptance-ffe102e-20260720.json)和[教育放行入口证据](./evidence/education-content-clearance-verifier-acceptance-f4c12b5-20260720.json)。每份证据都绑定自身实现范围并分列未重跑层与外部门禁；它们不把证据提交冒充实现、GitHub runner、GHCR 双平台、目标办公内网、物理设备、真实内容发布或业务/专业批准。当前 14 项状态由[机器发布门禁](./v1-release-readiness.json)失败关闭；最终发布仍须按[模板](./final-delivery-report-template.md)补齐外部证据和真实责任人签署。
 
@@ -23,10 +23,10 @@
 | 字段 | 当前值 | 仍需完成 |
 | --- | --- | --- |
 | 产品版本 | V1 受控候选 | 所有阻断闸门关闭并取得业务负责人批准后才能改为 V1 完成 |
-| 目标仓库 | 私有 `LiuXiu233/fiatlux-choice`；候选分支已推送；[Draft PR #12](https://github.com/LiuXiu233/fiatlux-choice/pull/12) | 解除 Actions 计费阻断，取得绿色 CI/security；批准后再合并 |
-| Git SHA / tag | 当前候选实现为 `4391837e0c2b91fa58b2269a26b2cbb3294347b6`，远端部署源码为 `9de2b56a2fe2943c9ddf038eefe5a5b11b53eb06`，远端证据提交为 `4f309791fef7271a2919135393ab8b88167cd4c9`；未创建发布 tag | 生产发布仍须确定 commit/tag 签名政策，并统一最终 Git/GitHub/GHCR/目标身份 |
-| GitHub PR / CI | Draft PR #12；证据提交 `49278ce…` 的 [CI run 29758151603](https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29758151603) 与 [Security run 29758151588](https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29758151588) 均在 runner 启动前失败；PR Checks 是后续远端状态权威来源 | 六个首级失败 job 均为 `runner_id=0`、`steps=[]`，由账户付款或 Actions spending limit 阻断；不反复盲目重跑 |
-| 数据库 | PostgreSQL 17.10；38 张业务表；11 个业务迁移 `0000`–`0010`；`101d2f0…` fresh、`0009→0010` 数据保留/幂等、fresh/legacy 五职责和签名恢复逐 migration hash 均本地通过 | GitHub CI、GHCR 与目标内网重新执行 |
+| 目标仓库 | 私有 `LiuXiu233/fiatlux-choice`；候选分支已推送；[Draft PR #12](https://github.com/LiuXiu233/fiatlux-choice/pull/12) | CI/Security 已绿色；待 GHCR release、外部/人工门禁和批准后再决定合并 |
+| Git SHA / tag | 当前候选实现为 `4391837e0c2b91fa58b2269a26b2cbb3294347b6`，远端部署源码为 `9de2b56a2fe2943c9ddf038eefe5a5b11b53eb06`，当前 GitHub 证据提交为 `393f4edbd48dea617f48277a278f91da78558bd8`；未创建发布 tag | 生产发布仍须确定 commit/tag 签名政策，并统一最终 Git/GitHub/GHCR/目标身份 |
+| GitHub PR / CI | Draft PR #12；`393f4ed…` 的 [CI run 29767089892](https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29767089892) 与 [Security run 29767090155](https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29767090155) 均整体绿色；前者 10 个 job 包含完整迁移/集成、E2E 和七镜像构建，后者实跑 Gitleaks、依赖、Semgrep、Trivy | CodeQL 因 entitlement 不可用而明确跳过；绿色 PR 镜像构建不是 GHCR 发布，PR Checks 继续作为实时权威来源 |
+| 数据库 | PostgreSQL 17.10；38 张业务表；11 个业务迁移 `0000`–`0010`；`101d2f0…` fresh、`0009→0010` 数据保留/幂等、fresh/legacy 五职责和签名恢复逐 migration hash 均本地通过；`393f4ed…` 的 CI 迁移/集成绿色 | 最终 GHCR 与目标内网重新执行 |
 | 候选 QA 环境 | 本地分层证据之外，`9de2b56…` 已在远端真实 Ubuntu/amd64 完成源码构建、38 表/11 migration、六服务、可信 HTTPS、desktop/mobile/PWA、Playwright 6/6、七镜像安全和隔离恢复 | 该环境属于 remote acceptance；不得改写成 GHCR 双平台、广州办公内网、真实适配器、真实内容发布或生产批准 |
 | 远端验收环境 | [choice.fiatlux.gg](https://choice.fiatlux.gg) 已可用；仅发布 443，UFW 放行 22/443，systemd 应用、每日备份、月度恢复演练和自动安全更新 active；服务器覆盖配置存放于 `/etc/fiatlux-choice` | 2 CPU / 约 2 GB / 40 GB 低于 8 GB / 100 GB 建议，公网暴露且无 MFA；不得导入真实敏感公司数据，须继续监控证书、容量和备份 |
 | 目标办公内网 | 远端公网验收不等于耀光广州办公内网；尚未以最终绿色 GitHub/GHCR 七制品清单运行 `verify-target-intranet.sh` | 补已批准办公内网或 VPN/访问源限制、生产容量、受管设备、两份独立介质、运行观察和独立运维批准 |
@@ -64,15 +64,15 @@
 | 层级 | 当前发布口径 | 最终要求 |
 | --- | --- | --- |
 | Biome / ShellCheck / Actionlint / 类型 | **不可变实现提交本地通过** | `101d2f0…`：Biome 206 个文件；全 `scripts/`/`infra/` shell；3 个 workflow；7 个 TypeScript 项目 |
-| 单元测试 | **不可变实现提交本地通过** | `101d2f0…`：177/177；本证据工作树再次完整复跑通过，GitHub CI 仍待复现 |
+| 单元测试 | **不可变实现提交本地及当前 GitHub CI 通过** | `101d2f0…`：177/177；后续 `393f4ed…` 的干净 runner 完成 49 files/278 tests |
 | API/worker/PostgreSQL/pg-boss/MinIO 集成 | **不可变实现提交本地通过** | `101d2f0…`：API 18 files/89 tests、worker 5 files/25 tests、真实 MinIO 2/2；11 迁移 fresh 与 `0009→0010`、fresh/legacy 权限、事务/并发/CAS、审计和连接恢复通过 |
 | Playwright / PWA | **不可变实现提交本地通过，有外部边界** | mock 46 passed、6 个设计内 skip；隔离真实栈 4/4；新 Compose 原生 Python Playwright desktop/mobile/PWA/offline 全通过；受管真机另行验收 |
 | 全 workspace 与七镜像构建 | **不可变实现提交本地通过** | `101d2f0…` production build、七个 arm64 镜像、全新 Compose、六服务和重启持久性通过；GHCR 双平台待发布 |
-| 安全/供应链 | **不可变实现提交本地通过 / GitHub 待运行** | Gitleaks、Semgrep+canary、生产依赖 0；`101d2f0…` 七镜像 Trivy 0.70.0 HIGH/CRITICAL 0、7 份 Syft 1.42.3 SPDX；GitHub CodeQL/安全 workflow 待运行 |
+| 安全/供应链 | **不可变实现提交本地通过 / 当前 GitHub Security 通过** | Gitleaks、Semgrep+canary、生产依赖 0；`101d2f0…` 七镜像 Trivy 0.70.0 HIGH/CRITICAL 0、7 份 Syft 1.42.3 SPDX；`393f4ed…` 在 GitHub 实跑 Gitleaks、依赖、Semgrep、Trivy，CodeQL 因 entitlement 不可用而跳过 |
 
 不可变协调实现 `5eec8cc…` 完整运行 `pnpm check`：Biome 207 个文件、ShellCheck、7 项类型检查、177/177 单元、API 89/89、worker 28/28、真实 MinIO 2/2 和 workspace build 均通过；另以 `NODE_ENV=production` 完成真实生产构建。Actionlint 1.7.12、Gitleaks 当前树/完整历史与 canary、Semgrep 1.170.0 配置/10 条 canary/87 个生产目标也分别通过。生产依赖 `pnpm audit --prod` 为 0。全依赖扫描只剩 `drizzle-kit -> esbuild` 的 1 个 moderate，属于不进入生产镜像、CI 不启动其 dev server 的开发期依赖；列为非阻断升级项，不应表述为“全依赖零漏洞”。未运行、设计内 skip 和目标环境缺失继续分列。
 
-本增量还复现并修正了构建环境漂移：CI 与 release 的验证 job 为测试阶段全局使用 `NODE_ENV=test`，原构建步骤会继承该值，使 Web 生成 979.63 KiB precache 并重新出现 500 kB 主块警告。两个 workflow 的构建步骤现在都显式覆盖为 `NODE_ENV=production`；Actionlint 1.7.12 通过，等价本地生产构建恢复为 128.19 kB 教育路由块、423.59 kB 主块和 10 条/700.30 KiB PWA precache。该本地验证不替代 GitHub runner 实际执行。
+本增量还复现并修正了构建环境漂移：CI 与 release 的验证 job 为测试阶段全局使用 `NODE_ENV=test`，原构建步骤会继承该值，使 Web 生成 979.63 KiB precache 并重新出现 500 kB 主块警告。两个 workflow 的构建步骤现在都显式覆盖为 `NODE_ENV=production`；Actionlint 1.7.12 通过，等价本地生产构建恢复为 128.19 kB 教育路由块、423.59 kB 主块和 10 条/700.30 KiB PWA precache。后续 `393f4ed…` 已在干净 GitHub runner 完成当前生产构建；release workflow 与 GHCR 发布仍待真实执行。
 
 失败历史没有删除：API 集成首次按文件并行运行时，在本机 2 CPU/4 GB 的 seed/Argon2 峰值出现 PostgreSQL `CONNECT_TIMEOUT`，得到 13 passed、4 failed、63 skipped；数据库全程 healthy、RestartCount 0、连接数未耗尽，且无业务断言失败。将 root/API/worker 的 `test` 与 `test:integration` 标准入口固定为 unit→workspace 串行、API/worker `--no-file-parallelism --maxWorkers=1` 后，旧基线 API 80/80、worker 23/23 和根级集成均通过。连接恢复修复后曾复跑 162/162 单元、API 83/83、worker 23/23；其中 malformed-JSON 单测曾在宿主 load 83 时唯一超时，在正常负载下同一测试 140 ms 通过，未删除该环境事件。引用链一致性加固后的最新复跑为 162/162 单元、API 85/85、worker 25/25。未配置 S3 时 integrations 2 项按设计 skip；真实 S3 两项由单独带凭据的 MinIO 门禁 2/2 通过，不能把 skip 记作通过。
 
@@ -80,7 +80,7 @@
 
 电竞教育内容增量在同日完成 167/167 单元、API 85/85、worker 25/25、mock Playwright 44 passed/6 条件 skip 和真实栈 desktop/mobile 2/2；独立 Python Playwright 在 1440×1000 与 390×844 下均无横向溢出或控制台错误。隔离 PostgreSQL 的 22 个完整 bootstrap 组织均精确导入 73 条来源，隔离真实栈单组织同样为 73 条且新增健康来源精确 1 条。生产构建将教育内容拆为 128.19 kB 路由块，消除 500 kB 主块告警；独立 Web Compose 容器以 UID 10001、只读根、cap-drop ALL、no-new-privileges 健康运行，Trivy 0.70.0 对该新 Web 镜像扫描 HIGH/CRITICAL 为 0。Gitleaks 当前树/历史和 Semgrep 固定规则扫描均为 0 finding。隔离容器和网络验证后已删除；该证据仍不替代最终 SHA、七镜像重建、GHCR、目标内网或专业内容批准。
 
-后续不可变电竞教育扩展 `fccbaf9c5718c18c588f8ee1d21d3a3997053187` 把剩余 8 个计划主题补成完整内部草案，并与原 4 篇通过冲突关闭合并层组成 12 篇内容库。精确 SHA 通过内容治理 5/5、Biome 220 文件、7 项类型、191/191 单元和生产构建；标准入口未配置依赖时跳过的集成项另在隔离 PostgreSQL 17.10/MinIO 中真实完成 S3 2/2、API 19 files/93 tests 和 worker 5 files/29 tests，数据库 10→11 与 fresh 38 表迁移也通过。mock Playwright 为 48 passed/6 条件 skip，隔离真实栈 desktop/mobile 为 6/6；独立 Python Chromium 在开发构建及变更后生产 Web 镜像重启前后均精确读取 12 篇、无横向溢出或登录后 console/page error，并确认 manifest standalone 与活动 service worker。Web 镜像 ID 为 `sha256:7eb42853…ffff89`，运行时 UID 10001、只读根、cap-drop ALL、no-new-privileges；Trivy 0.70.0 HIGH/CRITICAL/fixable/unfixed 为 0，Syft 1.42.3 SPDX-2.3 为 176 packages。完整哈希和边界见[电竞教育扩展机器证据](./evidence/esports-education-expansion-acceptance-fccbaf9-20260720.json)。本增量没有修改 API、worker、数据库或恢复实现，没有操作 WordPress，也没有完成专业/权利批准；对应 GitHub runner 仍在执行任何 step 前被账户付款/Actions spending limit 阻断。
+后续不可变电竞教育扩展 `fccbaf9c5718c18c588f8ee1d21d3a3997053187` 把剩余 8 个计划主题补成完整内部草案，并与原 4 篇通过冲突关闭合并层组成 12 篇内容库。精确 SHA 通过内容治理 5/5、Biome 220 文件、7 项类型、191/191 单元和生产构建；标准入口未配置依赖时跳过的集成项另在隔离 PostgreSQL 17.10/MinIO 中真实完成 S3 2/2、API 19 files/93 tests 和 worker 5 files/29 tests，数据库 10→11 与 fresh 38 表迁移也通过。mock Playwright 为 48 passed/6 条件 skip，隔离真实栈 desktop/mobile 为 6/6；独立 Python Chromium 在开发构建及变更后生产 Web 镜像重启前后均精确读取 12 篇、无横向溢出或登录后 console/page error，并确认 manifest standalone 与活动 service worker。Web 镜像 ID 为 `sha256:7eb42853…ffff89`，运行时 UID 10001、只读根、cap-drop ALL、no-new-privileges；Trivy 0.70.0 HIGH/CRITICAL/fixable/unfixed 为 0，Syft 1.42.3 SPDX-2.3 为 176 packages。完整哈希和边界见[电竞教育扩展机器证据](./evidence/esports-education-expansion-acceptance-fccbaf9-20260720.json)。本增量没有修改 API、worker、数据库或恢复实现，没有操作 WordPress，也没有完成专业/权利批准；该提交对应的 GitHub runner 当时在任何 step 前失败关闭，当前 PR 状态以上述最新绿色 run 为准。
 
 目标办公内网证明入口在已推送的不可变实现 `25204d34d865b16941d099658d33fbb561424f09` 上，将 clean checkout/完整 Git SHA、七类发布清单 digest/实际运行镜像和目标 HTTPS/CA/运行时最小权限串为三层只读 verifier。仅当三层全部成功才原子生成 `0600` JSON；清单哈希错误、三层任一失败、JSON 写入中断、同名覆盖、非法 URL/端口/DNS、符号链接目录和非 production 环境均失败且不留成功/partial 文件。精确 SHA 完成 Biome 229 文件、ShellCheck、Actionlint 1.7.12、7 项类型、203 个单元、生产构建、Bash 3.2 macOS 与 Ubuntu 24.04/GNU stat 双平台包装器、Gitleaks、官方 registry 生产依赖审计和 Semgrep 93 个生产目标 0 finding；标准入口的 S3 2、API 93、worker 29 个 skip 不计为通过。证据文件 SHA-256 为 `f1d984528a6d6e992c6ae38fb213fb571eb8acaeaad252bd898c832b699a1852`。全部成功 JSON 都是 disposable stub fixture，`approvalIndependentlyVerified=false`；没有在耀光目标主机运行、没有验证防火墙/设备/恢复，也没有取得运维批准，因此目标内网门禁仍为 blocked。
 
@@ -126,7 +126,7 @@
 - 顾问列表、详情和人工编辑都执行同一可见性规则：默认只允许发起人；读取他人运行需 `advisor-runs:read-all` 或 `*`，并且仍要通过该顾问 requiredPermission 和快照中每种资源的 `:read` 检查；不可见时按 404 隐藏存在性。
 - 银行付款关联草稿支出后，在 pending_approval/approved/failed 等受支持状态取消，或对关联审批作出 rejected 决定时，台账关联与动作/审批在同一事务中解链并审计；并发变更导致版本不匹配时整笔冲突失败。
 
-以上语义已由不可变基线 `101d2f0…`、运行异常实现 `f86bff4…` 与最新电竞教育实现 `fccbaf9…` 的单元、集成、真实栈 E2E 或部署抽查组合验证；各 exact-SHA 镜像/Compose 和未重跑层已单独披露。证据文档提交和 GitHub CI 仍需确认没有后续功能源码漂移，目标办公内网需独立复现。
+以上语义已由不可变基线 `101d2f0…`、运行异常实现 `f86bff4…` 与最新业务实现 `4391837…` 的单元、集成、真实栈 E2E 或部署抽查组合验证；各 exact-SHA 镜像/Compose 和未重跑层已单独披露。`393f4ed…` 又在干净 GitHub runner 完成全仓、迁移/集成和真实栈验证，没有发现后续功能源码漂移；目标办公内网仍需独立复现。
 
 ## 5. 安全、最小权限与供应链
 
@@ -140,7 +140,7 @@
 - Buildx `v0.35.0`、BuildKit `v0.31.2@sha256:2f5ada…`、QEMU/binfmt `qemu-v10.2.3@sha256:400a48…`、Trivy `v0.70.0` 和 Syft `v1.42.3` 固定到明确版本/摘要。真实 BuildKit 0.31.2 双平台 fixture 已通过，verifier 按 in-toto `https://in-toto.io/Statement/v1`、双平台 subject、来源 Git SHA、双平台 SPDX 与 sidecar 摘要做正/负向校验。
 - 以上 image ID 是本地 arm64 manifest-list 内容 ID，不是已发布 GHCR 多架构 root digest，也不是签名；最终 release workflow 仍须构建和验证 registry 证据。
 - 旧报告关于当前 MinIO 镜像“6 项 HIGH”的结论已被最终镜像重建和 Trivy 0 结果取代。剩余问题是 MinIO OSS 的长期维护/支持与迁移退出风险，而不是把旧扫描数继续当作当前漏洞；目标生产前仍须由负责人选择受支持实现或形成有期限的风险接受。
-- 预计暂存范围、当前树/完整历史 Gitleaks、自定义/default canary、两个命名证据文件的公钥指纹精确 allowlist、大文件、symlink/submodule 和 ignored 证据边界已本地通过；GitHub CI/SAST 和目标内网暴露面仍须在推送及部署后分别验证。
+- 预计暂存范围、当前树/完整历史 Gitleaks、自定义/default canary、两个命名证据文件的公钥指纹精确 allowlist、大文件、symlink/submodule 和 ignored 证据边界已本地通过；`393f4ed…` 的 GitHub CI/Security 又实际完成 Gitleaks、依赖、Semgrep 与 Trivy。CodeQL/经批准等效 SAST 风险决定和目标办公内网暴露面仍须分别验证。
 
 | 本地组件 | `101d2f0…` arm64 image ID |
 | --- | --- |
@@ -236,7 +236,7 @@
 
 以下全部完成前，本报告结论不得升级为“V1 完成”：
 
-- [x] `101d2f0…` 的预期范围、ignored 证据边界、当前树/完整历史 secret scan 和敏感数据已完成本地审计；仅纳入私有仓库的 6 张公开官网研究截图，公开或外发前仍需权利/个人信息复核；GitHub 仍须复核。
+- [x] `101d2f0…` 的预期范围、ignored 证据边界、当前树/完整历史 secret scan 和敏感数据已完成本地审计；`393f4ed…` 又在 GitHub 实跑完整历史/当前树 Gitleaks 并绿色。仅纳入私有仓库的 6 张公开官网研究截图，公开或外发前仍需权利/个人信息复核。
 - [x] `101d2f0…` 完成完整基线和恢复；`f86bff4…` 完成 191/191 单元、API 93/93、worker 29/29、三张镜像与独立 Compose 三类运行异常处置；最新 `fccbaf9…` 又完成 220 文件、191/191 单元、隔离 S3/API/worker、迁移、mock 48+6、真实栈 6/6、desktop/mobile/PWA 与变更后 Web 镜像安全复跑。设计内 skip、未重跑层和外部闸门均分列。
 - [x] `213d9b6…` 将最终 V1 判断固化为 14 项失败关闭机器门禁；exact-SHA 的 224 文件、7 项类型、199 单元、生产构建、门禁正反向、Gitleaks 与生产依赖审计通过，标准入口未配置依赖的 2/93/29 集成 skip 明确不计为通过。
 - [x] `6e40b82…` 增加后置只读最终证明、CI/Security/release 实时核验、七类 GHCR digest HEAD 核对及固定 Actionlint；exact-SHA 的 228 文件、7 项类型、203 单元、构建、Gitleaks、依赖审计和 Semgrep 93 个目标通过。当前 blocked 清单在联网前拒绝，未伪造真实平台成功。
@@ -253,10 +253,10 @@
 - [x] fresh/legacy 数据库、PostgreSQL 五职责和 MinIO 四身份的正/负向最小权限验证通过；目标凭据仍须重新执行。
 - [x] `101d2f0…` 已完成 age+Ed25519 一致性备份和随机全新卷 38 表/11 migration/对象隔离恢复；经审批生产 `restore.sh`、独立批准渠道、异介质和目标内网仍待执行。
 - [x] 本地 synthetic bridge 使用真实 schema 与七镜像差异完成升级、双恢复点、应用回滚和 idle 后 HTTPS CRUD；历史生产 N−1、GHCR 和目标内网复演仍待执行，不得把本地结果升级为生产证明。
-- [x] `101d2f0…` 已完成 Gitleaks、生产依赖审计、Semgrep+canary、七镜像 Trivy 0.70.0 与 Syft 1.42.3 SPDX；GitHub/GHCR 双平台 digest、CodeQL/等效 SAST 与剩余风险批准仍待执行。
+- [x] `101d2f0…` 已完成 Gitleaks、生产依赖审计、Semgrep+canary、七镜像 Trivy 0.70.0 与 Syft 1.42.3 SPDX；`393f4ed…` 的 GitHub Security 已实跑 Gitleaks、生产依赖、Semgrep、Trivy。GHCR 双平台 digest、CodeQL/等效 SAST 与剩余风险批准仍待执行。
 - [ ] 在真实受管手机完成 PWA 安装/升级和移动浏览器验证。
 - [x] 专业复核基线 `101d2f0…`、运行异常 `f86bff4…`、电竞教育 `fccbaf9…`、发布门禁 `213d9b6…`、平台证明 `6e40b82…`、目标证明入口 `25204d3…`、受管真机入口 `ffe102e…`、生产恢复防护 `231d8e8…`、真实适配器防护 `d7cc156…`、教育放行入口 `f4c12b5…`、审阅包 `9c5633e…`、受控审计导出 `4391837…` 及其脱敏机器证据均已形成；各证据明确绑定实现 SHA，未把后继提交、stub JSON、自动化 viewport、本地恢复、mock/manual、审阅包、浏览器下载或验证器冒充目标环境、物理设备、真实适配器、真实内容发布、文件保留销毁或生产批准；远端状态以 PR Checks 为准。
-- [ ] 修复 GitHub Actions 账户付款/spending limit 阻断，重跑 PR CI 与 Security；取得绿色 run、CodeQL 或经批准等效 SAST、制品证据，批准后再合并。
+- [x] `393f4ed…` 的 CI `29767089892` 与 Security `29767090155` 已在真实 runner 上整体绿色；CI 完成静态/类型/单元、迁移/集成、mock 51+7、真实栈 6/6 和七类生产镜像构建，Security 实跑 Gitleaks、生产依赖、Semgrep、Trivy。CodeQL entitlement 不可用而明确跳过，GHCR release、CodeQL/经批准等效 SAST 风险决定及合并批准仍分别待办。
 - [ ] 在耀光广州办公内网按 `verify-target-intranet.sh` 绑定最终 Git SHA/七镜像清单运行机器证明，并另行验证防火墙、显式 seed、owner 首登改密、真实设备、备份介质、运行观察和独立批准。
 - [ ] 完成真实 LLM/GitHub 最小权限验收，或明确保持 disabled/manual 且不宣称外部集成完成。
 - [ ] 对 73 条来源完成适用范围内的专业人工复核；关闭官网/电竞教育事实、权利、合同、隐私和内容安全闸门。
@@ -266,4 +266,4 @@
 
 FIAT LUX CHOICE 已形成可运行的模块化单体候选，不是脚手架、静态仪表盘或仅有数据库模型。身份、权限、审计、业务模块、八类人工批准、七类顾问、后台任务、PWA、最小权限、七镜像供应链和 Ed25519 签名 formatVersion 2 独立恢复路径均有分层实证。
 
-不可变基线 `101d2f0…` 已完成 11 migration age+Ed25519 隔离恢复；当前业务能力与受控审计导出绑定 `4391837…`。在此之上，部署源码 `9de2b56…` 已在真实远端 Ubuntu/amd64 与可信 HTTPS 完成六服务、首登改密、桌面/移动/PWA、真实栈 6/6、七镜像 Trivy/SPDX、重启和最终签名隔离恢复，证明系统已可供受控远端验收，不再只是本地环境。该证据同时固定记录服务器规格不足、公网暴露、无 MFA、单平台 image ID、mock/manual 集成和无生产批准。14 项机器发布门禁仍为 2 项通过、12 项阻断；GitHub CI/security、GHCR 双平台制品、历史生产 N−1/最终目标发布、经审批生产恢复入口、耀光广州办公内网或受限访问环境、物理真机、真实 LLM/GitHub、73 条专业复核、十二篇内容权利/发布复核、第二份独立介质、MinIO 支持风险决策及责任人批准仍未完成。因此唯一合法结论仍是：**受控候选，尚不可宣布 V1 已完成或已批准生产上线。**
+不可变基线 `101d2f0…` 已完成 11 migration age+Ed25519 隔离恢复；当前业务能力与受控审计导出绑定 `4391837…`。在此之上，部署源码 `9de2b56…` 已在真实远端 Ubuntu/amd64 与可信 HTTPS 完成六服务、首登改密、桌面/移动/PWA、真实栈 6/6、七镜像 Trivy/SPDX、重启和最终签名隔离恢复。`393f4ed…` 又在干净 GitHub runner 修复并验证 workspace 源码解析，取得完整 CI/Security 绿色结果；CodeQL 明确未运行，PR 镜像构建也不是 GHCR 发布。14 项机器发布门禁现为 3 项通过、11 项阻断；GHCR 双平台制品、CodeQL/等效 SAST 风险决定、历史生产 N−1/最终目标发布、经审批生产恢复入口、耀光广州办公内网或受限访问环境、物理真机、真实 LLM/GitHub、73 条专业复核、十二篇内容权利/发布复核、第二份独立介质、MinIO 支持风险决策及责任人批准仍未完成。因此唯一合法结论仍是：**受控候选，尚不可宣布 V1 已完成或已批准生产上线。**

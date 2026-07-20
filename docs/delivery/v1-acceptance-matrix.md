@@ -82,13 +82,13 @@ lease 到期不等于“安全重试”。操作员必须从“运行异常处�
 
 | 层级 | 当前发布状态 | 最终证据要求 |
 | --- | --- | --- |
-| Biome / ShellCheck / Actionlint / 类型 | **不可变当前候选本地通过** | `4391837…` exact SHA：Biome 263 个文件、ShellCheck、Actionlint、7 项类型和 workspace production/PWA build 通过；GitHub runner 待复现 |
+| Biome / ShellCheck / Actionlint / 类型 | **不可变当前候选本地及 GitHub CI 通过** | `4391837…` exact SHA：Biome 263 个文件、ShellCheck、Actionlint、7 项类型和 workspace production/PWA build 通过；`393f4ed…` 已在干净 GitHub runner 复现 |
 | 单元/聚合 | **不可变当前候选本地通过** | `4391837…` exact SHA：49 files/278 tests；标准入口的 2/95/33 依赖型 skip 不计为通过，后续隔离 PostgreSQL 已独立覆盖 API 95/95 |
 | API / worker / PostgreSQL / pg-boss | **不可变当前候选增量本地通过 / 完整 worker 套件沿用基线** | `4391837…` 在全新 PostgreSQL 17.10 应用业务与 pg-boss 迁移后完成 API 19 files/95 tests，并在真实栈启动 API/worker；`f4c12b5…` 的 worker 33/33 与空卷 38 表/11 migrations/pg-boss 24 仍是最近完整基线，未冒充当前重跑 |
 | MinIO / S3 | **不可变当前候选真实栈通过 / 完整 ACL 沿用基线** | `4391837…` 全新 MinIO bucket 的真实栈 6/6 包含文件往返和 desktop/mobile 审计下载；app/backup/restore 最小权限 2/2 仍绑定 `f4c12b5…`，当前未重标完整 ACL 测试 |
 | Web / Playwright / PWA | **不可变当前候选本地通过，有真机边界** | `4391837…` mock 51 passed/7 条件 skip、全新真实栈 desktop/mobile 6/6，双方均覆盖受控导出；生产 Web 镜像 manifest standalone、SW 11 entries、完整 SHA、只读根和无横向溢出通过，物理真机仍未执行 |
 | 全 workspace / 镜像构建 | **不可变当前候选本地通过 / 完整七镜像未重跑** | `4391837…` workspace production build及 API/worker/Web 三张实际受影响 arm64 镜像重建；最近七镜像基线为 `f4c12b5…`，最终七类 GHCR 双平台制品仍待发布 |
-| 安全/供应链 | **不可变当前候选本地通过，有 GitHub 边界** | `4391837…` 精确树/完整历史 Gitleaks、生产依赖 0、Semgrep 10/10 canary/109 目标 0 finding；API/worker/Web Trivy HIGH/CRITICAL 0、SPDX 204/225/176 packages，七镜像基线仍为 `f4c12b5…`；GitHub Security 尚未运行任何 step |
+| 安全/供应链 | **不可变当前候选本地及 GitHub Security 通过，有 CodeQL/GHCR 边界** | `4391837…` 精确树/完整历史 Gitleaks、生产依赖 0、Semgrep 10/10 canary/109 目标 0 finding；API/worker/Web Trivy HIGH/CRITICAL 0、SPDX 204/225/176 packages，七镜像基线仍为 `f4c12b5…`；`393f4ed…` 在 GitHub 实跑 Gitleaks、依赖、Semgrep、Trivy，CodeQL 明确跳过 |
 
 远端 `9de2b56…` 还在实际 Ubuntu/amd64 目标源码构建栈完成仓库真实栈 Playwright 6/6；对 PostgreSQL、API、worker、Web、gateway、MinIO、backup 七类运行镜像以固定 Trivy 0.70.0 扫描，HIGH/CRITICAL 均为 0，并分别生成 47/204/214/178/178/375/168 packages 的 SPDX。远端 image ID 与本地 arm64 content ID 都不是 GHCR 双平台 root digest 或签名。全依赖只余 dev-only `drizzle-kit -> esbuild` 1 个 moderate，生产依赖为 0；CI 不启动其 dev server，作为非阻断升级项跟踪。
 
@@ -104,8 +104,8 @@ lease 到期不等于“安全重试”。操作员必须从“运行异常处�
 | 旧 v1 恢复与升级 | 2026-07-18 的 v1 归档、37 表/4 对象/16 秒和同内容标签升级回滚均早于 formatVersion 2 与最新代码 | 历史证据 | 不能计入当前门禁；最终 SHA 需用真实版本变化重做升级/回滚 |
 | synthetic bridge 相邻版本 | N `859841f…`/10 migrations 与本地 bridge `b44a8d1…`/9 migrations；七 digest 全异，真实 push/pull，升级 46s、回滚 43s、双 v2 恢复点；回滚后 308s 登录与 CRUD 通过 | 本地演练已验证 / 范围受限 | 不是历史生产 N−1、GHCR 或目标内网；经批准生产候选仍须复演 |
 | 归档、签名与维护安全 | `231d8e8…` 增加必填操作身份/理由/批准断言、跳过备份二次确认、每 operation 独占技术挂载和不可覆盖 `0600` 主机报告；archive guard、资源上限、scratch、preflight、maintenance lock、Ed25519 及正负向测试通过 | exact-SHA 本地通过；38 表/11 migration/1 对象签名隔离恢复通过 | 主机文件私钥不是 HSM；批准真实性固定未独立验证；经审批生产 `restore.sh` 破坏性入口仍待目标演练 |
-| 七镜像与供应链 | `f4c12b5…` arm64 七镜像和 `4391837…` 三张受影响镜像之外，`9de2b56…` 又对远端实际运行的七类 amd64 镜像完成 Trivy HIGH/CRITICAL 0 与七份 SPDX。全部仍是 image ID，不是 GHCR registry digest | 分层本地及远端单平台通过 / GHCR 待发布 | 最终发布 SHA 的完整七类双平台 registry digest、GitHub workflow 和残余风险批准 |
-| GitHub 交付 | 证据提交 `49278ce7f8de5c5a8fe57d0854f138e83652349f` 已推送，Draft PR #12 保持开放；CI `29758151603` 与 Security `29758151588` 的六个首级失败 job 均为 `runner_id=0`、`steps=[]`，仍由账户付款或 spending limit 在 runner 前阻断 | 部分完成 / 外部计费阻断 | PR Checks 为实时权威状态；修复 Billing & plans 后重跑并取得绿色 CI/security、候选制品、最终证明和批准；再合并 |
+| 七镜像与供应链 | `f4c12b5…` arm64 七镜像和 `4391837…` 三张受影响镜像之外，`9de2b56…` 又对远端实际运行的七类 amd64 镜像完成 Trivy HIGH/CRITICAL 0 与七份 SPDX。全部仍是 image ID，不是 GHCR registry digest | 分层本地及远端单平台通过 / GHCR 待发布 | 最终发布 SHA 的完整七类双平台 registry digest、release workflow 和残余风险批准 |
+| GitHub 交付 | 证据提交 `393f4edbd48dea617f48277a278f91da78558bd8` 已推送，Draft PR #12 保持开放；CI `29767089892` 与 Security `29767090155` 在真实 runner 上整体绿色。CI 的 10 个 job 覆盖静态/单元、迁移/集成、mock/真实栈 E2E 和七类生产镜像构建；Security 实跑 Gitleaks、依赖、Semgrep、Trivy，CodeQL 因 entitlement 不可用而明确跳过 | GitHub CI/Security 门禁通过 / 非发布批准 | PR Checks 为实时权威状态；仍需绿色 release、七类 GHCR 双平台 digest、CodeQL 或经批准等效 SAST 风险决定、最终证明和批准 |
 | 远端验收与目标办公内网 | `43.165.189.222` 已完成公网 Ubuntu、DNS、可信 HTTPS、UFW、systemd、六服务、备份、恢复和运行观察；但未运行绑定最终绿色 GitHub/GHCR 清单的 `verify-target-intranet.sh`，也不是耀光广州办公内网 | 远端验收环境通过 / 目标办公内网仍阻断 | 绑定最终 SHA/清单在已批准广州办公内网或 VPN/访问源受限目标执行；另验容量、设备、独立介质和运维批准 |
 
 ## 7. 核心场景状态
@@ -131,17 +131,17 @@ lease 到期不等于“安全重试”。操作员必须从“运行异常处�
 
 该仓库已经超过脚手架、静态仪表盘和数据库模型阶段。核心业务、首次改密与成员生命周期、归档角色即时失权、八类人工批准、typed refs、可追溯顾问、后台原子 claim 和 formatVersion 2 恢复路径均有实现与候选证据。
 
-当前仍只能称为**受控候选**。最新应用能力仍绑定 `4391837…`；`9de2b56…` 已在真实远端 Ubuntu/amd64 以可信 HTTPS 完成六服务、首登改密、桌面/移动/PWA、真实栈 6/6、七镜像 Trivy/SPDX、重启持久性和最终签名隔离恢复，[远端机器证据](./evidence/remote-server-acceptance-9de2b56-20260721.json)同时记录低规格公网环境、单平台 image ID、mock/manual 集成和未取得生产批准。十二篇内容仍全部 blocked，真实问卷、试讲、专业/事实/来源/权利复核、逐篇批准、WordPress 发布和七篇旧模板处置均未发生。[机器发布门禁](./v1-release-readiness.json)仍只有 2 项通过、12 项阻断。GitHub CI/security、GHCR、历史生产 N−1/最终目标发布、经审批生产恢复入口、广州办公内网/VPN或访问源限制、真机、真实 LLM/GitHub、73 条专业复核、十二篇内容权利/发布复核、残余风险决策和业务批准仍未完成。
+当前仍只能称为**受控候选**。最新应用能力仍绑定 `4391837…`；`9de2b56…` 已在真实远端 Ubuntu/amd64 以可信 HTTPS 完成六服务、首登改密、桌面/移动/PWA、真实栈 6/6、七镜像 Trivy/SPDX、重启持久性和最终签名隔离恢复。`393f4ed…` 又取得同一提交的绿色 CI/Security，并修复干净 runner 下 seed CLI 与真实栈源码 workspace 解析问题；GitHub 真实栈 6/6 与本地一次性栈 6/6 均通过。十二篇内容仍全部 blocked，真实问卷、试讲、专业/事实/来源/权利复核、逐篇批准、WordPress 发布和七篇旧模板处置均未发生。[机器发布门禁](./v1-release-readiness.json)现为 3 项通过、11 项阻断。GHCR 双平台发布、CodeQL/等效 SAST 风险决定、历史生产 N−1/最终目标发布、经审批生产恢复入口、广州办公内网/VPN或访问源限制、真机、真实 LLM/GitHub、73 条专业复核、十二篇内容权利/发布复核、残余风险决策和业务批准仍未完成。
 
 ## 9. 最终 SHA 与目标环境必须补录
 
 | 字段 | 当前值 | 要求 |
 | --- | --- | --- |
-| 完整 Git SHA / tag | 当前候选实现为 `4391837e0c2b91fa58b2269a26b2cbb3294347b6`，远端部署源码为 `9de2b56a2fe2943c9ddf038eefe5a5b11b53eb06`，远端证据提交为 `4f309791fef7271a2919135393ab8b88167cd4c9`；最近完整本地空卷/七镜像基线为 `f4c12b5…`、本地恢复基线为 `101d2f0…`；发布 tag 待创建 | 确定 commit/tag 签名政策，统一最终 Git/GitHub/GHCR/目标身份并记录受保护 tag |
-| GitHub PR / CI / 安全 run | Draft PR #12；证据提交 `49278ce…` 的 CI `29758151603` 与 Security `29758151588` 均由账户付款/spending limit 在 runner 前阻断，六个首级失败 job 为 `runner_id=0`、`steps=[]`，下游四项 skipped | PR Checks 是实时权威状态；修复 Billing & plans 后重跑，只有实际 step 执行且绿色才能关闭门禁 |
-| 38 表 / 11 migrations（`0000`–`0010`）证据 | **`101d2f0…` fresh/legacy、Compose、五职责与签名恢复本地通过** | GitHub runner、GHCR 与目标环境复现 |
+| 完整 Git SHA / tag | 当前候选实现为 `4391837e0c2b91fa58b2269a26b2cbb3294347b6`，远端部署源码为 `9de2b56a2fe2943c9ddf038eefe5a5b11b53eb06`，当前 GitHub 证据提交为 `393f4edbd48dea617f48277a278f91da78558bd8`；最近完整本地空卷/七镜像基线为 `f4c12b5…`、本地恢复基线为 `101d2f0…`；发布 tag 待创建 | 确定 commit/tag 签名政策，统一最终 Git/GitHub/GHCR/目标身份并记录受保护 tag |
+| GitHub PR / CI / 安全 run | Draft PR #12；`393f4ed…` 的 CI `29767089892` 与 Security `29767090155` 整体绿色。Security 的 CodeQL entitlement 不可用并明确跳过；Semgrep、Gitleaks、生产依赖和 Trivy 实际通过 | GitHub 机器门禁已关闭；仍需 GHCR release、CodeQL/等效 SAST 风险决定及最终批准，PR 继续保持 Draft |
+| 38 表 / 11 migrations（`0000`–`0010`）证据 | **`101d2f0…` fresh/legacy、Compose、五职责与签名恢复本地通过；`393f4ed…` GitHub 迁移/集成绿色** | 最终 GHCR 与目标环境复现 |
 | 七镜像 digest / SBOM / provenance | **`f4c12b5…` 本地 arm64 七镜像基线通过；`9de2b56…` 远端实际 amd64 七类镜像 Trivy 0 与 SPDX 通过** | 从最终发布 SHA 生成并记录完整七类 GHCR 双平台 registry digest；两地 image ID 都不能替代 |
-| 最终测试报告 | **`4391837…` 完成全仓分层测试；`9de2b56…` 远端部署验证、桌面/移动/PWA、真实栈 Playwright 6/6、重启、日志和七镜像安全通过** | 记录绿色 GitHub run；最终 GHCR、广州目标环境、物理真机、真实适配器和教育内容真实放行仍分别验收 |
+| 最终测试报告 | **`393f4ed…` 已取得绿色 CI/Security：CI 静态/类型/单元、95 API、33 worker、迁移/最小权限、mock 51+7、真实栈 6/6 和七类生产镜像构建通过；Security 实跑 Gitleaks、依赖、Semgrep、Trivy** | 最终 GHCR、广州目标环境、物理真机、真实适配器和教育内容真实放行仍分别验收；CodeQL 未运行 |
 | 最终 formatVersion 2 备份与恢复 | **`9de2b56…` 远端最终恢复点签名隔离 drill 通过 / 生产范围待完成** | 归档 SHA `46303002…ff62`、attestation SHA `445b945d…6b94`、报告 SHA `9cb37cd4…2cea`；生产入口、第二份独立介质、独立批准和业务 RPO/RTO 待验收 |
 | 最终升级/回滚 | **本地 synthetic bridge 通过 / 生产范围待完成** | 使用最终 GHCR 制品、经批准 N−1 和目标环境复演 expand/contract、双恢复点与 idle 后业务链 |
 | 远端验收 / 目标办公内网 / 真机 | **公网 Ubuntu 验收环境已真实部署并验证；广州办公内网与物理真机未完成** | 将最终 GHCR 清单部署到已批准办公内网或受限访问环境，并在物理受管手机记录同一候选/环境/会话链；另行复核容量、MDM、独立介质和批准人 |

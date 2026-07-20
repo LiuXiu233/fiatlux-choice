@@ -46,7 +46,7 @@
 - 2026-07-18 的旧测试总数、镜像 digest、v1 归档、37 表/4 对象/16 秒恢复和同内容标签升级回滚均为历史证据，不能作为当前通过或发布门禁。
 - 首轮本地相邻演练在回滚后 idle 登录暴露 `CONNECT_TIMEOUT` 并正确阻断；修复后以 N 10 migrations、synthetic bridge 9 migrations 和七个全异镜像完成真实 registry push/pull、46 秒升级、43 秒应用回滚、双 formatVersion 2 恢复点和回滚后 308 秒 HTTPS CRUD，数据、审计、索引和对象均保留。该结果不是历史生产 N−1、GHCR 或目标内网证据。
 - 发布治理 `213d9b6…` 已将完成条件固化为 14 项失败关闭门禁，平台证明 `6e40b82…` 已加入只读 GitHub/GHCR 实证；目标证明入口 `25204d34d865b16941d099658d33fbb561424f09` 把 clean source、七类发布 digest/运行镜像和目标 HTTPS/最小权限组合为只在全部成功后生成 `0600` JSON 的入口；受管真机入口 `ffe102e75526c510a14c60ef90a29e174b40a00a` 又加入成对可见构建身份、固定十步物理设备会话、独立候选/环境期望、实际附件 SHA-256 和不可覆盖 `0600` 报告。两者均已完成失败关闭工程验收，但前者未在广州目标主机运行，后者只使用 synthetic 会话和 headless viewport，均未验证物理设备、MDM 或批准。
-- 经审批生产恢复入口、绿色 GitHub CI/security、最终 GHCR 镜像、历史生产 N−1 和目标发布复演、目标内网、真实受管手机、真实 LLM/GitHub、73 条合规来源的专业人工复核、MinIO 长期支持风险处置和业务批准仍未完成。
+- `393f4ed…` 已取得绿色 GitHub CI/Security；CodeQL 因 entitlement 不可用而明确跳过。经审批生产恢复入口、CodeQL/经批准等效 SAST 风险决定、最终 GHCR 镜像、历史生产 N−1 和目标发布复演、广州办公内网或访问源受限环境、真实受管手机、真实 LLM/GitHub、73 条合规来源的专业人工复核、MinIO 长期支持风险处置和业务批准仍未完成。
 
 ### 2026-07-19 官网与教育内容基线
 
@@ -59,7 +59,7 @@
 
 ### 交付
 
-- 以当前候选 `4391837e0c2b91fa58b2269a26b2cbb3294347b6`、证据提交 `49278ce7f8de5c5a8fe57d0854f138e83652349f`、最近完整空卷/七镜像基线 `f4c12b5…`、生产恢复防护 `231d8e8…`、受管真机入口 `ffe102e…`、真实适配器防护 `d7cc156…`、完整恢复基线 `101d2f0…` 和各自分层运行证据为起点；任何功能、迁移、运行时依赖或镜像输入变化后重新冻结完整 Git SHA，并在同一 SHA 重跑 lint、类型、单元、集成、E2E、生产构建和受影响镜像安全扫描。
+- 以当前候选实现 `4391837e0c2b91fa58b2269a26b2cbb3294347b6`、远端部署源码 `9de2b56a2fe2943c9ddf038eefe5a5b11b53eb06`、GitHub 证据提交 `393f4edbd48dea617f48277a278f91da78558bd8`、最近完整空卷/七镜像基线 `f4c12b5…`、生产恢复防护 `231d8e8…`、受管真机入口 `ffe102e…`、真实适配器防护 `d7cc156…`、完整恢复基线 `101d2f0…` 和各自分层运行证据为起点；任何功能、迁移、运行时依赖或镜像输入变化后重新冻结完整 Git SHA，并在同一 SHA 重跑 lint、类型、单元、集成、E2E、生产构建和受影响镜像安全扫描。
 - 在耀光目标办公内网从空环境完成 11 个业务迁移 `0000`–`0010`、pg-boss 迁移和权限收敛；显式运行一次 `SEED_MODE=bootstrap`，验证 owner 首登改密、登录、MinIO、ready、CA 分发和重启持久性。随后用 `verify-target-intranet.sh` 绑定最终 Git SHA、七镜像发布清单及清单哈希生成机器报告，并从独立渠道核对防火墙、设备、恢复与运维批准，不能用 fixture JSON 代替。
 - 在同一目标 HTTPS 候选和公司 MDM 物理手机上按受管设备手册完成旧版浏览器安装、standalone 启动、Service Worker 升级、新版身份、核心登录、离线隐藏、联网重验、退出/卸载/站点数据清理及清理后重认证；使用独立批准的版本、完整 Git SHA、URL 和环境 ID 校验附件，再由终端与业务负责人交叉核对 MDM、原始附件和批准链。自动化 Chromium、viewport 或 verifier 的 `success` 均不能替代该步骤。
 - 在 legacy 副本验证 `metadata-only` 不改变组织、用户、membership、assignment 或权限；通过人工批准的 `system-role-maintenance` 演练角色基线升级，并完成一次受控离线 owner 恢复/回滚演练。
@@ -70,7 +70,7 @@
 - 在目标内网和物理异介质上生成新的 formatVersion 2 age 归档并独立恢复；使用最终 GHCR 制品与经批准 N−1 复演真实 schema/镜像变化。真实执行 `restore.sh` 时必须使用唯一 operation ID、可识别操作者、外部批准引用和独立 `0700` 报告根，归档原始 `0600` 主机报告及 SHA；不能用本地 guard fixture、隔离 `restore-drill.sh`、synthetic bridge、旧 v1 或同内容标签证据替代。
 - 保持 MinIO root/bootstrap、app、backup、restore 四身份最小权限。若改变 access-key ID，使用 root-only 运维显式删除旧用户，并以旧凭据负向验证；bootstrap 不会枚举未知旧 ID。
 - 迁移到有安全维护承诺的 S3 兼容存储、取得受支持的修复版，或在 internal-network 补偿控制下形成有期限的负责人风险接受与退出计划。
-- 运行 GitHub CI、安全扫描、SBOM 和 secret history scan。
+- 继续保持 GitHub CI/Security 绿色并保存 run 证据；当前已实跑 Gitleaks、生产依赖、Semgrep、Trivy、完整测试和七类镜像构建，后续还需补齐 CodeQL/经批准等效 SAST 风险决定、GHCR 双平台 SBOM/provenance 和绿色 release。
 - 对 73 条合规来源按风险优先上传真实意见并通过专用入口逐条复核；核对历史证据可下载、不可归档和变更后自动降级，不把自动化测试身份写入真实组织。
 - 统一官网中国境内主体、地域和业务表述。
 - 撤回或重写 7 篇模板占位文，修复重复标题、过期赛事时态和未核验见证；补主体、隐私、投诉和纠错入口。

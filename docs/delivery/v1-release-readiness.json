@@ -2,12 +2,12 @@
   "schemaVersion": 1,
   "versionLabel": "V1 controlled candidate",
   "overallStatus": "blocked",
-  "evaluatedAt": "2026-07-21T01:25:52+08:00",
+  "evaluatedAt": "2026-07-21T02:28:53+08:00",
   "candidate": {
     "repository": "https://github.com/LiuXiu233/fiatlux-choice",
     "branch": "codex/v1-acceptance-hardening",
     "implementationCommit": "4391837e0c2b91fa58b2269a26b2cbb3294347b6",
-    "evidenceCommit": "4f309791fef7271a2919135393ab8b88167cd4c9"
+    "evidenceCommit": "393f4edbd48dea617f48277a278f91da78558bd8"
   },
   "gates": [
     {
@@ -248,34 +248,31 @@
     },
     {
       "id": "github_ci_security",
-      "status": "blocked",
+      "status": "passed",
       "ownerRole": "仓库管理员",
-      "summary": "CI 与 Security 工作流均在 GitHub runner 启动前被账户付款或 Actions spending limit 阻断。",
+      "summary": "证据提交 393f4ed 的独立 CI 与 Security workflow 已在真实 GitHub runner 上整体绿色；CI 完成静态、类型、单元、迁移、集成、E2E 和七类生产镜像构建，Security 完成 Gitleaks、依赖、Semgrep 与 Trivy，CodeQL 因 entitlement 不可用而明确跳过。",
       "evidence": [
         {
           "kind": "github_run",
-          "result": "blocked",
-          "reference": "https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29758151603",
-          "verifiedAt": "2026-07-21T00:06:44+08:00",
-          "subjectCommit": "49278ce7f8de5c5a8fe57d0854f138e83652349f",
+          "result": "success",
+          "reference": "https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29767089892",
+          "verifiedAt": "2026-07-21T02:27:44+08:00",
+          "subjectCommit": "393f4edbd48dea617f48277a278f91da78558bd8",
           "githubWorkflow": "ci",
-          "note": "CI 两个首级失败 job 均为 runner_id=0、steps=[]，没有执行仓库步骤；不能记为代码失败或绿色通过。"
+          "note": "CI 整体 success：静态/单元、迁移/集成、mock 与真实栈浏览器 E2E，以及 postgres/API/worker/Web/gateway/MinIO/backup 七类生产镜像构建共 10 个 job 全绿；这些 PR 构建没有发布 GHCR digest。"
         },
         {
           "kind": "github_run",
-          "result": "blocked",
-          "reference": "https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29758151588",
-          "verifiedAt": "2026-07-21T00:06:44+08:00",
-          "subjectCommit": "49278ce7f8de5c5a8fe57d0854f138e83652349f",
+          "result": "success",
+          "reference": "https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29767090155",
+          "verifiedAt": "2026-07-21T02:17:33+08:00",
+          "subjectCommit": "393f4edbd48dea617f48277a278f91da78558bd8",
           "githubWorkflow": "security",
-          "note": "Security 四个首级失败 job 均为 runner_id=0、steps=[]，文件系统与 CodeQL 下游 job 被跳过。"
+          "note": "Security 整体 success：完整历史/当前树 Gitleaks、生产依赖审计、固定 Semgrep+canary 和 Trivy HIGH/CRITICAL filesystem gate 均实际执行；CodeQL entitlement 探测返回不可用，CodeQL 分析明确跳过，未记作已执行。"
         }
       ],
-      "blockers": [
-        "GitHub 账户付款或 Actions spending limit 尚未恢复，CI 与 Security 没有实际 runner steps。",
-        "尚无两个绑定同一 evidenceCommit 的独立绿色 CI 与 Security run。"
-      ],
-      "reviewedAt": "2026-07-21T00:06:44+08:00"
+      "blockers": [],
+      "reviewedAt": "2026-07-21T02:28:53+08:00"
     },
     {
       "id": "ghcr_release_artifacts",

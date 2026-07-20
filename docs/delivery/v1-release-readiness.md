@@ -1,8 +1,8 @@
 # V1 发布门禁维护说明
 
-基准日期：2026-07-20
+基准日期：2026-07-21
 
-当前结论：**受控候选，14 项门禁中 2 项通过、12 项阻断，不得宣布 V1 完成或批准上线。**
+当前结论：**受控候选，14 项门禁中 3 项通过、11 项阻断，不得宣布 V1 完成或批准上线。**
 
 [机器清单](./v1-release-readiness.json)是 V1 最终就绪状态的结构化权威记录；[验收矩阵](./v1-acceptance-matrix.md)和[交付报告](./final-delivery-report.md)解释范围与历史证据，但不能绕过机器清单。PR Checks、GHCR 和目标环境记录仍是各外部事实的实时权威来源。
 
@@ -141,4 +141,4 @@ pnpm exec tsx scripts/verify-v1-release-readiness.ts --file /absolute/path/to/ma
 
 ## 7. 当前阻断边界
 
-当前只有本地核心验收和本地安全/敏感数据两项通过。候选 `4391837e0c2b91fa58b2269a26b2cbb3294347b6` 在最近完整空卷/七镜像基线 `f4c12b5…` 和审阅包 `9c5633e…` 上增加受控审计导出，并完成自身全仓、PostgreSQL、桌面/移动真实下载和 API/worker/Web 三张受影响镜像证据；下载后保管制度、真实问卷/复核/发布/批准、真实适配器凭据/调用、物理设备、MDM 原始记录、真实生产恢复和独立批准仍未完成，不能增加通过门禁。证据提交 `49278ce7f8de5c5a8fe57d0854f138e83652349f` 的 CI `29758151603` 与 Security `29758151588` 均由账户付款或额度限制在 runner 前阻断，失败 job 为 `runner_id=0`、`steps=[]`。GHCR、目标办公内网、真实受管手机、生产范围恢复、真实 LLM/GitHub 适配器、73 条专业复核、十二篇教育内容权利/发布复核、真实责任人演练、残余风险决定、缺陷关闭确认和最终业务批准均未完成。清单如实保留这些状态；修复一个外部条件后，只更新有新证据覆盖的对应门禁。
+当前本地核心、本地安全/敏感数据及 GitHub CI/Security 三项通过。证据提交 `393f4edbd48dea617f48277a278f91da78558bd8` 的 [CI `29767089892`](https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29767089892) 与 [Security `29767090155`](https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29767090155) 已在真实 runner 上整体绿色；CI 包含静态、类型、单元、迁移、集成、mock/真实栈 E2E 和七类生产镜像构建，Security 实际执行 Gitleaks、生产依赖、Semgrep 和 Trivy。CodeQL 因仓库 entitlement 不可用而明确跳过，未冒充已执行；PR 镜像构建也没有冒充 GHCR registry digest。远端 `9de2b56…` 的 Ubuntu/HTTPS/恢复验收继续有效，但 GHCR、广州办公内网、真实受管手机、生产范围恢复、真实 LLM/GitHub 适配器、73 条专业复核、十二篇教育内容权利/发布复核、真实责任人演练、残余风险决定、缺陷关闭确认和最终业务批准仍未完成。清单如实保持其余 11 项阻断。
