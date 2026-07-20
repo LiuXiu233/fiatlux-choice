@@ -23,7 +23,7 @@
 
 不可变运营可见性增量 `ba25c69954015c406c6a61ff9fadadd3830741c3` 增加只读、组织隔离的监控状态 API 与桌面/移动面板，并把实时待领取与历史派发积压分开。不可变提交上完成 212 文件、ShellCheck/Actionlint、7 项类型、186/186 单元、API 90/90、worker 29/29、真实 MinIO 2/2、mock 46+6、生产构建、三张重建镜像安全扫描和独立 production Compose；真实状态为 73 条来源、11 条待领取、0 在途、73 条 pending_fetch、0 专业复核，六服务重启、PWA/offline 和三次部署/MinIO 最小权限验证均通过。脱敏记录见[监控运营状态增量证据](./evidence/compliance-monitoring-status-acceptance-ba25c69-20260720.json)。失败夹具、预期 401、复用的未变化底层镜像和未重跑的恢复层均分列；这仍不是 GitHub runner、目标内网或法律结论。
 
-不可变运行异常增量 `cbc3d92ed18563138e60fe2e449b24ba39a118f4` 为 advisor/workflow/backup `lease_expired` 增加 owner/admin 处置队列。exact SHA 上完成 Biome 217 files、ShellCheck/Actionlint、7 项类型、190/190 单元、API 93/93、worker 29/29、OpenAPI 78 paths/143 operations、生产构建和 Gitleaks；冻结前候选另通过 mock 48+6、desktop/mobile/PWA、独立 production Compose、workflow checkpoint 人工补偿、三镜像 Trivy/SPDX 和资源清理。最终冻结只收紧损坏 evidence 审计不得隐藏 open 事项并重跑 PostgreSQL/构建，未重建最终 API 镜像；这项树差异和未重跑的 MinIO/恢复层均在[运行异常增量证据](./evidence/operational-incident-acceptance-cbc3d92-20260720.json)分列。人工处置只是一项可审计内部声明，不能自动证明外部副作用不存在或补偿真实完成，也不是目标环境证据。
+不可变运行异常最终候选 `f86bff4dcc7d2b61e05c8a6b44078d039aad1e38` 为 advisor/workflow/backup `lease_expired` 增加 owner/admin 处置队列，并澄清未知 partial 数量与补偿主记录。exact SHA 上完成 Biome 218 files、7 项类型、191/191 单元、API 93/93、worker 29/29、OpenAPI 78 paths/143 operations、生产构建和 Gitleaks；同一 SHA 重建/扫描 API、worker、Web，Trivy HIGH/CRITICAL 与可修复项均为 0，SPDX 为 204/225/176 packages。独立 production Compose 又从空卷完成五职责、38 表/11 migration、73 条来源、六服务、MinIO 最小权限、首登改密、desktop/mobile/PWA 与 advisor/workflow/backup 三类处置；原失败状态和版本不变、每类恰好一条审计、重复请求 409，六服务重启后仍可读。未重跑恢复层和外部门禁均在[运行异常最终证据](./evidence/operational-incident-final-acceptance-f86bff4-20260720.json)分列。人工处置只是一项可审计内部声明，不能自动证明外部副作用不存在或补偿真实完成，也不是目标环境证据。
 
 当前 schema 为 38 张业务表和 11 个迁移（`0000`–`0010`）。专用迁移测试已证明 `0000`–`0009` 数据原样保留、不会为 legacy reviewed 记录发明专业 provenance；当前签名恢复又逐项匹配 11 个 migration SQL hash，但这仍不是 GitHub runner、生产副本或目标内网升级证明。本地 synthetic bridge 只覆盖旧 10 迁移基线，历史生产 N−1、目标发布复演和经审批的破坏性 `restore.sh` 生产入口没有实跑。GitHub CI、最终 GHCR 镜像、目标内网、真实设备、MinIO 长期维护/支持风险处置和责任人批准仍是发布闸门，以[验收矩阵](./v1-acceptance-matrix.md)为准。
 
@@ -128,7 +128,7 @@
 - 新升级/回滚入口强制校验严格七组件发布清单和独立批准的清单 SHA-256，并在 pull 后、迁移前及启动后核对本地 RepoDigest；切换时一致重建 PostgreSQL、MinIO 与应用，并核对六个常驻容器 image ID 后才写全局版本，避免任一常驻组件延迟切换。backup 保持按需。BuildKit provenance 与 SBOM 不是签名；当前未集成 cosign/Sigstore，不能声称镜像已由发布者签名。
 - 尚未完成的目标验证包括耀光办公内网主机、DNS、CA 分发、防火墙、seed/owner 首登改密、真实设备、异介质恢复和运行观察。
 - Caddy internal CA 需要逐台受控分发；它不是成熟企业 PKI。
-- 当前运行异常实现 `cbc3d92ed18563138e60fe2e449b24ba39a118f4` 已推送到私有 `LiuXiu233/fiatlux-choice` 的 Draft PR #12 候选分支，证据文档 head 待提交。历史 CI/Security run 的首级失败 job 均为 `runner_id=0`、`steps=[]`，annotation 明确提示近期账户付款失败或 Actions spending limit 不足；因此不能声称 GitHub CI、安全扫描、合并或发布已完成。PR Checks 是远端状态权威来源；修复 Billing & plans 后必须重跑。
+- 当前运行异常实现 `f86bff4dcc7d2b61e05c8a6b44078d039aad1e38` 已推送到私有 `LiuXiu233/fiatlux-choice` 的 Draft PR #12 候选分支，证据文档 head 待提交。历史 CI/Security run 的首级失败 job 均为 `runner_id=0`、`steps=[]`，annotation 明确提示近期账户付款失败或 Actions spending limit 不足；因此不能声称 GitHub CI、安全扫描、合并或发布已完成。PR Checks 是远端状态权威来源；修复 Billing & plans 后必须重跑。
 - 当前仓库没有把 Git commit/tag 签名作为已验证控制。本地测试事实不能充当发布者签名；生产 tag 前必须确定并执行签名政策，或由有权负责人记录替代控制与风险决定。
 
 ## 11. 安全剩余风险

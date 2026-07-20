@@ -35,7 +35,7 @@
 - 不可变协调实现 `5eec8cc3f4cbd0b9a12372240bca9f56d65ae5f9` 已把上述路径绑定 10/10 定向、worker 28/28、真实 pg-boss 组织 sweep、七镜像 production-like Compose、desktop/mobile/PWA 和 worker Trivy/SPDX 证据；CI/release 构建也显式覆盖为 production 语义。实验室首次组织 sweep 会同时领取 seed 后已到期的来源，因此目标部署仍应把首次抓取、失败分流和人工容量纳入上线窗口，而不是把自动任务数量当作专业结论数量。
 - 2026-07-20 不可变实现提交 `101d2f0938adfa0caa8ed576f6587a5c78ae74a5` 已通过 Biome 206 files、ShellCheck/Actionlint、7 项类型检查、177/177 单元、API 18 files/89 tests、worker 5 files/25 tests、真实 MinIO 2/2、mock 46+6、隔离 real 4/4、fresh/legacy 迁移、fresh/legacy 最小权限和生产构建；同一提交的全新 production-like Compose 又通过 38 表/11 migration、六服务、重启持久性、桌面/390×844 mobile、PWA/offline 和 73 条来源保守状态验证。
 - `101d2f0…` 七个本地 arm64 镜像由固定 Trivy 0.70.0 digest 扫描，HIGH/CRITICAL/fixable/unfixed 均为 0；七份 Syft 1.42.3 SPDX 通过，真实 BuildKit 0.31.2 双平台 provenance fixture 及 API/worker amd64 补偿证据仍有效；GHCR 双平台 root digest 仍待 release workflow。
-- 不可变运行异常实现 `cbc3d92ed18563138e60fe2e449b24ba39a118f4` 已推送，并完成 217 文件、190/190 单元、API 93/93、worker 29/29、OpenAPI 78 paths/143 operations、生产构建及秘密扫描 exact-SHA 回归。冻结前候选 Compose 的 workflow checkpoint 补偿、desktop/mobile/PWA、最小权限和镜像安全证据已保留，但最终冻结又收紧了损坏审计判定，故 exact-SHA API 镜像、目标环境三类操作员复演和长期未处置升级仍在 0–3 个月闸门内。
+- 不可变运行异常最终候选 `f86bff4dcc7d2b61e05c8a6b44078d039aad1e38` 已推送，并完成 218 文件、191/191 单元、API 93/93、worker 29/29、OpenAPI 78 paths/143 operations、生产构建及秘密扫描 exact-SHA 回归。同一 SHA 重建/扫描 API、worker、Web，并在全新 production Compose 分别完成 advisor 部分输出、workflow checkpoint 和无产物 backup 的真实 HTTPS 处置、desktop/mobile/PWA、首登改密、最小权限和整体重启；本地 exact-SHA 缺口已关闭。目标环境真实责任人复演和长期未处置升级仍在 0–3 个月闸门内。
 - 旧底层 formatVersion 2 演练归档 SHA-256 `bcfd6c59d…b6ba`，核对 38 表、10 migrations、pg-boss 24 和 1 个 56-byte 对象，实测 RPO 2 秒、drill RTO 75 秒；它早于 Ed25519 来源签名门禁，只保留为历史恢复证据。
 - `101d2f0…` 已暂停写入完成真实 age+Ed25519 一致性备份；错误 S3 凭据负向路径未改变目标，随机全新卷精确恢复 38 表、11 migrations（到 `0010`）、pg-boss 24、五职责权限、worker/readiness 和 1 对象/94 bytes，完整 drill 23 秒。测试密钥/归档/源 sentinel 已删除；独立生产批准、业务 RPO/RTO、破坏性生产 `restore.sh`、异介质和目标内网仍未执行。旧 `6545c18…` 的 10 migration 结果只保留为历史证据。
 - 2026-07-18 的旧测试总数、镜像 digest、v1 归档、37 表/4 对象/16 秒恢复和同内容标签升级回滚均为历史证据，不能作为当前通过或发布门禁。
@@ -51,12 +51,12 @@
 
 ### 交付
 
-- 以 `cbc3d92…` 后续证据 head 为候选起点；任何功能源码变化后重新冻结完整 Git SHA，并在同一 SHA 重跑 lint、类型、单元、集成、E2E、生产构建和七镜像安全扫描。
+- 以 `f86bff4…` 后续证据 head 为候选起点；任何功能源码变化后重新冻结完整 Git SHA，并在同一 SHA 重跑 lint、类型、单元、集成、E2E、生产构建和七镜像安全扫描。
 - 在耀光目标办公内网从空环境完成 11 个业务迁移 `0000`–`0010`、pg-boss 迁移和权限收敛；显式运行一次 `SEED_MODE=bootstrap`，验证 owner 首登改密、登录、MinIO、ready、CA 分发和重启持久性。
 - 在 legacy 副本验证 `metadata-only` 不改变组织、用户、membership、assignment 或权限；通过人工批准的 `system-role-maintenance` 演练角色基线升级，并完成一次受控离线 owner 恢复/回滚演练。
 - 对归档角色即时失权、成员停用、最后 owner、两人审批和单人补偿控制完成最终 Web/API E2E 与运维手册演练。
 - 在最终 SHA 复现已实现的 decision objective/project/task 同链校验、opportunity product/project 一致性、父关系/归档保护、API/worker 共用 advisory lock 和 runtime 数据库权限探测；保留特权管理员直接写表的批准与修复边界。
-- 在已有分层测试之上，用最终 SHA 和目标责任人复演 notification queued-only、GitHub refresh expectedVersion/CAS、workflow 不可变快照与 partial checkpoint、付款取消/驳回解链、advisor requester-only/read-all、合规 source/evidence、角色版本审批，以及 advisor/workflow/backup 三类 lease-expired 调查/补偿；禁止把旧运行静默重放或把冻结前 Compose 冒充最终镜像。
+- 在已有分层测试之上，用目标内网最终发布制品和真实责任人复演 notification queued-only、GitHub refresh expectedVersion/CAS、workflow 不可变快照与 partial checkpoint、付款取消/驳回解链、advisor requester-only/read-all、合规 source/evidence、角色版本审批，以及 advisor/workflow/backup 三类 lease-expired 调查/补偿；禁止把旧运行静默重放或把本地 exact-SHA Compose 冒充目标制品。
 - 在最终 SHA 发布并校验 OpenAPI，冻结高频端点请求/响应 schema 和兼容性规则。
 - 在目标内网和异介质上生成新的 formatVersion 2 age 归档并独立恢复；使用最终 GHCR 制品与经批准 N−1 复演真实 schema/镜像变化，不能用本地 synthetic bridge、旧 v1 或同内容标签证据替代。
 - 保持 MinIO root/bootstrap、app、backup、restore 四身份最小权限。若改变 access-key ID，使用 root-only 运维显式删除旧用户，并以旧凭据负向验证；bootstrap 不会枚举未知旧 ID。
@@ -89,7 +89,7 @@
 - [ ] 两人审批和单人补偿流程均有 E2E 证据。
 - [ ] 最终 Git SHA 已推送到私有目标仓库，主分支和安全工作流全部绿色。
 - [ ] fresh/legacy seed、首次改密、归档角色即时失权和离线 owner 恢复演练全部通过；没有身份或权限被 seed 静默恢复。
-- [ ] advisor/workflow/backup 并发投递只执行一次；本地已完成 workflow checkpoint 处置，仍须在最终 SHA/目标内网分别完成三类 lease-expired 与 partial output 的责任人调查、显式补偿和超时升级。
+- [ ] advisor/workflow/backup 并发投递只执行一次；本地 `f86bff4…` 已完成三类 lease-expired、partial output、显式补偿和重复 409，仍须在目标内网由真实责任人复演并验收超时升级。
 - [ ] MinIO/S3 四身份最小权限通过；所有已更换 access-key ID 的旧用户均有 root 删除与旧凭据失败证据。
 - [ ] 最终 GHCR 制品、经批准 N−1 和目标环境的升级与应用回滚均通过；本地 synthetic bridge 只作为前置工程证据。
 - [ ] 电竞教育九项事实问卷和首期上线闸门完成人工批准。

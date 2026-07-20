@@ -10,7 +10,7 @@
 
 不可变运营可见性增量 `ba25c69954015c406c6a61ff9fadadd3830741c3` 新增组织隔离、`compliance-items:read` 权限保护的合规监控状态 API 与响应式面板，分别呈现当前待领取、有效租约、首次未抓取、失败/变化和复核关注，并把历史 `hasMoreDue` 明确限定为“当时”事实。该提交完成 212 文件静态检查、186/186 单元、API 90/90、worker 29/29、真实 MinIO 2/2、mock 46+6、生产构建和独立 production Compose；真实桌面/移动/PWA、六服务重启、三镜像 Trivy/SPDX 与临时资源清理均通过。脱敏记录见[监控运营状态增量证据](docs/delivery/evidence/compliance-monitoring-status-acceptance-ba25c69-20260720.json)。面板刷新不会抓取或复核，任何指标都不证明法规有效、适用或已获专业批准；本增量也不替代基线恢复、GitHub/GHCR、目标内网和真实责任人验收。
 
-不可变运行异常增量 `cbc3d92ed18563138e60fe2e449b24ba39a118f4` 为顾问、工作流和数据库备份 `lease_expired` 增加 owner/admin 专用处置队列、证据化人工结论和事件级事务锁。原失败记录与 partial output 保持不变，提交只追加审计且不重放模型、工作流、队列或备份命令。该 SHA 已推送并通过 Biome 217 文件、ShellCheck/Actionlint、7 项类型、190/190 单元、API 19 files/93 tests、worker 5 files/29 tests、OpenAPI 78 paths/143 operations、生产构建和 Gitleaks；mock 48+6、desktop/mobile/PWA、独立 Compose 操作员场景与三镜像安全结果也已分层记录。冻结前 Compose 与镜像通过后又收紧了损坏处置审计判定，因此[运行异常增量证据](docs/delivery/evidence/operational-incident-acceptance-cbc3d92-20260720.json)明确分列 exact-SHA 回归和未在最终 SHA 重建的 Compose/镜像层，不把后者冒充最终制品。本增量未修改或重跑恢复层，也不关闭 GitHub CI、GHCR、目标内网、真机、真实适配器或专业批准闸门。
+不可变运行异常最终候选 `f86bff4dcc7d2b61e05c8a6b44078d039aad1e38` 为顾问、工作流和数据库备份 `lease_expired` 增加 owner/admin 专用处置队列、证据化人工结论和事件级事务锁，并澄清未知 partial 数量与补偿主记录。原失败记录与 partial output 保持不变，提交只追加审计且不重放模型、工作流、队列或备份命令。该 SHA 已推送并通过 Biome 218 文件、7 项类型、191/191 单元、API 19 files/93 tests、worker 5 files/29 tests、OpenAPI 78 paths/143 operations、生产构建和 Gitleaks；同一 SHA 重建并扫描 API/worker/Web，Trivy HIGH/CRITICAL 与可修复项均为 0，SPDX 包数为 204/225/176。独立 production Compose 又从空卷完成五职责、38 表/11 migration、73 条来源、六服务和 MinIO 最小权限；真实 HTTPS 桌面/390×844 移动端分别处置 advisor、workflow、backup 三类事件，验证两条独立补偿主记录、重复 409、原记录不变、首登改密、PWA 11 条静态缓存/0 API 或 health 缓存/0 安装性错误及整体重启持久性。脱敏事实与报告哈希见[运行异常最终证据](docs/delivery/evidence/operational-incident-final-acceptance-f86bff4-20260720.json)。本增量未修改或重跑恢复层，也不关闭 GitHub CI、GHCR、目标内网、真机、真实适配器或专业批准闸门。
 
 ## 能力
 
@@ -216,7 +216,7 @@ SEED_MODE=bootstrap pnpm db:seed
 
 API 基础路径是 /api/v1，使用组织作用域的 HttpOnly 会话 Cookie。健康端点为 /health/live 和 /health/ready。
 
-当前生成 OAS 3.1 候选文档；不可变实现提交 `101d2f0…` 已用标准 parser 和运行时清单对账 75 个 path、140 个 operation，并校验认证、参数、请求和响应 schema。GitHub/目标环境仍要复现，并建立兼容性 diff、弃用策略和受支持 SDK 生成交付。集成前请阅读[API 指南](docs/api/api-guide.md)；文件上传必须依次完成元数据声明、二进制 PUT 和 `POST /files/:id/complete`。
+当前生成 OAS 3.1 候选文档；最新不可变候选 `f86bff4…` 已用标准 parser 和运行时清单对账 78 个 path、143 个 operation，并校验认证、参数、请求和响应 schema。GitHub/目标环境仍要复现，并建立兼容性 diff、弃用策略和受支持 SDK 生成交付。集成前请阅读[API 指南](docs/api/api-guide.md)；文件上传必须依次完成元数据声明、二进制 PUT 和 `POST /files/:id/complete`。
 
 ## 安全与数据
 
