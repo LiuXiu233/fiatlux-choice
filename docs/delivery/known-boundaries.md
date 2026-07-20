@@ -25,6 +25,8 @@
 
 不可变运行异常最终候选 `f86bff4dcc7d2b61e05c8a6b44078d039aad1e38` 为 advisor/workflow/backup `lease_expired` 增加 owner/admin 处置队列，并澄清未知 partial 数量与补偿主记录。exact SHA 上完成 Biome 218 files、7 项类型、191/191 单元、API 93/93、worker 29/29、OpenAPI 78 paths/143 operations、生产构建和 Gitleaks；同一 SHA 重建/扫描 API、worker、Web，Trivy HIGH/CRITICAL 与可修复项均为 0，SPDX 为 204/225/176 packages。独立 production Compose 又从空卷完成五职责、38 表/11 migration、73 条来源、六服务、MinIO 最小权限、首登改密、desktop/mobile/PWA 与 advisor/workflow/backup 三类处置；原失败状态和版本不变、每类恰好一条审计、重复请求 409，六服务重启后仍可读。未重跑恢复层和外部门禁均在[运行异常最终证据](./evidence/operational-incident-final-acceptance-f86bff4-20260720.json)分列。人工处置只是一项可审计内部声明，不能自动证明外部副作用不存在或补偿真实完成，也不是目标环境证据。
 
+不可变受管真机入口 `ffe102e75526c510a14c60ef90a29e174b40a00a` 为 PWA 增加成对版本/SHA 可见身份，并以严格 Schema、独立候选/环境期望、实际附件字节/SHA-256 和不可覆盖 `0600` 报告收集固定十步真机会话。精确 SHA 已完成 237 文件、7 项类型、220 单元、17 项定向、mock 48+6、生产 Web 镜像 390×844 Python Chromium、Gitleaks、依赖审计、Semgrep 96 目标、Trivy 0 和 176-package SPDX；本地镜像/归档/venv 已清理。所有会话仍是 synthetic，浏览器使用 loopback、headless viewport 和 API fixture；报告固定不独立证明物理设备、MDM 或批准，因此不得关闭真机门禁，详见[受管真机入口证据](./evidence/managed-device-pwa-verifier-acceptance-ffe102e-20260720.json)。
+
 当前 schema 为 38 张业务表和 11 个迁移（`0000`–`0010`）。专用迁移测试已证明 `0000`–`0009` 数据原样保留、不会为 legacy reviewed 记录发明专业 provenance；当前签名恢复又逐项匹配 11 个 migration SQL hash，但这仍不是 GitHub runner、生产副本或目标内网升级证明。本地 synthetic bridge 只覆盖旧 10 迁移基线，历史生产 N−1、目标发布复演和经审批的破坏性 `restore.sh` 生产入口没有实跑。GitHub CI、最终 GHCR 镜像、目标内网、真实设备、MinIO 长期维护/支持风险处置和责任人批准仍是发布闸门，以[验收矩阵](./v1-acceptance-matrix.md)为准。
 
 ## 3. 身份与权限
@@ -48,7 +50,7 @@
 - 恢复源与输出已分离：归档通过 `RESTORE_SOURCE_DIR` 只读挂载，恢复前加密备份写到独立的 `RESTORE_PRE_BACKUP_DIR`。这解决了批准介质只读时无法生成 pre-restore 的路径冲突，但目录容量只提供安全下限而非成功保证；MinIO 内部卷格式/身份元数据不在归档中，跨版本兼容仍需人工确认。
 - 定期恢复演练的日志/恢复报告写入独立 `RESTORE_DRILL_REPORT_DIR`；未配置或不可写时演练失败关闭，不会把只读归档源重新挂成可写。
 - PWA 不缓存 API 数据，离线不能可靠查看或编辑公司记录。
-- 移动验证使用隔离 real Playwright 与 production-like Compose 原生 Python Playwright 的 390×844 Chromium 仿真；尚无真实 iPhone、Android 或受管移动设备证据。
+- 移动验证使用隔离 real Playwright 与 production-like/精确 SHA Web 镜像的原生 Python Playwright 390×844 Chromium 仿真；虽已有构建身份和失败关闭真机会话/附件入口，仍尚无真实 iPhone、Android、公司 MDM 或受管移动设备批准证据。
 - 单主机 Compose 无主机级高可用，故障恢复依赖可用备份和可接受 RTO。
 
 ### 4.1 业务记录关联边界

@@ -1,0 +1,253 @@
+{
+  "schemaVersion": 1,
+  "evidenceType": "managed_device_pwa_verifier_acceptance",
+  "generatedAt": "2026-07-20T06:44:36Z",
+  "implementation": {
+    "commit": "ffe102e75526c510a14c60ef90a29e174b40a00a",
+    "parentCommit": "a3ab3e08710d4238ecfb8587833a373fefba8bef",
+    "branch": "codex/v1-acceptance-hardening",
+    "remoteBranch": "origin/codex/v1-acceptance-hardening",
+    "implementationCommitPushed": true,
+    "workingTreeCleanDuringExactShaCheck": true,
+    "changedPathCount": 26,
+    "subject": "Fail-closed managed physical-device PWA evidence intake and visible build identity"
+  },
+  "scope": {
+    "physicalManagedDeviceTestPerformed": false,
+    "deviceManagementStatusIndependentlyVerified": false,
+    "actualBrowserPwaInstallPerformed": false,
+    "actualStandaloneUpgradePerformed": false,
+    "targetOfficeExecutionPerformed": false,
+    "humanApprovalObtained": false,
+    "v1ManagedDevicePwaGateChangedToPassed": false,
+    "implementedCapabilities": [
+      "visible paired release-version and Git-SHA identity on login, offline, desktop and mobile authenticated surfaces",
+      "fixed ten-step physical-device install, upgrade, authenticated flow, offline, recovery, logout and site-data-clear session contract",
+      "independently supplied expected version, full Git SHA, HTTPS origin and environment ID",
+      "regular-file, non-symbolic-link, path-boundary, byte-length and SHA-256 verification for every attachment",
+      "success-only, mode-0600, non-overwriting same-directory hard-link publication into a mode-0700 report directory",
+      "explicit report fields that keep physical-device, management-status and approval independent verification false"
+    ],
+    "reportProperties": {
+      "format": "JSON",
+      "schemaVersion": 1,
+      "sessionIdPreserved": true,
+      "successOnlyAfterSchemaIdentityAndAttachmentChecks": true,
+      "atomicSameDirectoryHardLinkPublication": true,
+      "reportDirectoryMode": "0700",
+      "reportFileMode": "0600",
+      "existingReportOverwriteAllowed": false,
+      "rawAttachmentPathsAndOperatorNotesCopiedToReport": false,
+      "sessionJsonSha256Stored": true,
+      "physicalDeviceIndependentlyVerified": false,
+      "managementStatusIndependentlyVerified": false,
+      "approvalIndependentlyVerified": false
+    }
+  },
+  "validation": {
+    "exactShaStandardCheck": {
+      "command": "CI=true pnpm check",
+      "status": "passed",
+      "commit": "ffe102e75526c510a14c60ef90a29e174b40a00a",
+      "biomeFilesChecked": 237,
+      "shellcheck": "passed",
+      "actionlint": "passed",
+      "typescriptProjectsPassed": 7,
+      "unitTestFilesPassed": 41,
+      "unitTestsPassed": 220,
+      "workspaceProductionBuild": "passed",
+      "pwaPrecacheEntries": 11,
+      "standardIntegrationWithoutDependencies": {
+        "objectStorageTestsSkipped": 2,
+        "apiTestsSkipped": 93,
+        "workerTestsSkipped": 29,
+        "countedAsPassed": false,
+        "reason": "No PostgreSQL or MinIO integration credentials were configured for this standard exact-SHA entrypoint; unchanged real-stack layers remain bound to earlier immutable isolated evidence."
+      }
+    },
+    "managedDeviceEvidenceTests": {
+      "command": "pnpm test:managed-device-pwa-evidence",
+      "status": "passed",
+      "contractTestsPassed": 7,
+      "filesystemVerifierTestsPassed": 6,
+      "buildIdentityTestsPassed": 4,
+      "testCountAlreadyIncludedInUnitTotal": true,
+      "negativeCoverage": [
+        "missing or reordered mandatory step",
+        "simulator or non-managed-device assertion",
+        "same-version or same-Git-SHA upgrade",
+        "unsafe environment label",
+        "unknown, duplicate or orphaned attachment",
+        "capture outside the session window or unsafe privacy assertion",
+        "attachment mutation",
+        "caller-supplied candidate or environment mismatch",
+        "symbolic-link attachment",
+        "same-name report overwrite"
+      ]
+    },
+    "releaseIdentityBuild": {
+      "releaseVersion": "v1.0.0-rc.2",
+      "releaseGitSha": "ffe102e75526c510a14c60ef90a29e174b40a00a",
+      "visibleIdentity": "构建 v1.0.0-rc.2 · ffe102e",
+      "positiveDockerBuild": "passed",
+      "negativeReleaseWithDevelopmentShaBuild": "rejected",
+      "dependencyInstallLayerIndependentOfReleaseIdentity": true,
+      "pwaPrecacheEntries": 11,
+      "pwaPrecacheSizeKiB": 787.53
+    },
+    "mockBrowserE2e": {
+      "command": "VITE_RELEASE_VERSION=v1.0.0-rc.2 VITE_RELEASE_GIT_SHA=ffe102e75526c510a14c60ef90a29e174b40a00a pnpm test:e2e:mock",
+      "status": "passed",
+      "testsPassed": 48,
+      "projectConditionalTestsSkipped": 6,
+      "desktopAndMobileBuildIdentityAssertions": "passed",
+      "countedAsPhysicalDeviceEvidence": false
+    },
+    "productionImageMobileBrowserEngineeringEvidence": {
+      "runtime": "Python Playwright 1.61.0 with Chrome Headless Shell 149.0.7827.55",
+      "viewport": "390x844",
+      "imageDigest": "sha256:69f97c1b4522a327df266d53f66b95a5ed9e2855ced36e0c5cadd335dfe05dd4",
+      "manifestDisplay": "standalone",
+      "serviceWorkerActive": true,
+      "cacheCount": 1,
+      "cachedRequestCount": 11,
+      "sensitiveApiOrHealthCacheCount": 0,
+      "installabilityErrors": 0,
+      "horizontalOverflow": false,
+      "offlineLoginHidden": true,
+      "offlineBuildIdentityVisible": true,
+      "onlineSessionRevalidated": true,
+      "unexpectedConsoleErrors": 0,
+      "pageErrors": 0,
+      "authEndpointMode": "deterministic 401 route fixture",
+      "origin": "HTTP loopback secure-context exception",
+      "countedAsPhysicalDeviceOrTargetHttpsEvidence": false
+    },
+    "localProductionWebImage": {
+      "platform": "linux/arm64",
+      "digest": "sha256:69f97c1b4522a327df266d53f66b95a5ed9e2855ced36e0c5cadd335dfe05dd4",
+      "sizeBytes": 38149138,
+      "runtimeUser": "10001:10001",
+      "indexFileMode": "0444",
+      "caddyConfigMode": "0444",
+      "readOnlyRootFilesystem": true,
+      "capabilitiesDropped": "ALL",
+      "noNewPrivileges": true,
+      "tmpfs": "/tmp:rw,noexec,nosuid,nodev,size=16m",
+      "healthLoginAndManifestSmoke": "passed",
+      "trivy": {
+        "runtime": "aquasec/trivy 0.70.0",
+        "severity": ["HIGH", "CRITICAL"],
+        "alpineFindings": 0,
+        "caddyGoBinaryFindings": 0
+      },
+      "spdx": {
+        "runtime": "anchore/syft 1.42.3",
+        "sourceMode": "offline Docker archive",
+        "archiveSha256": "14262c12246803d74302ca9edec68dd45162732f6345b8abda1383681ecc6e27",
+        "sbomSha256": "2f6d7e1f86d3e3dc5a7272b91a1420a2e0faf62881bd23a57b78614075ef971a",
+        "packages": 176,
+        "bytes": 439904,
+        "verificationScript": "scripts/verify-spdx-sbom.sh",
+        "status": "passed"
+      },
+      "countedAsGhcrMultiPlatformArtifact": false
+    },
+    "productionComposeConfig": {
+      "files": ["compose.yml", "compose.prod.yml"],
+      "releaseIdentity": "v1.0.0-rc.2@ffe102e75526c510a14c60ef90a29e174b40a00a",
+      "allRequiredPlaceholderEnvironmentValuesSupplied": true,
+      "status": "passed",
+      "deploymentPerformed": false
+    }
+  },
+  "sourceSecurity": {
+    "gitleaks": {
+      "runtime": "gitleaks 8.28.0",
+      "currentTreeIncludingNonIgnoredUntracked": "passed",
+      "completeGitHistory": "passed",
+      "defaultAndCustomCanaries": "passed",
+      "findings": 0
+    },
+    "productionDependencyAudit": {
+      "command": "pnpm audit --prod --audit-level high --registry=https://registry.npmjs.org",
+      "status": "passed",
+      "knownVulnerabilities": 0
+    },
+    "semgrep": {
+      "runtime": "Semgrep OSS 1.170.0",
+      "ruleCount": 10,
+      "canaryFindings": 10,
+      "productionTargetsScanned": 96,
+      "productionFindings": 0
+    }
+  },
+  "github": {
+    "pullRequest": {
+      "number": 12,
+      "url": "https://github.com/LiuXiu233/fiatlux-choice/pull/12",
+      "draft": true,
+      "head": "codex/v1-acceptance-hardening",
+      "base": "main"
+    },
+    "ciRun": {
+      "id": 29722396559,
+      "url": "https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29722396559",
+      "headSha": "ffe102e75526c510a14c60ef90a29e174b40a00a",
+      "status": "completed",
+      "conclusion": "failure",
+      "primaryFailedJobs": 2,
+      "primaryFailedJobsWithRunnerIdZero": 2,
+      "primaryFailedJobsWithNoSteps": 2,
+      "dependentSkippedJobs": 2
+    },
+    "securityRun": {
+      "id": 29722396542,
+      "url": "https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29722396542",
+      "headSha": "ffe102e75526c510a14c60ef90a29e174b40a00a",
+      "status": "completed",
+      "conclusion": "failure",
+      "primaryFailedJobs": 4,
+      "primaryFailedJobsWithRunnerIdZero": 4,
+      "primaryFailedJobsWithNoSteps": 4,
+      "dependentSkippedJobs": 2
+    },
+    "platformAnnotation": "The job was not started because recent account payments have failed or your spending limit needs to be increased.",
+    "codeStepsExecutedOnGitHub": 0,
+    "blindRerunPerformed": false,
+    "mergeState": "UNSTABLE"
+  },
+  "hashesSha256": {
+    "webDockerfile": "1b8da770674f2bf1a4967e23fa2c0ae54b250a3260c813ad2a742929422570d8",
+    "compose": "86272f0b04ad3a834f5ce2576b63ec9161d6a560b38935ba9dc4534f8c644917",
+    "packageManifest": "5bd736099f623bc63545b66952d5a8f6f71f0684e841ccc4751b97bdd8ba5613",
+    "ciWorkflow": "281524861ba9e07a5e54482c0edd6a516347aacb745f583c0f8df6d37ee6ccba",
+    "releaseWorkflow": "9ee0999339a72aaaf98ac907cf10387be81d4835cfdabf8954d6e00bd16a93b5",
+    "buildInfo": "5219ac10d7d0921046ff5a7b49be674dc932545d1411778e39d0ec67599da04d",
+    "managedDeviceContract": "73309b175b0b9fc7c86b46fbe6599cb362a05b1895a42fedf1c5b656368d8d07",
+    "managedDeviceVerifier": "18fff3e3e082455139cf8b0a5e3edc9c301b56c47bae70a578b0b01a9abba6dc",
+    "managedDeviceCli": "1cfedd62a6e0191976293dd7779645bb9f759b9a75dca4935079157770313e3c",
+    "managedDeviceGuide": "1eb924abb45fa7a6d0a0e810a1a8ce9bddd05e91d8727217cf1b0f55713b7395",
+    "managedDeviceTemplate": "8847dc8526f16af54246b999fea5190f230322a51873d35bc122c745c110b0d2"
+  },
+  "boundaries": [
+    "All schema and filesystem verifier successes used synthetic fixtures in disposable test directories. They do not prove that a phone, MDM record, operator observation or approval is genuine.",
+    "The production-image browser check used headless Chromium with a 390x844 viewport, a loopback origin and deterministic API routing. It did not install a PWA from a real mobile browser, launch from a physical home screen, observe an operating-system update path or clear a managed phone.",
+    "The local arm64 image digest, Trivy result and SPDX document are not a GHCR multi-platform release artifact and do not prove target-office deployment.",
+    "No raw credential, cookie, token, device serial, IMEI, screenshot, video, target hostname, target approval or real company record was collected or committed by this acceptance run.",
+    "The verifier only checks structure, independently supplied candidate identity and attachment bytes. It permanently marks physical-device, company-management and approval independent verification false and performs no external action.",
+    "The authoritative V1 readiness result remains 2 of 14 gates passed and 12 blocked. The managed-device PWA gate remains blocked until a real company-managed physical phone session and independent approval are available."
+  ],
+  "cleanup": {
+    "temporaryPythonEnvironmentRemoved": true,
+    "temporaryDockerArchiveRemoved": true,
+    "temporarySpdxFileRemoved": true,
+    "localTestImagesRemoved": true,
+    "testContainersRemoved": true,
+    "rawBrowserArtifactsCommitted": false,
+    "deviceEvidenceCommitted": false,
+    "credentialsCommitted": false,
+    "workingTreeCleanAfterExactShaValidationBeforeEvidenceAuthoring": true
+  },
+  "conclusion": "The exact pushed implementation commit passed the repository-wide static, type, unit and production-build gate, managed-device contract and filesystem-verifier tests, exact-release desktop/mobile mock E2E, production Web-image mobile browser engineering checks, Gitleaks, official-registry production dependency audit, Semgrep, Trivy and SPDX verification. The repository now has a fail-closed intake and review path for a real managed-phone PWA session, but no physical managed phone, target-office execution or independent human approval was used; managed_device_pwa and overall V1 readiness therefore remain blocked."
+}

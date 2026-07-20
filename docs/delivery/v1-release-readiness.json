@@ -2,19 +2,19 @@
   "schemaVersion": 1,
   "versionLabel": "V1 controlled candidate",
   "overallStatus": "blocked",
-  "evaluatedAt": "2026-07-20T13:30:13+08:00",
+  "evaluatedAt": "2026-07-20T14:44:36+08:00",
   "candidate": {
     "repository": "https://github.com/LiuXiu233/fiatlux-choice",
     "branch": "codex/v1-acceptance-hardening",
-    "implementationCommit": "25204d34d865b16941d099658d33fbb561424f09",
-    "evidenceCommit": "25204d34d865b16941d099658d33fbb561424f09"
+    "implementationCommit": "ffe102e75526c510a14c60ef90a29e174b40a00a",
+    "evidenceCommit": "ffe102e75526c510a14c60ef90a29e174b40a00a"
   },
   "gates": [
     {
       "id": "local_core_acceptance",
       "status": "passed",
       "ownerRole": "研发与交付负责人",
-      "summary": "核心闭环、真实栈、浏览器、移动端、PWA、运行异常和教育内容增量已有分层本地机器证据。",
+      "summary": "核心闭环、真实栈、浏览器、移动端、PWA、运行异常、教育内容和受管真机证据入口已有分层本地机器证据。",
       "evidence": [
         {
           "kind": "machine_evidence",
@@ -69,16 +69,25 @@
           "subjectCommit": "25204d34d865b16941d099658d33fbb561424f09",
           "sha256": "f1d984528a6d6e992c6ae38fb213fb571eb8acaeaad252bd898c832b699a1852",
           "note": "当前目标证明入口提交的 exact-SHA 全仓、macOS/Linux 失败关闭包装器和构建验收；不是目标环境成功报告。"
+        },
+        {
+          "kind": "machine_evidence",
+          "result": "success",
+          "reference": "docs/delivery/evidence/managed-device-pwa-verifier-acceptance-ffe102e-20260720.json",
+          "verifiedAt": "2026-07-20T14:44:36+08:00",
+          "subjectCommit": "ffe102e75526c510a14c60ef90a29e174b40a00a",
+          "sha256": "da954f15fab4def65048db61502d8542cecf9f25c2e3ad59c0721b0d355b6f3d",
+          "note": "当前实现提交的 exact-SHA 全仓、构建身份、受管真机合同/文件校验器、桌面/移动/PWA 和本地 Web 镜像验收；不是物理真机证据。"
         }
       ],
       "blockers": [],
-      "reviewedAt": "2026-07-20T13:30:13+08:00"
+      "reviewedAt": "2026-07-20T14:44:36+08:00"
     },
     {
       "id": "local_security_and_sensitive_data",
       "status": "passed",
       "ownerRole": "信息安全负责人",
-      "summary": "当前实现提交已完成源码、历史、生产依赖、SAST canary、镜像和 SPDX 安全复核且未发现敏感数据。",
+      "summary": "当前实现提交已完成源码、历史、生产依赖、SAST canary、PWA Web 镜像和 SPDX 安全复核且未发现敏感数据。",
       "evidence": [
         {
           "kind": "machine_evidence",
@@ -115,10 +124,19 @@
           "subjectCommit": "25204d34d865b16941d099658d33fbb561424f09",
           "sha256": "f1d984528a6d6e992c6ae38fb213fb571eb8acaeaad252bd898c832b699a1852",
           "note": "当前提交的 Gitleaks、官方 registry 生产依赖审计和 Semgrep 93 个生产目标通过。"
+        },
+        {
+          "kind": "machine_evidence",
+          "result": "success",
+          "reference": "docs/delivery/evidence/managed-device-pwa-verifier-acceptance-ffe102e-20260720.json#sourceSecurity",
+          "verifiedAt": "2026-07-20T14:44:36+08:00",
+          "subjectCommit": "ffe102e75526c510a14c60ef90a29e174b40a00a",
+          "sha256": "da954f15fab4def65048db61502d8542cecf9f25c2e3ad59c0721b0d355b6f3d",
+          "note": "当前提交的 Gitleaks、官方 registry 生产依赖审计、Semgrep 96 个生产目标及 Web 镜像 Trivy/SPDX 通过。"
         }
       ],
       "blockers": [],
-      "reviewedAt": "2026-07-20T13:30:13+08:00"
+      "reviewedAt": "2026-07-20T14:44:36+08:00"
     },
     {
       "id": "github_ci_security",
@@ -129,18 +147,18 @@
         {
           "kind": "github_run",
           "result": "blocked",
-          "reference": "https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29719190354",
-          "verifiedAt": "2026-07-20T13:30:13+08:00",
-          "subjectCommit": "25204d34d865b16941d099658d33fbb561424f09",
+          "reference": "https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29722396559",
+          "verifiedAt": "2026-07-20T14:44:36+08:00",
+          "subjectCommit": "ffe102e75526c510a14c60ef90a29e174b40a00a",
           "githubWorkflow": "ci",
           "note": "CI 首级失败 job 没有执行仓库步骤，不能记为代码失败或绿色通过。"
         },
         {
           "kind": "github_run",
           "result": "blocked",
-          "reference": "https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29719190355",
-          "verifiedAt": "2026-07-20T13:30:13+08:00",
-          "subjectCommit": "25204d34d865b16941d099658d33fbb561424f09",
+          "reference": "https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29722396542",
+          "verifiedAt": "2026-07-20T14:44:36+08:00",
+          "subjectCommit": "ffe102e75526c510a14c60ef90a29e174b40a00a",
           "githubWorkflow": "security",
           "note": "Security 首级失败 job 没有执行仓库步骤，CodeQL 等下游 job 被跳过。"
         }
@@ -149,7 +167,7 @@
         "GitHub 账户付款或 Actions spending limit 尚未恢复，CI 与 Security 没有实际 runner steps。",
         "尚无两个绑定同一 evidenceCommit 的独立绿色 CI 与 Security run。"
       ],
-      "reviewedAt": "2026-07-20T13:30:13+08:00"
+      "reviewedAt": "2026-07-20T14:44:36+08:00"
     },
     {
       "id": "ghcr_release_artifacts",
@@ -201,14 +219,14 @@
       "id": "managed_device_pwa",
       "status": "blocked",
       "ownerRole": "终端与业务验收负责人",
-      "summary": "390 像素移动浏览器和 PWA 边界已在自动化环境通过，但尚未在真实受管手机安装、升级和清理缓存。",
+      "summary": "候选构建身份、受管真机会话合同、实际附件校验器及 390 像素 PWA 工程边界已通过，但尚未在真实受管手机安装、升级和清理缓存。",
       "evidence": [
         {
           "kind": "target_environment",
           "result": "not_run",
-          "reference": "docs/delivery/v1-acceptance-matrix.md#7-核心场景状态",
-          "verifiedAt": "2026-07-20T12:07:56+08:00",
-          "note": "模拟 viewport 与桌面 Chromium 不等于真实受管设备。"
+          "reference": "docs/delivery/evidence/managed-device-pwa-verifier-acceptance-ffe102e-20260720.json#boundaries",
+          "verifiedAt": "2026-07-20T14:44:36+08:00",
+          "note": "精确 SHA 的自动化 viewport、生产 Web 镜像和 synthetic 会话只证明工程入口；不等于真实物理受管设备、MDM 记录或人工批准。"
         },
         {
           "kind": "approval",
@@ -221,7 +239,7 @@
         "缺少真实受管手机上的 PWA 安装、升级、离线边界和缓存清理证据。",
         "缺少终端与业务验收负责人的可识别批准。"
       ],
-      "reviewedAt": "2026-07-20T12:07:56+08:00"
+      "reviewedAt": "2026-07-20T14:44:36+08:00"
     },
     {
       "id": "production_backup_restore",

@@ -14,20 +14,21 @@
 | 不可变运行异常增量本地通过 | `f86bff4dcc7d2b61e05c8a6b44078d039aad1e38` 已完成运行异常人工闭环、exact-SHA 源码/数据库/构建、三镜像安全和独立 Compose 三类操作员复验；仍不等于 GitHub、GHCR 或目标环境通过 |
 | 不可变电竞教育增量本地通过 | `fccbaf9c5718c18c588f8ee1d21d3a3997053187` 已完成 12 篇受控内容、exact-SHA 全仓、隔离集成/迁移、桌面/移动/PWA 与变更后 Web 镜像安全复验；不替代恢复基线或任何外部/人工门禁 |
 | 不可变目标证明入口本地通过 | `25204d34d865b16941d099658d33fbb561424f09` 已完成目标内网机器证明入口、exact-SHA 全仓、安全及 macOS/Linux 失败关闭验收；stub 成功报告不等于目标环境运行或运维批准 |
+| 不可变受管真机入口本地通过 | `ffe102e75526c510a14c60ef90a29e174b40a00a` 已完成成对构建身份、受管真机会话合同/附件校验器、exact-SHA 全仓、桌面/移动/PWA、Web 镜像扫描和 SPDX；headless viewport 与 synthetic 会话不等于物理受管手机或终端批准 |
 | 本地演练已验证 | 在本地隔离环境完成真实数据库、对象存储、队列或恢复演练，但不是目标办公内网验收 |
 | 历史证据 | 结果在当时真实，但其后源码、迁移、镜像或备份格式已有变化，不能作为当前发布证据 |
 | GitHub/目标环境待复现 | 不可变实现提交已在本地通过，仍缺 GitHub runner、GHCR、目标内网或真机证据 |
 | 边界 / 待决策 | 实现有明确能力边界，需补控制或由有权负责人决定是否阻断 V1 |
 | 待执行 / 阻断 | 未完成前不能宣布 V1 完成 |
 
-本矩阵严格区分代码存在、不可变实现提交本地测试、本地恢复、本地 synthetic bridge 演练、GitHub CI、耀光目标办公内网、真实设备和真实外部集成。`101d2f0…` 的本机 Compose 不是广州办公内网生产部署；本地 arm64 image ID 也不是 GHCR 双平台 root digest。`f86bff4…` 的运行异常证据绑定同一 exact-SHA 重建/扫描的 API、worker、Web 和独立 Compose 三类真实 HTTPS 处置；`fccbaf9…` 的内容增量另绑定全仓、隔离集成、迁移、桌面/移动/PWA 和 Web 镜像证据；`25204d3…` 只证明目标机器报告采集路径失败关闭，未在广州主机运行。三者都明确未重跑层与全部外部门禁。当前 14 项状态以[机器发布门禁](./v1-release-readiness.json)为准；后续证据文档提交只记录实现 SHA，最终发布仍须统一 Git/GitHub/GHCR 与目标环境身份。旧 v1 恢复和同内容标签升级数字不能滚入当前通过口径，synthetic bridge 也不能冒充历史生产 N−1。
+本矩阵严格区分代码存在、不可变实现提交本地测试、本地恢复、本地 synthetic bridge 演练、GitHub CI、耀光目标办公内网、真实设备和真实外部集成。`101d2f0…` 的本机 Compose 不是广州办公内网生产部署；本地 arm64 image ID 也不是 GHCR 双平台 root digest。`f86bff4…` 的运行异常证据绑定同一 exact-SHA 重建/扫描的 API、worker、Web 和独立 Compose 三类真实 HTTPS 处置；`fccbaf9…` 的内容增量另绑定全仓、隔离集成、迁移、桌面/移动/PWA 和 Web 镜像证据；`25204d3…` 只证明目标机器报告采集路径失败关闭；`ffe102e…` 只证明真机会话采集/校验入口和自动化 PWA 工程边界，既未在广州主机运行，也未触碰物理受管手机。各增量都明确未重跑层与全部外部门禁。当前 14 项状态以[机器发布门禁](./v1-release-readiness.json)为准；后续证据文档提交只记录实现 SHA，最终发布仍须统一 Git/GitHub/GHCR 与目标环境身份。旧 v1 恢复和同内容标签升级数字不能滚入当前通过口径，synthetic bridge 也不能冒充历史生产 N−1。
 
 ## 2. 产品与治理能力
 
 | 验收项 | 当前实现与证据 | 状态 | 最终 V1 闸门 |
 | --- | --- | --- | --- |
-| 响应式 Web 与导航 | `fccbaf9…` 的 mock 48 passed/6 条件 skip、隔离真实栈 desktop/mobile 6/6；独立 Python Chromium 在 1440×1000 与 390×844 精确读取 12 篇、无横向溢出且登录后 0 console/page error | 不可变电竞教育增量本地通过 | GitHub CI 复现；至少一台真实受管手机 |
-| PWA 与离线边界 | `fccbaf9…` 构建为 11 个 precache（786.01 KiB）、190.91 kB 教育路由块；开发构建及变更后生产 Web 镜像确认 manifest standalone、active SW 和重启后浏览器通过；既有 0 敏感 API/health 缓存边界未改 | 不可变电竞教育增量本地通过 | 目标受管设备安装、升级和缓存清理验证 |
+| 响应式 Web 与导航 | `fccbaf9…` 的隔离真实栈 desktop/mobile 6/6 继续有效；`ffe102e…` 又在精确 SHA 完成 mock 48 passed/6 项目条件 skip，并以生产 Web 镜像在 390×844 Python Chromium 确认无横向溢出、意外 console/page error 为 0 | 不可变受管真机入口本地通过 | GitHub CI 复现；至少一台真实受管手机 |
+| PWA 与离线边界 | `ffe102e…` 将正式版本与完整 Git SHA 成对注入登录页、离线壳、桌面侧栏和移动个人菜单；生产 Web 镜像为 11 个 precache（787.53 KiB），manifest standalone、active SW、0 API/health 缓存、0 installability error，并通过离线隐藏/联网重验；物理安装/升级未执行 | 不可变受管真机入口本地通过 | 目标受管设备按固定十步完成安装、升级、离线、退出和站点数据清理，并独立批准 |
 | 身份、首次改密与会话 | Argon2id、数据库会话、安全 Cookie、限流、`mustChangePassword` 路由门禁、改密后撤销其他会话 | 不可变实现提交本地通过 | 目标 HTTPS 复跑 owner/member 首登和并发 |
 | 成员生命周期 | pending 登录拒绝、批准/停用/角色变更、乐观并发、最后 owner 保护和审计 | 不可变实现提交本地通过 | 两人审批和单人补偿控制由真实责任人演练 |
 | 四级 RBAC 与归档角色 | owner/admin/member/viewer、组织作用域；已有 Cookie 即时 403、新登录不建 session、恢复后重新授权 | 不可变实现提交本地通过 | 目标内网抽查跨组织拒绝和会话撤销 |
@@ -119,26 +120,26 @@ lease 到期不等于“安全重试”。操作员必须从“运行异常处�
 | advisor/workflow/backup 后台任务 | 原子 claim、CAS、lease-expired 审计和 partial checkpoint 通过；`f86bff4…` 增加组织隔离处置 API/UI，PostgreSQL 证明损坏审计不隐藏事项、并发仅一次追加且不重放，同一 SHA Compose 分别完成 advisor/workflow 人工补偿和 backup 无 partial 结论 | 目标由真实责任人复演并建立长期未处置升级规则 |
 | 合规 | 专用复核、版本/哈希/登记人锁定、追加历史、通用状态绕过拒绝、实质编辑降级、当前/历史证据归档拒绝及完整 provenance 顾问门禁通过；到期/变化/第三次失败任务仍由真实 PostgreSQL 覆盖 | 73 条真实专业复核、目标环境首次抓取及负责人处置演练 |
 | 官网与教育 | 官网审计、内部教育页、成人试点草案和十二篇模块化版本内容已形成 | 十二篇仍未获专业/权利/发布批准；继续内容清理、逐篇权利/事实核验及九项业务/专业闸门批准 |
-| 桌面、移动与 PWA | mock/real E2E、独立浏览器、SW active、offline shell 和 390 px 布局通过 | 真实受管手机安装/升级 |
+| 桌面、移动与 PWA | `ffe102e…` 的成对构建身份、mock 48+6、生产 Web 镜像、SW active、11 个静态缓存、0 敏感缓存/安装性错误、offline shell 和 390 px 布局通过；真机会话 Schema/实际附件哈希入口已失败关闭 | 真实受管手机安装/升级/清理、MDM 与原始附件复核、终端/业务批准 |
 | 部署与恢复 | `101d2f0…` 已完成独立 Compose、38 表/11 migration、七镜像、desktop/mobile/PWA、签名一致性备份和随机全新卷恢复，脱敏证据已固化 | 仍需历史生产 N−1/目标发布、经审批生产恢复入口、目标内网/异介质与业务批准 RPO/RTO |
 
 ## 8. 当前结论
 
 该仓库已经超过脚手架、静态仪表盘和数据库模型阶段。核心业务、首次改密与成员生命周期、归档角色即时失权、八类人工批准、typed refs、可追溯顾问、后台原子 claim 和 formatVersion 2 恢复路径均有实现与候选证据。
 
-当前仍只能称为**受控候选**。不可变基线 `101d2f0…` 已完成完整恢复层验收；运行异常实现 `f86bff4…` 已完成 exact-SHA 源码、数据库、三镜像和独立 Compose 三类真实 HTTPS 处置；电竞教育实现 `fccbaf9…` 又完成 exact-SHA 全仓、隔离集成/迁移、桌面/移动/PWA 和变更后 Web 镜像安全复验；发布门禁实现 `213d9b6…` 把 14 项完成条件固化为 Schema、CLI 和正反向测试；平台证明实现 `6e40b82…` 增加后置只读 GitHub/GHCR 实证；目标证明入口 `25204d3…` 增加目标主机机器证据失败关闭采集，但未在真实目标运行。各范围与未重跑层分别在[运行异常证据](./evidence/operational-incident-final-acceptance-f86bff4-20260720.json)、[教育扩展证据](./evidence/esports-education-expansion-acceptance-fccbaf9-20260720.json)、[发布门禁证据](./evidence/v1-release-gate-acceptance-213d9b6-20260720.json)、[平台证明证据](./evidence/v1-platform-attestation-acceptance-6e40b82-20260720.json)及[目标证明入口证据](./evidence/target-intranet-verifier-acceptance-25204d3-20260720.json)明示。[机器发布门禁](./v1-release-readiness.json)当前只有 2 项通过、12 项阻断。GitHub/GHCR 与目标环境身份仍未统一；GitHub CI/security 因账户计费在 runner 前被阻断，GHCR、历史生产 N−1/目标发布、生产恢复入口、目标办公内网、真机、真实 LLM/GitHub、73 条专业复核、十二篇内容权利/发布复核、残余风险决策和业务批准仍未完成。在这些门禁全部关闭前，不得宣布“V1 已完成”，也不得用于无人监督的生产关键操作。
+当前仍只能称为**受控候选**。不可变基线 `101d2f0…` 已完成完整恢复层验收；运行异常实现 `f86bff4…` 已完成 exact-SHA 源码、数据库、三镜像和独立 Compose 三类真实 HTTPS 处置；电竞教育实现 `fccbaf9…` 又完成 exact-SHA 全仓、隔离集成/迁移、桌面/移动/PWA 和变更后 Web 镜像安全复验；发布门禁实现 `213d9b6…` 把 14 项完成条件固化为 Schema、CLI 和正反向测试；平台证明实现 `6e40b82…` 增加后置只读 GitHub/GHCR 实证；目标证明入口 `25204d3…` 增加目标主机机器证据失败关闭采集；受管真机入口 `ffe102e…` 增加可见构建身份、固定十步会话和实际附件校验，但二者都未在真实目标/物理手机执行。各范围与未重跑层分别在[运行异常证据](./evidence/operational-incident-final-acceptance-f86bff4-20260720.json)、[教育扩展证据](./evidence/esports-education-expansion-acceptance-fccbaf9-20260720.json)、[发布门禁证据](./evidence/v1-release-gate-acceptance-213d9b6-20260720.json)、[平台证明证据](./evidence/v1-platform-attestation-acceptance-6e40b82-20260720.json)、[目标证明入口证据](./evidence/target-intranet-verifier-acceptance-25204d3-20260720.json)及[受管真机入口证据](./evidence/managed-device-pwa-verifier-acceptance-ffe102e-20260720.json)明示。[机器发布门禁](./v1-release-readiness.json)当前只有 2 项通过、12 项阻断。GitHub/GHCR 与目标环境身份仍未统一；GitHub CI/security 因账户计费在 runner 前被阻断，GHCR、历史生产 N−1/目标发布、生产恢复入口、目标办公内网、真机、真实 LLM/GitHub、73 条专业复核、十二篇内容权利/发布复核、残余风险决策和业务批准仍未完成。在这些门禁全部关闭前，不得宣布“V1 已完成”，也不得用于无人监督的生产关键操作。
 
 ## 9. 最终 SHA 与目标环境必须补录
 
 | 字段 | 当前值 | 要求 |
 | --- | --- | --- |
-| 完整 Git SHA / tag | 完整恢复基线 `101d2f0938adfa0caa8ed576f6587a5c78ae74a5`；电竞教育 `fccbaf9…`、发布门禁 `213d9b6…`、平台证明 `6e40b82…` 与目标证明入口 `25204d34d865b16941d099658d33fbb561424f09` 已推送；发布 tag 待创建 | 确定 commit/tag 签名政策，生产发布记录受保护 tag |
-| GitHub PR / CI / 安全 run | Draft PR #12；`25204d3…` 的 CI `29719190354` 与 Security `29719190355` 均由账户付款/spending limit 在 runner 前阻断，六个首级失败 job 为 `runner_id=0`、`steps=[]`，下游四项 skipped | PR Checks 是实时权威状态；修复 Billing & plans 后重跑，只有实际 step 执行且绿色才能关闭门禁 |
+| 完整 Git SHA / tag | 当前受管真机入口为 `ffe102e75526c510a14c60ef90a29e174b40a00a`，完整恢复仍绑定 `101d2f0938adfa0caa8ed576f6587a5c78ae74a5`；发布 tag 待创建 | 确定 commit/tag 签名政策，生产发布记录受保护 tag |
+| GitHub PR / CI / 安全 run | Draft PR #12；`ffe102e…` 的 CI `29722396559` 与 Security `29722396542` 均由账户付款/spending limit 在 runner 前阻断，六个首级失败 job 为 `runner_id=0`、`steps=[]`，下游四项 skipped | PR Checks 是实时权威状态；修复 Billing & plans 后重跑，只有实际 step 执行且绿色才能关闭门禁 |
 | 38 表 / 11 migrations（`0000`–`0010`）证据 | **`101d2f0…` fresh/legacy、Compose、五职责与签名恢复本地通过** | GitHub runner、GHCR 与目标环境复现 |
 | 七镜像 digest / SBOM / provenance | **`101d2f0…` 本地 arm64/Trivy 0/7 SPDX/fixture 通过** | 从最终发布 SHA 生成并记录 GHCR 双平台 registry digest |
-| 最终测试报告 | **`fccbaf9…` exact-SHA 运行层和 UI 验收通过；`25204d3…` 完成 229 文件、203 单元、7 项类型、构建、目标证明 macOS/Linux 正负向、Actionlint、Gitleaks、依赖审计和 Semgrep 93 目标；标准入口的 2/93/29 集成 skip 未计作通过** | 记录最终证据文档 SHA 与绿色 GitHub run；功能源码漂移或冻结最终制品时重跑受影响及全层门禁 |
+| 最终测试报告 | **`ffe102e…` 完成 237 文件、220 单元、7 项类型、17 项受管设备定向验证、mock 48+6、精确 SHA Web 镜像移动浏览器、Gitleaks、依赖审计、Semgrep 96 目标、Trivy 0 与 176-package SPDX；标准入口的 2/93/29 集成 skip 未计作通过** | 记录最终证据提交与绿色 GitHub run；真实栈仍绑定此前不可变隔离证据，功能源码漂移或冻结最终制品时重跑受影响及全层门禁 |
 | 最终 formatVersion 2 备份与恢复 | **`101d2f0…` 签名 drill 通过 / 生产范围待完成** | 归档 SHA `07570954…3f09`、attestation SHA `671f5a1d…b0fd`、完整 drill 23s；生产入口、独立批准、目标/异介质和业务 RPO/RTO 待验收 |
 | 最终升级/回滚 | **本地 synthetic bridge 通过 / 生产范围待完成** | 使用最终 GHCR 制品、经批准 N−1 和目标环境复演 expand/contract、双恢复点与 idle 后业务链 |
-| 目标办公内网 / 真机 | **机器证明入口已验证；真实目标与真机未完成** | 在目标主机执行并记录报告哈希，另行记录 DNS、CA、防火墙、设备、网络、PWA、恢复和独立批准人 |
+| 目标办公内网 / 真机 | **目标机器与受管真机会话证明入口均已失败关闭验证；真实目标与真机未完成** | 在目标主机及物理受管手机执行并记录同一候选/环境/会话链，另行复核 DNS、CA、防火墙、MDM、原始附件、恢复和独立批准人 |
 | 真实 LLM / GitHub | **未完成** | 最小权限、数据处理、质量和停用/撤销证据 |
 | 合规、风险与业务批准 | **未取得** | 由真实责任人签署，不得由系统代填 |
