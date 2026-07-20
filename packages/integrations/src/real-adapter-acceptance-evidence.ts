@@ -253,7 +253,7 @@ async function verifyArtifacts(
         `附件 SHA-256 不一致：${artifact.id} 期望 ${artifact.sha256}，实际 ${digest}`,
       );
     }
-    let textSecretPatternScan: "passed" | "not_applicable_binary" = "not_applicable_binary";
+    let artifactPatternScan: "passed" | "not_applicable_binary" = "not_applicable_binary";
     if (textualMimeTypes.has(artifact.mimeType)) {
       const content = await readFile(canonicalPath, "utf8");
       for (const secretPattern of secretPatterns) {
@@ -263,7 +263,7 @@ async function verifyArtifacts(
           );
         }
       }
-      textSecretPatternScan = "passed";
+      artifactPatternScan = "passed";
     }
     verified.push({
       id: artifact.id,
@@ -271,7 +271,7 @@ async function verifyArtifacts(
       bytes: artifact.bytes,
       mimeType: artifact.mimeType,
       capturedAt: artifact.capturedAt,
-      textSecretPatternScan,
+      textSecretPatternScan: artifactPatternScan,
     });
   }
   return verified;
