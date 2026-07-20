@@ -185,14 +185,14 @@ wait_for_log() {
 }
 
 pnpm db:migrate >"$LOG_DIR/migrate.log" 2>&1
-pnpm --filter @fiatlux/integrations exec tsx src/queue-migrate.ts >"$LOG_DIR/queue-migrate.log" 2>&1
+pnpm --filter @fiatlux/integrations exec tsx --conditions=development src/queue-migrate.ts >"$LOG_DIR/queue-migrate.log" 2>&1
 pnpm db:seed >"$LOG_DIR/seed.log" 2>&1
 
-start_component api pnpm --filter @fiatlux/api exec tsx src/server.ts
+start_component api pnpm --filter @fiatlux/api exec tsx --conditions=development src/server.ts
 api_pid=${PIDS[${#PIDS[@]}-1]}
 wait_for_http "Fastify API" "http://127.0.0.1:$API_PORT/health/ready" "$api_pid"
 
-start_component worker pnpm --filter @fiatlux/worker exec tsx src/worker.ts
+start_component worker pnpm --filter @fiatlux/worker exec tsx --conditions=development src/worker.ts
 worker_pid=${PIDS[${#PIDS[@]}-1]}
 wait_for_log "pg-boss worker" "FIAT LUX worker started" "$worker_pid" "$LOG_DIR/worker.log"
 
