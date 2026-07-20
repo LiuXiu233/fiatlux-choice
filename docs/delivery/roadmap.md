@@ -28,18 +28,19 @@
 
 - 当前 schema 有 38 张业务表和 11 个业务迁移 `0000`–`0010`。首次强制改密、成员 pending/active/inactive/offboarded 生命周期、最后 owner 保护、归档角色即时失权、同组织 typed refs、decision/opportunity 跨字段一致性与八类高风险人工批准已经实现。
 - seed 已拆为显式 `bootstrap`、`metadata-only`、`system-role-maintenance` 三种模式；常规 metadata seed 不会修改身份、membership、role assignment 或权限。离线 owner 恢复要求 exact org/email、active owner、生产确认、原因、批准引用和 requestId，密码只从 stdin 读取，成功后撤销全部会话、强制下次改密并审计。
-- 通知创建为 queued-only；GitHub 刷新保存 `expectedVersion` 并以 CAS 防止陈旧写回；workflow 保存不可变定义版本/步骤快照和 partial checkpoint；advisor/workflow/backup 使用原子 claim、CAS 与 `lease_expired` 人工复核边界。
+- 通知创建为 queued-only；GitHub 刷新保存 `expectedVersion` 并以 CAS 防止陈旧写回；workflow 保存不可变定义版本/步骤快照和 partial checkpoint；advisor/workflow/backup 使用原子 claim、CAS 与 `lease_expired` 人工复核边界。运行异常页已按组织派生这三类事件，要求 owner/admin 提交证据化调查/补偿且不重放原失败运行。
 - 银行付款取消或审批驳回会原子解除草稿支出关联；顾问运行默认 requester-only，管理员的 `advisor-runs:read-all` 仍受顾问入口和上下文读权限限制；角色分配审批保存 membership 版本快照并在批准时重验。
 - 义务/合规日历已分开 `sourceId` 与 `evidenceFileId`；专业复核专用入口要求实名、机构、胜任依据、缺失信息、已上传证据，锁定来源版本/哈希/站内登记人并追加历史。通用提升、legacy 部分状态和不适用来源会在顾问侧失败关闭。
 - 合规来源人工复核到期、正文哈希变化和连续第三次失败已在状态事务内自动建立高优先级任务；执行时仍有效且仍有来源更新权限的人工触发者优先协调，否则确定性选择最早加入的有效 owner，并原子送达站内通知。同一事件去重、错误脱敏、组织隔离、触发者停用/失权回退和陈旧并发丢弃由真实 PostgreSQL 集成覆盖；协调不等于专业复核，邮件/企业协作通知仍待批准适配器。
 - 不可变协调实现 `5eec8cc3f4cbd0b9a12372240bca9f56d65ae5f9` 已把上述路径绑定 10/10 定向、worker 28/28、真实 pg-boss 组织 sweep、七镜像 production-like Compose、desktop/mobile/PWA 和 worker Trivy/SPDX 证据；CI/release 构建也显式覆盖为 production 语义。实验室首次组织 sweep 会同时领取 seed 后已到期的来源，因此目标部署仍应把首次抓取、失败分流和人工容量纳入上线窗口，而不是把自动任务数量当作专业结论数量。
 - 2026-07-20 不可变实现提交 `101d2f0938adfa0caa8ed576f6587a5c78ae74a5` 已通过 Biome 206 files、ShellCheck/Actionlint、7 项类型检查、177/177 单元、API 18 files/89 tests、worker 5 files/25 tests、真实 MinIO 2/2、mock 46+6、隔离 real 4/4、fresh/legacy 迁移、fresh/legacy 最小权限和生产构建；同一提交的全新 production-like Compose 又通过 38 表/11 migration、六服务、重启持久性、桌面/390×844 mobile、PWA/offline 和 73 条来源保守状态验证。
 - `101d2f0…` 七个本地 arm64 镜像由固定 Trivy 0.70.0 digest 扫描，HIGH/CRITICAL/fixable/unfixed 均为 0；七份 Syft 1.42.3 SPDX 通过，真实 BuildKit 0.31.2 双平台 provenance fixture 及 API/worker amd64 补偿证据仍有效；GHCR 双平台 root digest 仍待 release workflow。
+- 不可变运行异常实现 `cbc3d92ed18563138e60fe2e449b24ba39a118f4` 已推送，并完成 217 文件、190/190 单元、API 93/93、worker 29/29、OpenAPI 78 paths/143 operations、生产构建及秘密扫描 exact-SHA 回归。冻结前候选 Compose 的 workflow checkpoint 补偿、desktop/mobile/PWA、最小权限和镜像安全证据已保留，但最终冻结又收紧了损坏审计判定，故 exact-SHA API 镜像、目标环境三类操作员复演和长期未处置升级仍在 0–3 个月闸门内。
 - 旧底层 formatVersion 2 演练归档 SHA-256 `bcfd6c59d…b6ba`，核对 38 表、10 migrations、pg-boss 24 和 1 个 56-byte 对象，实测 RPO 2 秒、drill RTO 75 秒；它早于 Ed25519 来源签名门禁，只保留为历史恢复证据。
 - `101d2f0…` 已暂停写入完成真实 age+Ed25519 一致性备份；错误 S3 凭据负向路径未改变目标，随机全新卷精确恢复 38 表、11 migrations（到 `0010`）、pg-boss 24、五职责权限、worker/readiness 和 1 对象/94 bytes，完整 drill 23 秒。测试密钥/归档/源 sentinel 已删除；独立生产批准、业务 RPO/RTO、破坏性生产 `restore.sh`、异介质和目标内网仍未执行。旧 `6545c18…` 的 10 migration 结果只保留为历史证据。
 - 2026-07-18 的旧测试总数、镜像 digest、v1 归档、37 表/4 对象/16 秒恢复和同内容标签升级回滚均为历史证据，不能作为当前通过或发布门禁。
 - 首轮本地相邻演练在回滚后 idle 登录暴露 `CONNECT_TIMEOUT` 并正确阻断；修复后以 N 10 migrations、synthetic bridge 9 migrations 和七个全异镜像完成真实 registry push/pull、46 秒升级、43 秒应用回滚、双 formatVersion 2 恢复点和回滚后 308 秒 HTTPS CRUD，数据、审计、索引和对象均保留。该结果不是历史生产 N−1、GHCR 或目标内网证据。
-- 经审批生产恢复入口、最终不可变 Git SHA/绿色 GitHub CI/GHCR、历史生产 N−1 和目标发布复演、目标内网、真实受管手机、真实 LLM/GitHub、73 条合规来源的专业人工复核、MinIO 长期支持风险处置和业务批准仍未完成。
+- 经审批生产恢复入口、绿色 GitHub CI/security、最终 GHCR 镜像、历史生产 N−1 和目标发布复演、目标内网、真实受管手机、真实 LLM/GitHub、73 条合规来源的专业人工复核、MinIO 长期支持风险处置和业务批准仍未完成。
 
 ### 2026-07-19 官网与教育内容基线
 
@@ -50,12 +51,12 @@
 
 ### 交付
 
-- 冻结完整 Git SHA；在同一 SHA 重跑 lint、类型、单元、集成、E2E、生产构建和七镜像安全扫描。
+- 以 `cbc3d92…` 后续证据 head 为候选起点；任何功能源码变化后重新冻结完整 Git SHA，并在同一 SHA 重跑 lint、类型、单元、集成、E2E、生产构建和七镜像安全扫描。
 - 在耀光目标办公内网从空环境完成 11 个业务迁移 `0000`–`0010`、pg-boss 迁移和权限收敛；显式运行一次 `SEED_MODE=bootstrap`，验证 owner 首登改密、登录、MinIO、ready、CA 分发和重启持久性。
 - 在 legacy 副本验证 `metadata-only` 不改变组织、用户、membership、assignment 或权限；通过人工批准的 `system-role-maintenance` 演练角色基线升级，并完成一次受控离线 owner 恢复/回滚演练。
 - 对归档角色即时失权、成员停用、最后 owner、两人审批和单人补偿控制完成最终 Web/API E2E 与运维手册演练。
 - 在最终 SHA 复现已实现的 decision objective/project/task 同链校验、opportunity product/project 一致性、父关系/归档保护、API/worker 共用 advisory lock 和 runtime 数据库权限探测；保留特权管理员直接写表的批准与修复边界。
-- 对 notification queued-only、GitHub refresh expectedVersion/CAS、workflow 不可变快照与 partial checkpoint、付款取消/驳回解链、advisor requester-only/read-all、合规 source/evidence、角色版本审批，以及 advisor/workflow/backup 并发 claim/lease-expired 建立最终测试与操作演练证据；禁止把旧运行静默重放。
+- 在已有分层测试之上，用最终 SHA 和目标责任人复演 notification queued-only、GitHub refresh expectedVersion/CAS、workflow 不可变快照与 partial checkpoint、付款取消/驳回解链、advisor requester-only/read-all、合规 source/evidence、角色版本审批，以及 advisor/workflow/backup 三类 lease-expired 调查/补偿；禁止把旧运行静默重放或把冻结前 Compose 冒充最终镜像。
 - 在最终 SHA 发布并校验 OpenAPI，冻结高频端点请求/响应 schema 和兼容性规则。
 - 在目标内网和异介质上生成新的 formatVersion 2 age 归档并独立恢复；使用最终 GHCR 制品与经批准 N−1 复演真实 schema/镜像变化，不能用本地 synthetic bridge、旧 v1 或同内容标签证据替代。
 - 保持 MinIO root/bootstrap、app、backup、restore 四身份最小权限。若改变 access-key ID，使用 root-only 运维显式删除旧用户，并以旧凭据负向验证；bootstrap 不会枚举未知旧 ID。
@@ -88,7 +89,7 @@
 - [ ] 两人审批和单人补偿流程均有 E2E 证据。
 - [ ] 最终 Git SHA 已推送到私有目标仓库，主分支和安全工作流全部绿色。
 - [ ] fresh/legacy seed、首次改密、归档角色即时失权和离线 owner 恢复演练全部通过；没有身份或权限被 seed 静默恢复。
-- [ ] advisor/workflow/backup 并发投递只执行一次，lease-expired 与 partial output 均能由操作员完成调查和显式补偿。
+- [ ] advisor/workflow/backup 并发投递只执行一次；本地已完成 workflow checkpoint 处置，仍须在最终 SHA/目标内网分别完成三类 lease-expired 与 partial output 的责任人调查、显式补偿和超时升级。
 - [ ] MinIO/S3 四身份最小权限通过；所有已更换 access-key ID 的旧用户均有 root 删除与旧凭据失败证据。
 - [ ] 最终 GHCR 制品、经批准 N−1 和目标环境的升级与应用回滚均通过；本地 synthetic bridge 只作为前置工程证据。
 - [ ] 电竞教育九项事实问卷和首期上线闸门完成人工批准。
@@ -107,7 +108,7 @@
 - 每日/每周经营摘要、逾期分级和 13 周现金预警。
 - 经批准的邮件或企业协作通知适配器，保留站内为事实源。
 - 为现有合规来源变更监控和复核任务接入经批准的邮件/企业协作通知；保留当前确定性协调责任人、站内通知、任务与审计作为事实源，不让外部渠道回执改写专业复核状态。
-- 审计导出、管理层月报、风险接受到期提醒，以及 `lease_expired`/partial run 的人工处理看板。
+- 审计导出、管理层月报、风险接受到期提醒，以及现有 `lease_expired` 处置队列的超时 SLA、负责人升级、月度趋势和补偿复核报表。
 - 第一个成人团队赛训或竞技基础小班，从机会、合同、交付到退款/复盘闭环。
 - 课程内容版本、讲师授权、学员告知和删除期限台账。
 - 公开内容到成人试点的最小漏斗：无跟踪的课程说明、年龄/适用性筛选、完整告知、人工合同、交付、退款/投诉与删除；留言不自动视为报名或营销同意。

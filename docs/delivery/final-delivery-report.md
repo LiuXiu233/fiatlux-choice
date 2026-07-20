@@ -4,7 +4,7 @@
 
 报告状态：**受控候选记录，不是 V1 已完成、已批准上线或 GitHub CI 已通过的声明**
 
-本报告区分“不可变基线实现 `101d2f0…` 的完整本地工程/Compose/镜像/恢复证据”“不可变协调增量 `5eec8cc…`”“不可变容量保护增量 `51ebb28…`”“不可变运营状态增量 `ba25c69…`”“最终 GitHub/GHCR”和“目标办公内网验收”。完整 age+Ed25519 恢复绑定 `101d2f0…`；协调、容量与新的组织隔离监控读模型分别绑定后三个实现。脱敏机器记录见[基线证据](./evidence/production-like-acceptance-101d2f0-20260720.json)、[协调证据](./evidence/compliance-coordinator-acceptance-5eec8cc-20260720.json)、[容量证据](./evidence/compliance-monitor-batch-acceptance-51ebb28-20260720.json)和[监控运营状态证据](./evidence/compliance-monitoring-status-acceptance-ba25c69-20260720.json)。证据提交不冒充实现、镜像、GitHub runner、GHCR 双平台、目标办公内网或业务/专业批准；最终发布仍须按[模板](./final-delivery-report-template.md)补齐外部证据和真实责任人签署。
+本报告区分“不可变基线实现 `101d2f0…` 的完整本地工程/Compose/镜像/恢复证据”“不可变协调增量 `5eec8cc…`”“不可变容量保护增量 `51ebb28…`”“不可变运营状态增量 `ba25c69…`”“不可变运行异常增量 `cbc3d92…`”“最终 GitHub/GHCR”和“目标办公内网验收”。完整 age+Ed25519 恢复绑定 `101d2f0…`；后续实现分别绑定自己的增量证据。脱敏机器记录见[基线证据](./evidence/production-like-acceptance-101d2f0-20260720.json)、[协调证据](./evidence/compliance-coordinator-acceptance-5eec8cc-20260720.json)、[容量证据](./evidence/compliance-monitor-batch-acceptance-51ebb28-20260720.json)、[监控运营状态证据](./evidence/compliance-monitoring-status-acceptance-ba25c69-20260720.json)和[运行异常证据](./evidence/operational-incident-acceptance-cbc3d92-20260720.json)。最后一份证据明确分列 exact-SHA 回归与冻结前候选 Compose/镜像，不把证据提交冒充实现、最终镜像、GitHub runner、GHCR 双平台、目标办公内网或业务/专业批准；最终发布仍须按[模板](./final-delivery-report-template.md)补齐外部证据和真实责任人签署。
 
 ## 1. 候选身份与批准状态
 
@@ -12,10 +12,10 @@
 | --- | --- | --- |
 | 产品版本 | V1 受控候选 | 所有阻断闸门关闭并取得业务负责人批准后才能改为 V1 完成 |
 | 目标仓库 | 私有 `LiuXiu233/fiatlux-choice`；候选分支已推送；[Draft PR #12](https://github.com/LiuXiu233/fiatlux-choice/pull/12) | 解除 Actions 计费阻断，取得绿色 CI/security；批准后再合并 |
-| Git SHA / tag | 完整恢复基线为 `101d2f0938adfa0caa8ed576f6587a5c78ae74a5`；最新监控运营状态实现为 `ba25c69954015c406c6a61ff9fadadd3830741c3`，增量机器证据显式绑定各自实现提交；未创建发布 tag | 生产发布仍须确定 commit/tag 签名政策，并统一最终 Git/GitHub/GHCR 身份 |
-| GitHub PR / CI | Draft PR #12；当前实现待本轮推送；PR Checks 是远端状态权威来源；上一远端 head 的 [CI run 29706630229](https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29706630229) 与 [Security run 29706630238](https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29706630238) 均在 runner 启动前失败 | 首级 job 为 `steps=[]`，原因是账户付款或 Actions spending limit；本轮推送自然触发的 run 只读核验，不反复盲目重跑 |
+| Git SHA / tag | 完整恢复基线为 `101d2f0938adfa0caa8ed576f6587a5c78ae74a5`；最新运行异常实现 `cbc3d92ed18563138e60fe2e449b24ba39a118f4` 已推送，增量机器证据显式绑定实现提交；未创建发布 tag | 生产发布仍须确定 commit/tag 签名政策，并统一最终 Git/GitHub/GHCR 身份 |
+| GitHub PR / CI | Draft PR #12；`cbc3d92…` 已推送，证据文档 head 待本轮提交；PR Checks 是远端状态权威来源；上一远端 head 的 [CI run 29706630229](https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29706630229) 与 [Security run 29706630238](https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29706630238) 均在 runner 启动前失败 | 首级 job 为 `steps=[]`，原因是账户付款或 Actions spending limit；证据 head 推送自然触发的 run 只读核验，不反复盲目重跑 |
 | 数据库 | PostgreSQL 17.10；38 张业务表；11 个业务迁移 `0000`–`0010`；`101d2f0…` fresh、`0009→0010` 数据保留/幂等、fresh/legacy 五职责和签名恢复逐 migration hash 均本地通过 | GitHub CI、GHCR 与目标内网重新执行 |
-| 候选 QA 环境 | `101d2f0…` 在 `choice-review.localhost:20443` 完成完整基线和恢复；`ba25c69…` 在独立 `choice-status.localhost:23443` 完成状态 API、桌面/移动/PWA、重启、真实 MinIO 与三镜像安全复验；临时资源均已清理 | 本机环境不得改写成耀光广州办公内网；目标环境必须独立复现 |
+| 候选 QA 环境 | `101d2f0…` 在 `choice-review.localhost:20443` 完成完整基线和恢复；运行异常冻结前候选在独立 `fiatlux-opsqa-20260720` 完成 API/UI、workflow 补偿、桌面/移动/PWA、整体重启、真实 MinIO 与三镜像安全复验。最终冻结又收紧损坏审计判定并在 exact SHA 重跑 PostgreSQL/生产构建，但未重建该 Compose；全部临时资源已清理 | 本机环境不得改写成最终 SHA 镜像、耀光广州办公内网或目标制品；目标环境必须独立复现 |
 | 目标办公内网 | **未部署** | 补主机、OS、架构、DNS、CA、防火墙、受管设备和运行观察 |
 | 业务、风险与运维批准 | **未取得** | 公司和安全/运维负责人基于终态证据签署 |
 | 法务合规/财税批准 | **未取得** | 专业人员说明资质、事实、范围、复核日期和有效期 |
@@ -39,9 +39,9 @@
 | 产品、市场与电竞教育 | 产品组合、市场机会、电竞教育筹备页、官网公开业务/内容审计、成人试点课程草案，以及 4 篇带 Schema、版本、来源、练习、模板、AI 披露和审阅状态的成年人基础内容 | 四篇均为待人工复核、权利待确认和 WordPress 未发布；教育页面是内部筹备工作台，不是招生、支付、直播、考试、证书或未成年人平台 |
 | GitHub 情报 | manual/read-only 集成边界与刷新队列 | 刷新任务在排队时保存当前 `expectedVersion`，worker 只在版本未变时以 CAS 写回，不用陈旧网络快照覆盖并发人工修改；真实 GitHub 凭据和最小权限读取验收未执行 |
 | 审批与外部动作 | 八类高风险人工批准、manual/mock 状态机、幂等与合同/发票/付款台账原子联动 | 没有外部回执时不报成功；已关联草稿支出的银行付款在取消或审批驳回时于同一事务解除台账关联并增加版本，避免草稿被废弃动作永久占用 |
-| 通知、顾问与工作流 | in-app 通知、失败可见的 email/webhook 边界、七类顾问、四类工作流步骤 | 通知 queued-only、工作流不可变快照/partial checkpoint、advisor/workflow/backup 原子 claim 和 lease 边界均已在冻结候选回归覆盖 |
+| 通知、顾问、工作流与运行异常 | in-app 通知、失败可见的 email/webhook 边界、七类顾问、四类工作流步骤、advisor/workflow/backup `lease_expired` 人工处置 | 通知 queued-only；运行快照/partial checkpoint 与原子 claim 已覆盖；运行异常只允许 owner/admin 追加证据化调查/补偿，不修改或重放原失败运行，损坏审计不能隐藏待办 |
 | AI 可追溯 | 总经理、财务、法务合规、产品研发、市场机会、人力行政、信息安全；提示词/模型/工具/引用/人工编辑审计 | 运行默认只对发起人可见；合规事实要求完整、未到期专业 provenance，关联义务还要求 applicable；legacy/不适用/过期内容失败关闭；mock 不代表真实模型质量 |
-| PWA | 响应式导航、manifest、service worker、离线壳和恢复会话 | `ba25c69…` 构建生成 10 个 precache（706.88 KiB）；Compose 浏览器验证 0 installability error、0 敏感路由缓存、desktop/mobile 无溢出、离线内容隐藏和恢复会话；真机安装/升级仍待执行 |
+| PWA | 响应式导航、manifest、service worker、离线壳和恢复会话 | `cbc3d92…` exact-SHA 构建生成 11 个 precache（724.12 KiB）并拆分 11.13 KiB 运行异常路由；冻结前候选 Compose 验证 0 installability error、0 API/health 缓存、desktop/mobile 无溢出及整体重启后读取；真机安装/升级仍待执行 |
 | 部署与灾备 | Compose、Caddy、迁移、健康检查、日志、最小权限数据库/MinIO、age+Ed25519 备份恢复、升级回滚工具 | `101d2f0…` 全新 Compose、七镜像和 11 migration 签名恢复已通过；经审批生产入口、历史生产 N−1、GHCR、目标内网/异介质和批准 RPO/RTO 仍待执行 |
 
 ## 3. 最终冻结测试状态
@@ -75,6 +75,10 @@
 
 监控运营状态增量从干净 `ba25c69…` 完成 Biome 212 files、ShellCheck/Actionlint、7 项类型、186/186 单元、API 90/90、worker 29/29、真实 MinIO 2/2 和 production build；OpenAPI 为 76 paths/141 operations，Semgrep 88 个生产目标 0 finding，生产依赖 0。独立 production overlay seed 73 条未复核来源，真实状态读到 11 条待领取、0 在途、73 条 pending_fetch 和空派发历史；未认证访问为 401。API/worker/Web 三张重建镜像 Trivy HIGH/CRITICAL 0，SPDX 分别 204/225/176 packages。1440×1000 与 390×844 分别为 6/2 列且无溢出，PWA 10 缓存、0 敏感缓存、0 installability error，离线隐藏数据并恢复会话。六服务整体重启和三次部署/MinIO 最小权限验证通过；夹具失败与隔离 root 建桶边界写入[机器证据](./evidence/compliance-monitoring-status-acceptance-ba25c69-20260720.json)，全部 QA 资源和凭据已删除。本增量未修改恢复层，也未伪称重跑基线恢复。
 
+运行异常增量在不可变实现 `cbc3d92…` 上完成 Biome 217 files、ShellCheck/Actionlint、7 项类型、190/190 单元、API 19 files/93 tests、worker 5 files/29 tests、OpenAPI 78 paths/143 operations、production build 和当前树/完整历史/canary/allowlist Gitleaks。临时 PostgreSQL 17.5 在 11 migrations 后验证组织隔离、partial 强制补偿、事件 advisory lock、并发一次追加、跨组织 404、重复 409、原记录不变和损坏 evidence 审计不隐藏 open 事项。exact-SHA 构建为运行异常块 11.13 KiB、教育块 128.18 KiB、主块 428.40 KiB、PWA 11 entries/724.12 KiB。
+
+冻结前候选另完成 mock Playwright 48 passed/6 条件 skip、1440×1000/390×844 独立浏览器、三镜像 Trivy HIGH/CRITICAL 0 与 SPDX 204/225/176，以及独立 production Compose 的五职责、38 表/11 migration、pg-boss、73 条来源、六服务 healthy、MinIO 最小权限和真实 workflow checkpoint 补偿；处置后原记录仍为 failed/version 5/1 checkpoint，审计恰好一条，重复请求 409，runtime 对 audit_events 只有 SELECT/INSERT，整体重启后仍可读取，PWA 11 条静态缓存且无 API/health 缓存。随后 final freeze 只收紧损坏处置审计选择、增加对应 fixture 并纠正文档锁术语；依赖、worker、Web、迁移、存储和恢复未变。该 delta 已在 exact SHA 重跑完整 PostgreSQL 与生产构建，但 API Compose 镜像没有再重建/重扫；这个范围差异、设计内 S3 skip 和未重跑恢复层均写入[运行异常机器证据](./evidence/operational-incident-acceptance-cbc3d92-20260720.json)，不能上卷为最终镜像或恢复证明。全部 opsqa/临时 PostgreSQL 容器、网络、卷、镜像标签、脚本、截图、缓存和测试凭据已删除。
+
 文件真实内容门禁增量新增 6 项单元测试并把全工作区单元提高到 173/173；独立 PostgreSQL 17 上目标 API 文件 19/19、完整 API 17 files/86 tests 通过，真实 MinIO 私有桶往返/错误摘要删除 2/2 通过。伪装 PDF 在对象写入前返回 400，文件保持 `pending/version=1`，对象不存在，拒绝审计不含 body；压缩 OOXML 正/负向覆盖 DOCX/XLSX/PPTX 主部件、类型清单、宏、ActiveX、嵌入、加密和路径穿越。隔离 PostgreSQL/MinIO 容器均在测试后删除。该门禁不是反病毒、沙箱、完整格式语义解析或 DLP，不能把测试通过写成附件无恶意内容。
 
 证据型专业复核增量在 `101d2f0…` 完成 177/177 单元、API 18 files/89 tests、worker 25/25、真实 MinIO 2/2、mock 46+6 和隔离真实栈 4/4。真实 desktop/mobile 场景只在专用 E2E 数据库创建明确标注“非专业意见”的来源，上传实际对象、登记 not_applicable 测试结论、查看追加审计并验证证据归档返回 409；它不冒充 73 条来源的真实复核。专用迁移验收从 `0000`–`0009` 保存 legacy reviewed 数据、应用 `0010`、确认未发明 provenance 且幂等，再从空库得到 38 表/11 迁移；fresh/legacy 五职责权限也通过。随后 production-like Compose 再确认真实 seed 的 73 条均为 pending/draft/pending_fetch、专业 provenance 为 0。
@@ -90,11 +94,12 @@
 - GitHub 刷新队列负载包含排队时的 `expectedVersion`；worker 在读取前和写回时都校验版本，CAS 失败时丢弃陈旧结果且不写“刷新成功”审计。
 - advisor、workflow 和 backup 都以 `UPDATE ... WHERE status=queued RETURNING` 等条件更新原子领取，并以状态/版本 compare-and-set 完成或失败。并发重复投递只允许一个执行者取得 claim。
 - 运行租约过期时，系统写 `lease_expired` 审计并把记录标为需人工复核的 failed，不会自动重放可能已有副作用的模型、工作流步骤或备份命令。
+- `cbc3d92…` 以同组织 `lease_expired` 审计派生 owner/admin 处置队列。人工结论要求证据、必要的补偿引用和禁止重放确认；记录有模型输出、workflow checkpoint 或备份产物时不能声称“未发现部分副作用”。事件 UUID 的事务 advisory lock 只允许一次 `manual_review_completed` 追加审计，原记录、模型、队列、工作流和备份命令均不变；不满足完整受控 schema 的旧/损坏审计不会隐藏 open 事项。
 - 工作流运行创建时必须读取已启用的定义，校验发起人能执行每个步骤，并在同一事务保存 `definitionVersion` 和 `stepsSnapshot`。worker 只执行该不可变快照；每个成功步骤后保存 checkpoint，若后续排队失败，已创建的引用仍保留在 partial output。
 - 顾问列表、详情和人工编辑都执行同一可见性规则：默认只允许发起人；读取他人运行需 `advisor-runs:read-all` 或 `*`，并且仍要通过该顾问 requiredPermission 和快照中每种资源的 `:read` 检查；不可见时按 404 隐藏存在性。
 - 银行付款关联草稿支出后，在 pending_approval/approved/failed 等受支持状态取消，或对关联审批作出 rejected 决定时，台账关联与动作/审批在同一事务中解链并审计；并发变更导致版本不匹配时整笔冲突失败。
 
-以上语义已由不可变实现提交 `101d2f0…` 的单元、集成、真实栈 E2E 或部署抽查组合验证；证据文档提交和 GitHub CI 仍需确认没有功能源码漂移，目标办公内网需独立复现。
+以上语义已由不可变基线 `101d2f0…` 与最新运行异常实现 `cbc3d92…` 的单元、集成、真实栈 E2E 或部署抽查组合验证；运行异常 Compose/镜像与 final-freeze 差异已单独披露。证据文档提交和 GitHub CI 仍需确认没有后续功能源码漂移，目标办公内网需独立复现。
 
 ## 5. 安全、最小权限与供应链
 
@@ -171,7 +176,7 @@
 - product 与 opportunity 的 project/product typed refs 已强制同时填写时项目一致；这只证明应用写入时的关系一致，不证明机会成交、合同成立或项目已交付，也不能抵御特权数据库管理员直接写表。
 - 离线 owner 恢复是有审计的紧急运维工具，不是自助忘记密码；它仍依赖线下身份核验、批准引用、生产确认和受控 stdin secret。系统尚无 SSO、MFA 或恢复码。
 - seed 不是日常启动步骤。`bootstrap` 只允许空组织；`metadata-only` 不修复成员/角色；`system-role-maintenance` 只在批准后补缺失系统角色/权限，不删除额外权限或恢复 owner assignment。
-- lease-expired 代表可能存在部分副作用，必须人工查看审计与 partial output 后新建明确运行；不得自动重放原记录。
+- lease-expired 代表可能存在部分副作用，必须从运行异常队列人工核对审计、partial output 和外部状态，先追加证据化调查/补偿；确需重做时再新建明确运行，不得自动重放原记录。处置记录是内部声明，系统不能自动验证外部证据真实性。
 - 单主机 Compose 没有主机级高可用；最终恢复仍依赖经过批准并周期演练的备份。
 - 单文件上限 50 MB，没有反病毒、DLP、OCR 或媒体分片上传。
 - Fastify 单独关闭 CSP；生产必须只经 Caddy 暴露。
@@ -184,7 +189,7 @@
 以下全部完成前，本报告结论不得升级为“V1 完成”：
 
 - [x] `101d2f0…` 的预期范围、ignored 证据边界、当前树/完整历史 secret scan 和敏感数据已完成本地审计；仅纳入私有仓库的 6 张公开官网研究截图，公开或外发前仍需权利/个人信息复核；GitHub 仍须复核。
-- [x] `101d2f0…` 完成完整基线和恢复；最新 `ba25c69…` 又完成 212 文件、186/186 单元、API 90/90、worker 29/29、真实 MinIO、真实浏览器/PWA、独立 Compose 与三张重建镜像安全复跑，并分列失败夹具、设计内 skip 与外部闸门。
+- [x] `101d2f0…` 完成完整基线和恢复；最新 `cbc3d92…` 又完成 217 文件、190/190 单元、API 93/93、worker 29/29、生产构建与 Gitleaks exact-SHA 回归，并以冻结前候选完成真实 MinIO、浏览器/PWA、独立 Compose、实际 workflow 补偿与三张镜像安全复跑；树差异、失败夹具、设计内 skip、未重跑层和外部闸门均分列。
 - [x] `101d2f0…` 的 production-like Compose 已在新卷完成 38 表/11 migration、HTTPS/PWA、六服务、最小权限和重启持久性验证；目标内网仍待复现。
 - [x] 首次强制改密、成员生命周期、版本化角色审批、归档角色即时失权、通知 queued-only、GitHub 刷新 CAS、工作流不可变快照、付款取消/驳回解链、顾问 requester-only/read-all、合规专业 provenance/source/evidence、typed refs 和文件并发场景已在分层测试覆盖。
 - [x] fresh/legacy 数据库、PostgreSQL 五职责和 MinIO 四身份的正/负向最小权限验证通过；目标凭据仍须重新执行。
@@ -192,7 +197,7 @@
 - [x] 本地 synthetic bridge 使用真实 schema 与七镜像差异完成升级、双恢复点、应用回滚和 idle 后 HTTPS CRUD；历史生产 N−1、GHCR 和目标内网复演仍待执行，不得把本地结果升级为生产证明。
 - [x] `101d2f0…` 已完成 Gitleaks、生产依赖审计、Semgrep+canary、七镜像 Trivy 0.70.0 与 Syft 1.42.3 SPDX；GitHub/GHCR 双平台 digest、CodeQL/等效 SAST 与剩余风险批准仍待执行。
 - [ ] 在真实受管手机完成 PWA 安装/升级和移动浏览器验证。
-- [x] 专业复核基线 `101d2f0…` 已推送；监控运营状态实现 `ba25c69…` 已提交，脱敏机器证据明确绑定实现 SHA，未把证据后继提交冒充镜像或运行环境 SHA；本轮远端执行状态以 PR Checks 为准。
+- [x] 专业复核基线 `101d2f0…` 与运行异常实现 `cbc3d92…` 已推送；脱敏机器证据明确绑定各实现 SHA，并把冻结前 Compose/镜像与 exact-SHA 回归分开，未把证据后继提交冒充实现、镜像或运行环境 SHA；本轮远端执行状态以 PR Checks 为准。
 - [ ] 修复 GitHub Actions 账户付款/spending limit 阻断，重跑 PR CI 与 Security；取得绿色 run、CodeQL 或经批准等效 SAST、制品证据，批准后再合并。
 - [ ] 在耀光广州办公内网验证主机、DNS、CA、防火墙、显式 seed、owner 首登改密、设备、备份介质和运行观察。
 - [ ] 完成真实 LLM/GitHub 最小权限验收，或明确保持 disabled/manual 且不宣称外部集成完成。
@@ -203,4 +208,4 @@
 
 FIAT LUX CHOICE 已形成可运行的模块化单体候选，不是脚手架、静态仪表盘或仅有数据库模型。身份、权限、审计、业务模块、八类人工批准、七类顾问、后台任务、PWA、最小权限、七镜像供应链和 Ed25519 签名 formatVersion 2 独立恢复路径均有分层实证。
 
-不可变基线 `101d2f0…` 已完成 11 migration age+Ed25519 隔离恢复；最新运营状态实现 `ba25c69…` 已完成完整源码、真实 MinIO、生产构建、独立 Compose、desktop/mobile/PWA 和受影响镜像扫描/SPDX，且临时资源已清理。恢复层自基线未变，本轮没有把旧恢复结果写成新演练。GitHub CI/security、GHCR、历史生产 N−1/目标发布、经审批生产恢复入口、耀光目标办公内网/真机、真实 LLM/GitHub、73 条真实专业复核、MinIO 支持风险决策及责任人批准仍未完成。因此唯一合法结论仍是：**受控候选，尚不可宣布 V1 已完成或已批准生产上线。**
+不可变基线 `101d2f0…` 已完成 11 migration age+Ed25519 隔离恢复；最新运行异常实现 `cbc3d92…` 已完成 exact-SHA 源码、PostgreSQL、生产构建与秘密扫描回归，并以冻结前候选完成真实 MinIO、独立 Compose、desktop/mobile/PWA、实际 workflow 补偿和受影响镜像扫描/SPDX。最终冻结树差异、未重建 API 镜像、未重跑恢复层和全部临时资源清理均已披露。GitHub CI/security、GHCR、历史生产 N−1/目标发布、经审批生产恢复入口、耀光目标办公内网/真机、真实 LLM/GitHub、73 条真实专业复核、MinIO 支持风险决策及责任人批准仍未完成。因此唯一合法结论仍是：**受控候选，尚不可宣布 V1 已完成或已批准生产上线。**

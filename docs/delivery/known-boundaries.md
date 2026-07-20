@@ -23,7 +23,9 @@
 
 不可变运营可见性增量 `ba25c69954015c406c6a61ff9fadadd3830741c3` 增加只读、组织隔离的监控状态 API 与桌面/移动面板，并把实时待领取与历史派发积压分开。不可变提交上完成 212 文件、ShellCheck/Actionlint、7 项类型、186/186 单元、API 90/90、worker 29/29、真实 MinIO 2/2、mock 46+6、生产构建、三张重建镜像安全扫描和独立 production Compose；真实状态为 73 条来源、11 条待领取、0 在途、73 条 pending_fetch、0 专业复核，六服务重启、PWA/offline 和三次部署/MinIO 最小权限验证均通过。脱敏记录见[监控运营状态增量证据](./evidence/compliance-monitoring-status-acceptance-ba25c69-20260720.json)。失败夹具、预期 401、复用的未变化底层镜像和未重跑的恢复层均分列；这仍不是 GitHub runner、目标内网或法律结论。
 
-当前 schema 为 38 张业务表和 11 个迁移（`0000`–`0010`）。专用迁移测试已证明 `0000`–`0009` 数据原样保留、不会为 legacy reviewed 记录发明专业 provenance；当前签名恢复又逐项匹配 11 个 migration SQL hash，但这仍不是 GitHub runner、生产副本或目标内网升级证明。本地 synthetic bridge 只覆盖旧 10 迁移基线，历史生产 N−1、目标发布复演和经审批的破坏性 `restore.sh` 生产入口没有实跑。GitHub CI、目标内网、真实设备、MinIO 长期维护/支持风险处置和责任人批准仍是发布闸门，以[验收矩阵](./v1-acceptance-matrix.md)为准。
+不可变运行异常增量 `cbc3d92ed18563138e60fe2e449b24ba39a118f4` 为 advisor/workflow/backup `lease_expired` 增加 owner/admin 处置队列。exact SHA 上完成 Biome 217 files、ShellCheck/Actionlint、7 项类型、190/190 单元、API 93/93、worker 29/29、OpenAPI 78 paths/143 operations、生产构建和 Gitleaks；冻结前候选另通过 mock 48+6、desktop/mobile/PWA、独立 production Compose、workflow checkpoint 人工补偿、三镜像 Trivy/SPDX 和资源清理。最终冻结只收紧损坏 evidence 审计不得隐藏 open 事项并重跑 PostgreSQL/构建，未重建最终 API 镜像；这项树差异和未重跑的 MinIO/恢复层均在[运行异常增量证据](./evidence/operational-incident-acceptance-cbc3d92-20260720.json)分列。人工处置只是一项可审计内部声明，不能自动证明外部副作用不存在或补偿真实完成，也不是目标环境证据。
+
+当前 schema 为 38 张业务表和 11 个迁移（`0000`–`0010`）。专用迁移测试已证明 `0000`–`0009` 数据原样保留、不会为 legacy reviewed 记录发明专业 provenance；当前签名恢复又逐项匹配 11 个 migration SQL hash，但这仍不是 GitHub runner、生产副本或目标内网升级证明。本地 synthetic bridge 只覆盖旧 10 迁移基线，历史生产 N−1、目标发布复演和经审批的破坏性 `restore.sh` 生产入口没有实跑。GitHub CI、最终 GHCR 镜像、目标内网、真实设备、MinIO 长期维护/支持风险处置和责任人批准仍是发布闸门，以[验收矩阵](./v1-acceptance-matrix.md)为准。
 
 ## 3. 身份与权限
 
@@ -115,7 +117,7 @@
 - `101d2f0…` 已在全新 production-like Compose 的 TLS SAN `choice-review.localhost` 验证 desktop/390×844 mobile、PWA active service worker、0 installability error、0 敏感路由缓存、离线内容隐藏、恢复会话、任务写读闭环和六常驻服务重启持久性；本地 CA 另由 curl 显式信任验证。这仍不等于耀光广州办公内网或真实受管移动设备验收。
 - PostgreSQL 已成为第七发布组件。`101d2f0…` 的七个本地 `linux/arm64` 镜像由固定 digest 的 Trivy 0.70.0 扫描，HIGH/CRITICAL/fixable/unfixed 均为 0；七份 Syft 1.42.3 SPDX 均通过结构/creator 校验，真实 BuildKit 0.31.2 双平台 provenance fixture 和 API/worker amd64 补偿证据仍有效。它们是本地 image ID，不是已发布 GHCR 双平台 root digest 或签名。
 - 旧报告中的 MinIO 6 项扫描结论已由最终镜像重建和当前 Trivy 0 取代。仍需决策的是 MinIO OSS 长期维护/支持与退出路径；internal network、无宿主端口和最小权限是补偿控制，不等于供应商支持承诺。
-- worker 内置备份降级只支持 database，不持有主机签名私钥且不构成完整灾备恢复点；files/full 必须配置受控 BACKUP_COMMAND 或运行 age+Ed25519 完整运维脚本。
+- Web/API 备份任务只接受 database，不持有主机签名私钥且不构成完整灾备恢复点；files/full 会在入队前被拒绝，必须运行 age+Ed25519 完整运维脚本。
 - 生产完整备份需要 age recipient 和主机 Ed25519 签名私钥；age identity、签名私钥与备份必须分离。在线签名私钥是受主机权限保护的普通文件，不是 HSM 或不可导出企业密钥。
 - age 加密不认证备份来源。当前备份会签署规范化 attestation，绑定密文 SHA/大小、来源、数据库/桶、backup tool release、创建时间和公钥 DER 指纹；生产恢复和演练同时强制匹配签名、独立批准的公钥指纹与归档 SHA-256，并通过只允许目录/普通文件的归档守卫。相邻 `.sha256`、公钥或指纹不能自动充当批准记录；无法建立独立审批渠道时仍属于生产恢复阻断项。错误公钥/指纹、篡改归档/attestation/signature、错误来源/版本、签名缺失/部分参数均有 fail-before-Compose 回归，但在线私钥或主机失陷仍是剩余风险。
 - 备份恢复是破坏性管理员操作，不提供普通 Web 恢复按钮。
@@ -126,7 +128,7 @@
 - 新升级/回滚入口强制校验严格七组件发布清单和独立批准的清单 SHA-256，并在 pull 后、迁移前及启动后核对本地 RepoDigest；切换时一致重建 PostgreSQL、MinIO 与应用，并核对六个常驻容器 image ID 后才写全局版本，避免任一常驻组件延迟切换。backup 保持按需。BuildKit provenance 与 SBOM 不是签名；当前未集成 cosign/Sigstore，不能声称镜像已由发布者签名。
 - 尚未完成的目标验证包括耀光办公内网主机、DNS、CA 分发、防火墙、seed/owner 首登改密、真实设备、异介质恢复和运行观察。
 - Caddy internal CA 需要逐台受控分发；它不是成熟企业 PKI。
-- 当前专业复核实现 `101d2f0938adfa0caa8ed576f6587a5c78ae74a5` 已推送到私有 `LiuXiu233/fiatlux-choice` 的 Draft PR #12 候选分支。历史 CI/Security run 的首级失败 job 均为 `runner_id=0`、`steps=[]`，annotation 明确提示近期账户付款失败或 Actions spending limit 不足；因此不能声称 GitHub CI、安全扫描、合并或发布已完成。PR Checks 是远端状态权威来源；修复 Billing & plans 后必须重跑。
+- 当前运行异常实现 `cbc3d92ed18563138e60fe2e449b24ba39a118f4` 已推送到私有 `LiuXiu233/fiatlux-choice` 的 Draft PR #12 候选分支，证据文档 head 待提交。历史 CI/Security run 的首级失败 job 均为 `runner_id=0`、`steps=[]`，annotation 明确提示近期账户付款失败或 Actions spending limit 不足；因此不能声称 GitHub CI、安全扫描、合并或发布已完成。PR Checks 是远端状态权威来源；修复 Billing & plans 后必须重跑。
 - 当前仓库没有把 Git commit/tag 签名作为已验证控制。本地测试事实不能充当发布者签名；生产 tag 前必须确定并执行签名政策，或由有权负责人记录替代控制与风险决定。
 
 ## 11. 安全剩余风险

@@ -10,6 +10,8 @@
 
 不可变运营可见性增量 `ba25c69954015c406c6a61ff9fadadd3830741c3` 新增组织隔离、`compliance-items:read` 权限保护的合规监控状态 API 与响应式面板，分别呈现当前待领取、有效租约、首次未抓取、失败/变化和复核关注，并把历史 `hasMoreDue` 明确限定为“当时”事实。该提交完成 212 文件静态检查、186/186 单元、API 90/90、worker 29/29、真实 MinIO 2/2、mock 46+6、生产构建和独立 production Compose；真实桌面/移动/PWA、六服务重启、三镜像 Trivy/SPDX 与临时资源清理均通过。脱敏记录见[监控运营状态增量证据](docs/delivery/evidence/compliance-monitoring-status-acceptance-ba25c69-20260720.json)。面板刷新不会抓取或复核，任何指标都不证明法规有效、适用或已获专业批准；本增量也不替代基线恢复、GitHub/GHCR、目标内网和真实责任人验收。
 
+不可变运行异常增量 `cbc3d92ed18563138e60fe2e449b24ba39a118f4` 为顾问、工作流和数据库备份 `lease_expired` 增加 owner/admin 专用处置队列、证据化人工结论和事件级事务锁。原失败记录与 partial output 保持不变，提交只追加审计且不重放模型、工作流、队列或备份命令。该 SHA 已推送并通过 Biome 217 文件、ShellCheck/Actionlint、7 项类型、190/190 单元、API 19 files/93 tests、worker 5 files/29 tests、OpenAPI 78 paths/143 operations、生产构建和 Gitleaks；mock 48+6、desktop/mobile/PWA、独立 Compose 操作员场景与三镜像安全结果也已分层记录。冻结前 Compose 与镜像通过后又收紧了损坏处置审计判定，因此[运行异常增量证据](docs/delivery/evidence/operational-incident-acceptance-cbc3d92-20260720.json)明确分列 exact-SHA 回归和未在最终 SHA 重建的 Compose/镜像层，不把后者冒充最终制品。本增量未修改或重跑恢复层，也不关闭 GitHub CI、GHCR、目标内网、真机、真实适配器或专业批准闸门。
+
 ## 能力
 
 - 用户、组织、数据库会话、四级 RBAC 和追加审计。

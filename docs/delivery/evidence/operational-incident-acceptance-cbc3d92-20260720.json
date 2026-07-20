@@ -1,0 +1,197 @@
+{
+  "schemaVersion": 1,
+  "evidenceType": "operational-incident-local-production-like-acceptance",
+  "status": "passed_with_external_gates",
+  "candidate": {
+    "repository": "LiuXiu233/fiatlux-choice",
+    "branch": "codex/v1-acceptance-hardening",
+    "implementationGitSha": "cbc3d92ed18563138e60fe2e449b24ba39a118f4",
+    "implementationTreeSha": "c370aa44be643f87d3b348684068e4a3ae057c8b",
+    "parentGitSha": "629896b785c7a134c80a0b4b2ca076fa21f1ec16",
+    "remoteBranchMatchedImplementationShaBeforeEvidenceCommit": true,
+    "databaseMigrationAdded": false,
+    "publicTableCountUnchanged": 38,
+    "businessMigrationCountUnchanged": 11
+  },
+  "execution": {
+    "evidenceCompiledAt": "2026-07-20T00:53:29Z",
+    "operatorTimezone": "Asia/Shanghai",
+    "host": {
+      "os": "macOS 26.5.2",
+      "dockerClient": "29.6.0",
+      "dockerServer": "29.5.2",
+      "dockerServerArchitecture": "arm64",
+      "dockerCompose": "5.3.1",
+      "dockerBuildx": "0.35.0"
+    }
+  },
+  "change": {
+    "observedProblem": "Advisor, workflow and backup lease expiry was auditable but a 1–2 person operator had no permission-scoped queue for investigating possible partial effects and recording a non-replay resolution.",
+    "implementedBehavior": [
+      "GET /api/v1/operations/incidents derives organization-scoped open or resolved incidents from append-only lease_expired audits for advisor runs, workflow runs and database backups.",
+      "POST /api/v1/operations/incidents/:id/resolve requires a 20-character review, at least one stable evidence reference, an explicit no-replay acknowledgement and a primary compensation reference when compensation was required.",
+      "Recorded advisor output, workflow checkpoints or backup artifacts force manual_compensation_completed and prevent a no-partial-effects claim.",
+      "An event-scoped PostgreSQL transaction advisory lock permits exactly one valid manual_review_completed audit without UPDATE or DELETE permission on audit_events.",
+      "The original failed status, version, error and partial output remain unchanged; the endpoint does not call a model, run workflow steps, enqueue a job or execute a backup command.",
+      "Malformed legacy or forged resolution metadata cannot hide an open incident; cross-organization IDs are returned as 404 and duplicate resolution is 409.",
+      "Only owner and admin receive the read/update permissions by default; an existing organization must use an approved system-role-maintenance operation to add them."
+    ]
+  },
+  "qualityGates": {
+    "exactImplementationCommit": {
+      "biomeFiles": 217,
+      "shellcheckPassed": true,
+      "actionlintVersion": "1.7.12",
+      "actionlintPassed": true,
+      "typescriptProjects": 7,
+      "unitTestsPassed": 190,
+      "gitleaksCurrentTreeHistoryCanaryAndAllowlistPassed": true,
+      "gitDiffCheckPassedBeforeCommit": true,
+      "workspaceProductionBuildPassed": true
+    },
+    "postgresIntegrationAfterFinalValidationHardening": {
+      "postgresImage": "postgres:17.5-alpine",
+      "ephemeralHostBinding": true,
+      "migrationsApplied": 11,
+      "targetOperationalIncidentTestsPassed": 3,
+      "apiIntegrationFilesPassed": 19,
+      "apiIntegrationTestsPassed": 93,
+      "workerIntegrationFilesPassed": 5,
+      "workerIntegrationTestsPassed": 29,
+      "unconfiguredS3TestsDesignedSkip": 2,
+      "realMinioTestsFromUnchangedCandidateLayerPassed": 2
+    },
+    "openApi": {
+      "version": "3.1.0",
+      "paths": 78,
+      "operations": 143,
+      "newOperationIds": ["listOperationalIncidents", "resolveOperationalIncident"],
+      "parserAndInventoryTestsPassed": true
+    },
+    "browserAutomation": {
+      "mockPlaywrightPassed": 48,
+      "mockPlaywrightDesignedSkips": 6,
+      "nativePythonDesktopViewport": "1440x1000",
+      "nativePythonMobileViewport": "390x844",
+      "desktopHorizontalOverflow": false,
+      "mobileHorizontalOverflow": false,
+      "unexpectedConsoleOrPageErrorsAfterLogin": 0,
+      "frontendSourceUnchangedAfterBrowserVerification": true
+    },
+    "productionBuild": {
+      "nodeEnv": "production",
+      "mainChunkKiB": 428.4,
+      "operationsChunkKiB": 11.13,
+      "educationChunkKiB": 128.18,
+      "pwaPrecacheEntries": 11,
+      "pwaPrecacheKiB": 724.12
+    },
+    "sourceSecurity": {
+      "productionDependencyAuditFindings": 0,
+      "semgrepVersion": "1.170.0",
+      "semgrepCanaryRules": 10,
+      "semgrepCanaryFindings": 10,
+      "semgrepPreFreezeProductionTargets": 90,
+      "semgrepPreFreezeProductionFindings": 0,
+      "finalFreezeAddedDependency": false,
+      "finalFreezeGitleaksRerunPassed": true
+    },
+    "preFreezeCandidateImageSecurity": {
+      "trivyVersion": "0.70.0",
+      "apiHighCriticalFindings": 0,
+      "workerHighCriticalFindings": 0,
+      "webHighCriticalFindings": 0,
+      "apiFixableHighCriticalFindings": 0,
+      "workerFixableHighCriticalFindings": 0,
+      "webFixableHighCriticalFindings": 0,
+      "apiSpdxPackages": 204,
+      "workerSpdxPackages": 225,
+      "webSpdxPackages": 176,
+      "finalFreezeDelta": "After the Compose and image pass, the API resolution selector was tightened to reject malformed evidence metadata and a matching PostgreSQL fixture plus threat-model wording were added. Dependencies, worker and Web source were unchanged; the final API image itself was not rebuilt or rescanned after this delta."
+    }
+  },
+  "productionLikeCompose": {
+    "projectName": "fiatlux-opsqa-20260720",
+    "productionOverlay": true,
+    "services": ["postgres", "minio", "api", "worker", "web", "caddy"],
+    "allSixServicesHealthy": true,
+    "fivePostgresResponsibilitiesBootstrapped": true,
+    "publicTableCount": 38,
+    "businessMigrationCount": 11,
+    "officialSourcesSeeded": 73,
+    "deploymentVerifierPassed": true,
+    "minioLeastPrivilegeVerifierPassed": true,
+    "runtimeDatabaseClients": [
+      "fiatlux-api",
+      "fiatlux-api-queue",
+      "fiatlux-worker",
+      "fiatlux-worker-queue"
+    ],
+    "runtimeAuditEventPrivileges": {
+      "select": true,
+      "insert": true,
+      "update": false,
+      "delete": false
+    },
+    "sourceRelationship": "The positive operator scenario ran on the pre-freeze candidate worktree. The final implementation SHA differs only by stricter malformed-resolution selection, its regression fixture and documentation wording; exact-SHA PostgreSQL integration and production build were rerun, but this Compose project was not rebuilt after that delta."
+  },
+  "operatorScenario": {
+    "sourceType": "workflow-run",
+    "initialStatus": "failed",
+    "initialVersion": 5,
+    "recordedCheckpointCount": 1,
+    "selectedResolution": "manual_compensation_completed",
+    "manualReviewAuditCount": 1,
+    "originalSourceRecordChanged": false,
+    "duplicateResolutionHttpStatus": 409,
+    "automaticReplayObserved": false,
+    "modelCallObserved": false,
+    "workflowExecutionObserved": false,
+    "queueDispatchObserved": false,
+    "backupCommandObserved": false,
+    "resolutionPersistedAfterSixServiceRestart": true
+  },
+  "pwaRuntime": {
+    "activeServiceWorker": "/sw.js",
+    "cacheCount": 1,
+    "staticPrecacheEntries": 11,
+    "cachedApiOrHealthEntries": 0,
+    "installabilityErrors": 0,
+    "unexpectedConsoleErrors": 0
+  },
+  "recoveryEvidenceBoundary": {
+    "currentIncrementTouchesMigrationStorageOrRecoveryFiles": false,
+    "priorAuthoritativeEvidence": "docs/delivery/evidence/production-like-acceptance-101d2f0-20260720.json",
+    "signedRestoreRerunClaimedForThisIncrement": false,
+    "productionRestoreEntrypointExecutedForThisIncrement": false
+  },
+  "cleanup": {
+    "qaContainersRemoved": true,
+    "qaNetworksRemoved": true,
+    "qaVolumesRemoved": true,
+    "qaImageTagsRemoved": true,
+    "temporaryPostgresContainersRemoved": true,
+    "screenshotsCachesScriptsReportsAndTestCredentialsRemoved": true,
+    "sensitiveDataCommitted": false
+  },
+  "externalGates": {
+    "implementationCommitPushed": true,
+    "githubCiForImplementation": "not yet accepted as green; PR Checks must be inspected after the evidence commit, and prior runs were blocked before runner start by account billing or Actions spending limits",
+    "githubCodeQl": "not run for this implementation",
+    "ghcrMultiArchitectureRelease": "not published",
+    "targetGuangzhouIntranet": "not deployed",
+    "managedPhysicalMobileDevice": "not tested",
+    "approvedProductionRestoreEntry": "not run",
+    "realLlmAndGitHubAdapters": "not tested",
+    "professionalReviewOf73Sources": "not completed",
+    "businessSecurityOperationsLegalTaxAndEducationApprovals": "not obtained"
+  },
+  "claimsNotMade": [
+    "A recorded incident resolution does not convert the original failed run to success or prove that external side effects were absent or correctly compensated.",
+    "The pre-freeze local Compose and image results are not represented as an exact cbc3d92 image rebuild after the final malformed-audit validation delta.",
+    "The unchanged prior backup and restore evidence is not represented as a new restore drill for this increment.",
+    "Local arm64 image results are not GHCR multi-architecture digests, signatures or provenance.",
+    "The local Docker Desktop environment is not the Guangzhou office intranet or a managed physical device.",
+    "This evidence does not upgrade the repository from controlled candidate to completed V1."
+  ]
+}
