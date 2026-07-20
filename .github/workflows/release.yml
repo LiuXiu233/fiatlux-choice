@@ -313,7 +313,7 @@ jobs:
         run: ./scripts/test-release-transition-security.sh
       - name: Test cross-operation maintenance lock and stale residue fail-closed behavior
         run: ./scripts/test-maintenance-lock-security.sh
-      - name: Test read-only restore source and isolated pre-restore output
+      - name: Test restore approval metadata, isolated paths and immutable reports
         run: ./scripts/test-restore-prebackup-dir-security.sh
       - name: Test restored object path, byte and SHA-256 verification
         run: ./scripts/test-restored-object-verification.sh

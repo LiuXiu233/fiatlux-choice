@@ -22,12 +22,16 @@ usage() {
        [--expected-backup-tool-release VERSION] \
        --attestation FILE --signature FILE --signing-public-key FILE \
        --expected-signing-key-sha256 SHA256 \
+       --operation-id ID --environment-id ID --operator-identity ID \
+       --approval-reference REF --reason TEXT --operation-report-dir DIR \
        [--confirm-postgres-minor-rollback POSTGRES-MINOR-ROLLBACK-REVIEWED] \
        --approve YES-I-UNDERSTAND \
-       [--identity AGE_IDENTITY] [--skip-pre-backup]
+       [--identity AGE_IDENTITY] \
+       [--skip-pre-backup --confirm-skip-pre-backup PRE-RESTORE-BACKUP-RISK-ACCEPTED]
 
 本命令会停止应用、替换目标数据库和对象桶，然后执行迁移并重新启动。
 归档源以只读方式挂载；默认恢复前备份写入 RESTORE_PRE_BACKUP_DIR（生产必须显式配置独立的受保护可写目录）。
+操作报告根目录必须预先创建为 0700；批准引用由操作者断言，脚本不会独立验证审批真实性。
 EOF
 }
 
@@ -53,6 +57,21 @@ manifest_sha256=${RELEASE_MANIFEST_SHA256:-}
 expected_git_sha=${RELEASE_EXPECTED_GIT_SHA:-}
 skip_pre_backup=false
 postgres_minor_rollback_confirmation=""
+skip_pre_backup_confirmation=""
+operation_id=""
+environment_id=""
+operator_identity=""
+approval_reference=""
+approval_reason=""
+operation_report_dir=${RESTORE_OPERATION_REPORT_DIR:-}
+operation_evidence_dir=""
+operation_report_path=""
+operation_report_partial=""
+technical_restore_mount_dir=""
+technical_restore_report_dir=""
+technical_restore_report=""
+technical_restore_report_partial=""
+preserve_operation_report_partial=false
 
 while (($#)); do
   case "$1" in
@@ -132,6 +151,34 @@ while (($#)); do
       postgres_minor_rollback_confirmation=${2:?--confirm-postgres-minor-rollback 需要值}
       shift 2
       ;;
+    --confirm-skip-pre-backup)
+      skip_pre_backup_confirmation=${2:?--confirm-skip-pre-backup 需要值}
+      shift 2
+      ;;
+    --operation-id)
+      operation_id=${2:?--operation-id 需要值}
+      shift 2
+      ;;
+    --environment-id)
+      environment_id=${2:?--environment-id 需要值}
+      shift 2
+      ;;
+    --operator-identity)
+      operator_identity=${2:?--operator-identity 需要值}
+      shift 2
+      ;;
+    --approval-reference)
+      approval_reference=${2:?--approval-reference 需要值}
+      shift 2
+      ;;
+    --reason)
+      approval_reason=${2:?--reason 需要值}
+      shift 2
+      ;;
+    --operation-report-dir)
+      operation_report_dir=${2:?--operation-report-dir 需要值}
+      shift 2
+      ;;
     --skip-pre-backup)
       skip_pre_backup=true
       shift
@@ -156,6 +203,62 @@ if [[ "$approval" != YES-I-UNDERSTAND ]]; then
   echo "必须显式传入 --approve YES-I-UNDERSTAND。" >&2
   exit 2
 fi
+if [[ ! "$operation_id" =~ ^[a-z0-9][a-z0-9._-]{7,119}$ ]]; then
+  echo "--operation-id 必须是 8–120 位小写稳定标识。" >&2
+  exit 2
+fi
+if [[ ! "$environment_id" =~ ^[A-Za-z0-9][A-Za-z0-9._:-]{1,199}$ ]]; then
+  echo "--environment-id 必须是 2–200 位稳定环境标识。" >&2
+  exit 2
+fi
+validate_operation_metadata() {
+  local label=$1
+  local value=$2
+  local minimum=$3
+  local maximum=$4
+  local length=${#value}
+  if ((length < minimum || length > maximum)) ||
+    [[ "$value" == *$'\n'* ]] ||
+    LC_ALL=C grep -q '[[:cntrl:]]' < <(printf '%s' "$value"); then
+    printf '%s 必须是 %d–%d 字符且不含控制字符。\n' \
+      "$label" "$minimum" "$maximum" >&2
+    exit 2
+  fi
+}
+validate_operation_metadata operator-identity "$operator_identity" 2 200
+validate_operation_metadata approval-reference "$approval_reference" 5 200
+validate_operation_metadata reason "$approval_reason" 10 1000
+if grep -Eiq '^[[:space:]]*(pending|todo|tbd|unknown|none|n/a|placeholder)[[:space:]]*$' \
+  < <(printf '%s' "$approval_reference"); then
+  echo "--approval-reference 不能使用占位值。" >&2
+  exit 2
+fi
+if [[ "$skip_pre_backup" == true ]]; then
+  if [[ "$skip_pre_backup_confirmation" != PRE-RESTORE-BACKUP-RISK-ACCEPTED ]]; then
+    echo "跳过恢复前备份必须显式传入 --confirm-skip-pre-backup PRE-RESTORE-BACKUP-RISK-ACCEPTED。" >&2
+    exit 2
+  fi
+elif [[ -n "$skip_pre_backup_confirmation" ]]; then
+  echo "未使用 --skip-pre-backup 时不得传入 --confirm-skip-pre-backup。" >&2
+  exit 2
+fi
+validate_operation_metadata operation-report-dir "$operation_report_dir" 2 4096
+if [[ "$operation_report_dir" != /* || "$operation_report_dir" == / ||
+  ! -d "$operation_report_dir" || -L "$operation_report_dir" ||
+  ! -O "$operation_report_dir" ]]; then
+  echo "--operation-report-dir 必须是当前操作者所有、预先创建的绝对普通目录，不能是根目录或符号链接。" >&2
+  exit 2
+fi
+operation_report_dir=$(cd "$operation_report_dir" && pwd -P)
+for required_command in date jq ln sha256sum stat; do
+  if ! command -v "$required_command" >/dev/null 2>&1; then
+    printf '生产恢复审计报告要求安装 %s。\n' "$required_command" >&2
+    exit 127
+  fi
+done
+umask 077
+restore_started_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+restore_started_epoch=$(date -u +%s)
 if [[ ! "$expected_sha256" =~ ^[0-9a-f]{64}$ ]]; then
   echo "必须通过受控审批记录提供 64 位小写 --expected-sha256；不得自动信任备份旁的 sidecar。" >&2
   exit 2
@@ -251,6 +354,26 @@ fi
 source_backup_dir=$(cd "$(dirname "$backup_file")" && pwd -P)
 backup_basename=$(basename "$backup_file")
 backup_file="$source_backup_dir/$backup_basename"
+paths_overlap() {
+  local first=$1
+  local second=$2
+  if [[ "$first" == "$second" ]]; then
+    return 0
+  fi
+  if [[ "$second" == / ]]; then
+    [[ "$first" == /* ]]
+    return
+  fi
+  if [[ "$first" == / ]]; then
+    [[ "$second" == /* ]]
+    return
+  fi
+  [[ "$first" == "$second/"* || "$second" == "$first/"* ]]
+}
+if paths_overlap "$operation_report_dir" "$source_backup_dir"; then
+  echo "恢复操作报告目录必须与只读归档源分离。" >&2
+  exit 2
+fi
 if [[ ! -r "$backup_file" ]]; then
   printf '恢复归档不可读：%s\n' "$backup_file" >&2
   exit 3
@@ -258,6 +381,7 @@ fi
 signature_verified=false
 attestation_sha256=""
 signing_key_fingerprint_sha256=""
+backup_created_at=""
 if ((signature_input_count == 4)); then
   attestation_file=$(cd "$(dirname "$attestation_file")" && pwd -P)/$(basename "$attestation_file")
   signature_file=$(cd "$(dirname "$signature_file")" && pwd -P)/$(basename "$signature_file")
@@ -276,6 +400,7 @@ if ((signature_input_count == 4)); then
   signature_verified=$(jq -er '.signatureVerified' <<<"$signature_result")
   attestation_sha256=$(jq -er '.attestationSha256' <<<"$signature_result")
   signing_key_fingerprint_sha256=$(jq -er '.signingKeyFingerprintSha256' <<<"$signature_result")
+  backup_created_at=$(jq -er '.createdAt' "$attestation_file")
   if [[ "$signature_verified" != true ]]; then
     echo "备份签名验证未返回成功状态。" >&2
     exit 4
@@ -329,11 +454,19 @@ mkdir -p "$restore_scratch_dir"
 chmod 700 "$restore_scratch_dir"
 restore_scratch_dir=$(cd "$restore_scratch_dir" && pwd -P)
 export RESTORE_SCRATCH_DIR=$restore_scratch_dir
+if paths_overlap "$operation_report_dir" "$restore_scratch_dir"; then
+  echo "恢复操作报告目录必须与明文恢复 scratch 分离。" >&2
+  exit 2
+fi
 
 maintenance_lock_acquire "$source_backup_dir" "restore-$backup_basename"
 release_maintenance_lock() {
   local status=$?
   trap - EXIT HUP INT TERM
+  if [[ -n "$operation_report_partial" &&
+    "$preserve_operation_report_partial" != true ]]; then
+    rm -f -- "$operation_report_partial"
+  fi
   if ! maintenance_lock_release && ((status == 0)); then
     status=7
   fi
@@ -417,6 +550,11 @@ if [[ "$skip_pre_backup" == false ]]; then
   fi
   check_pre_backup_directory "$backup_scratch_dir" "BACKUP_SCRATCH_DIR"
   backup_scratch_dir=$(cd "$backup_scratch_dir" && pwd -P)
+  if paths_overlap "$operation_report_dir" "$restore_pre_backup_dir" ||
+    paths_overlap "$operation_report_dir" "$backup_scratch_dir"; then
+    echo "恢复操作报告目录必须与恢复前输出和 backup scratch 分离。" >&2
+    exit 2
+  fi
   if [[ "$backup_scratch_dir" == "$restore_pre_backup_dir" ]]; then
     echo "RESTORE_PRE_BACKUP_DIR 与 BACKUP_SCRATCH_DIR 必须是不同目录。" >&2
     exit 2
@@ -425,11 +563,64 @@ if [[ "$skip_pre_backup" == false ]]; then
   export BACKUP_SCRATCH_DIR="$backup_scratch_dir"
 fi
 
+chmod 700 "$operation_report_dir"
+operation_report_dir_mode=$(stat -c '%a' "$operation_report_dir" 2>/dev/null ||
+  stat -f '%Lp' "$operation_report_dir")
+if [[ "$operation_report_dir_mode" != 700 ]]; then
+  echo "恢复操作报告目录权限必须精确为 0700。" >&2
+  exit 2
+fi
+operation_report_probe="$operation_report_dir/.fiatlux-restore-report-probe.$$"
+if [[ -e "$operation_report_probe" || -L "$operation_report_probe" ]] ||
+  ! (set -o noclobber; : >"$operation_report_probe") 2>/dev/null; then
+  echo "恢复操作报告目录不可独占写入或存在未解释的探针残留。" >&2
+  exit 2
+fi
+rm -f -- "$operation_report_probe"
+
+operation_reports_root="$operation_report_dir/operations"
+if [[ -e "$operation_reports_root" &&
+  (! -d "$operation_reports_root" || -L "$operation_reports_root") ]]; then
+  echo "恢复操作集合路径必须是普通目录且不能是符号链接。" >&2
+  exit 2
+fi
+mkdir -p "$operation_reports_root"
+chmod 700 "$operation_reports_root"
+operation_reports_root=$(cd "$operation_reports_root" && pwd -P)
+if [[ "$operation_reports_root" != "$operation_report_dir/operations" ]]; then
+  echo "恢复操作集合目录解析后逃逸受控报告根目录。" >&2
+  exit 2
+fi
+operation_evidence_dir="$operation_reports_root/$operation_id"
+if [[ -e "$operation_evidence_dir" || -L "$operation_evidence_dir" ]] ||
+  ! mkdir -m 700 "$operation_evidence_dir"; then
+  echo "恢复 operation ID 已存在或无法原子保留，拒绝覆盖或复用。" >&2
+  exit 2
+fi
+operation_report_path="$operation_evidence_dir/production-restore-$operation_id.json"
+operation_report_partial="$operation_evidence_dir/.production-restore-$operation_id.json.partial"
+technical_restore_mount_dir="$operation_evidence_dir/technical"
+mkdir -m 700 "$technical_restore_mount_dir"
+technical_restore_report_dir="$technical_restore_mount_dir/restore-reports"
+technical_restore_report="$technical_restore_report_dir/restore-$operation_id.json"
+technical_restore_report_partial="$technical_restore_report.partial"
+if [[ -e "$operation_report_path" || -L "$operation_report_path" ||
+  -e "$operation_report_partial" || -L "$operation_report_partial" ||
+  -e "$technical_restore_report" || -L "$technical_restore_report" ||
+  -e "$technical_restore_report_partial" || -L "$technical_restore_report_partial" ]]; then
+  echo "新保留的恢复操作目录意外含有报告或 partial。" >&2
+  exit 2
+fi
+
 # Compose mounts the source archive separately as /restore-source:ro.  The
 # writable /backups mount is reserved for the pre-restore output and is reset to
 # the normal deployment directory before the long-lived services are started.
 export RESTORE_SOURCE_DIR="$source_backup_dir"
-export BACKUP_DIR="$restore_pre_backup_dir"
+if [[ "$skip_pre_backup" == false ]]; then
+  export BACKUP_DIR="$restore_pre_backup_dir"
+else
+  export BACKUP_DIR="$runtime_backup_dir"
+fi
 
 current_release=${APP_IMAGE_TAG:-unknown}
 if [[ -r "$STATE_DIR/current" ]]; then
@@ -466,6 +657,10 @@ echo "进入维护窗口：停止入口、API 和 worker。"
 echo "在任何数据替换前切换已核验的恢复发布 PostgreSQL。"
 "$COMPOSE" up -d --wait --no-deps --force-recreate --no-build --pull never postgres
 
+# The destructive container writes only its technical result to the dedicated
+# operation evidence directory. It never writes to the approved source or the
+# pre-restore backup directory.
+export BACKUP_DIR="$technical_restore_mount_dir"
 run_args=(
   run --rm --no-deps --pull never
   -e "BACKUP_FILE=/restore-source/$backup_basename"
@@ -478,6 +673,7 @@ run_args=(
   -e "RESTORE_ATTESTATION_SHA256=$attestation_sha256"
   -e "RESTORE_SIGNING_KEY_FINGERPRINT_SHA256=$signing_key_fingerprint_sha256"
   -e "RESTORE_TOOL_RELEASE=$restore_image_version"
+  -e "RESTORE_REPORT_ID=$operation_id"
   -e "RESTORE_CONFIRM_DATABASE=$target_database"
   -e "RESTORE_CONFIRM_BUCKET=$target_bucket"
   -e RESTORE_APPROVED=YES-I-UNDERSTAND
@@ -493,6 +689,60 @@ if [[ -n "$identity_file" ]]; then
 else
   "$COMPOSE" "${run_args[@]}" backup-tools restore-container
 fi
+
+if [[ ! -f "$technical_restore_report" || -L "$technical_restore_report" ]]; then
+  echo "恢复容器未生成绑定 operation ID 的普通技术报告。" >&2
+  exit 6
+fi
+if ! jq -e \
+  --arg source "$backup_basename" \
+  --arg archiveSha256 "$expected_sha256" \
+  --arg sourceId "$expected_source_id" \
+  --arg sourceDatabase "$expected_source_database" \
+  --arg sourceBucket "$expected_source_bucket" \
+  --arg backupToolRelease "$expected_backup_tool_release" \
+  --arg restoreToolRelease "$restore_image_version" \
+  --arg database "$target_database" \
+  --arg bucket "$target_bucket" \
+  --arg reportId "$operation_id" \
+  --arg attestationSha256 "$attestation_sha256" \
+  --arg signingKeyFingerprintSha256 "$signing_key_fingerprint_sha256" '
+    .schemaVersion == 1 and .evidenceType == "technical_restore" and
+    .result == "success" and .reportId == $reportId and
+    .source == $source and .archiveSha256 == $archiveSha256 and
+    .approvedDigestMatched == true and .checksumVerified == true and
+    .metadataVerified == true and .objectsVerified == true and
+    .sourceId == $sourceId and .sourceDatabase == $sourceDatabase and
+    .sourceBucket == $sourceBucket and .backupToolRelease == $backupToolRelease and
+    .restoreToolRelease == $restoreToolRelease and .database == $database and
+    .bucket == $bucket and
+    (.objectCount | type == "number" and . >= 0 and floor == .) and
+    (.objectBytes | type == "number" and . >= 0 and floor == .) and
+    (.restoredAt | type == "string" and
+      test("^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$")) and
+    (.objectManifestSha256 | type == "string" and test("^[0-9a-f]{64}$")) and
+    (if $attestationSha256 == "" then
+       .signatureVerified == false and .attestationSha256 == null and
+       .signingKeyFingerprintSha256 == null
+     else
+       .signatureVerified == true and .attestationSha256 == $attestationSha256 and
+       .signingKeyFingerprintSha256 == $signingKeyFingerprintSha256
+     end)
+  ' "$technical_restore_report" >/dev/null; then
+  echo "恢复容器技术报告与受审归档、目标或签名身份不一致。" >&2
+  exit 6
+fi
+technical_restore_report_mode=$(stat -c '%a' "$technical_restore_report" 2>/dev/null ||
+  stat -f '%Lp' "$technical_restore_report")
+if [[ "$technical_restore_report_mode" != 600 ]]; then
+  echo "技术恢复报告权限必须精确为 0600。" >&2
+  exit 6
+fi
+technical_restore_report_sha256=$(sha256sum "$technical_restore_report" | awk '{print $1}')
+technical_restored_at=$(jq -er '.restoredAt' "$technical_restore_report")
+restored_object_count=$(jq -er '.objectCount' "$technical_restore_report")
+restored_object_bytes=$(jq -er '.objectBytes' "$technical_restore_report")
+restored_object_manifest_sha256=$(jq -er '.objectManifestSha256' "$technical_restore_report")
 
 # Runtime services must continue to use the normal deployment backup volume;
 # only the one-shot restore container reads the approved source mount.
@@ -514,6 +764,119 @@ echo "重新启动并等待健康检查。"
   --check-running-services
 "$ROOT_DIR/scripts/verify-deployment.sh"
 
+restore_finished_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+restore_finished_epoch=$(date -u +%s)
+restore_duration_seconds=$((restore_finished_epoch - restore_started_epoch))
+if [[ "$skip_pre_backup" == true ]]; then
+  pre_restore_backup_created=false
+else
+  pre_restore_backup_created=true
+fi
+if ! (set -o noclobber; umask 077; jq -n \
+  --arg generatedAt "$restore_finished_at" \
+  --arg operationId "$operation_id" \
+  --arg environmentId "$environment_id" \
+  --arg environmentClassification "${FIATLUX_ENV:-development}" \
+  --arg operatorIdentity "$operator_identity" \
+  --arg approvalReference "$approval_reference" \
+  --arg approvalReason "$approval_reason" \
+  --arg startedAt "$restore_started_at" \
+  --arg finishedAt "$restore_finished_at" \
+  --arg currentRelease "$current_release" \
+  --arg restoreVersion "$restore_image_version" \
+  --arg gitSha "$expected_git_sha" \
+  --arg manifestSha256 "$manifest_sha256" \
+  --arg archiveFile "$backup_basename" \
+  --arg archiveSha256 "$expected_sha256" \
+  --arg backupCreatedAt "$backup_created_at" \
+  --arg sourceId "$expected_source_id" \
+  --arg sourceDatabase "$expected_source_database" \
+  --arg sourceBucket "$expected_source_bucket" \
+  --arg backupToolRelease "$expected_backup_tool_release" \
+  --arg attestationSha256 "$attestation_sha256" \
+  --arg signingKeyFingerprintSha256 "$signing_key_fingerprint_sha256" \
+  --arg targetDatabase "$target_database" \
+  --arg targetBucket "$target_bucket" \
+  --arg technicalRestoredAt "$technical_restored_at" \
+  --arg technicalReportSha256 "$technical_restore_report_sha256" \
+  --arg objectManifestSha256 "$restored_object_manifest_sha256" \
+  --argjson durationSeconds "$restore_duration_seconds" \
+  --argjson archiveBytes "$archive_size" \
+  --argjson signatureVerified "$signature_verified" \
+  --argjson preRestoreBackupCreated "$pre_restore_backup_created" \
+  --argjson objectCount "$restored_object_count" \
+  --argjson objectBytes "$restored_object_bytes" '
+    {
+      schemaVersion: 1,
+      evidenceType: "production_restore_operation",
+      generatedAt: $generatedAt,
+      result: "success",
+      operationId: $operationId,
+      environment: {
+        environmentId: $environmentId,
+        classification: $environmentClassification
+      },
+      approval: {
+        operatorIdentity: $operatorIdentity,
+        assertedApprovalReference: $approvalReference,
+        reason: $approvalReason,
+        approvalIndependentlyVerified: false
+      },
+      candidate: {
+        previousRelease: $currentRelease,
+        restoreVersion: $restoreVersion,
+        gitSha: $gitSha,
+        releaseManifestSha256: $manifestSha256
+      },
+      backup: {
+        archiveFile: $archiveFile,
+        archiveSha256: $archiveSha256,
+        archiveBytes: $archiveBytes,
+        createdAt: (if $backupCreatedAt == "" then null else $backupCreatedAt end),
+        sourceId: $sourceId,
+        sourceDatabase: $sourceDatabase,
+        sourceBucket: $sourceBucket,
+        backupToolRelease: $backupToolRelease,
+        signatureVerified: $signatureVerified,
+        attestationSha256: (if $signatureVerified then $attestationSha256 else null end),
+        signingKeyFingerprintSha256: (if $signatureVerified then $signingKeyFingerprintSha256 else null end)
+      },
+      target: {
+        database: $targetDatabase,
+        bucket: $targetBucket
+      },
+      execution: {
+        startedAt: $startedAt,
+        finishedAt: $finishedAt,
+        durationSeconds: $durationSeconds,
+        destructiveRestorePerformed: true,
+        preRestoreBackupCreated: $preRestoreBackupCreated,
+        technicalRestoreCompletedAt: $technicalRestoredAt
+      },
+      checks: {
+        archiveDigestAndSignature: true,
+        releaseManifestAndCleanSource: true,
+        technicalRestoreReportSha256: $technicalReportSha256,
+        objectsVerified: true,
+        objectCount: $objectCount,
+        objectBytes: $objectBytes,
+        objectManifestSha256: $objectManifestSha256,
+        migrationsPermissionsImagesHealth: true,
+        releaseStateRecorded: true
+      },
+      boundaries: [
+        "The approval reference, operator identity and reason are supplied by the operator and must be verified through an independent company approval channel.",
+        "This success report proves that the restore script completed its technical checks; it does not independently prove approval authenticity, business RPO/RTO acceptance or off-host media independence.",
+        "A fixture or non-production report cannot close the production_backup_restore V1 gate."
+      ]
+    }
+  ' >"$operation_report_partial"); then
+  echo "无法以不可覆盖方式创建恢复操作报告 partial。" >&2
+  exit 6
+fi
+chmod 600 "$operation_report_partial"
+operation_report_sha256=$(sha256sum "$operation_report_partial" | awk '{print $1}')
+
 mkdir -p "$STATE_DIR/manifests"
 chmod 700 "$STATE_DIR" "$STATE_DIR/manifests"
 manifest_record="$STATE_DIR/manifests/$restore_image_version.tsv"
@@ -531,9 +894,21 @@ printf '%s  %s\n' "$manifest_sha256" "$restore_image_version.tsv" \
 chmod 600 "$STATE_DIR/manifests/$restore_image_version.tsv.sha256"
 printf '%s\n' "$current_release" >"$STATE_DIR/previous"
 printf '%s\n' "$restore_image_version" >"$STATE_DIR/current"
-printf '%s\trestore\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+printf '%s\trestore\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
   "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$current_release" "$restore_image_version" \
   "$expected_git_sha" "$manifest_sha256" "$expected_sha256" \
   "${signing_key_fingerprint_sha256:-unsigned}" "${attestation_sha256:-unsigned}" \
+  "$operation_id" "$environment_id" "$operator_identity" "$approval_reference" \
+  "$operation_report_sha256" \
   >>"$STATE_DIR/history.tsv"
 chmod 600 "$STATE_DIR/current" "$STATE_DIR/previous" "$STATE_DIR/history.tsv"
+preserve_operation_report_partial=true
+if ! ln "$operation_report_partial" "$operation_report_path"; then
+  echo "恢复已完成并记录状态，但无法原子发布不可覆盖操作报告；必须人工调查。" >&2
+  exit 6
+fi
+rm -f -- "$operation_report_partial"
+operation_report_partial=""
+preserve_operation_report_partial=false
+printf '生产恢复技术流程完成：report=%s sha256=%s approvalIndependentlyVerified=false\n' \
+  "$operation_report_path" "$operation_report_sha256"

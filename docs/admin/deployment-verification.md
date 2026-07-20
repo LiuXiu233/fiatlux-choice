@@ -16,6 +16,7 @@ DB_PRIVILEGE_TEST_SIMULATE_LEGACY=1 ./scripts/test-database-privileges.sh
 ./scripts/test-release-image-verification.sh
 pnpm test:target-intranet-verification
 ./scripts/test-release-transition-security.sh
+./scripts/test-restore-prebackup-dir-security.sh
 ./scripts/test-maintenance-lock-security.sh
 ./scripts/test-backup-container-security.sh
 ./scripts/test-restored-object-verification.sh
@@ -114,5 +115,7 @@ FIATLUX_ENV_FILE=/etc/fiatlux-choice/production.env \
 ```
 
 最后两条默认 dry-run。第一版交付报告必须记录实际执行命令、退出码、时间、环境、失败修复与证据路径；不能用“配置看起来正确”替代实际验证。
+
+生产 `restore.sh` 还必须提供唯一 operation ID、环境、可识别操作者、真实审批引用、业务理由和预先创建的 `0700` 操作报告目录。只有技术报告与归档/目标身份一致、迁移和权限收敛完成、七镜像与六服务健康通过、本机发布状态落盘后，才会发布不可覆盖的 `0600` 主机成功报告。该报告固定保留 `approvalIndependentlyVerified=false`，必须和独立审批原件、异介质事实及批准的 RPO/RTO 交叉复核；fixture 报告不能关闭 `production_backup_restore` 门禁。
 
 本地相邻版本演练还必须覆盖低频人工请求窗口：记录回滚后 API `StartedAt` 和 restartCount，在超过数据库 idle 阈值及批准的回归窗口后，经正式 Caddy HTTPS 登录并完成任务 create/read/update/archive/归档后 404；同时扫描常驻 API 日志中的 `CONNECT_TIMEOUT`/依赖错误并核对四个 runtime `application_name`。one-shot 数据库连接成功不能代替该业务验证。2026-07-19 的 synthetic bridge 已在 308 秒窗口通过，但目标内网和最终受审 N−1 仍需复演。

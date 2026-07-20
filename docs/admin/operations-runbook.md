@@ -53,7 +53,7 @@ df -h /var/lib/docker /var/backups/fiatlux-choice
 
 每月：
 
-- 独立恢复演练及 RPO/RTO，核对恢复报告 `signatureVerified`、attestation SHA、公钥指纹和逐对象校验。
+- 独立恢复演练及 RPO/RTO，核对恢复报告 `signatureVerified`、attestation SHA、公钥指纹和逐对象校验；如当月发生生产恢复，再交叉核对 `operations/<operationId>/production-restore-<operationId>.json`、技术报告 SHA、主机日志和独立审批原件，不能把 `approvalIndependentlyVerified=false` 的操作者断言直接视为批准事实。
 - 管理员、Docker 组、公司角色和外部 token 权限复核。
 - Caddy CA、LLM/GitHub 凭据、age 密钥和 Ed25519 备份签名密钥的托管/轮换/旧公钥保留清单复核。
 

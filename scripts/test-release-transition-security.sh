@@ -43,6 +43,91 @@ cat >"$fake_compose" <<'EOF'
 set -euo pipefail
 override=${FIATLUX_VERSION_OVERRIDE:-none}
 printf '%s\t%s\n' "$override" "$*" >>"${TRANSITION_LOG:?}"
+write_synthetic_restore_report() {
+  local argument
+  local backup_file=""
+  local archive_sha256=""
+  local source_id=""
+  local source_database=""
+  local source_bucket=""
+  local backup_tool_release=""
+  local restore_tool_release=""
+  local signature_verified=false
+  local attestation_sha256=""
+  local signing_key_fingerprint_sha256=""
+  local report_id=""
+  local target_database=""
+  local target_bucket=""
+  for argument in "$@"; do
+    case "$argument" in
+      BACKUP_FILE=*) backup_file=${argument#*=} ;;
+      BACKUP_EXPECTED_SHA256=*) archive_sha256=${argument#*=} ;;
+      RESTORE_EXPECTED_SOURCE_ID=*) source_id=${argument#*=} ;;
+      RESTORE_EXPECTED_SOURCE_DATABASE=*) source_database=${argument#*=} ;;
+      RESTORE_EXPECTED_SOURCE_BUCKET=*) source_bucket=${argument#*=} ;;
+      RESTORE_EXPECTED_BACKUP_TOOL_RELEASE=*) backup_tool_release=${argument#*=} ;;
+      RESTORE_TOOL_RELEASE=*) restore_tool_release=${argument#*=} ;;
+      RESTORE_SIGNATURE_VERIFIED=*) signature_verified=${argument#*=} ;;
+      RESTORE_ATTESTATION_SHA256=*) attestation_sha256=${argument#*=} ;;
+      RESTORE_SIGNING_KEY_FINGERPRINT_SHA256=*)
+        signing_key_fingerprint_sha256=${argument#*=}
+        ;;
+      RESTORE_REPORT_ID=*) report_id=${argument#*=} ;;
+      RESTORE_CONFIRM_DATABASE=*) target_database=${argument#*=} ;;
+      RESTORE_CONFIRM_BUCKET=*) target_bucket=${argument#*=} ;;
+    esac
+  done
+  : "${BACKUP_DIR:?}" "${backup_file:?}" "${archive_sha256:?}" "${source_id:?}" \
+    "${source_database:?}" "${source_bucket:?}" "${backup_tool_release:?}" \
+    "${restore_tool_release:?}" "${report_id:?}" "${target_database:?}" \
+    "${target_bucket:?}"
+  local report_dir="$BACKUP_DIR/restore-reports"
+  local report="$report_dir/restore-$report_id.json"
+  mkdir -p "$report_dir"
+  umask 077
+  jq -n \
+    --arg reportId "$report_id" \
+    --arg source "$(basename "$backup_file")" \
+    --arg archiveSha256 "$archive_sha256" \
+    --argjson signatureVerified "$signature_verified" \
+    --arg attestationSha256 "$attestation_sha256" \
+    --arg signingKeyFingerprintSha256 "$signing_key_fingerprint_sha256" \
+    --arg sourceId "$source_id" \
+    --arg sourceDatabase "$source_database" \
+    --arg sourceBucket "$source_bucket" \
+    --arg backupToolRelease "$backup_tool_release" \
+    --arg restoreToolRelease "$restore_tool_release" \
+    --arg database "$target_database" \
+    --arg bucket "$target_bucket" '
+      {
+        schemaVersion: 1,
+        evidenceType: "technical_restore",
+        result: "success",
+        reportId: $reportId,
+        restoredAt: "2026-07-20T00:00:01Z",
+        source: $source,
+        archiveSha256: $archiveSha256,
+        approvedDigestMatched: true,
+        signatureVerified: $signatureVerified,
+        attestationSha256: (if $signatureVerified then $attestationSha256 else null end),
+        signingKeyFingerprintSha256: (if $signatureVerified then $signingKeyFingerprintSha256 else null end),
+        sourceId: $sourceId,
+        sourceDatabase: $sourceDatabase,
+        sourceBucket: $sourceBucket,
+        backupToolRelease: $backupToolRelease,
+        restoreToolRelease: $restoreToolRelease,
+        database: $database,
+        bucket: $bucket,
+        checksumVerified: true,
+        metadataVerified: true,
+        objectsVerified: true,
+        objectCount: 1,
+        objectBytes: 94,
+        objectManifestSha256: "8888888888888888888888888888888888888888888888888888888888888888"
+      }
+    ' >"$report.partial"
+  mv "$report.partial" "$report"
+}
 case "${1:-}" in
   config)
     if [[ "$*" == *'--format json'* ]]; then
@@ -81,6 +166,9 @@ JSON
     if [[ "${TRANSITION_FAIL_CONFIG_BACKUP:-0}" == 1 &&
       "$*" == *'backup-tools config-backup-container'* ]]; then
       exit 77
+    fi
+    if [[ "$*" == *'backup-tools restore-container'* ]]; then
+      write_synthetic_restore_report "$@"
     fi
     ;;
   up)
@@ -243,6 +331,8 @@ export RESTORE_SCRATCH_DIR=$workspace/restore-scratch
 mkdir -p "$workspace/restore-pre-backup"
 chmod 700 "$workspace/restore-pre-backup"
 export RESTORE_PRE_BACKUP_DIR=$workspace/restore-pre-backup
+mkdir -p "$workspace/restore-operation-reports"
+chmod 700 "$workspace/restore-operation-reports"
 export FIATLUX_MAINTENANCE_DIR=$workspace/maintenance
 export TRANSITION_LOG=$transition_log
 export DOCKER_BIN=$fake_docker
@@ -392,6 +482,12 @@ restore_archive_sha=$(sha256sum "$restore_archive" | awk '{print $1}')
   --expected-git-sha "$git_sha" \
   --confirm-database fiatlux_choice \
   --confirm-bucket fiatlux-choice \
+  --operation-id transition-restore-0001 \
+  --environment-id transition-fixture \
+  --operator-identity fixture-operator \
+  --approval-reference fixture-approval-0001 \
+  --reason "受控编排夹具恢复测试，不代表真实生产批准" \
+  --operation-report-dir "$workspace/restore-operation-reports" \
   --approve YES-I-UNDERSTAND >/dev/null
 
 restore_pull=$(line_number $'v3.0.0\tpull api worker web caddy backup-tools minio postgres' "$transition_log")
@@ -414,6 +510,36 @@ assert_single_explicit_pull "$transition_log"
 assert_transition_commands_pinned "$transition_log"
 if [[ "$(<"$workspace/state/current")" != v3.0.0 ]]; then
   echo "成功恢复后全局发布状态未更新为实际运行版本。" >&2
+  exit 1
+fi
+transition_operation_dir="$workspace/restore-operation-reports/operations/transition-restore-0001"
+transition_restore_report="$transition_operation_dir/production-restore-transition-restore-0001.json"
+transition_technical_report="$transition_operation_dir/technical/restore-reports/restore-transition-restore-0001.json"
+transition_technical_sha=$(sha256sum "$transition_technical_report" | awk '{print $1}')
+transition_restore_sha=$(sha256sum "$transition_restore_report" | awk '{print $1}')
+if ! jq -e \
+  --arg technicalSha "$transition_technical_sha" '
+    .evidenceType == "production_restore_operation" and
+    .result == "success" and .operationId == "transition-restore-0001" and
+    .approval.approvalIndependentlyVerified == false and
+    .execution.destructiveRestorePerformed == true and
+    .checks.technicalRestoreReportSha256 == $technicalSha and
+    .checks.migrationsPermissionsImagesHealth == true and
+    .checks.releaseStateRecorded == true
+  ' "$transition_restore_report" >/dev/null; then
+  echo "恢复编排未生成绑定技术报告和最终健康状态的主机报告。" >&2
+  exit 1
+fi
+if ! awk -F '\t' \
+  -v report_sha="$transition_restore_sha" '
+    $2 == "restore" {
+      found = ($10 == "transition-restore-0001" &&
+        $11 == "transition-fixture" && $12 == "fixture-operator" &&
+        $13 == "fixture-approval-0001" && $14 == report_sha)
+    }
+    END { exit !found }
+  ' "$workspace/state/history.tsv"; then
+  echo "恢复历史未绑定操作、环境、操作者、批准引用和主机报告摘要。" >&2
   exit 1
 fi
 

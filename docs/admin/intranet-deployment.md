@@ -51,6 +51,7 @@ sudo install -d -o fiatlux -g fiatlux -m 0750 /opt/fiatlux-choice
 sudo install -d -o fiatlux -g fiatlux -m 0700 /var/backups/fiatlux-choice
 sudo install -d -o fiatlux -g fiatlux -m 0700 /var/lib/fiatlux-choice/pre-restore-backups
 sudo install -d -o fiatlux -g fiatlux -m 0700 /var/lib/fiatlux-choice/restore-drill-reports
+sudo install -d -o fiatlux -g fiatlux -m 0700 /var/lib/fiatlux-choice/restore-operation-reports
 sudo install -d -o root -g root -m 0755 /var/lib/fiatlux-choice
 sudo install -d -o fiatlux -g fiatlux -m 0700 /var/lib/fiatlux-choice/backup-scratch
 sudo install -d -o fiatlux -g fiatlux -m 0700 /var/lib/fiatlux-choice/restore-scratch
@@ -61,6 +62,7 @@ sudo install -d -o root -g fiatlux -m 0750 /etc/fiatlux-choice/approved-backups
 
 `BACKUP_DIR`/`RESTORE_SOURCE_DIR` 是可审计归档源；执行恢复时它会以只读方式挂载到 `backup-tools:/restore-source`。`RESTORE_PRE_BACKUP_DIR` 必须指向上面的独立可写目录，不能把恢复前备份写回只读 U 盘、审批介质或源归档目录。
 `RESTORE_DRILL_REPORT_DIR` 同样必须是独立可写目录；定期恢复演练的日志和容器报告写入此目录，不写回只读归档源。
+`RESTORE_OPERATION_REPORT_DIR` 保存经审批生产恢复的容器技术报告和主机最终报告，必须预先创建为部署用户所有的 `0700` 普通目录，并与归档源、恢复前输出、backup/restore scratch 分离。不要把它放进可移动恢复介质或公开日志目录。
 `BACKUP_APPROVED_MANIFEST_DIR` 及其父链必须保持 root 所有且不允许 group/other 写入；批准文件使用 `root:fiatlux 0640`。部署用户只能读取，不能拥有、改写、替换或通过可写父目录重定向该批准记录；批准目录也不能放在 `BACKUP_DIR` 子树中。备份签名公钥可以放在 `/etc/fiatlux-choice`，但批准的公钥 DER SHA-256 必须由 root 控制的生产配置或等价独立审批渠道提供，不能从可写备份目录自动推导。
 
 Docker 组等价于主机 root 权限。只能把受信任的部署账户加入该组，不允许普通应用用户登录主机。

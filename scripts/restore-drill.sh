@@ -668,6 +668,7 @@ fi
 
 if [[ ! -f "$restore_report_path" || -L "$restore_report_path" ]] ||
   ! jq -e \
+    --arg report_id "$restore_report_id" \
     --arg archive_sha256 "$expected_sha256" \
     --arg source_id "$expected_source_id" \
     --arg source_database "$expected_source_database" \
@@ -676,6 +677,8 @@ if [[ ! -f "$restore_report_path" || -L "$restore_report_path" ]] ||
     --arg target_bucket "$S3_BUCKET" \
     --arg attestation_sha256 "$attestation_sha256" \
     --arg signing_key_fingerprint_sha256 "$signing_key_fingerprint_sha256" '
+      .schemaVersion == 1 and .evidenceType == "technical_restore" and
+      .result == "success" and .reportId == $report_id and
       .archiveSha256 == $archive_sha256 and .approvedDigestMatched == true and
       .signatureVerified == true and .attestationSha256 == $attestation_sha256 and
       .signingKeyFingerprintSha256 == $signing_key_fingerprint_sha256 and

@@ -427,6 +427,7 @@ if [ -e "$report" ] || [ -L "$report" ] || [ -e "$report_partial" ] || [ -L "$re
 	exit 5
 fi
 jq -n \
+	--arg report_id "$restore_report_id" \
 	--arg restored_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
 	--arg source "$(basename "$BACKUP_FILE")" \
 	--arg archive_sha256 "$actual_sha256" \
@@ -443,7 +444,7 @@ jq -n \
 	--argjson object_count "$object_count" \
 	--argjson object_bytes "$object_bytes" \
 	--arg object_manifest_sha256 "$object_manifest_sha256" \
-	'{restoredAt: $restored_at, source: $source, archiveSha256: $archive_sha256, approvedDigestMatched: true, signatureVerified: $signature_verified, attestationSha256: (if $signature_verified then $attestation_sha256 else null end), signingKeyFingerprintSha256: (if $signature_verified then $signing_key_fingerprint_sha256 else null end), sourceId: $source_id, sourceDatabase: $source_database, sourceBucket: $source_bucket, backupToolRelease: $backup_tool_release, restoreToolRelease: $restore_tool_release, database: $database, bucket: $bucket, checksumVerified: true, metadataVerified: true, objectsVerified: true, objectCount: $object_count, objectBytes: $object_bytes, objectManifestSha256: $object_manifest_sha256}' \
+	'{schemaVersion: 1, evidenceType: "technical_restore", result: "success", reportId: $report_id, restoredAt: $restored_at, source: $source, archiveSha256: $archive_sha256, approvedDigestMatched: true, signatureVerified: $signature_verified, attestationSha256: (if $signature_verified then $attestation_sha256 else null end), signingKeyFingerprintSha256: (if $signature_verified then $signing_key_fingerprint_sha256 else null end), sourceId: $source_id, sourceDatabase: $source_database, sourceBucket: $source_bucket, backupToolRelease: $backup_tool_release, restoreToolRelease: $restore_tool_release, database: $database, bucket: $bucket, checksumVerified: true, metadataVerified: true, objectsVerified: true, objectCount: $object_count, objectBytes: $object_bytes, objectManifestSha256: $object_manifest_sha256}' \
 	>"$report_partial"
 mv "$report_partial" "$report"
 report_partial=""

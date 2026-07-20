@@ -143,14 +143,15 @@ SIGNED_DRILL_CONFIRM=YES-I-UNDERSTAND \
 
 ## 生产恢复
 
-生产恢复是破坏性操作，必须经过人工批准并进入维护窗口。先确认目标数据库和桶名称；默认还会创建恢复前加密备份。
+生产恢复是破坏性操作，必须经过人工批准并进入维护窗口。先确认目标数据库和桶名称；默认还会创建恢复前加密备份。每次执行必须使用全局唯一的 `operationId`，记录目标环境、可识别操作者、业务理由和独立审批渠道中的真实引用。命令行只能保存这些断言，不能自行证明审批人身份或批准真实性。
 
-`--file` 所在的归档介质只作为恢复源读取，Compose 会把它挂载到 `backup-tools:/restore-source:ro`。恢复前备份必须写入独立的 `RESTORE_PRE_BACKUP_DIR`；生产环境文件必须显式设置该目录，并确保部署用户拥有 `0700` 可写权限、底层卷已加密且与归档源不重叠。脚本在拉取镜像、停止入口/API/worker 或任何数据库/对象桶修改前，会用归档大小的两倍加 64 MiB 作为恢复前备份目录和明文 scratch 的最低可用空间下限，并执行无内容写入探针。源目录只读或输出目录不可写时会失败关闭，不会把恢复前备份写回批准介质。
+`--file` 所在的归档介质只作为恢复源读取，Compose 会把它挂载到 `backup-tools:/restore-source:ro`。恢复前备份必须写入独立的 `RESTORE_PRE_BACKUP_DIR`；生产环境文件必须显式设置该目录，并确保部署用户拥有 `0700` 可写权限、底层卷已加密且与归档源不重叠。`RESTORE_OPERATION_REPORT_DIR` 也必须预先创建为部署用户可写的 `0700` 普通目录，且与归档源、恢复前输出、backup/restore scratch 分离。恢复容器只把技术报告写到该证据目录，不再借用恢复前备份目录。脚本在拉取镜像、停止入口/API/worker 或任何数据库/对象桶修改前，会用归档大小的两倍加 64 MiB 作为恢复前备份目录和明文 scratch 的最低可用空间下限，并执行无内容写入探针。源目录只读或输出目录不可写时会失败关闭，不会把恢复前备份写回批准介质。
 
 ```sh
 export FIATLUX_ENV=production
 export FIATLUX_ENV_FILE=/etc/fiatlux-choice/production.env
-# production.env must define RESTORE_PRE_BACKUP_DIR as a separate writable path
+# production.env must define separate RESTORE_PRE_BACKUP_DIR and
+# pre-created 0700 RESTORE_OPERATION_REPORT_DIR paths
 ./scripts/restore.sh \
   --file /var/backups/fiatlux-choice/fiatlux-YYYYMMDDTHHMMSSZ.tar.gz.age \
   --expected-sha256 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef \
@@ -169,10 +170,20 @@ export FIATLUX_ENV_FILE=/etc/fiatlux-choice/production.env
   --identity /etc/fiatlux-choice/age-identity.txt \
   --confirm-database fiatlux_choice \
   --confirm-bucket fiatlux-choice \
+  --operation-id restore-prod-20260720t153000z-001 \
+  --environment-id fiatlux-guangzhou-office-prod \
+  --operator-identity ops-liuxiu \
+  --approval-reference FL-CHANGE-2026-0042 \
+  --reason "生产数据库损坏，按已批准恢复点执行完整恢复" \
+  --operation-report-dir /var/lib/fiatlux-choice/restore-operation-reports \
   --approve YES-I-UNDERSTAND
 ```
 
-脚本在任何 Compose pull、恢复前备份、停止服务、`dropdb` 或桶操作之前，先核对 Ed25519 公钥类型、独立批准的公钥指纹、规范化 attestation、签名、独立批准的归档 SHA-256、实际归档字节、来源与 backup tool release。随后把四列发布清单、独立清单 SHA-256、完整 Git SHA、clean checkout 与七镜像 digest 绑定，显式选择 `--restore-image-version`；恢复前备份写入独立的 `RESTORE_PRE_BACKUP_DIR`，也使用这个实际 image，并把相同版本写进 metadata。其余顺序为：恢复前备份 -> 停止入口/API/worker -> 切换并等待已核验的同-major PostgreSQL -> 复制归档到受保护 scratch -> 再次核对受审归档 SHA-256 -> 解密 -> 归档只读 inspect 与实际展开容量预检 -> 使用同一个 Go tar 解析器完整预检并提取 -> 核对逐文件清单和 formatVersion 2 来源 metadata -> `pg_restore --list`、数据库角色能力、MinIO 桶及随机探针读/写/删前置检查 -> 由一次性 `fiatlux_restore` 终止连接/重建数据库并通过 `pg_restore --role=fiatlux_migrator` 恢复对象 -> 替换对象桶 -> 从目标桶逐对象读回并核对路径、字节数和 SHA-256 -> 依次运行 `migrate`、`queue-migrate`、`database-permissions` -> 一致启动所选 MinIO/api/worker/web/gateway -> 核对 PostgreSQL 与五个应用/存储常驻容器的 image ID、健康与权限 -> 最后记录 `current`。backup 仍是按需容器。前置检查拒绝不会触发 Compose 或数据修改；进入维护窗口后的其他前置检查拒绝仍会保持应用停止，便于人工调查。
+脚本在任何 Compose pull、恢复前备份、停止服务、`dropdb` 或桶操作之前，先核对操作元数据、专用证据目录、重复 ID/partial、路径分离、Ed25519 公钥类型、独立批准的公钥指纹、规范化 attestation、签名、独立批准的归档 SHA-256、实际归档字节、来源与 backup tool release。随后把四列发布清单、独立清单 SHA-256、完整 Git SHA、clean checkout 与七镜像 digest 绑定，显式选择 `--restore-image-version`；恢复前备份写入独立的 `RESTORE_PRE_BACKUP_DIR`，也使用这个实际 image，并把相同版本写进 metadata。其余顺序为：恢复前备份 -> 停止入口/API/worker -> 切换并等待已核验的同-major PostgreSQL -> 复制归档到受保护 scratch -> 再次核对受审归档 SHA-256 -> 解密 -> 归档只读 inspect 与实际展开容量预检 -> 使用同一个 Go tar 解析器完整预检并提取 -> 核对逐文件清单和 formatVersion 2 来源 metadata -> `pg_restore --list`、数据库角色能力、MinIO 桶及随机探针读/写/删前置检查 -> 由一次性 `fiatlux_restore` 终止连接/重建数据库并通过 `pg_restore --role=fiatlux_migrator` 恢复对象 -> 替换对象桶 -> 从目标桶逐对象读回并核对路径、字节数和 SHA-256 -> 校验绑定同一 `operationId` 的 `0600` 技术报告 -> 依次运行 `migrate`、`queue-migrate`、`database-permissions` -> 一致启动所选 MinIO/api/worker/web/gateway -> 核对 PostgreSQL 与五个应用/存储常驻容器的 image ID、健康与权限 -> 记录 `current` 和扩展 history -> 原子发布不可覆盖的主机成功报告。backup 仍是按需容器。前置检查拒绝不会触发 Compose 或数据修改；进入维护窗口后的其他前置检查拒绝仍会保持应用停止，便于人工调查。
+
+成功时证据位于 `operations/<operationId>/`：容器只能挂载其中新建的 `technical/` 子目录，无法看到或修改其他 operation 的技术/主机报告；`technical/restore-reports/restore-<operationId>.json` 和 `production-restore-<operationId>.json` 均为 `0600`。技术报告绑定归档、来源、备份/恢复工具版本、目标、签名和逐对象核验；主机报告再绑定候选 Git/清单、操作者断言、执行时间、技术报告 SHA-256、迁移、权限、七镜像、最终健康和本机发布状态。主机报告中的 `approvalIndependentlyVerified` 永远为 `false`；只有将原始报告 SHA-256、独立审批原件、运维日志、RPO/RTO 和异介质事实交叉核对后，才能形成生产恢复验收。
+
+任何失败、中断、仅有 operation 目录或残留 `.partial` 都不是成功报告。operation 目录会原子保留 ID；进入维护窗口后失败时保持应用停止，保全 systemd/journal、Compose 日志、维护锁、技术报告、partial 和恢复前备份；不得删除目录后用原 ID 重跑，也不得把容器技术报告单独当作全栈健康证明。SIGKILL 或宿主掉电无法由 shell trap 可靠记录，必须依靠主机日志和人工事件记录补齐失败审计。
 
 归档守卫只允许目录与普通文件；拒绝绝对路径、`..`、非规范路径、重复路径、符号链接、硬链接、字符/块设备、FIFO、sparse/其他成员、非空 link target、尾随非零数据，以及超过 `RESTORE_MAX_ARCHIVE_MEMBERS`（默认 200,000、硬上限 1,000,000）或 `RESTORE_MAX_EXPANDED_BYTES`（默认 100 GiB、硬上限 1 TiB）的归档。它先完整验证同一私有文件描述符，再写出任何成员；提取目录必须为空，目录固定为 `0700`，文件固定为 `0600`，不恢复归档 uid/gid、特权位或链接。内部 `manifest.sha256` 必须精确覆盖除自身外的所有普通文件，条目数使用同一个 `RESTORE_MAX_ARCHIVE_MEMBERS` 上限，单行最多 16 KiB，总大小最多 `min(条目上限 × 16 KiB, 64 MiB)`，不能引用归档外路径。
 
@@ -190,7 +201,7 @@ PostgreSQL 与 MinIO 没有分布式事务。全部可执行前置检查已前�
 
 归档只保存桶内对象，不保存 MinIO 内部卷的实现格式、身份数据库或服务内部元数据；跨版本 MinIO 内部卷不能靠普通归档恢复“原地升级”。必须使用受审版本重新初始化桶并通过对象级恢复；若目标 MinIO 无法读取现有对象，应停止流程并由批准人选择兼容版本或完整恢复点。
 
-仅当目标数据库已经损坏、无法生成备份且审批人接受风险时，才可加 `--skip-pre-backup`。恢复失败时保持应用停止，先保全日志和现有卷，不要反复重试破坏性步骤。
+仅当目标数据库已经损坏、无法生成备份且审批人接受风险时，才可同时加 `--skip-pre-backup --confirm-skip-pre-backup PRE-RESTORE-BACKUP-RISK-ACCEPTED`。单独的 `--skip-pre-backup` 会在任何 Compose 动作前失败；确认 token 只证明操作者明确输入，不等于风险批准。恢复失败时保持应用停止，先保全日志和现有卷，不要反复重试破坏性步骤。
 
 ## 定期任务验证
 
