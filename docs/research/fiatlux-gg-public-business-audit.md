@@ -93,6 +93,8 @@ Blog 汇总页还出现标题重复拼接，例如 “From Passion to Profession
 
 仓库筹备状态（2026-07-20）：十二个主题均已形成[版本化内部内容资产](../../content/education/README.md)，按 4 篇基础包和 8 篇扩展包维护，包含正文、模板、练习、来源、AI 辅助披露和治理元数据，并接入 FIAT LUX CHOICE 内部页面。十二篇仍全部为待人工复核、权利待确认和 WordPress 未发布；这不改变上表逐篇列出的真实案例、规则版本、职业数据、安全、健康和权利证据要求，也不表示官网现有 7 篇模板文章已经撤回或替换。
 
+仓库又提供[WordPress 内部审阅包](../admin/education-wordpress-review-bundle.md)，可把精确候选生成 12 个块 HTML、12 个治理审阅表和哈希 manifest。所有 HTML 固定显示 `FIATLUX_REVIEW_ONLY_DO_NOT_PUBLISH`，公开页放行器会拒绝该标记；该准备能力没有登录或修改官网，不能改变本盘点记录的外部状态。
+
 ### 4.3 从内容到试点的最小漏斗
 
 ```text

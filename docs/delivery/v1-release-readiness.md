@@ -23,8 +23,12 @@
 | `scripts/create-real-adapter-acceptance-template.ts` | 在受保护目录独占创建故意失败关闭的 `0600` 会话模板 |
 | `scripts/verify-real-adapter-acceptance-evidence.ts` | 离线绑定候选/环境/供应商/仓库身份并校验附件哈希、权限和文本密钥模式 |
 | `packages/contracts/src/education-content-clearance.ts` | 定义两份候选内容快照、九项问卷、逐篇八类复核/权利/批准/公开页及七篇旧模板处置契约 |
+| `packages/integrations/src/education-wordpress-review-bundle.ts` | 生成固定 `review_only` 的逐篇块 HTML、治理审阅表、阻断原因和 SHA-256 manifest |
+| `scripts/create-education-wordpress-review-bundle.ts` | 从精确候选提交向受保护新目录写入 26 个内部审阅文件，不接受凭据或执行外部发布 |
+| `scripts/test-education-wordpress-review-bundle.sh` | 真实生成并复算哈希/权限，验证 12 篇阻断、无网络、相对路径/不安全父目录/覆盖失败关闭 |
 | `scripts/create-education-content-clearance-template.ts` | 从不可变候选提交生成绑定 12 篇哈希且故意失败关闭的 `0600` 会话模板 |
 | `scripts/verify-education-content-clearance-evidence.ts` | 离线校验候选/附件/批准后，以无 Cookie、无登录、无重定向的只读 HTTP 核验公开页面并原子生成报告 |
+| `docs/admin/education-wordpress-review-bundle.md` | 规定内部审阅包生成、判读、最小访问、迭代和禁止公开边界 |
 | `docs/admin/education-content-clearance.md` | 规定真实问卷、复核、试讲、逐篇批准、WordPress 人工发布与门禁回填操作流程 |
 | `scripts/restore.sh` | 在破坏性恢复前校验操作身份、批准断言、归档/发布身份和隔离路径，成功后生成绑定技术报告与最终健康状态的不可覆盖主机报告 |
 | `scripts/test-restore-prebackup-dir-security.sh` | 覆盖操作元数据、二次风险确认、路径/容器挂载隔离、报告身份、权限、拒绝覆盖和失败关闭 |
@@ -64,6 +68,8 @@ pnpm exec tsx scripts/verify-v1-release-readiness.ts --file /absolute/path/to/ma
 真实适配器工程入口要求 API 不持有 LLM/GitHub token，真实探测由 worker 执行；会话必须覆盖七类真实顾问、提示词/工具/人工修改审计、供应商数据处理、账户硬预算、GitHub 单仓库 Metadata-only 权限、两类凭据撤销/替换/恢复和 disabled/manual 无网络回退。操作顺序、模板和校验命令见[真实适配器验收手册](../admin/real-adapter-acceptance.md)。`d7cc156ef2c44a531416c60ed88023681b113ecf` 已完成 exact-SHA 全仓、独立 PostgreSQL/MinIO、七镜像、空卷 Compose、desktop/mobile/PWA、重启、部署和安全验收，脱敏记录见[真实适配器防护验收](./evidence/real-adapter-guard-acceptance-d7cc156-20260720.json)。该会话刻意使用 mock/manual 且没有真实凭据、调用、目标会话或独立批准；本地通过只证明工程门禁会失败关闭，不能把 `real_llm_github_adapters` 改为 passed。
 
 电竞教育逐篇放行入口在 `f4c12b596afd90d5781a0d192f381315c39790bc` 把两份候选 Git 内容及逐篇哈希、九项上线问卷、每篇八类复核、来源适用性、素材权利、同人多角色披露、内部试讲、逐篇批准、WordPress post ID/URL、12 个公开页和七篇旧模板处置组成失败关闭证据链。exact-SHA 全仓、隔离依赖/Compose、桌面/移动/PWA、恢复回归与七镜像安全验收见[放行验证器机器证据](./evidence/education-content-clearance-verifier-acceptance-f4c12b5-20260720.json)。未填写 `0600` 模板以退出码 1 拒绝且不生成报告；真实问卷、复核、试讲、发布和批准均未发生，因此该记录只能更新本地核心/安全证据，不能把 `education_content_clearance` 改为 passed。
+
+内部审阅包是上述真实执行前的低人力准备工具：它把同一候选的 12 篇内容渲染为 26 个 `0700/0600` 受保护文件，manifest 绑定候选和逐文件哈希，所有 HTML 都含公开页验证器会拒绝的 `FIATLUX_REVIEW_ONLY_DO_NOT_PUBLISH`。结构状态即使满足也不会切换出 `review_only`；工具测试绿色不增加 V1 通过项。
 
 退出码定义：
 

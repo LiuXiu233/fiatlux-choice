@@ -13,6 +13,8 @@
 
 验证器随后校验受保护的会话与附件，并对 12 个登记公开 URL 和 7 个旧模板 URL 执行无登录、无 Cookie、无授权头、禁止自动跟随重定向的只读 `GET`。它不会登录、修改或发布 WordPress，不会提交表单，也不会把站内任务或模拟状态解释为外部成功。
 
+另有[WordPress 内部审阅包](./education-wordpress-review-bundle.md)把精确候选转换为带永久禁止发布标记的块 HTML 和治理审阅表，供真实复核人逐篇工作。它只是本放行流程的准备材料，不能代替会话、附件、公开页面或批准。
+
 机器可以证明候选身份、内容哈希、附件字节、公开 HTTP 状态、候选文字标记、canonical、纠错入口和选定占位文缺失。机器不能独立证明专业判断、权利有效性、复核人身份、试讲真实性、视觉与可访问性质量或批准真实性；这些结论必须由真实责任人通过独立渠道复核。
 
 ## 2. 放行范围
@@ -50,7 +52,23 @@ install -d -m 700 /secure/fiatlux-education/reports
 
 会话和每个附件必须是当前操作者所有的普通文件，且不得向 group/other 开放；建议精确使用 `0600`。证据根目录和报告目录必须精确为 `0700`，不得互相嵌套，也不得使用符号链接绕过目录边界。不得把 WordPress 密码、应用密码、授权头、Cookie、nonce、学员个人信息或敏感个人信息写入会话或附件。
 
-## 4. 创建候选模板
+## 4. 准备审阅稿与候选模板
+
+### 4.1 生成内部审阅包
+
+内容提交并通过结构校验后，可先在仓库外 `0700` 父目录生成 26 个受保护审阅文件：
+
+```bash
+pnpm content:education:review-bundle -- \
+  --output /secure/fiatlux-education/review/0123456789abcdef0123456789abcdef01234567 \
+  --repository-root /path/to/fiatlux-choice \
+  --git-sha 0123456789abcdef0123456789abcdef01234567 \
+  --json
+```
+
+该命令不接受任何 WordPress 凭据，也不联网。每篇 HTML 都含 `FIATLUX_REVIEW_ONLY_DO_NOT_PUBLISH`；即使结构状态没有阻断，manifest 也固定为 `review_only`。复核意见必须回写版本化内容并重新提交/生成，不能直接把该 HTML 原样公开。完整权限、哈希、失败恢复和审阅顺序见[内部审阅包手册](./education-wordpress-review-bundle.md)。
+
+### 4.2 创建放行会话模板
 
 先从发布批准记录独立取得版本、候选提交、目标 URL 和环境 ID，不要从待填写会话反向复制这些值：
 
@@ -79,7 +97,7 @@ pnpm delivery:education-content:template -- \
 9. 将七篇旧模板分别撤回为 404/410、以 301/308 重定向到本次文章，或在原 URL 原位重写。每个 URL 分别保存 HTTP 与视觉附件。
 10. 全部 12 篇可无登录访问、七篇旧模板处置完成后，再取得最终公司放行批准。最终批准必须晚于全部公开观察。
 
-公开页必须返回无跳转 `200`、使用 `fiatlux.gg` HTTPS URL、canonical 与登记 URL 相同，显示候选文章的三个文字标记并包含登记的纠错链接。验证器拒绝 preview/query URL、`wp-admin`、`wp-json`、重复 URL、重复 post ID、重复逐篇批准、复用发布截图以及已知 WordPress/Lorem 占位文。
+公开页必须返回无跳转 `200`、使用 `fiatlux.gg` HTTPS URL、canonical 与登记 URL 相同，显示候选文章的三个文字标记并包含登记的纠错链接。验证器拒绝 preview/query URL、`wp-admin`、`wp-json`、重复 URL、重复 post ID、重复逐篇批准、复用发布截图、内部审阅包标记以及已知 WordPress/Lorem 占位文。
 
 ## 6. 附件登记
 

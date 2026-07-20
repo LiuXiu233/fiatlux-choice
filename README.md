@@ -35,6 +35,7 @@
 - Docker Compose 内网拓扑、Caddy TLS、迁移、健康检查、CI、安全扫描、备份恢复和升级回滚资产。
 - 73 条中国、广东、广州官方合规来源、受控抓取/哈希、到期/变化/连续失败自动建人工任务，以及实名、机构、胜任依据、缺失信息、版本与证据锁定的追加式专业复核工作流。
 - 12 篇面向中国境内成年人的版本化电竞教育内容，以 4 篇基础包和 8 篇扩展包模块化维护，包含 Schema、来源、权利、AI 披露、人工复核、冲突关闭和 WordPress 手工发布边界。
+- WordPress 内部审阅包从精确 Git SHA 生成 12 个带永久禁止发布标记的块 HTML、12 个治理审阅表和 SHA-256 manifest；不接收凭据、不联网、不发布，并对不安全目录与覆盖失败关闭。
 - 电竞教育 V1 逐篇放行工具从候选 Git 提交绑定两份内容包和 12 篇文章，失败关闭九项问卷、八类复核、来源/权利、人工批准、真实 `fiatlux.gg` 页面及七篇旧模板处置；只读公开页面，不登录或写入 WordPress。
 
 高风险动作不会被自动执行。银行付款、税务申报、发票红冲、合同正式签署、合同终止、人事处分、关键权限修改和对外法律承诺共八类动作必须人工批准；创建请求只接受 `manual` 或 `mock`，`real` 会被拒绝。`manual` 必须凭外部回执推进，`mock` 只能得到 simulated/cancelled，不能伪造外部成功；合同签署、合同终止和发票红冲只有在 confirmed 时才与目标合同/发票状态原子更新。
@@ -192,6 +193,7 @@ SEED_MODE=bootstrap pnpm db:seed
 - [电竞教育在线业务策略](docs/product/esports-education-strategy.md)
 - [成人电竞教育试点课程包](docs/product/adult-esports-pilot-curriculum.md)
 - [电竞教育内容资产维护](content/education/README.md)
+- [电竞教育 WordPress 内部审阅包](docs/admin/education-wordpress-review-bundle.md)
 - [电竞教育逐篇放行与公开发布证据](docs/admin/education-content-clearance.md)
 - [fiatlux.gg 公开业务与内容盘点](docs/research/fiatlux-gg-public-business-audit.md)
 - [角色与权限](docs/user/roles-and-permissions.md)

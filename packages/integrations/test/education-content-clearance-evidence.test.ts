@@ -16,6 +16,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import {
   EducationContentClearanceEvidenceError,
+  loadEducationContentCandidateFromGit,
   loadEducationContentSnapshotFromGit,
   verifyEducationContentClearanceEvidence,
 } from "../src/education-content-clearance-evidence.js";
@@ -34,6 +35,7 @@ interface FetchOverrides {
   missingMarkerForArticle?: number;
   missingMetadataForArticle?: number;
   placeholderForArticle?: number;
+  reviewOnlyMarkerForArticle?: number;
   legacyStatusForIndex?: number;
 }
 
@@ -333,7 +335,9 @@ function fetchForSession(
       const placeholder =
         overrides.placeholderForArticle === articleIndex
           ? "This paragraph serves as an introduction to the topic."
-          : "";
+          : overrides.reviewOnlyMarkerForArticle === articleIndex
+            ? "FIATLUX_REVIEW_ONLY_DO_NOT_PUBLISH"
+            : "";
       const metadata =
         overrides.missingMetadataForArticle === articleIndex
           ? ""
@@ -384,6 +388,29 @@ afterEach(async () => {
 });
 
 describe("education content clearance evidence", () => {
+  it("loads raw candidate documents from the exact commit instead of the working tree", async () => {
+    const root = await mkdtemp(join(tmpdir(), "fiatlux-education-candidate-"));
+    roots.push(root);
+    await chmod(root, 0o700);
+    const { repositoryRoot, gitSha } = await createRepository(root);
+    await writeFile(
+      join(repositoryRoot, educationV1ContentFilePaths[0]),
+      "this uncommitted working-tree file is deliberately invalid JSON\n",
+      "utf8",
+    );
+
+    const candidate = await loadEducationContentCandidateFromGit(repositoryRoot, gitSha);
+
+    expect(candidate.snapshot.articles).toHaveLength(12);
+    expect(candidate.documents).toHaveLength(2);
+    expect(candidate.documents[0]).toMatchObject({
+      path: educationV1ContentFilePaths[0],
+      document: {
+        datasetId: "fiatlux-education-foundation",
+      },
+    });
+  });
+
   it("binds the candidate Git snapshot, protected artifacts and all public pages", async () => {
     const fixture = await createFixture();
     const result = await verifyEducationContentClearanceEvidence(optionsFor(fixture));
@@ -466,6 +493,15 @@ describe("education content clearance evidence", () => {
         optionsFor(fixture, fetchForSession(fixture.session, { placeholderForArticle: 0 })),
       ),
     ).rejects.toThrow("WordPress introduction template");
+  });
+
+  it("rejects a review-only marker on a claimed published page", async () => {
+    const fixture = await createFixture();
+    await expect(
+      verifyEducationContentClearanceEvidence(
+        optionsFor(fixture, fetchForSession(fixture.session, { reviewOnlyMarkerForArticle: 0 })),
+      ),
+    ).rejects.toThrow("FIAT LUX review-only bundle marker");
   });
 
   it("rejects legacy page status that contradicts its disposition", async () => {

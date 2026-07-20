@@ -1,4 +1,5 @@
 export * from "./education-content-clearance-evidence.js";
+export * from "./education-wordpress-review-bundle.js";
 export * from "./external.js";
 export * from "./github.js";
 export * from "./jobs.js";

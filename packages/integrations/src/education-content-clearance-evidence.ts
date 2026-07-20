@@ -125,6 +125,14 @@ export interface EducationContentClearanceEvidenceResult {
   reportSha256: string;
 }
 
+export interface EducationContentCandidateFromGit {
+  snapshot: EducationContentSnapshot;
+  documents: Array<{
+    path: string;
+    document: unknown;
+  }>;
+}
+
 export class EducationContentClearanceEvidenceError extends Error {
   override readonly name = "EducationContentClearanceEvidenceError";
 }
@@ -141,6 +149,7 @@ const secretPatterns: Array<{ name: string; pattern: RegExp }> = [
   { name: "WordPress nonce", pattern: /(?:_wpnonce|X-WP-Nonce)\s*[:=]\s*[A-Za-z0-9_-]+/i },
 ];
 const publicPlaceholderPatterns: Array<{ name: string; pattern: RegExp }> = [
+  { name: "FIAT LUX review-only bundle marker", pattern: /FIATLUX_REVIEW_ONLY_DO_NOT_PUBLISH/i },
   { name: "WordPress introduction template", pattern: /this paragraph serves as an introduction/i },
   { name: "WordPress conclusion template", pattern: /this paragraph serves as a conclusion/i },
   { name: "Lorem ipsum", pattern: /lorem ipsum/i },
@@ -275,10 +284,10 @@ async function gitBytes(repositoryRoot: string, args: string[], label: string): 
   }
 }
 
-export async function loadEducationContentSnapshotFromGit(
+export async function loadEducationContentCandidateFromGit(
   repositoryRootInput: string,
   gitSha: string,
-): Promise<EducationContentSnapshot> {
+): Promise<EducationContentCandidateFromGit> {
   if (!/^[0-9a-f]{40}$/.test(gitSha)) {
     throw new EducationContentClearanceEvidenceError("候选 Git SHA 必须是完整小写 40 位提交");
   }
@@ -287,6 +296,7 @@ export async function loadEducationContentSnapshotFromGit(
 
   const files: EducationContentSnapshot["files"] = [];
   const articles: EducationContentSnapshot["articles"] = [];
+  const documents: EducationContentCandidateFromGit["documents"] = [];
   const seenArticleIds = new Set<string>();
   const seenSlugs = new Set<string>();
   for (const path of educationV1ContentFilePaths) {
@@ -300,6 +310,7 @@ export async function loadEducationContentSnapshotFromGit(
         `候选内容 ${path} 不是有效 JSON：${message}`,
       );
     }
+    documents.push({ path, document: unknownDocument });
     const document = requireRecord(unknownDocument, `候选内容 ${path}`);
     const datasetId = requireString(document.datasetId, `${path}.datasetId`);
     const schemaVersion = requireString(document.schemaVersion, `${path}.schemaVersion`);
@@ -356,7 +367,14 @@ export async function loadEducationContentSnapshotFromGit(
       `候选电竞教育快照无效：${formatSchemaError(parsed.error)}`,
     );
   }
-  return parsed.data;
+  return { snapshot: parsed.data, documents };
+}
+
+export async function loadEducationContentSnapshotFromGit(
+  repositoryRootInput: string,
+  gitSha: string,
+): Promise<EducationContentSnapshot> {
+  return (await loadEducationContentCandidateFromGit(repositoryRootInput, gitSha)).snapshot;
 }
 
 function requireExpectedIdentity(
