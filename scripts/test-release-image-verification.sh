@@ -62,6 +62,22 @@ verify_dockerfile_supply_chain_pins() {
           return 1
         fi
         ;;
+      Dockerfile.web)
+        if ! grep -qx 'ARG FIATLUX_RELEASE_VERSION=development' "$directory/$dockerfile" || \
+          ! grep -qx 'ARG FIATLUX_RELEASE_GIT_SHA=development' "$directory/$dockerfile" || \
+          ! grep -Fq "VITE_RELEASE_VERSION=\"\$FIATLUX_RELEASE_VERSION\"" \
+            "$directory/$dockerfile" || \
+          ! grep -Fq "VITE_RELEASE_GIT_SHA=\"\$FIATLUX_RELEASE_GIT_SHA\"" \
+            "$directory/$dockerfile" || \
+          ! grep -Fq 'RUN chmod -R a-w /srv /etc/caddy/Caddyfile' "$directory/$dockerfile" || \
+          ! grep -Fq "development|local) test \"\$FIATLUX_RELEASE_GIT_SHA\" = development" \
+            "$directory/$dockerfile" || \
+          ! grep -Fq "ci|v*) printf '%s' \"\$FIATLUX_RELEASE_GIT_SHA\"" \
+            "$directory/$dockerfile"; then
+          echo "Web Dockerfile 必须把发布版本和完整 Git SHA 注入可见 PWA 构建身份。" >&2
+          return 1
+        fi
+        ;;
     esac
   done
 }
@@ -97,6 +113,28 @@ sed '1s/dockerfile:1\.25\.0/dockerfile:latest/' \
   "$ROOT_DIR/Dockerfile.worker" >"$dockerfile_fixture/Dockerfile.worker"
 if verify_dockerfile_supply_chain_pins "$dockerfile_fixture" >/dev/null 2>&1; then
   echo "Dockerfile 负向测试失败：mutable frontend tag 被接受。" >&2
+  exit 1
+fi
+cp "$ROOT_DIR/Dockerfile.worker" "$dockerfile_fixture/Dockerfile.worker"
+sed '/^ARG FIATLUX_RELEASE_GIT_SHA=development$/d' \
+  "$ROOT_DIR/Dockerfile.web" >"$dockerfile_fixture/Dockerfile.web"
+if verify_dockerfile_supply_chain_pins "$dockerfile_fixture" >/dev/null 2>&1; then
+  echo "Dockerfile 负向测试失败：缺少 PWA Git SHA 构建身份仍被接受。" >&2
+  exit 1
+fi
+cp "$ROOT_DIR/Dockerfile.web" "$dockerfile_fixture/Dockerfile.web"
+
+if ! grep -Fq "FIATLUX_RELEASE_VERSION=\${{ needs.prepare.outputs.version }}" \
+  "$ROOT_DIR/.github/workflows/release.yml" || \
+  ! grep -Fq "FIATLUX_RELEASE_GIT_SHA=\${{ needs.prepare.outputs.release_sha }}" \
+    "$ROOT_DIR/.github/workflows/release.yml" || \
+  ! grep -Fq "FIATLUX_RELEASE_GIT_SHA=\${{ github.sha }}" \
+    "$ROOT_DIR/.github/workflows/ci.yml" || \
+  [[ $(grep -Fxc "          build-args: \${{ matrix.build_args }}" \
+    "$ROOT_DIR/.github/workflows/ci.yml") -ne 1 ]] || \
+  [[ $(grep -Fxc "          build-args: \${{ matrix.build_args }}" \
+    "$ROOT_DIR/.github/workflows/release.yml") -ne 1 ]]; then
+  echo "CI/release 必须把受审候选身份传入 Web 构建。" >&2
   exit 1
 fi
 

@@ -921,6 +921,287 @@ const evidenceReferenceSchema = z
     "证据引用不能使用占位值",
   );
 
+export const managedDevicePwaCheckIds = [
+  "managed_status_confirmed",
+  "trusted_https_install",
+  "standalone_launch_before_update",
+  "update_to_candidate",
+  "standalone_launch_after_update",
+  "authenticated_core_flow",
+  "offline_shell_no_company_data",
+  "online_session_revalidated",
+  "logout_and_site_data_cleared",
+  "post_clear_auth_required",
+] as const;
+
+export const managedDevicePwaCheckIdSchema = z.enum(managedDevicePwaCheckIds);
+const managedDevicePwaVersionSchema = z
+  .string()
+  .regex(
+    /^v(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)(?:-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?$/,
+    "必须使用 vMAJOR.MINOR.PATCH[-PRERELEASE]",
+  );
+const managedDevicePwaBaseUrlSchema = z
+  .string()
+  .url()
+  .refine((value) => {
+    const url = new URL(value);
+    return (
+      url.protocol === "https:" &&
+      !url.username &&
+      !url.password &&
+      !url.search &&
+      !url.hash &&
+      url.pathname === "/"
+    );
+  }, "必须是无 userinfo、path、query 或 fragment 的 HTTPS origin");
+const managedDeviceEvidencePathSchema = z
+  .string()
+  .trim()
+  .min(3)
+  .max(240)
+  .refine(
+    (value) =>
+      !value.startsWith("/") &&
+      !value.includes("\\") &&
+      value
+        .split("/")
+        .every((segment) => segment.length > 0 && segment !== "." && segment !== ".."),
+    "证据文件必须使用无路径穿越的相对 POSIX 路径",
+  );
+const managedDeviceArtifactIdSchema = z
+  .string()
+  .regex(/^[a-z0-9][a-z0-9._-]{2,79}$/, "附件 ID 必须是 3–80 位小写稳定标识");
+const managedDeviceEnvironmentIdSchema = z
+  .string()
+  .regex(
+    /^[A-Za-z0-9][A-Za-z0-9._:-]{1,199}$/,
+    "环境 ID 必须是 2–200 位稳定标识，且只能包含字母、数字、点、下划线、冒号或连字符",
+  );
+
+export const managedDevicePwaSessionSchema = z
+  .object({
+    schemaVersion: z.literal(1),
+    evidenceType: z.literal("managed_device_pwa_session"),
+    sessionId: z.string().regex(/^[a-z0-9][a-z0-9._-]{7,119}$/),
+    candidate: z
+      .object({
+        version: managedDevicePwaVersionSchema,
+        gitSha: gitCommitSchema,
+        baseUrl: managedDevicePwaBaseUrlSchema,
+        environmentId: managedDeviceEnvironmentIdSchema,
+      })
+      .strict(),
+    device: z
+      .object({
+        assetId: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{2,99}$/),
+        assetIdIsPseudonymous: z.literal(true),
+        isPhysicalDevice: z.literal(true),
+        isSimulator: z.literal(false),
+        managementStatus: z.literal("company_managed"),
+        managementEvidenceReference: evidenceReferenceSchema,
+        platform: z.enum(["ios", "android"]),
+        osVersion: z.string().trim().min(1).max(100),
+        browserName: z.string().trim().min(2).max(100),
+        browserVersion: z.string().trim().min(1).max(100),
+        serialOrImeiRecorded: z.literal(false),
+      })
+      .strict(),
+    installation: z
+      .object({
+        installSource: z.literal("browser_ui"),
+        displayMode: z.literal("standalone"),
+        previousVersion: managedDevicePwaVersionSchema,
+        previousGitSha: gitCommitSchema,
+        candidateVersion: managedDevicePwaVersionSchema,
+        candidateGitSha: gitCommitSchema,
+        updateMethod: z.literal("service_worker_auto_update"),
+        serviceWorkerUpdateObserved: z.literal(true),
+        previousBuildIdentityObserved: z.string().trim().min(20).max(200),
+        candidateBuildIdentityObserved: z.string().trim().min(20).max(200),
+      })
+      .strict(),
+    execution: z
+      .object({
+        startedAt: offsetDateTimeSchema,
+        finishedAt: offsetDateTimeSchema,
+        timezone: z.literal("Asia/Shanghai"),
+        operatorIdentity: z.string().trim().min(2).max(200),
+        assertedApprovalReference: evidenceReferenceSchema,
+      })
+      .strict(),
+    privacy: z
+      .object({
+        rawCredentialsCaptured: z.literal(false),
+        sessionCookiesCaptured: z.literal(false),
+        deviceSerialOrImeiCaptured: z.literal(false),
+        companyDataRedacted: z.literal(true),
+      })
+      .strict(),
+    checks: z
+      .array(
+        z
+          .object({
+            id: managedDevicePwaCheckIdSchema,
+            result: z.literal("passed"),
+            observedAt: offsetDateTimeSchema,
+            artifactIds: z.array(managedDeviceArtifactIdSchema).min(1).max(10),
+            note: z.string().trim().min(10).max(1_000),
+          })
+          .strict(),
+      )
+      .length(managedDevicePwaCheckIds.length),
+    artifacts: z
+      .array(
+        z
+          .object({
+            id: managedDeviceArtifactIdSchema,
+            file: managedDeviceEvidencePathSchema,
+            sha256: sha256Schema,
+            bytes: z.number().int().min(1).max(250_000_000),
+            mimeType: z.enum([
+              "image/png",
+              "image/jpeg",
+              "video/mp4",
+              "text/plain",
+              "application/json",
+            ]),
+            capturedAt: offsetDateTimeSchema,
+          })
+          .strict(),
+      )
+      .min(4)
+      .max(30),
+  })
+  .strict()
+  .superRefine((session, context) => {
+    const startedAt = Date.parse(session.execution.startedAt);
+    const finishedAt = Date.parse(session.execution.finishedAt);
+    if (startedAt >= finishedAt) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["execution", "finishedAt"],
+        message: "finishedAt 必须晚于 startedAt",
+      });
+    }
+
+    if (
+      session.candidate.version !== session.installation.candidateVersion ||
+      session.candidate.gitSha !== session.installation.candidateGitSha
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["installation"],
+        message: "升级后的版本与 Git SHA 必须匹配候选身份",
+      });
+    }
+    if (
+      session.installation.previousVersion === session.installation.candidateVersion ||
+      session.installation.previousGitSha === session.installation.candidateGitSha
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["installation", "previousVersion"],
+        message: "真机升级必须来自不同版本和不同 Git SHA",
+      });
+    }
+    const expectedPreviousIdentity = `构建 ${session.installation.previousVersion} · ${session.installation.previousGitSha.slice(0, 7)}`;
+    const expectedCandidateIdentity = `构建 ${session.installation.candidateVersion} · ${session.installation.candidateGitSha.slice(0, 7)}`;
+    if (session.installation.previousBuildIdentityObserved !== expectedPreviousIdentity) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["installation", "previousBuildIdentityObserved"],
+        message: "旧版可见构建身份与 previousVersion/previousGitSha 不一致",
+      });
+    }
+    if (session.installation.candidateBuildIdentityObserved !== expectedCandidateIdentity) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["installation", "candidateBuildIdentityObserved"],
+        message: "升级后可见构建身份与候选版本/Git SHA 不一致",
+      });
+    }
+
+    const artifactIds = new Set<string>();
+    const artifactFiles = new Set<string>();
+    for (const [index, artifact] of session.artifacts.entries()) {
+      if (artifactIds.has(artifact.id)) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["artifacts", index, "id"],
+          message: "附件 ID 不能重复",
+        });
+      }
+      if (artifactFiles.has(artifact.file)) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["artifacts", index, "file"],
+          message: "附件路径不能重复",
+        });
+      }
+      artifactIds.add(artifact.id);
+      artifactFiles.add(artifact.file);
+      const capturedAt = Date.parse(artifact.capturedAt);
+      if (capturedAt < startedAt || capturedAt > finishedAt) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["artifacts", index, "capturedAt"],
+          message: "附件采集时间必须位于本次会话窗口内",
+        });
+      }
+    }
+
+    const referencedArtifactIds = new Set<string>();
+    let previousObservedAt = startedAt;
+    for (const [index, check] of session.checks.entries()) {
+      if (check.id !== managedDevicePwaCheckIds[index]) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["checks", index, "id"],
+          message: `检查必须按固定顺序出现：${managedDevicePwaCheckIds[index]}`,
+        });
+      }
+      const observedAt = Date.parse(check.observedAt);
+      if (observedAt < startedAt || observedAt > finishedAt || observedAt < previousObservedAt) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["checks", index, "observedAt"],
+          message: "检查时间必须位于会话窗口内并按顺序递增",
+        });
+      }
+      previousObservedAt = observedAt;
+      const checkArtifactIds = new Set(check.artifactIds);
+      if (checkArtifactIds.size !== check.artifactIds.length) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["checks", index, "artifactIds"],
+          message: "同一检查不能重复引用附件",
+        });
+      }
+      for (const artifactId of checkArtifactIds) {
+        referencedArtifactIds.add(artifactId);
+        if (!artifactIds.has(artifactId)) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["checks", index, "artifactIds"],
+            message: `检查引用了不存在的附件：${artifactId}`,
+          });
+        }
+      }
+    }
+    for (const [index, artifact] of session.artifacts.entries()) {
+      if (!referencedArtifactIds.has(artifact.id)) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["artifacts", index, "id"],
+          message: "每个附件必须至少支持一项固定检查",
+        });
+      }
+    }
+  });
+
+export type ManagedDevicePwaSession = z.infer<typeof managedDevicePwaSessionSchema>;
+
 export const v1ReleaseEvidenceSchema = z
   .object({
     kind: v1ReleaseEvidenceKindSchema,

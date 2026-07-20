@@ -54,8 +54,11 @@ docker buildx build --platform linux/amd64,linux/arm64 \
 
 - 桌面 Chromium、移动端窄视口均无横向溢出、遮挡或不可操作控件。
 - PWA manifest、图标、service worker、安装与更新流程有效。
+- 未登录页、离线壳、桌面侧栏和移动端个人菜单显示同一发布版本与 7 位 Git SHA；正式候选构建必须由完整 40 位 SHA 注入，不能显示混合的正式版本与 `dev` 身份。
 - service worker 不缓存 `/api`、鉴权响应、公司数据页面或敏感错误内容。
 - 断网只显示受控离线壳，不展示陈旧敏感数据为当前事实。
+
+自动化 Chromium 和移动 viewport 只作为前置工程证据。最终 `managed_device_pwa` 门禁按[真实受管手机 PWA 验收](./managed-device-pwa-verification.md)在目标内网物理受管设备上完成固定安装、升级、离线、恢复、退出和站点数据清理步骤；离线校验器报告固定保留真机、受管状态和批准“未独立验证”的边界。
 
 ## 运行时安全
 

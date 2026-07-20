@@ -1,6 +1,9 @@
 import { expect, test } from "@playwright/test";
 import { installMockApi, login } from "./mock-api";
 
+const buildIdentityPattern =
+  /^构建 (?:development|local|ci|v\d+\.\d+\.\d+(?:-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?) · (?:dev|[0-9a-f]{7})$/;
+
 test.beforeEach(async ({ page }) => {
   await installMockApi(page);
 });
@@ -362,6 +365,12 @@ test("AI 顾问只发送用户逐条选择的公司记录", async ({ page }) => 
 
 test("PWA manifest 可用且不声明 API 运行时缓存", async ({ page, request }) => {
   await page.goto("/login");
+  await expect(page.getByTestId("login-build-identity")).toHaveText(buildIdentityPattern);
+  await login(page);
+  await expect(page.getByTestId("build-identity")).toHaveText(buildIdentityPattern);
+  await page.locator(".profile-trigger").click();
+  await expect(page.getByTestId("profile-build-identity")).toBeVisible();
+  await expect(page.getByTestId("profile-build-identity")).toHaveText(buildIdentityPattern);
   const manifestLink = await page.locator('link[rel="manifest"]').getAttribute("href");
   expect(manifestLink).toBeTruthy();
   const manifest = await request.get(
@@ -377,6 +386,7 @@ test("已登录用户离线时隐藏工作区并在联网后重新验证", async
 
   await context.setOffline(true);
   await expect(page.getByRole("heading", { name: "当前无网络连接" })).toBeVisible();
+  await expect(page.getByTestId("connection-build-identity")).toHaveText(buildIdentityPattern);
   await expect(page.getByRole("button", { name: "重试" })).toBeDisabled();
   await expect(page.getByRole("heading", { name: /经营负责人/ })).toHaveCount(0);
   await expect(page.getByLabel("邮箱")).toHaveCount(0);
@@ -394,6 +404,7 @@ test("登录页离线时隐藏登录表单", async ({ page, context }) => {
 
   await context.setOffline(true);
   await expect(page.getByRole("heading", { name: "当前无网络连接" })).toBeVisible();
+  await expect(page.getByTestId("connection-build-identity")).toHaveText(buildIdentityPattern);
   await expect(page.getByLabel("邮箱")).toHaveCount(0);
   await expect(page.getByLabel("密码", { exact: true })).toHaveCount(0);
 

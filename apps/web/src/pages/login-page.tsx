@@ -3,6 +3,7 @@ import { type FormEvent, useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { ApiError } from "../lib/api";
 import { SessionConnectionState, useAuth } from "../lib/auth";
+import { buildInfo, formatBuildIdentity } from "../lib/build-info";
 
 export function LoginPage() {
   const auth = useAuth();
@@ -104,7 +105,12 @@ export function LoginPage() {
             {busy ? "正在验证…" : "进入工作区"}
           </button>
         </form>
-        <footer>耀光（广州）电子竞技有限公司</footer>
+        <footer>
+          <span>耀光（广州）电子竞技有限公司</span>
+          <span className="login-build-identity" data-testid="login-build-identity">
+            {formatBuildIdentity(buildInfo)}
+          </span>
+        </footer>
       </section>
     </main>
   );

@@ -17,6 +17,8 @@
 | `scripts/verify-v1-platform-evidence.ts` | 仅对 ready 清单执行外部平台实证；blocked 状态在网络请求前失败 |
 | `scripts/verify-target-intranet.sh` | 在真实目标主机组合校验受审源码、七类运行镜像、HTTPS 与最小权限，并原子生成脱敏机器报告 |
 | `scripts/test-target-intranet-verification.sh` | 覆盖成功报告、三层失败、哈希/URL/端口/符号链接、拒绝覆盖和中断清理 |
+| `scripts/verify-managed-device-pwa-evidence.ts` | 离线校验真实受管手机会话、候选/环境身份、固定步骤和实际附件，并原子生成不可覆盖报告 |
+| `docs/delivery/templates/managed-device-pwa-session.template.json` | 故意含占位值、不能直接通过 Schema 的受管手机会话填写模板 |
 | `.github/workflows/v1-readiness.yml` | 在候选制品和全部批准齐备后生成只读最终就绪证明，不执行生产操作 |
 | `packages/contracts/test/v1-release-readiness.test.ts` | 覆盖完整通过、真实阻断、缺失/重复门禁、证据失败、提交不匹配和人工批准缺失 |
 
@@ -45,6 +47,8 @@ pnpm exec tsx scripts/verify-v1-release-readiness.ts --file /absolute/path/to/ma
 目标办公内网机器证据不能由 GitHub runner 或开发机替代。部署完成后，目标环境运维负责人应在精确提交的干净 checkout 中按[部署验证清单](../admin/deployment-verification.md#目标办公内网机器证明)运行 `verify-target-intranet.sh`。它只有在源码 SHA、发布清单 SHA、七类 digest 与实际运行容器、服务健康/最小权限、目标 HTTPS 和 CA 全部通过后才写入 `0600` JSON；对应正负向测试已纳入 `pnpm check`、PR CI 和发布候选 workflow。
 
 该 JSON 仍只是 `target_intranet_deployment` 的一部分机器证据。其审批编号为操作者断言且 `approvalIndependentlyVerified=false`；防火墙/DNS 管理证据、受管设备、生产恢复、运行观察和可识别运维批准仍须从独立渠道取得。只有原始报告哈希、脱敏副本、外部记录和人工批准相互核对后才能更新机器清单，不能因为包装器或其测试绿色而关闭该门禁。
+
+真实受管手机证据同样不能由自动化浏览器替代。终端与业务验收负责人应按[受管手机验收手册](../admin/managed-device-pwa-verification.md)在目标 HTTPS origin 上完成旧版安装、Service Worker 升级、新版 standalone、核心登录、离线壳、联网重验、退出及站点数据清理，并用独立批准值向校验器提供版本、完整 Git SHA、URL 和环境 ID。报告会核对实际附件字节和哈希并保留 `sessionId`，但 `physicalDeviceIndependentlyVerified`、`managementStatusIndependentlyVerified`、`approvalIndependentlyVerified` 固定为 `false`；必须从 MDM、原始附件和公司批准渠道再复核，不能凭机器报告单独关闭 `managed_device_pwa`。
 
 退出码定义：
 

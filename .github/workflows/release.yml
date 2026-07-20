@@ -307,6 +307,8 @@ jobs:
         run: ./scripts/test-release-image-verification.sh
       - name: Test fail-closed target-intranet evidence generation
         run: pnpm test:target-intranet-verification
+      - name: Test managed-device PWA evidence contracts and file verification
+        run: pnpm test:managed-device-pwa-evidence
       - name: Test release transition ordering and N-1 backup image selection
         run: ./scripts/test-release-transition-security.sh
       - name: Test cross-operation maintenance lock and stale residue fail-closed behavior
@@ -378,6 +380,9 @@ jobs:
             dockerfile: Dockerfile.worker
           - image: web
             dockerfile: Dockerfile.web
+            build_args: |
+              FIATLUX_RELEASE_VERSION=${{ needs.prepare.outputs.version }}
+              FIATLUX_RELEASE_GIT_SHA=${{ needs.prepare.outputs.release_sha }}
           - image: gateway
             dockerfile: Dockerfile.caddy
           - image: minio
@@ -447,6 +452,7 @@ jobs:
           context: .
           file: ${{ matrix.dockerfile }}
           platforms: linux/amd64,linux/arm64
+          build-args: ${{ matrix.build_args }}
           outputs: type=image,name=${{ env.REGISTRY_IMAGE }},push-by-digest=true,name-canonical=true,push=true
           provenance: mode=max,version=v0.2
           cache-from: type=gha,scope=release-${{ matrix.image }}

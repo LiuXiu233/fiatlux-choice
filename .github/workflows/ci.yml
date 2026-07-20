@@ -78,6 +78,8 @@ jobs:
         run: ./scripts/test-release-image-verification.sh
       - name: Test fail-closed target-intranet evidence generation
         run: pnpm test:target-intranet-verification
+      - name: Test managed-device PWA evidence contracts and file verification
+        run: pnpm test:managed-device-pwa-evidence
       - name: Test release transition ordering and N-1 backup image selection
         run: ./scripts/test-release-transition-security.sh
       - name: Test cross-operation maintenance lock and stale residue fail-closed behavior
@@ -323,6 +325,9 @@ jobs:
             dockerfile: Dockerfile.worker
           - image: web
             dockerfile: Dockerfile.web
+            build_args: |
+              FIATLUX_RELEASE_VERSION=ci
+              FIATLUX_RELEASE_GIT_SHA=${{ github.sha }}
           - image: gateway
             dockerfile: Dockerfile.caddy
           - image: minio
@@ -357,6 +362,7 @@ jobs:
           APP_DOMAIN: choice.internal.example
           BACKUP_AGE_RECIPIENT: ci-compose-age-recipient-placeholder
           BACKUP_DIR: /tmp/fiatlux-backups
+          BACKUP_SCRATCH_DIR: /tmp/fiatlux-backup-scratch
           INITIAL_ADMIN_PASSWORD: ci-compose-admin-password
           MINIO_ROOT_PASSWORD: ci_compose_minio_password
           MINIO_ROOT_USER: fiatlux
@@ -372,6 +378,7 @@ jobs:
           POSTGRES_RUNTIME_PASSWORD: ci-compose-runtime-password
           POSTGRES_BACKUP_PASSWORD: ci-compose-backup-password
           POSTGRES_RESTORE_PASSWORD: ci-compose-restore-password
+          RESTORE_SCRATCH_DIR: /tmp/fiatlux-restore-scratch
           SESSION_SECRET: ci-compose-session-secret-with-more-than-32-characters
         run: |
           sh -n infra/minio/bootstrap.sh
@@ -381,6 +388,7 @@ jobs:
           context: .
           file: ${{ matrix.dockerfile }}
           platforms: linux/amd64,linux/arm64
+          build-args: ${{ matrix.build_args }}
           push: false
           cache-from: type=gha,scope=${{ matrix.image }}
           cache-to: type=gha,mode=max,scope=${{ matrix.image }}

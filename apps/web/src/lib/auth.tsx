@@ -3,6 +3,7 @@ import { CloudOff, RefreshCw } from "lucide-react";
 import { createContext, type ReactNode, useContext, useEffect, useState } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { ApiError, getSession, login, logout } from "./api";
+import { buildInfo, formatBuildIdentity } from "./build-info";
 import type { UserSession } from "./types";
 
 interface AuthContextValue {
@@ -130,7 +131,10 @@ export function SessionConnectionState() {
           <CloudOff />
         </span>
         <h1>{title}</h1>
-        <p>{description}</p>
+        <p className="session-connection-description">{description}</p>
+        <small className="session-build-identity" data-testid="connection-build-identity">
+          {formatBuildIdentity(buildInfo)}
+        </small>
         <button
           type="button"
           className="button primary session-retry"

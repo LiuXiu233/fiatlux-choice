@@ -219,7 +219,7 @@ systemd 单元默认每日备份、每月在独立卷恢复演练。首次启用
 
 - 发布 Git SHA、镜像 tag 与 digest、数据库迁移版本。
 - `verify-target-intranet.sh` JSON、报告 SHA-256、其内三个输出摘要哈希，以及必要时受控保存的 `verify-deployment.sh`、`/health/live`、`/health/ready` 原始输出。
-- 桌面 Playwright/PWA 结果、真实受管手机浏览器结果；iPhone 14 Chromium 仿真只能作为补充，不能标作真机。
+- 桌面 Playwright/PWA 结果，以及按[真实受管手机 PWA 验收](./managed-device-pwa-verification.md)生成并经独立责任人复核的物理受管手机会话、附件哈希和批准记录；iPhone 14 Chromium 仿真只能作为补充，不能标作真机。
 - RBAC 拒绝、审计追踪、高风险人工审批的端到端结果。
 - Trivy、CodeQL、依赖审计、secret scan 与 SBOM。
 - 首次加密且 Ed25519 签名的备份、独立 SHA/公钥指纹批准记录、带签名字段的独立恢复演练报告、实际 RPO/RTO。

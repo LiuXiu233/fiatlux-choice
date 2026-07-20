@@ -169,11 +169,19 @@ select:focus-visible {
   line-height: 1.3;
 }
 
-.session-connection-panel p {
-  margin: 9px 0 24px;
+.session-connection-description {
+  margin: 9px 0 8px;
   color: var(--muted);
   font-size: 13px;
   line-height: 1.65;
+}
+
+.session-build-identity {
+  display: block;
+  margin-bottom: 24px;
+  color: var(--teal-strong);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
 }
 
 .session-retry {
@@ -417,6 +425,11 @@ select:focus-visible {
   font-size: 10px;
 }
 
+.sidebar-org .build-identity {
+  color: #7be2d5;
+  font-variant-numeric: tabular-nums;
+}
+
 .main-column {
   min-height: 100vh;
   margin-left: var(--sidebar-width);
@@ -577,6 +590,11 @@ select:focus-visible {
   overflow-wrap: anywhere;
   color: var(--muted);
   font-size: 11px;
+}
+
+.profile-popover .profile-build-identity {
+  color: var(--teal-strong);
+  font-variant-numeric: tabular-nums;
 }
 
 .profile-popover button,
@@ -2098,9 +2116,17 @@ select:focus-visible {
 
 .login-panel footer {
   max-width: 430px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   margin-top: 34px;
   color: #989ea6;
   font-size: 10px;
+}
+
+.login-panel .login-build-identity {
+  color: var(--teal-strong);
+  font-variant-numeric: tabular-nums;
 }
 
 .segmented-control {

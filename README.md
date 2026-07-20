@@ -206,6 +206,7 @@ SEED_MODE=bootstrap pnpm db:seed
 - [内网部署](docs/admin/intranet-deployment.md)
 - [运维手册](docs/admin/operations-runbook.md)
 - [部署验证](docs/admin/deployment-verification.md)
+- [真实受管手机 PWA 验收](docs/admin/managed-device-pwa-verification.md)
 - [备份与恢复](docs/admin/backup-restore.md)
 - [升级与回滚](docs/admin/upgrade-rollback.md)
 - [PostgreSQL 最小权限角色](docs/admin/database-roles.md)

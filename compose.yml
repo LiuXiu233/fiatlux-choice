@@ -343,6 +343,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.web
+      args:
+        FIATLUX_RELEASE_VERSION: ${FIATLUX_RELEASE_VERSION:-local}
+        FIATLUX_RELEASE_GIT_SHA: ${FIATLUX_RELEASE_GIT_SHA:-development}
     <<: *hardened-app
     expose:
       - "8080"
