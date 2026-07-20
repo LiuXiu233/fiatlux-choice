@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+export * from "./real-adapter-acceptance.js";
+
 export const idSchema = z.string().uuid();
 const offsetDateTimeSchema = z.string().datetime({ offset: true });
 function isValidCalendarDate(year: number, month: number, day: number): boolean {

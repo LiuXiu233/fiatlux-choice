@@ -24,6 +24,7 @@ import {
   complianceSourceSnapshots,
   type Database,
   githubInsights,
+  integrationChecks,
   lockReferenceChain,
   membershipRoles,
   memberships,
@@ -836,6 +837,204 @@ export async function handleGitHubRefresh(
       resourceId: insight.id,
       before: insight,
       after: updated,
+    });
+  });
+}
+
+const INTEGRATION_CHECK_CLAIM_LEASE_MS = 10 * 60 * 1_000;
+const STALE_INTEGRATION_CHECK_ERROR =
+  "Integration probe lease expired; the prior attempt may have reached the provider and requires manual review";
+
+async function expireStaleIntegrationCheck(
+  dependencies: WorkerDependencies,
+  payload: JobPayloads["integration.test"],
+  now: Date,
+) {
+  const staleBefore = new Date(now.getTime() - INTEGRATION_CHECK_CLAIM_LEASE_MS);
+  const [candidate] = await dependencies.db
+    .select()
+    .from(integrationChecks)
+    .where(
+      and(
+        eq(integrationChecks.id, payload.checkId),
+        eq(integrationChecks.orgId, payload.orgId),
+        eq(integrationChecks.integrationId, payload.integrationId),
+        eq(integrationChecks.checkedBy, payload.requestedBy),
+        eq(integrationChecks.status, "running"),
+        lte(integrationChecks.updatedAt, staleBefore),
+        isNull(integrationChecks.archivedAt),
+      ),
+    )
+    .limit(1);
+  if (!candidate) return false;
+
+  return dependencies.db.transaction(async (tx) => {
+    const [failed] = await tx
+      .update(integrationChecks)
+      .set({
+        status: "unhealthy",
+        detail: STALE_INTEGRATION_CHECK_ERROR,
+        checkedAt: now,
+        updatedAt: now,
+        version: candidate.version + 1,
+      })
+      .where(
+        and(
+          eq(integrationChecks.id, candidate.id),
+          eq(integrationChecks.orgId, candidate.orgId),
+          eq(integrationChecks.status, "running"),
+          eq(integrationChecks.version, candidate.version),
+          lte(integrationChecks.updatedAt, staleBefore),
+        ),
+      )
+      .returning();
+    if (!failed) return false;
+    await appendSystemAudit(tx, {
+      orgId: payload.orgId,
+      action: "test_lease_expired",
+      resourceType: "integration",
+      resourceId: payload.integrationId,
+      before: candidate,
+      after: failed,
+      metadata: {
+        checkId: candidate.id,
+        requestedBy: payload.requestedBy,
+        error: STALE_INTEGRATION_CHECK_ERROR,
+      },
+    });
+    return true;
+  });
+}
+
+export async function handleIntegrationTest(
+  dependencies: WorkerDependencies,
+  payload: JobPayloads["integration.test"],
+) {
+  const claimTime = new Date();
+  const [check] = await dependencies.db
+    .update(integrationChecks)
+    .set({
+      status: "running",
+      detail: "Worker-only authenticated probe is running",
+      checkedAt: claimTime,
+      updatedAt: claimTime,
+      version: sql`${integrationChecks.version} + 1`,
+    })
+    .where(
+      and(
+        eq(integrationChecks.id, payload.checkId),
+        eq(integrationChecks.orgId, payload.orgId),
+        eq(integrationChecks.integrationId, payload.integrationId),
+        eq(integrationChecks.checkedBy, payload.requestedBy),
+        eq(integrationChecks.status, "queued"),
+        isNull(integrationChecks.archivedAt),
+      ),
+    )
+    .returning();
+  if (!check) {
+    await expireStaleIntegrationCheck(dependencies, payload, claimTime);
+    return;
+  }
+
+  let status: "healthy" | "unhealthy" = "healthy";
+  let detail: string;
+  let metadata: Record<string, unknown>;
+  try {
+    if (payload.integrationId === "llm") {
+      if (dependencies.config.LLM_DRIVER !== "compatible") {
+        throw new Error("Worker LLM mode changed before the authenticated probe ran");
+      }
+      const result = await dependencies.llmProvider.completeAdvisor({
+        system:
+          "This is a connectivity and structured-output acceptance probe. Return the required advisor JSON schema with no facts, one clearly labelled inference, one safe recommendation, one risk, at least one missing-information item, confidence 0, and a disclaimer. Do not claim access to company data or perform any action.",
+        user: {
+          question:
+            "Confirm only that the configured model can return the required safe structure.",
+          companyContext: [],
+          acceptanceProbe: true,
+        },
+      });
+      if (
+        result.provider !== dependencies.config.LLM_PROVIDER_ID ||
+        result.model !== dependencies.config.LLM_MODEL ||
+        !Number.isInteger(result.usage.inputTokens) ||
+        (result.usage.inputTokens ?? 0) < 1 ||
+        !Number.isInteger(result.usage.outputTokens) ||
+        (result.usage.outputTokens ?? 0) < 1
+      ) {
+        throw new Error("LLM probe did not return the approved provider/model identity and usage");
+      }
+      detail = `Authenticated structured output verified; provider=${result.provider}; endpoint=${dependencies.config.LLM_BASE_URL}; model=${result.model}; inputTokens=${result.usage.inputTokens}; outputTokens=${result.usage.outputTokens}; latencyMs=${result.latencyMs}`;
+      metadata = {
+        mode: "compatible",
+        provider: result.provider,
+        endpoint: dependencies.config.LLM_BASE_URL,
+        model: result.model,
+        inputTokens: result.usage.inputTokens,
+        outputTokens: result.usage.outputTokens,
+        latencyMs: result.latencyMs,
+        maxOutputTokens: dependencies.config.LLM_MAX_OUTPUT_TOKENS,
+      };
+    } else {
+      if (
+        dependencies.config.GITHUB_INTEGRATION_MODE !== "read_only" ||
+        !dependencies.config.GITHUB_PROBE_REPOSITORY
+      ) {
+        throw new Error("Worker GitHub mode changed before the authenticated probe ran");
+      }
+      const snapshot = await dependencies.github.getRepository(
+        dependencies.config.GITHUB_PROBE_REPOSITORY,
+      );
+      if (
+        snapshot.repository.toLowerCase() !==
+        dependencies.config.GITHUB_PROBE_REPOSITORY.toLowerCase()
+      ) {
+        throw new Error("GitHub probe returned a different repository identity");
+      }
+      detail = `Authenticated read-only repository identity verified: ${snapshot.repository}`;
+      metadata = {
+        mode: "read_only",
+        authenticatedRequest: true,
+        repository: snapshot.repository,
+        url: snapshot.url,
+        archived: snapshot.archived,
+      };
+    }
+  } catch (error) {
+    status = "unhealthy";
+    detail = sanitizeIntegrationError(error, "Unknown integration error", { maxLength: 500 });
+    metadata = { mode: payload.integrationId === "llm" ? "compatible" : "read_only" };
+  }
+
+  const completedAt = new Date();
+  await dependencies.db.transaction(async (tx) => {
+    const [completed] = await tx
+      .update(integrationChecks)
+      .set({
+        status,
+        detail,
+        checkedAt: completedAt,
+        updatedAt: completedAt,
+        version: check.version + 1,
+      })
+      .where(
+        and(
+          eq(integrationChecks.id, check.id),
+          eq(integrationChecks.orgId, payload.orgId),
+          eq(integrationChecks.status, "running"),
+          eq(integrationChecks.version, check.version),
+        ),
+      )
+      .returning();
+    if (!completed) throw new Error("Integration probe claim was lost before completion");
+    await appendSystemAudit(tx, {
+      orgId: payload.orgId,
+      action: status === "healthy" ? "test" : "test_fail",
+      resourceType: "integration",
+      resourceId: payload.integrationId,
+      before: check,
+      after: completed,
+      metadata: { checkId: check.id, requestedBy: payload.requestedBy, ...metadata },
     });
   });
 }

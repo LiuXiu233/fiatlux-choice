@@ -20,8 +20,11 @@ describe("API config", () => {
     expect(config.S3_ACCESS_KEY_ID).toBeUndefined();
     expect(config.LLM_BASE_URL).toBeUndefined();
     expect(config.LLM_MODEL).toBe("gpt-5-mini");
+    expect(config.LLM_PROVIDER_ID).toBe("openai-compatible");
+    expect(config.LLM_MAX_OUTPUT_TOKENS).toBe(2_048);
     expect(config.LLM_DRIVER).toBe("mock");
-    expect(config.GITHUB_TOKEN).toBeUndefined();
+    expect("LLM_API_KEY" in config).toBe(false);
+    expect("GITHUB_TOKEN" in config).toBe(false);
     expect(config.DATABASE_POOL_SIZE).toBe(5);
     expect(config.DATABASE_CONNECT_TIMEOUT_SECONDS).toBe(10);
     expect(config.READINESS_TIMEOUT_MS).toBe(3_000);
@@ -74,6 +77,19 @@ describe("API config", () => {
     expect(config.TRUST_PROXY).toBe(true);
   });
 
+  it("fails startup if integration secrets are injected into the API process", () => {
+    const base = {
+      DATABASE_URL: "postgresql://user:password@localhost:5432/database",
+      SESSION_SECRET: "a-secure-session-secret-that-is-long-enough",
+    };
+    expect(() => readApiConfig({ ...base, LLM_API_KEY: "misrouted-secret" })).toThrow(
+      /worker only/,
+    );
+    expect(() => readApiConfig({ ...base, GITHUB_TOKEN: "misrouted-secret" })).toThrow(
+      /worker only/,
+    );
+  });
+
   it("normalizes default HTTPS ports to the browser Origin serialization", () => {
     const defaultHttps = apiConfigSchema.parse({
       DATABASE_URL: "postgresql://user:password@localhost:5432/database",
@@ -89,14 +105,15 @@ describe("API config", () => {
     expect(nonDefaultHttps.WEB_ORIGIN).toBe("https://choice.internal.example:8443");
   });
 
-  it("requires credentials only for the compatible LLM driver", () => {
+  it("requires only non-secret endpoint metadata for compatible mode", () => {
     expect(() =>
       apiConfigSchema.parse({
         DATABASE_URL: "postgresql://user:password@localhost:5432/database",
         JWT_SECRET: "a-secure-test-secret-that-is-long-enough",
         LLM_DRIVER: "compatible",
+        LLM_BASE_URL: "https://llm.example.test/gateway",
       }),
-    ).toThrow(/LLM_DRIVER=compatible/);
+    ).not.toThrow();
     expect(
       apiConfigSchema.parse({
         DATABASE_URL: "postgresql://user:password@localhost:5432/database",
@@ -112,7 +129,6 @@ describe("API config", () => {
       DATABASE_URL: "postgresql://user:password@localhost:5432/database",
       JWT_SECRET: "a-secure-test-secret-that-is-long-enough",
       LLM_DRIVER: "compatible",
-      LLM_API_KEY: "test-provider-key",
     } as const;
 
     expect(() =>

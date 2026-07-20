@@ -32,10 +32,10 @@ x-api-environment: &api-environment
   S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-fiatlux-dev-app-password}
   LLM_DRIVER: ${LLM_DRIVER:-mock}
   LLM_BASE_URL: ${LLM_BASE_URL:-}
-  LLM_API_KEY: ${LLM_API_KEY:-}
+  LLM_PROVIDER_ID: ${LLM_PROVIDER_ID:-openai-compatible}
   LLM_MODEL: ${LLM_MODEL:-}
+  LLM_MAX_OUTPUT_TOKENS: ${LLM_MAX_OUTPUT_TOKENS:-2048}
   GITHUB_INTEGRATION_MODE: ${GITHUB_INTEGRATION_MODE:-manual}
-  GITHUB_TOKEN: ${GITHUB_TOKEN:-}
   TRUST_PROXY: "true"
 
 x-worker-environment: &worker-environment
@@ -47,9 +47,12 @@ x-worker-environment: &worker-environment
   LLM_DRIVER: ${LLM_DRIVER:-mock}
   LLM_BASE_URL: ${LLM_BASE_URL:-}
   LLM_API_KEY: ${LLM_API_KEY:-}
+  LLM_PROVIDER_ID: ${LLM_PROVIDER_ID:-openai-compatible}
   LLM_MODEL: ${LLM_MODEL:-}
+  LLM_MAX_OUTPUT_TOKENS: ${LLM_MAX_OUTPUT_TOKENS:-2048}
   GITHUB_INTEGRATION_MODE: ${GITHUB_INTEGRATION_MODE:-manual}
   GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+  GITHUB_PROBE_REPOSITORY: ${GITHUB_PROBE_REPOSITORY:-}
 
 x-api-image: &api-image
   image: ${IMAGE_PREFIX:-ghcr.io/liuxiu233/fiatlux-choice}-api:${APP_IMAGE_TAG:-local}

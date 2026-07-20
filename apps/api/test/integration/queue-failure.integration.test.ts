@@ -13,7 +13,7 @@ import { seedDatabase } from "@fiatlux/db/seed";
 import { type JobQueue, MemoryObjectStorage, type ObjectStorage } from "@fiatlux/integrations";
 import { and, desc, eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { buildApp } from "../../src/app.js";
 import { type ApiConfig, apiConfigSchema } from "../../src/config.js";
@@ -292,22 +292,21 @@ describe.skipIf(!databaseUrl)("API queue dispatch failure integration", () => {
     }
   });
 
-  it("redacts integration probe failures before response, persistence and audit", async () => {
+  it("redacts worker-only integration probe dispatch failures before persistence and audit", async () => {
     const leakedBasic = `basic-${Math.random().toString(36).slice(2)}-${"b".repeat(16)}`;
     const leakedUrlPassword = `url-${Math.random().toString(36).slice(2)}-${"u".repeat(16)}`;
-    const fetchSpy = vi
-      .spyOn(globalThis, "fetch")
-      .mockRejectedValue(
-        new Error(
+    const queue = {
+      send: async () => {
+        throw new Error(
           `Authorization: Basic ${leakedBasic} redis://:${leakedUrlPassword}@cache.internal/0`,
-        ),
-      );
-    const app = await build(undefined, {
+        );
+      },
+    } as unknown as JobQueue;
+    const app = await build(queue, {
       appConfig: {
         ...config,
         LLM_DRIVER: "compatible",
         LLM_BASE_URL: "https://llm.example.test",
-        LLM_API_KEY: ["integration", "probe", "dummy", "key"].join("-"),
       },
     });
     try {
@@ -317,7 +316,7 @@ describe.skipIf(!databaseUrl)("API queue dispatch failure integration", () => {
         url: "/api/v1/settings/integrations/llm/test",
         headers: { cookie: sessionCookie },
       });
-      expect(response.statusCode, response.body).toBe(200);
+      expect(response.statusCode, response.body).toBe(503);
       const [check] = await dbHandle.db
         .select()
         .from(integrationChecks)
@@ -343,8 +342,8 @@ describe.skipIf(!databaseUrl)("API queue dispatch failure integration", () => {
         expect(JSON.stringify(audit)).not.toContain(secret);
       }
       expect(check?.detail).toContain("[REDACTED]");
+      expect(audit?.action).toBe("queue_test_fail");
     } finally {
-      fetchSpy.mockRestore();
       await app.close();
     }
   });

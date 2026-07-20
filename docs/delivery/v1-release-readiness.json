@@ -300,14 +300,14 @@
       "id": "real_llm_github_adapters",
       "status": "blocked",
       "ownerRole": "信息安全与产品负责人",
-      "summary": "LLM 与 GitHub 的适配器边界、mock 和人工模式可用，真实最小权限凭据、供应商数据处理和停用演练尚未批准。",
+      "summary": "worker-only 真实探测与失败关闭验收契约已实现，但真实目标凭据、七顾问质量、最小权限和撤销回退尚未执行或批准。",
       "evidence": [
         {
           "kind": "machine_evidence",
           "result": "blocked",
-          "reference": "docs/delivery/known-boundaries.md#6-ai-顾问",
-          "verifiedAt": "2026-07-20T12:07:56+08:00",
-          "note": "manual/mock 回执不得冒充真实模型或 GitHub 外部操作成功。"
+          "reference": "docs/admin/real-adapter-acceptance.md#1-目的与完成边界",
+          "verifiedAt": "2026-07-20T16:56:38+08:00",
+          "note": "工程入口和离线 verifier 不持有真实凭据，也不独立证明供应商、GitHub 权限、质量、撤销或批准事实。"
         },
         {
           "kind": "approval",
@@ -317,10 +317,10 @@
         }
       ],
       "blockers": [
-        "缺少真实 LLM 与 GitHub 最小权限凭据和目标环境验收。",
-        "缺少供应商数据处理、质量、成本、撤销与停用的负责人批准。"
+        "缺少目标环境真实 LLM 与 GitHub 最小权限凭据、七类顾问运行及指定仓库刷新会话。",
+        "缺少供应商数据处理、质量、账户硬预算、两类凭据撤销轮换、disabled/manual 回退和独立负责人批准。"
       ],
-      "reviewedAt": "2026-07-20T12:07:56+08:00"
+      "reviewedAt": "2026-07-20T16:56:38+08:00"
     },
     {
       "id": "compliance_professional_review",

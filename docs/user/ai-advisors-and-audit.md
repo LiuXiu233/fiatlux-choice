@@ -115,6 +115,8 @@
 - 不发送无关个人信息、身份证件、银行账号、未公开商业秘密或整份文件。
 - 必要时先创建脱敏摘要作为上下文，并保留摘要来源和审阅人。
 - LLM_API_KEY 只进入运行环境密钥，不写入仓库、提示词或审计载荷。
+- LLM_API_KEY 和 GITHUB_TOKEN 只注入 worker；API 容器不持有它们。设置页对真实适配器返回 202/queued 后，由 worker 完成实际探测；queued 不是连接成功。
+- compatible 调用始终携带 `LLM_MAX_OUTPUT_TOKENS` 单次硬上限，创建顾问运行另有每小时限速；供应商账户仍必须配置月度硬预算和告警。
 - 真实模型连接失败必须显示 failed，不回退成未标识的 mock 结果。
 
 ## 9. 工具与外部动作边界
@@ -143,6 +145,8 @@
 | 人工修改冲突 | 重新读取最新 version 后比较，不覆盖他人修改 |
 
 安全威胁及响应见[威胁模型](../security/threat-model.md)和[事件响应](../security/incident-response.md)。
+
+生产真实适配器的七顾问质量、最小权限、成本、撤销和回退验收见[真实适配器验收手册](../admin/real-adapter-acceptance.md)。普通连接检查不能替代该门禁。
 
 ## 11. 审计抽查
 

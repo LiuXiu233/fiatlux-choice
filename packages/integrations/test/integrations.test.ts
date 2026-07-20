@@ -522,6 +522,7 @@ describe("compatible LLM provider contract", () => {
         new Response(
           JSON.stringify({
             choices: [{ message: { content: JSON.stringify(compatibleOutput) } }],
+            model: "approved-model",
             usage: { prompt_tokens: 123, completion_tokens: 45 },
           }),
           { status: 200, headers: { "content-type": "application/json" } },
@@ -531,6 +532,7 @@ describe("compatible LLM provider contract", () => {
       baseUrl: "https://llm.example.test/gateway/",
       apiKey: "test-api-key-never-log",
       model: "approved-model",
+      maxOutputTokens: 1_024,
       providerName: "contract-test",
       fetchImpl,
     });
@@ -555,6 +557,7 @@ describe("compatible LLM provider contract", () => {
     expect(request).toMatchObject({
       model: "approved-model",
       temperature: 0.1,
+      max_tokens: 1_024,
       response_format: { type: "json_object" },
     });
     expect(JSON.stringify(request)).not.toContain("test-api-key-never-log");
@@ -574,6 +577,71 @@ describe("compatible LLM provider contract", () => {
         }),
     ).toThrow(/must use HTTPS/);
     expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("rejects provider URLs with embedded credentials or query state", () => {
+    for (const baseUrl of [
+      "https://user:password@llm.example.test",
+      "https://llm.example.test/gateway?tenant=other",
+      "https://llm.example.test/gateway#fragment",
+    ]) {
+      expect(
+        () =>
+          new CompatibleLlmProvider({
+            baseUrl,
+            apiKey: "test-key",
+            model: "approved-model",
+          }),
+      ).toThrow(/cannot contain credentials, query or fragment/);
+    }
+  });
+
+  it("rejects invalid token accounting and an unbounded output configuration", async () => {
+    expect(
+      () =>
+        new CompatibleLlmProvider({
+          baseUrl: "https://llm.example.test",
+          apiKey: "test-key",
+          model: "approved-model",
+          maxOutputTokens: 32_769,
+        }),
+    ).toThrow(/max output tokens/);
+
+    const provider = new CompatibleLlmProvider({
+      baseUrl: "https://llm.example.test",
+      apiKey: "test-key",
+      model: "approved-model",
+      fetchImpl: async () =>
+        new Response(
+          JSON.stringify({
+            choices: [{ message: { content: JSON.stringify(compatibleOutput) } }],
+            model: "approved-model",
+            usage: { prompt_tokens: -1, completion_tokens: 20 },
+          }),
+        ),
+    });
+    await expect(
+      provider.completeAdvisor({ system: "system", user: { question: "question" } }),
+    ).rejects.toThrow(/invalid input token usage/);
+  });
+
+  it("rejects a provider response that does not bind the approved model identity", async () => {
+    const provider = new CompatibleLlmProvider({
+      baseUrl: "https://llm.example.test",
+      apiKey: "test-key",
+      model: "approved-model",
+      fetchImpl: async () =>
+        new Response(
+          JSON.stringify({
+            choices: [{ message: { content: JSON.stringify(compatibleOutput) } }],
+            model: "different-model",
+            usage: { prompt_tokens: 10, completion_tokens: 20 },
+          }),
+        ),
+    });
+    await expect(
+      provider.completeAdvisor({ system: "system", user: { question: "question" } }),
+    ).rejects.toThrow(/different or missing model identity/);
   });
 
   it("reports rate limits without copying an untrusted response body", async () => {

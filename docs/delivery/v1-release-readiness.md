@@ -19,6 +19,9 @@
 | `scripts/test-target-intranet-verification.sh` | 覆盖成功报告、三层失败、哈希/URL/端口/符号链接、拒绝覆盖和中断清理 |
 | `scripts/verify-managed-device-pwa-evidence.ts` | 离线校验真实受管手机会话、候选/环境身份、固定步骤和实际附件，并原子生成不可覆盖报告 |
 | `docs/delivery/templates/managed-device-pwa-session.template.json` | 故意含占位值、不能直接通过 Schema 的受管手机会话填写模板 |
+| `packages/contracts/src/real-adapter-acceptance.ts` | 定义真实适配器的七顾问、质量、成本、权限、轮换、回退和附件契约 |
+| `scripts/create-real-adapter-acceptance-template.ts` | 在受保护目录独占创建故意失败关闭的 `0600` 会话模板 |
+| `scripts/verify-real-adapter-acceptance-evidence.ts` | 离线绑定候选/环境/供应商/仓库身份并校验附件哈希、权限和文本密钥模式 |
 | `scripts/restore.sh` | 在破坏性恢复前校验操作身份、批准断言、归档/发布身份和隔离路径，成功后生成绑定技术报告与最终健康状态的不可覆盖主机报告 |
 | `scripts/test-restore-prebackup-dir-security.sh` | 覆盖操作元数据、二次风险确认、路径/容器挂载隔离、报告身份、权限、拒绝覆盖和失败关闭 |
 | `.github/workflows/v1-readiness.yml` | 在候选制品和全部批准齐备后生成只读最终就绪证明，不执行生产操作 |
@@ -53,6 +56,8 @@ pnpm exec tsx scripts/verify-v1-release-readiness.ts --file /absolute/path/to/ma
 真实受管手机证据同样不能由自动化浏览器替代。终端与业务验收负责人应按[受管手机验收手册](../admin/managed-device-pwa-verification.md)在目标 HTTPS origin 上完成旧版安装、Service Worker 升级、新版 standalone、核心登录、离线壳、联网重验、退出及站点数据清理，并用独立批准值向校验器提供版本、完整 Git SHA、URL 和环境 ID。报告会核对实际附件字节和哈希并保留 `sessionId`，但 `physicalDeviceIndependentlyVerified`、`managementStatusIndependentlyVerified`、`approvalIndependentlyVerified` 固定为 `false`；必须从 MDM、原始附件和公司批准渠道再复核，不能凭机器报告单独关闭 `managed_device_pwa`。
 
 生产恢复入口在 `231d8e82164f8e31b1cc978975bf56e7ac6a26bb` 完成了操作身份、外部批准引用、业务理由、跳过恢复前备份二次确认、每 operation 独占技术挂载、技术报告 SHA 和最终主机健康报告绑定。exact-SHA 本地栈又完成 38 表、11 migrations、pg-boss 24、错误 S3 凭据破坏前拒绝和 1 个 41-byte 对象的 age+Ed25519 隔离恢复；证据见[生产恢复防护验收](./evidence/production-restore-guard-acceptance-231d8e8-20260720.json)。该证据固定记录 `productionRestoreEntrypointExecuted=false`、`approvalIndependentlyVerified=false` 和 `productionBackupRestoreGateClosed=false`，不能替代经审批的目标环境 `restore.sh`、物理异介质、原始 `0600` 报告或业务 RPO/RTO。
+
+真实适配器工程入口要求 API 不持有 LLM/GitHub token，真实探测由 worker 执行；会话必须覆盖七类真实顾问、提示词/工具/人工修改审计、供应商数据处理、账户硬预算、GitHub 单仓库 Metadata-only 权限、两类凭据撤销/替换/恢复和 disabled/manual 无网络回退。操作顺序、模板和校验命令见[真实适配器验收手册](../admin/real-adapter-acceptance.md)。当前尚未提供任何真实凭据、目标会话或独立批准；本地正负向测试只证明工程门禁会失败关闭，不能把 `real_llm_github_adapters` 改为 passed。
 
 退出码定义：
 

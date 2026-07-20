@@ -110,6 +110,7 @@ pg-boss 与业务共用 PostgreSQL，避免为小团队维护额外消息系统�
 | workflow.run | 顺序执行通知、建任务、请求审批或发起顾问 |
 | notification.deliver | 投递站内通知；未配置渠道明确失败 |
 | github.refresh | 读取 GitHub 仓库快照并更新情报 |
+| integration.test | 仅由 worker 持有密钥并执行真实 LLM 结构化探测或 GitHub 仓库身份读取 |
 | compliance-source.monitor | 新目录分散到 7 个每日时间桶，每组织每次默认按最早到期顺序领取 12 条并审计剩余积压；人工复核到期、正文变化或连续第三次失败时，在来源状态事务内创建高优先级任务、确定协调责任人、原子送达站内通知并写关联审计 |
 | obligation.sweep | 每小时按 Asia/Shanghai 扫描逾期义务和合规事件 |
 | backup.create | 调用受控备份命令；内置降级只支持数据库。队列 active lease 为 2 小时 10 分钟，长于 worker 的 2 小时数据库 claim lease；超时重投只会把仍未完成的 running 记录标记为人工复核失败，不会自动重新执行可能产生部分结果的备份 |

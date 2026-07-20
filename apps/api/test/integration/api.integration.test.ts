@@ -677,6 +677,63 @@ describe.skipIf(!databaseUrl)("API PostgreSQL vertical slice", () => {
     }
   });
 
+  it("queues real LLM and GitHub probes for the credential-bearing worker only", async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockRejectedValue(new Error("API container must not make provider calls"));
+    const queueCount = queuedJobs.length;
+    config.LLM_DRIVER = "compatible";
+    config.LLM_BASE_URL = "https://llm.example.test/gateway";
+    config.GITHUB_INTEGRATION_MODE = "read_only";
+    try {
+      const [llmResponse, llmReplayResponse] = await Promise.all([
+        app.inject({
+          method: "POST",
+          url: "/api/v1/settings/integrations/llm/test",
+          headers: { cookie: firstCookie },
+        }),
+        app.inject({
+          method: "POST",
+          url: "/api/v1/settings/integrations/llm/test",
+          headers: { cookie: firstCookie },
+        }),
+      ]);
+      const githubResponse = await app.inject({
+        method: "POST",
+        url: "/api/v1/settings/integrations/github/test",
+        headers: { cookie: firstCookie },
+      });
+      expect(llmResponse.statusCode, llmResponse.body).toBe(202);
+      expect(llmReplayResponse.statusCode, llmReplayResponse.body).toBe(202);
+      expect(githubResponse.statusCode, githubResponse.body).toBe(202);
+      expect(body(llmResponse).data).toMatchObject({ status: "queued" });
+      expect((body(llmReplayResponse).data as JsonObject).id).toBe(
+        (body(llmResponse).data as JsonObject).id,
+      );
+      expect(body(githubResponse).data).toMatchObject({ status: "queued" });
+      const probeJobs = queuedJobs.slice(queueCount);
+      expect(probeJobs).toHaveLength(3);
+      expect(
+        probeJobs.filter(
+          (job) =>
+            job.name === "integration.test" &&
+            (job.data as JsonObject).integrationId === "llm" &&
+            (job.data as JsonObject).requestedBy === firstUserId,
+        ),
+      ).toHaveLength(2);
+      expect(probeJobs).toContainEqual({
+        name: "integration.test",
+        data: expect.objectContaining({ integrationId: "github", requestedBy: firstUserId }),
+      });
+      expect(fetchSpy).not.toHaveBeenCalled();
+    } finally {
+      config.LLM_DRIVER = "mock";
+      config.LLM_BASE_URL = undefined;
+      config.GITHUB_INTEGRATION_MODE = "manual";
+      fetchSpy.mockRestore();
+    }
+  });
+
   it("queues only organization-scoped GitHub refreshes in explicit read-only mode", async () => {
     const createInsight = (cookieValue: string, repository: string) =>
       app.inject({

@@ -7,6 +7,7 @@ export const JOB_NAMES = {
   workflowRun: "workflow.run",
   notificationDeliver: "notification.deliver",
   githubRefresh: "github.refresh",
+  integrationTest: "integration.test",
   obligationSweep: "obligation.sweep",
   complianceSourceMonitor: "compliance-source.monitor",
   backupCreate: "backup.create",
@@ -25,6 +26,12 @@ export interface JobPayloads {
   "workflow.run": { orgId: string; runId: string };
   "notification.deliver": { orgId: string; notificationId: string };
   "github.refresh": { orgId: string; insightId: string; expectedVersion: number };
+  "integration.test": {
+    orgId: string;
+    checkId: string;
+    integrationId: "llm" | "github";
+    requestedBy: string;
+  };
   "obligation.sweep": { orgId: string };
   "compliance-source.monitor": {
     orgId: string;

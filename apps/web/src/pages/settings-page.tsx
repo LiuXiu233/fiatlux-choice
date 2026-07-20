@@ -44,6 +44,10 @@ export function SettingsPage() {
   const integrations = useQuery({
     queryKey: ["integrations"],
     queryFn: async () => (await api.get<IntegrationStatus[]>("/settings/integrations")).data,
+    refetchInterval: (query) =>
+      query.state.data?.some((integration) => ["queued", "running"].includes(integration.status))
+        ? 2500
+        : false,
     enabled: !mustChangePassword,
   });
   const backups = useQuery({
@@ -67,8 +71,13 @@ export function SettingsPage() {
   const testMutation = useMutation({
     mutationFn: (id: string) => api.post<IntegrationStatus>(`/settings/integrations/${id}/test`),
     onSuccess: async (response) => {
+      const queued = response.data.status === "queued" || response.data.status === "running";
       toast.push(
-        response.data.status === "healthy" ? "连接验证成功" : "验证已完成，请检查状态",
+        queued
+          ? "验证任务已交给隔离的后台执行器"
+          : response.data.status === "healthy"
+            ? "连接验证成功"
+            : "验证已完成，请检查状态",
         response.data.status === "healthy" ? "success" : "info",
       );
       await queryClient.invalidateQueries({ queryKey: ["integrations"] });

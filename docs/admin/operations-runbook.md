@@ -75,7 +75,7 @@ df -h /var/lib/docker /var/backups/fiatlux-choice
 
 迁移必须依次通过一次性 `migrate`、`queue-migrate`、`database-permissions` 服务执行；禁止把 DDL 放进 API/worker 多副本启动入口。重复运行当前迁移与授权收敛应安全，但每次生产迁移前仍需完整加密备份。
 
-临时停止外部 AI 调用：在生产环境文件中切换 `LLM_DRIVER=mock`，然后重建 API 和 worker。所有模拟结果必须明确标为模拟，不得显示外部操作成功。
+临时停止外部 AI 调用：在生产环境文件中切换 `LLM_DRIVER=disabled`、清空 `LLM_API_KEY`，然后重建 API 和 worker。只有显式演示环境才使用 mock；所有模拟结果必须明确标为模拟，不得显示外部操作成功。GitHub 停用时切换 `GITHUB_INTEGRATION_MODE=manual`，同时清空 token 和 probe repository。
 
 ```sh
 ./scripts/compose.sh up -d --wait --force-recreate api worker

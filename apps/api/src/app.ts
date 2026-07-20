@@ -7,12 +7,7 @@ import swagger from "@fastify/swagger";
 import swaggerUi from "@fastify/swagger-ui";
 import { MAX_FILE_SIZE_BYTES } from "@fiatlux/contracts";
 import { createDatabase } from "@fiatlux/db";
-import {
-  createLlmProvider,
-  JobQueue,
-  MemoryObjectStorage,
-  S3ObjectStorage,
-} from "@fiatlux/integrations";
+import { JobQueue, MemoryObjectStorage, S3ObjectStorage } from "@fiatlux/integrations";
 import { sql } from "drizzle-orm";
 import Fastify from "fastify";
 
@@ -57,12 +52,6 @@ export function createDefaultDependencies(config: ApiConfig): AppDependencies {
             throw new Error("Production requires S3 object storage credentials");
           })()
         : new MemoryObjectStorage();
-  const llmProvider = createLlmProvider({
-    driver: config.LLM_DRIVER,
-    ...(config.LLM_BASE_URL ? { baseUrl: config.LLM_BASE_URL } : {}),
-    ...(config.LLM_API_KEY ? { apiKey: config.LLM_API_KEY } : {}),
-    model: config.LLM_MODEL,
-  });
   return {
     config,
     db,
@@ -75,7 +64,6 @@ export function createDefaultDependencies(config: ApiConfig): AppDependencies {
       migrate: false,
       provisionQueues: false,
     }),
-    llmProvider,
   };
 }
 

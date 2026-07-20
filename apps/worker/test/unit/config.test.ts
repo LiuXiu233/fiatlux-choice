@@ -14,6 +14,8 @@ describe("worker config", () => {
     });
     expect(config.LLM_BASE_URL).toBeUndefined();
     expect(config.LLM_MODEL).toBe("gpt-5-mini");
+    expect(config.LLM_PROVIDER_ID).toBe("openai-compatible");
+    expect(config.LLM_MAX_OUTPUT_TOKENS).toBe(2_048);
     expect(config.LLM_API_KEY).toBeUndefined();
     expect(config.GITHUB_TOKEN).toBeUndefined();
     expect(config.GITHUB_INTEGRATION_MODE).toBe("manual");
@@ -56,8 +58,18 @@ describe("worker config", () => {
     const config = workerConfigSchema.parse({
       DATABASE_URL: "postgresql://user:password@localhost:5432/database",
       GITHUB_INTEGRATION_MODE: "read_only",
+      GITHUB_TOKEN: "test-read-only-token",
+      GITHUB_PROBE_REPOSITORY: "owner/repository",
     });
     expect(config.GITHUB_INTEGRATION_MODE).toBe("read_only");
+    expect(config.GITHUB_PROBE_REPOSITORY).toBe("owner/repository");
+
+    expect(() =>
+      workerConfigSchema.parse({
+        DATABASE_URL: "postgresql://user:password@localhost:5432/database",
+        GITHUB_INTEGRATION_MODE: "read_only",
+      }),
+    ).toThrow(/GITHUB_TOKEN and GITHUB_PROBE_REPOSITORY/);
   });
 
   it("rejects an unconfigured compatible LLM driver", () => {
@@ -87,7 +99,20 @@ describe("worker config", () => {
       workerConfigSchema.parse({
         ...compatibleConfig,
         LLM_BASE_URL: "https://llm.example.test",
+        LLM_PROVIDER_ID: "approved-provider",
+        LLM_MAX_OUTPUT_TOKENS: 4_096,
       }).LLM_BASE_URL,
     ).toBe("https://llm.example.test");
+  });
+
+  it("rejects unused integration secrets and bounds the model output budget", () => {
+    const base = { DATABASE_URL: "postgresql://user:password@localhost:5432/database" };
+    expect(() => workerConfigSchema.parse({ ...base, LLM_API_KEY: "unused" })).toThrow(
+      /must be absent/,
+    );
+    expect(() => workerConfigSchema.parse({ ...base, GITHUB_TOKEN: "unused" })).toThrow(
+      /must be absent/,
+    );
+    expect(() => workerConfigSchema.parse({ ...base, LLM_MAX_OUTPUT_TOKENS: 32_769 })).toThrow();
   });
 });

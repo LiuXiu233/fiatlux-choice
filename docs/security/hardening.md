@@ -39,7 +39,7 @@
 - 工具调用使用明确 allowlist、超时、重试上限和幂等键；外部内容一律标为不可信数据。
 - 真实 compatible LLM 只接受经批准的 HTTPS `LLM_BASE_URL`，所有环境均拒绝 HTTP，且携带 token 与公司上下文的请求不得跟随重定向。
 - 无合法稳定接口时使用 manual/mock，结果状态必须是“待人工处理”或“模拟”，不能是“已付款/已申报/已签署”。
-- LLM/GitHub token 最小权限、可轮换，不能写入数据库明文字段、日志、Git 或浏览器存储。
+- LLM/GitHub token 最小权限、短期且可轮换，不能写入数据库明文字段、日志、Git 或浏览器存储；Compose 只向 worker 注入两类 token，API 通过队列请求真实探测，部署校验会拒绝 API 容器出现 token 环境变量。
 
 ## CI 与发布
 

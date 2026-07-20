@@ -4,6 +4,7 @@ export * from "./jobs.js";
 export * from "./llm.js";
 export * from "./managed-device-pwa-evidence.js";
 export * from "./official-source.js";
+export * from "./real-adapter-acceptance-evidence.js";
 export * from "./safe-error.js";
 export * from "./storage.js";
 export * from "./v1-release-evidence.js";

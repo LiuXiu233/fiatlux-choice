@@ -1,5 +1,5 @@
 import type { Database } from "@fiatlux/db";
-import type { JobQueue, LlmProvider, ObjectStorage } from "@fiatlux/integrations";
+import type { JobQueue, ObjectStorage } from "@fiatlux/integrations";
 
 import type { ApiConfig } from "./config.js";
 
@@ -24,7 +24,6 @@ export interface AppDependencies {
   closeDatabase?: () => Promise<void>;
   storage: ObjectStorage;
   queue?: JobQueue;
-  llmProvider?: LlmProvider;
 }
 
 declare module "fastify" {

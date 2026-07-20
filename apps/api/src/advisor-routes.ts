@@ -328,6 +328,7 @@ export function registerAdvisorRoutes(
     "/api/v1/advisor-runs",
     {
       preHandler: [authenticate, requirePermission("advisor-runs:create")],
+      config: { rateLimit: { max: 12, timeWindow: "1 hour" } },
       schema: { tags: ["advisor-runs"], summary: "Queue a permission-filtered advisor run" },
     },
     async (request, reply) => {

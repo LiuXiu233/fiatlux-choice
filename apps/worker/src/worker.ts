@@ -16,6 +16,7 @@ import {
   handleBackup,
   handleComplianceSourceMonitor,
   handleGitHubRefresh,
+  handleIntegrationTest,
   handleNotification,
   handleObligationSweep,
   handleWorkflowRun,
@@ -41,6 +42,8 @@ const llmProvider = createLlmProvider({
   ...(config.LLM_BASE_URL ? { baseUrl: config.LLM_BASE_URL } : {}),
   ...(config.LLM_API_KEY ? { apiKey: config.LLM_API_KEY } : {}),
   model: config.LLM_MODEL,
+  providerName: config.LLM_PROVIDER_ID,
+  maxOutputTokens: config.LLM_MAX_OUTPUT_TOKENS,
 });
 const dependencies: WorkerDependencies = {
   db,
@@ -75,6 +78,9 @@ await queue.work(JOB_NAMES.notificationDeliver, async ([job]) => {
 });
 await queue.work(JOB_NAMES.githubRefresh, async ([job]) => {
   if (job) await handleGitHubRefresh(dependencies, job.data);
+});
+await queue.work(JOB_NAMES.integrationTest, async ([job]) => {
+  if (job) await handleIntegrationTest(dependencies, job.data);
 });
 await queue.work(JOB_NAMES.obligationSweep, async ([job]) => {
   if (job) await handleObligationSweep(dependencies, job.data);

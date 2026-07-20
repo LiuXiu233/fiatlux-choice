@@ -40,6 +40,8 @@ describe.skipIf(!databaseUrl)("GitHub read-only refresh PostgreSQL integration",
     config: workerConfigSchema.parse({
       DATABASE_URL: testDatabaseUrl,
       GITHUB_INTEGRATION_MODE: "read_only",
+      GITHUB_TOKEN: "integration-test-read-token",
+      GITHUB_PROBE_REPOSITORY: "owner/probe-repository",
     }),
   });
 

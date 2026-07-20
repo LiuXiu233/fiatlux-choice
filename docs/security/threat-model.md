@@ -62,7 +62,7 @@ CI 运行器 -- GHCR/SBOM -- 内网生产主机
 
 - 本系统不是银行、税务、电子签章或政务系统，不代表外部操作已经完成。
 - mock/manual 适配器不提供真实外部交易保证。
-- 当前 `LLM_DRIVER=mock`、`GITHUB_INTEGRATION_MODE=manual`；只验证流程和边界，不验证真实模型质量或真实 GitHub 读取。
+- 当前候选默认 `LLM_DRIVER=mock`、`GITHUB_INTEGRATION_MODE=manual`；只验证流程和边界，不验证真实模型质量或真实 GitHub 读取。真实模式的密钥只进入 worker，API 仅排队探测；工程入口和离线证据校验已存在，但没有目标凭据、权限/供应商人工复核和独立批准，不能据此关闭门禁。
 - Caddy 内部 CA 不替代企业完整 PKI；较大部署应接入正式内部 CA。
 - 单主机 Compose 不提供主机级高可用；通过可靠硬件、异机备份和可接受 RTO 管理风险。
 - 法律、财税与 AI 建议都需有资质人员复核，系统输出不构成正式法律或税务意见。

@@ -35,30 +35,50 @@ export const apiConfigSchema = z
     S3_ACCESS_KEY_ID: optionalSecret,
     S3_SECRET_ACCESS_KEY: optionalSecret,
     LLM_BASE_URL: optionalUrl,
-    LLM_API_KEY: optionalSecret,
+    LLM_PROVIDER_ID: z
+      .string()
+      .regex(/^[a-z0-9][a-z0-9._:-]{2,119}$/)
+      .refine((value) => !/(?:mock|simulat|disabled)/i.test(value))
+      .default("openai-compatible"),
     LLM_MODEL: z.preprocess(
       (value) => (value === "" ? undefined : value),
-      z.string().min(1).default("gpt-5-mini"),
+      z
+        .string()
+        .trim()
+        .min(1)
+        .max(200)
+        .refine((value) => !/[\p{Cc}\p{Cf}]/u.test(value))
+        .default("gpt-5-mini"),
     ),
+    LLM_MAX_OUTPUT_TOKENS: z.coerce.number().int().min(128).max(32_768).default(2_048),
     GITHUB_INTEGRATION_MODE: z.enum(["manual", "read_only"]).default("manual"),
-    GITHUB_TOKEN: optionalSecret,
   })
   .superRefine((config, context) => {
-    if (config.LLM_DRIVER === "compatible" && (!config.LLM_BASE_URL || !config.LLM_API_KEY)) {
+    if (config.LLM_DRIVER === "compatible" && !config.LLM_BASE_URL) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "LLM_DRIVER=compatible requires LLM_BASE_URL and LLM_API_KEY",
+        message: "LLM_DRIVER=compatible requires LLM_BASE_URL; the API never receives LLM_API_KEY",
         path: ["LLM_DRIVER"],
       });
     }
     if (
       config.LLM_DRIVER === "compatible" &&
       config.LLM_BASE_URL &&
-      new URL(config.LLM_BASE_URL).protocol !== "https:"
+      (() => {
+        const url = new URL(config.LLM_BASE_URL);
+        return (
+          url.protocol !== "https:" ||
+          Boolean(url.username) ||
+          Boolean(url.password) ||
+          Boolean(url.search) ||
+          Boolean(url.hash)
+        );
+      })()
     ) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "LLM_BASE_URL must use HTTPS when LLM_DRIVER=compatible",
+        message:
+          "LLM_BASE_URL must use HTTPS without credentials, query or fragment when LLM_DRIVER=compatible",
         path: ["LLM_BASE_URL"],
       });
     }
@@ -67,6 +87,11 @@ export const apiConfigSchema = z
 export type ApiConfig = z.infer<typeof apiConfigSchema>;
 
 export function readApiConfig(env: NodeJS.ProcessEnv = process.env): ApiConfig {
+  if (env.LLM_API_KEY || env.GITHUB_TOKEN) {
+    throw new Error(
+      "API process must not receive LLM_API_KEY or GITHUB_TOKEN; inject integration credentials into the worker only",
+    );
+  }
   const sessionTtlSeconds = env.SESSION_TTL_HOURS
     ? String(Number(env.SESSION_TTL_HOURS) * 60 * 60)
     : undefined;

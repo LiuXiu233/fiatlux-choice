@@ -890,13 +890,120 @@ export function registerOperationsRoutes(
     "/api/v1/settings/integrations/:id/test",
     {
       preHandler: [authenticate, requirePermission("settings:test")],
+      config: { rateLimit: { max: 12, timeWindow: "1 hour" } },
       schema: {
         tags: ["settings"],
         summary: "Probe an integration without performing business actions",
       },
     },
-    async (request) => {
+    async (request, reply) => {
       const { id } = integrationIdParamsSchema.parse(request.params);
+      const workerOnlyProbe =
+        (id === "llm" && dependencies.config.LLM_DRIVER === "compatible") ||
+        (id === "github" && dependencies.config.GITHUB_INTEGRATION_MODE === "read_only");
+      const context = requestAuditContext(request);
+      if (workerOnlyProbe) {
+        if (!dependencies.queue) {
+          throw new DomainError("INTEGRATION_UNAVAILABLE", "Background queue is unavailable", 503);
+        }
+        const integrationId = id as "llm" | "github";
+        const queued = await dependencies.db.transaction(async (tx) => {
+          await tx.execute(
+            sql`SELECT pg_advisory_xact_lock(hashtextextended(${`${request.auth.orgId}:integration-test:${integrationId}`}, 0))`,
+          );
+          const [active] = await tx
+            .select()
+            .from(integrationChecks)
+            .where(
+              and(
+                eq(integrationChecks.orgId, request.auth.orgId),
+                eq(integrationChecks.integrationId, integrationId),
+                inArray(integrationChecks.status, ["queued", "running"]),
+                isNull(integrationChecks.archivedAt),
+              ),
+            )
+            .orderBy(desc(integrationChecks.createdAt))
+            .limit(1);
+          if (active) {
+            await tx.insert(auditEvents).values(
+              auditValue(context, {
+                action: "queue_test_replay",
+                resourceType: "integration",
+                resourceId: integrationId,
+                after: active,
+                metadata: { checkId: active.id, executionBoundary: "worker_only" },
+              }),
+            );
+            return active;
+          }
+          const [created] = await tx
+            .insert(integrationChecks)
+            .values({
+              orgId: request.auth.orgId,
+              integrationId,
+              status: "queued",
+              detail: "Worker-only authenticated probe queued",
+              checkedBy: request.auth.userId,
+            })
+            .returning();
+          if (!created) throw new Error("Failed to store queued integration check");
+          await tx.insert(auditEvents).values(
+            auditValue(context, {
+              action: "queue_test",
+              resourceType: "integration",
+              resourceId: integrationId,
+              after: created,
+              metadata: { checkId: created.id, executionBoundary: "worker_only" },
+            }),
+          );
+          return created;
+        });
+        try {
+          await dependencies.queue.send("integration.test", {
+            orgId: request.auth.orgId,
+            checkId: queued.id,
+            integrationId,
+            requestedBy: queued.checkedBy,
+          });
+        } catch (error) {
+          const message = sanitizeIntegrationError(error, "Background queue dispatch failed", {
+            maxLength: 500,
+          });
+          await dependencies.db.transaction(async (tx) => {
+            const [failed] = await tx
+              .update(integrationChecks)
+              .set({
+                status: "unhealthy",
+                detail: message,
+                checkedAt: new Date(),
+                updatedAt: new Date(),
+                version: queued.version + 1,
+              })
+              .where(
+                and(
+                  eq(integrationChecks.id, queued.id),
+                  eq(integrationChecks.orgId, request.auth.orgId),
+                  eq(integrationChecks.status, "queued"),
+                  eq(integrationChecks.version, queued.version),
+                ),
+              )
+              .returning();
+            await tx.insert(auditEvents).values(
+              auditValue(context, {
+                action: failed ? "queue_test_fail" : "queue_test_dispatch_ambiguous",
+                resourceType: "integration",
+                resourceId: integrationId,
+                before: queued,
+                ...(failed ? { after: failed } : {}),
+                metadata: { checkId: queued.id, error: message },
+              }),
+            );
+          });
+          throw new DomainError("INTEGRATION_UNAVAILABLE", "Background queue is unavailable", 503);
+        }
+        return reply.status(202).send({ data: queued });
+      }
+
       let status = "healthy";
       let detail = "Connectivity verified";
       try {
@@ -909,35 +1016,12 @@ export function registerOperationsRoutes(
           } else if (dependencies.config.LLM_DRIVER === "mock") {
             status = "simulated";
             detail = "Mock driver active; no external model call was performed";
-          } else {
-            if (!dependencies.config.LLM_BASE_URL || !dependencies.config.LLM_API_KEY) {
-              throw new Error("Compatible LLM driver is not configured");
-            }
-            const response = await fetch(
-              `${dependencies.config.LLM_BASE_URL.replace(/\/$/, "")}/v1/models`,
-              {
-                headers: { authorization: `Bearer ${dependencies.config.LLM_API_KEY}` },
-                signal: AbortSignal.timeout(10_000),
-              },
-            );
-            if (!response.ok) throw new Error(`LLM endpoint returned HTTP ${response.status}`);
           }
         }
         if (id === "github") {
           if (dependencies.config.GITHUB_INTEGRATION_MODE === "manual") {
             status = "manual";
             detail = "Manual import is available; no GitHub network request was performed";
-          } else {
-            const response = await fetch("https://api.github.com/rate_limit", {
-              headers: {
-                accept: "application/vnd.github+json",
-                ...(dependencies.config.GITHUB_TOKEN
-                  ? { authorization: `Bearer ${dependencies.config.GITHUB_TOKEN}` }
-                  : {}),
-              },
-              signal: AbortSignal.timeout(10_000),
-            });
-            if (!response.ok) throw new Error(`GitHub returned HTTP ${response.status}`);
           }
         }
         if (id === "external-manual")
@@ -946,7 +1030,6 @@ export function registerOperationsRoutes(
         status = "unhealthy";
         detail = sanitizeIntegrationError(error, "Unknown integration error", { maxLength: 500 });
       }
-      const context = requestAuditContext(request);
       const [check] = await dependencies.db.transaction(async (tx) => {
         const [created] = await tx
           .insert(integrationChecks)

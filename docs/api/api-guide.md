@@ -172,7 +172,7 @@ POST 使用对应 create schema。PATCH 使用 create schema 的部分字段，�
 | GET /compliance-items/:id/snapshots | 读取该官方来源追加式监测快照历史 |
 | GET /compliance-items/:id/reviews | 按页读取追加式专业复核历史；需要 `compliance-items:read` |
 | POST /compliance-items/:id/reviews | 登记版本绑定、证据支持的专业复核；需要 `compliance-items:update` 与 `files:read` |
-| GET /settings/integrations、POST /settings/integrations/:id/test | 集成边界和连接探测 |
+| GET /settings/integrations、POST /settings/integrations/:id/test | 集成边界和连接探测；真实 LLM/GitHub 返回 202 并由持有密钥的 worker 执行 |
 | GET/POST /backups | 查看或排队备份任务 |
 | GET /operations/incidents | 按组织列出顾问、工作流和备份的 `lease_expired` 人工处置事项 |
 | POST /operations/incidents/:id/resolve | 追加证据化人工调查结论；不重放或修改原失败运行 |
@@ -422,6 +422,8 @@ POST /external-actions/:id/transition 记录状态变化。manual 进入 submitt
 | GET /audit-events | 读取组织审计 |
 | GET /audit-events/:id | 读取单个审计事件 |
 | GET /settings/integrations | 列出集成模式 |
+
+`POST /settings/integrations/:id/test` 对数据库、对象存储、mock/disabled LLM 和 manual GitHub 同步返回检查记录。compatible LLM 与 read_only GitHub 会先原子创建 `status=queued` 的检查记录，再返回 202；worker 实际调用批准模型的结构化输出或对批准仓库执行带 token 的只读 GET，并把记录更新为 `healthy`/`unhealthy`。客户端应轮询 GET 列表直到离开 queued/running。202、queued、mock 的 simulated 或 manual 均不得显示为真实连接成功。
 | POST /settings/integrations/:id/test | 测试连接并审计结果 |
 | GET/POST /backups | 列出或排队备份任务 |
 | GET /operations/incidents | `operations-incidents:read`；分页读取租约失效处置事项 |

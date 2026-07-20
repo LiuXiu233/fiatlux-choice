@@ -25,50 +25,83 @@ export interface CompatibleLlmConfig {
   apiKey: string;
   model: string;
   providerName?: string;
+  maxOutputTokens?: number;
   timeoutMs?: number;
   fetchImpl?: typeof fetch;
 }
 
 type ChatCompletionResponse = {
   choices?: Array<{ message?: { content?: string } }>;
+  model?: string;
   usage?: { prompt_tokens?: number; completion_tokens?: number };
 };
 
 export class CompatibleLlmProvider implements LlmProvider {
   readonly #config: CompatibleLlmConfig;
+  readonly #chatCompletionsUrl: string;
 
   constructor(config: CompatibleLlmConfig) {
-    if (new URL(config.baseUrl).protocol !== "https:") {
+    let baseUrl: URL;
+    try {
+      baseUrl = new URL(config.baseUrl);
+    } catch {
+      throw new Error("Compatible LLM base URL is invalid");
+    }
+    if (baseUrl.protocol !== "https:") {
       throw new Error("Compatible LLM base URL must use HTTPS");
     }
-    this.#config = config;
+    if (baseUrl.username || baseUrl.password || baseUrl.search || baseUrl.hash) {
+      throw new Error("Compatible LLM base URL cannot contain credentials, query or fragment");
+    }
+    if (baseUrl.pathname.split("/").includes("..")) {
+      throw new Error("Compatible LLM base URL cannot contain path traversal");
+    }
+    if (!config.model.trim() || config.model.length > 200 || /[\p{Cc}\p{Cf}]/u.test(config.model)) {
+      throw new Error("Compatible LLM model name is invalid");
+    }
+    if (
+      config.providerName !== undefined &&
+      (!/^[a-z0-9][a-z0-9._:-]{2,119}$/.test(config.providerName) ||
+        /(?:mock|simulat|disabled)/i.test(config.providerName))
+    ) {
+      throw new Error("Compatible LLM provider name is invalid");
+    }
+    const maxOutputTokens = config.maxOutputTokens ?? 2_048;
+    if (!Number.isInteger(maxOutputTokens) || maxOutputTokens < 128 || maxOutputTokens > 32_768) {
+      throw new Error("Compatible LLM max output tokens must be between 128 and 32768");
+    }
+    const timeoutMs = config.timeoutMs ?? 60_000;
+    if (!Number.isInteger(timeoutMs) || timeoutMs < 1_000 || timeoutMs > 300_000) {
+      throw new Error("Compatible LLM timeout must be between 1000 and 300000 milliseconds");
+    }
+    const normalizedBaseUrl = baseUrl.toString().replace(/\/+$/, "");
+    this.#chatCompletionsUrl = `${normalizedBaseUrl}/v1/chat/completions`;
+    this.#config = { ...config, model: config.model.trim(), maxOutputTokens, timeoutMs };
   }
 
   async completeAdvisor(input: LlmCallInput): Promise<LlmCallResult> {
     const startedAt = Date.now();
     let response: Response;
     try {
-      response = await (this.#config.fetchImpl ?? fetch)(
-        `${this.#config.baseUrl.replace(/\/+$/, "")}/v1/chat/completions`,
-        {
-          method: "POST",
-          headers: {
-            authorization: `Bearer ${this.#config.apiKey}`,
-            "content-type": "application/json",
-          },
-          body: JSON.stringify({
-            model: this.#config.model,
-            temperature: 0.1,
-            response_format: { type: "json_object" },
-            messages: [
-              { role: "system", content: input.system },
-              { role: "user", content: JSON.stringify(input.user) },
-            ],
-          }),
-          redirect: "error",
-          signal: AbortSignal.timeout(this.#config.timeoutMs ?? 60_000),
+      response = await (this.#config.fetchImpl ?? fetch)(this.#chatCompletionsUrl, {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${this.#config.apiKey}`,
+          "content-type": "application/json",
         },
-      );
+        body: JSON.stringify({
+          model: this.#config.model,
+          temperature: 0.1,
+          max_tokens: this.#config.maxOutputTokens,
+          response_format: { type: "json_object" },
+          messages: [
+            { role: "system", content: input.system },
+            { role: "user", content: JSON.stringify(input.user) },
+          ],
+        }),
+        redirect: "error",
+        signal: AbortSignal.timeout(this.#config.timeoutMs ?? 60_000),
+      });
     } catch (error) {
       if (isRequestTimeout(error)) {
         throw new Error("LLM provider request timed out");
@@ -92,12 +125,20 @@ export class CompatibleLlmProvider implements LlmProvider {
       2_000_000,
       "LLM provider response exceeded the 2 MB safety limit",
     );
-    let rawResponse: ChatCompletionResponse;
+    let unknownResponse: unknown;
     try {
-      rawResponse = JSON.parse(responseText) as ChatCompletionResponse;
+      unknownResponse = JSON.parse(responseText);
     } catch {
       throw new Error("LLM provider returned an invalid response envelope");
     }
+    if (
+      typeof unknownResponse !== "object" ||
+      unknownResponse === null ||
+      Array.isArray(unknownResponse)
+    ) {
+      throw new Error("LLM provider returned an invalid response envelope");
+    }
+    const rawResponse = unknownResponse as ChatCompletionResponse;
     const content = rawResponse.choices?.[0]?.message?.content;
     if (!content) throw new Error("LLM provider returned no content");
 
@@ -107,17 +148,25 @@ export class CompatibleLlmProvider implements LlmProvider {
     } catch {
       throw new Error("LLM provider returned invalid JSON");
     }
+    if (rawResponse.model !== this.#config.model) {
+      throw new Error("LLM provider returned a different or missing model identity");
+    }
 
+    const tokenCount = (value: unknown, label: string): number | undefined => {
+      if (value === undefined) return undefined;
+      if (!Number.isInteger(value) || (value as number) < 0 || (value as number) > 2_147_483_647) {
+        throw new Error(`LLM provider returned invalid ${label}`);
+      }
+      return value as number;
+    };
+    const inputTokens = tokenCount(rawResponse.usage?.prompt_tokens, "input token usage");
+    const outputTokens = tokenCount(rawResponse.usage?.completion_tokens, "output token usage");
     return {
       output: advisorOutputSchema.parse(parsed),
       rawResponse,
       usage: {
-        ...(rawResponse.usage?.prompt_tokens !== undefined
-          ? { inputTokens: rawResponse.usage.prompt_tokens }
-          : {}),
-        ...(rawResponse.usage?.completion_tokens !== undefined
-          ? { outputTokens: rawResponse.usage.completion_tokens }
-          : {}),
+        ...(inputTokens !== undefined ? { inputTokens } : {}),
+        ...(outputTokens !== undefined ? { outputTokens } : {}),
       },
       provider: this.#config.providerName ?? "openai-compatible",
       model: this.#config.model,
@@ -187,6 +236,9 @@ export function createLlmProvider(config: {
   baseUrl?: string;
   apiKey?: string;
   model: string;
+  providerName?: string;
+  maxOutputTokens?: number;
+  timeoutMs?: number;
 }): LlmProvider {
   if (config.driver === "compatible") {
     if (!config.baseUrl || !config.apiKey) {
@@ -196,6 +248,9 @@ export function createLlmProvider(config: {
       baseUrl: config.baseUrl,
       apiKey: config.apiKey,
       model: config.model,
+      ...(config.providerName ? { providerName: config.providerName } : {}),
+      ...(config.maxOutputTokens !== undefined ? { maxOutputTokens: config.maxOutputTokens } : {}),
+      ...(config.timeoutMs !== undefined ? { timeoutMs: config.timeoutMs } : {}),
     });
   }
   return config.driver === "mock" ? new MockLlmProvider() : new DisabledLlmProvider();

@@ -105,6 +105,7 @@ export S3_SECRET_ACCESS_KEY=${S3_SECRET_ACCESS_KEY:-${TEST_S3_SECRET_ACCESS_KEY:
 export S3_FORCE_PATH_STYLE=true
 export LLM_DRIVER=mock
 export GITHUB_INTEGRATION_MODE=manual
+unset LLM_API_KEY GITHUB_TOKEN GITHUB_PROBE_REPOSITORY
 export BACKUP_DIR=${BACKUP_DIR:-$ROOT_DIR/artifacts/real-stack/backups}
 
 database_host=$(node -e 'process.stdout.write(new URL(process.env.DATABASE_URL).hostname)')
