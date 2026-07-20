@@ -5,6 +5,7 @@ const adminEmail = process.env.REAL_E2E_ADMIN_EMAIL ?? "e2e-admin@fiatlux.local"
 const adminPassword = process.env.REAL_E2E_ADMIN_PASSWORD ?? "e2e-only-admin-password-2026";
 const rotatedAdminPassword =
   process.env.REAL_E2E_ADMIN_ROTATED_PASSWORD ?? "e2e-only-rotated-admin-password-2026";
+let activeAdminPassword = adminPassword;
 
 async function loginThroughRealApi(page: Page) {
   await page.goto("/login");
@@ -21,11 +22,12 @@ async function loginThroughRealApi(page: Page) {
     return { response: await responsePromise, password };
   };
 
-  let result = await attempt(adminPassword);
-  if (result.response.status() === 401) {
+  let result = await attempt(activeAdminPassword);
+  if (result.response.status() === 401 && activeAdminPassword !== rotatedAdminPassword) {
     result = await attempt(rotatedAdminPassword);
   }
   expect(result.response.status()).toBe(200);
+  activeAdminPassword = result.password;
   const authPayload = (await result.response.json()) as {
     data: { mustChangePassword: boolean };
   };
@@ -42,6 +44,7 @@ async function loginThroughRealApi(page: Page) {
     );
     await page.getByRole("button", { name: "更新密码" }).click();
     expect((await changeResponse).status()).toBe(200);
+    activeAdminPassword = rotatedAdminPassword;
   }
   await page.waitForURL((url) => url.pathname === "/");
   await expect(page.locator(".page-header").getByText("经营工作台", { exact: true })).toBeVisible();
@@ -61,6 +64,39 @@ async function saveResource(dialog: Locator, expectedText: string, page: Page) {
   await expect(dialog).toBeHidden();
   await expect(page.getByText(expectedText, { exact: true }).first()).toBeVisible();
 }
+
+test("@desktop-core @mobile-core 真实栈呈现 12 篇受控电竞教育内容且保持人工发布边界", async ({
+  page,
+}) => {
+  await loginThroughRealApi(page);
+  await page.goto("/education");
+
+  await expect(page.getByRole("heading", { name: "电竞教育" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "版本化内部内容库" })).toBeVisible();
+  await expect(page.getByText("12 篇 · v1.0.0")).toBeVisible();
+  await expect(page.getByRole("button", { name: /^查看文章：/ })).toHaveCount(12);
+  await expect(
+    page.getByRole("button", { name: "查看文章：从玩家到教练：技能与责任边界" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "查看文章：电竞职业路径的概率、成本与备选方案" }),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "查看文章：成人团队赛训试点复盘" })).toBeVisible();
+
+  await page.getByRole("button", { name: "查看文章：游戏账号、设备与社群安全" }).click();
+  const article = page.getByRole("dialog", { name: "游戏账号、设备与社群安全" });
+  await expect(article.getByRole("heading", { name: "账号、设备与社群安全基线" })).toBeVisible();
+  await expect(article.getByText("中华人民共和国网络安全法")).toBeVisible();
+  await expect(article.getByText(/不要共享密码、验证码、恢复码/)).toBeVisible();
+  await expect(article.getByText("WordPress 未发布").first()).toBeVisible();
+  await article.getByRole("button", { name: "关闭" }).click();
+
+  const dimensions = await page.evaluate(() => ({
+    scrollWidth: document.documentElement.scrollWidth,
+    clientWidth: document.documentElement.clientWidth,
+  }));
+  expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.clientWidth + 1);
+});
 
 test("@desktop-core @mobile-core 真实栈登记隔离的证据型专业复核并保护历史证据", async ({
   page,

@@ -242,7 +242,7 @@ export function EducationPage() {
         <header>
           <div>
             <BookMarked aria-hidden="true" />
-            <h2>首批基础内容包</h2>
+            <h2>版本化内部内容库</h2>
           </div>
           <span>
             {educationContent.articles.length} 篇 · v{educationContent.schemaVersion}
@@ -385,7 +385,7 @@ export function EducationPage() {
       <Modal
         open={Boolean(selectedArticle)}
         onClose={() => setSelectedArticleId(null)}
-        title={selectedArticle?.title ?? "基础内容"}
+        title={selectedArticle?.title ?? "教育内容"}
         size="large"
       >
         {selectedArticle ? (

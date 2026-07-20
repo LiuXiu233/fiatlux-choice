@@ -27,13 +27,24 @@ describe("EducationPage", () => {
     expect(screen.getByText("竞技训练方法", { exact: true })).not.toBeNull();
     expect(screen.getByText("健康与数字安全", { exact: true })).not.toBeNull();
     expect(screen.getByText("官网、广告、销售话术、案例和合同表述一致且有证据")).not.toBeNull();
-    expect(screen.getByRole("heading", { name: "首批基础内容包" })).not.toBeNull();
+    expect(screen.getByRole("heading", { name: "版本化内部内容库" })).not.toBeNull();
+    expect(screen.getByText("12 篇 · v1.0.0")).not.toBeNull();
     expect(
       screen.getByRole("button", { name: "查看文章：如何设定 4 周竞技训练目标" }),
     ).not.toBeNull();
     expect(screen.getByRole("button", { name: "查看文章：一次有效回放复盘怎么做" })).not.toBeNull();
     expect(screen.getByRole("button", { name: "查看文章：团队语音沟通的最小协议" })).not.toBeNull();
     expect(screen.getByRole("button", { name: "查看文章：人体工学与休息自查" })).not.toBeNull();
+    expect(
+      screen.getByRole("button", { name: "查看文章：从玩家到教练：技能与责任边界" }),
+    ).not.toBeNull();
+    expect(
+      screen.getByRole("button", { name: "查看文章：电竞职业路径的概率、成本与备选方案" }),
+    ).not.toBeNull();
+    expect(
+      screen.getByRole("button", { name: "查看文章：游戏账号、设备与社群安全" }),
+    ).not.toBeNull();
+    expect(screen.getByRole("button", { name: "查看文章：成人团队赛训试点复盘" })).not.toBeNull();
     expect(screen.getAllByText("WordPress 未发布").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByRole("link", { name: /建立内容任务/ }).getAttribute("href")).toBe(
       "/resources/tasks?create=1",
@@ -51,6 +62,15 @@ describe("EducationPage", () => {
     expect(within(dialog).getByText(/不是医疗建议、诊断、治疗、康复/)).not.toBeNull();
     expect(within(dialog).getByText("中国公民健康素养——基本知识与技能（2024年版）")).not.toBeNull();
     expect(within(dialog).getByText(/不设统一休息分钟数/)).not.toBeNull();
+    fireEvent.click(within(dialog).getByRole("button", { name: "关闭" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "查看文章：游戏账号、设备与社群安全" }));
+    dialog = screen.getByRole("dialog", { name: "游戏账号、设备与社群安全" });
+    expect(
+      within(dialog).getByRole("heading", { name: "账号、设备与社群安全基线" }),
+    ).not.toBeNull();
+    expect(within(dialog).getByText("中华人民共和国网络安全法")).not.toBeNull();
+    expect(within(dialog).getByText(/不要共享密码、验证码、恢复码/)).not.toBeNull();
 
     await vi.waitFor(() => {
       expect(api.get).toHaveBeenCalledWith("/products?pageSize=100&category=online_education");

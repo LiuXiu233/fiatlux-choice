@@ -97,7 +97,7 @@
 
 公开文章与课程单元可以共享结构，但公开文章不得披露学员身份、队内战术、账号、语音或未公开比赛材料。官网整改和文章顺序见[公开业务与内容盘点](../research/fiatlux-gg-public-business-audit.md)。
 
-前四个单元已经形成[版本化基础内容包](../../content/education/README.md)并接入内部教育页面。它们仍是 `pending`/`pending_clearance`/`not_published` 草案，不能因页面可读、测试通过或站内任务完成而被标记为官网发布成功。
+前四个教学单元已经形成版本化基础包，另有八篇教练、赛事、职业、安全和试点复盘内容组成扩展包；两包共同接入[版本化内部内容库](../../content/education/README.md)。十二篇仍是 `pending`/`pending_clearance`/`not_published` 草案，不能因页面可读、测试通过或站内任务完成而被标记为官网发布成功。
 
 ## 7. 讲师交付包
 

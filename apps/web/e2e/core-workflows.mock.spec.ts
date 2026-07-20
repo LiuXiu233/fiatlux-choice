@@ -35,7 +35,8 @@ test("电竞教育工作台呈现可审阅内容包、官网清理与人工上�
   await expect(page.getByText("竞技训练方法", { exact: true })).toBeVisible();
   await expect(page.getByText("健康与数字安全", { exact: true })).toBeVisible();
   await expect(page.getByText("官网、广告、销售话术、案例和合同表述一致且有证据")).toBeVisible();
-  await expect(page.getByRole("heading", { name: "首批基础内容包" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "版本化内部内容库" })).toBeVisible();
+  await expect(page.getByText("12 篇 · v1.0.0")).toBeVisible();
   await expect(
     page.getByRole("button", { name: "查看文章：如何设定 4 周竞技训练目标" }),
   ).toBeVisible();
@@ -46,6 +47,16 @@ test("电竞教育工作台呈现可审阅内容包、官网清理与人工上�
     page.getByRole("button", { name: "查看文章：团队语音沟通的最小协议" }),
   ).toBeVisible();
   await expect(page.getByRole("button", { name: "查看文章：人体工学与休息自查" })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "查看文章：从玩家到教练：技能与责任边界" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "查看文章：电竞职业路径的概率、成本与备选方案" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "查看文章：游戏账号、设备与社群安全" }),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "查看文章：成人团队赛训试点复盘" })).toBeVisible();
 
   await page.getByRole("button", { name: "查看文章：人体工学与休息自查" }).click();
   const articleDialog = page.getByRole("dialog", { name: "人体工学与休息自查" });
@@ -59,6 +70,18 @@ test("电竞教育工作台呈现可审阅内容包、官网清理与人工上�
     "https://www.gov.cn/zhengce/zhengceku/202405/content_6954649.htm",
   );
   await articleDialog.getByRole("button", { name: "关闭" }).click();
+
+  await page.getByRole("button", { name: "查看文章：游戏账号、设备与社群安全" }).click();
+  const securityArticleDialog = page.getByRole("dialog", {
+    name: "游戏账号、设备与社群安全",
+  });
+  await expect(
+    securityArticleDialog.getByRole("heading", { name: "账号、设备与社群安全基线" }),
+  ).toBeVisible();
+  await expect(securityArticleDialog.getByText("中华人民共和国网络安全法")).toBeVisible();
+  await expect(securityArticleDialog.getByText(/不要共享密码、验证码、恢复码/)).toBeVisible();
+  await expect(securityArticleDialog.getByText("WordPress 未发布").first()).toBeVisible();
+  await securityArticleDialog.getByRole("button", { name: "关闭" }).click();
 
   const dimensions = await page.evaluate(() => ({
     scrollWidth: document.documentElement.scrollWidth,
