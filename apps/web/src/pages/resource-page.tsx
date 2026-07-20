@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { type FormEvent, useEffect, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
+import { AuditExportForm } from "../components/audit-export-form";
 import { ComplianceMonitoringStatusPanel } from "../components/compliance-monitoring-status";
 import { PageHeader } from "../components/page-header";
 import {
@@ -132,6 +133,7 @@ export function ResourcePage() {
   const [snapshotSource, setSnapshotSource] = useState<BusinessRecord | null>(null);
   const [reviewSource, setReviewSource] = useState<BusinessRecord | null>(null);
   const [reviewHistorySource, setReviewHistorySource] = useState<BusinessRecord | null>(null);
+  const [auditExportOpen, setAuditExportOpen] = useState(false);
   const [lifecycleRequest, setLifecycleRequest] = useState<{
     record: BusinessRecord;
     action: MembershipLifecycleAction;
@@ -164,6 +166,11 @@ export function ResourcePage() {
   const canMarkNotificationRead = Boolean(
     config?.key === "notifications" && auth.can("notifications:read"),
   );
+  const canExportAudit = Boolean(
+    config?.key === "audit-events" &&
+      auth.can("audit-events:read") &&
+      auth.can("audit-events:export"),
+  );
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -185,6 +192,7 @@ export function ResourcePage() {
     setSnapshotSource(null);
     setReviewSource(null);
     setReviewHistorySource(null);
+    setAuditExportOpen(false);
     setLifecycleRequest(null);
     setRoleMember(null);
   }, [currentResource]);
@@ -285,11 +293,25 @@ export function ResourcePage() {
         description={config.description}
         icon={Icon}
         actions={
-          canCreate ? (
-            <button type="button" className="button primary" onClick={() => setCreating(true)}>
-              <Plus aria-hidden="true" />
-              新建{config.singular}
-            </button>
+          canCreate || canExportAudit ? (
+            <>
+              {canExportAudit ? (
+                <button
+                  type="button"
+                  className="button secondary"
+                  onClick={() => setAuditExportOpen(true)}
+                >
+                  <Download aria-hidden="true" />
+                  受控导出
+                </button>
+              ) : null}
+              {canCreate ? (
+                <button type="button" className="button primary" onClick={() => setCreating(true)}>
+                  <Plus aria-hidden="true" />
+                  新建{config.singular}
+                </button>
+              ) : null}
+            </>
           ) : undefined
         }
       />
@@ -495,6 +517,14 @@ export function ResourcePage() {
       ) : null}
 
       {config.key === "workflows" ? <WorkflowRunHistory /> : null}
+
+      <Modal
+        open={auditExportOpen}
+        onClose={() => setAuditExportOpen(false)}
+        title="受控导出审计日志"
+      >
+        <AuditExportForm onClose={() => setAuditExportOpen(false)} />
+      </Modal>
 
       <Modal open={creating} onClose={() => setCreating(false)} title={`新建${config.singular}`}>
         {config.key === "workflows" ? (

@@ -29,7 +29,7 @@
 - PostgreSQL bootstrap、migration、runtime、backup、restore 使用五个独立口令。API/worker 只使用无 SUPERUSER/CREATEDB/CREATEROLE/DDL 的 runtime；业务和 pg-boss DDL 只在一次性 migrator 容器执行，restore 仅在人工批准的破坏性操作中使用。
 - runtime 对 `audit_events` 只可 SELECT/INSERT；UPDATE/DELETE/TRUNCATE/触发器权限显式撤销，追加写触发器为 `ENABLE ALWAYS` 且归 migrator 所有。主机 root/bootstrap 仍能绕过，必须以异机备份与维护审计补偿。
 - 文件对象键不使用原始文件名作为路径；元数据入口按扩展名—声明 MIME 对照表只允许 PDF、纯文本/CSV/Markdown/JSON、常见无脚本图片和非宏 OOXML 等公司文件，并拒绝规范化后的路径/点段/控制字符/保留名、危险双扩展、脚本/活动内容/宏或 ODF 格式和 generic octet-stream。二进制 PUT 在对象存储前验证 UTF-8/JSON、PDF/图片格式信封和 OOXML 的中央目录、本地头、规范路径、类型清单、主部件、条目/展开上限，并拒绝加密、ZIP64/分卷、宏、ActiveX、嵌入对象和常见可执行条目。失败时数据库仍为 pending、对象未写入，并由统一错误处理写不含 body 的拒绝审计。Markdown/JSON 与其他格式一样只以 attachment 下载，不作为可信代码或页面解释；完成上传时再次核对对象大小与 SHA-256，下载使用 attachment Content-Disposition 和 `nosniff`。该门禁不会完整解析或渲染正文，不能识别所有 polyglot、恶意 PDF/Office/图片或解析器漏洞，也不替代反病毒、沙箱、内容安全或 DLP。
-- 个人信息按业务必要性收集；业务变更、权限拒绝和已授权文件流发放写入追加审计，文件事件 `download_issued` 只表示服务端已取得对象并开始发放，不证明客户端下载完成。普通列表/详情查询目前依赖最小化应用访问日志，产品尚无通用业务导出，因此不得宣称所有查询或导出均已有逐记录业务审计。日志与 AI 输入先最小化/脱敏。
+- 个人信息按业务必要性收集；业务变更、权限拒绝和已授权文件流发放写入追加审计，文件事件 `download_issued` 只表示服务端已取得对象并开始发放，不证明客户端下载完成。审计日志已有 owner/admin 双权限的有界 CSV/NDJSON 导出：31 天、10,000 条、25 MB 上限，组织隔离、公式前缀保护、响应 SHA-256、浏览器重算和 `export_generated` 留痕；它仍不证明本地保存、转发或销毁状态。普通列表/详情查询目前依赖最小化应用访问日志，产品没有其他通用业务导出，因此不得宣称所有查询或数据流均已有逐记录业务审计。日志与 AI 输入先最小化/脱敏。
 - 生产完整备份必须 age 加密、由主机 Ed25519 私钥签署规范化 attestation 并异机保存。签名私钥精确为 `0400`/`0600`、不进入容器环境或命令行，只经 stdin 交给一次性 backup-tools；age identity 与签名私钥分开托管。恢复在任何 Compose/破坏操作前同时匹配独立批准的公钥 DER 指纹、签名、归档 SHA-256、来源和工具版本；签名不替代人工批准。归档守卫只提取目录/普通文件并限制成员数与展开总量；每月实际恢复并核对恢复报告的签名字段。
 
 ## LLM 与外部适配器

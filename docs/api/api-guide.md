@@ -162,6 +162,7 @@ POST 使用对应 create schema。PATCH 使用 create schema 的部分字段，�
 | --- | --- |
 | GET /dashboard | 组织经营摘要 |
 | GET /audit-events、GET /audit-events/:id | 只读审计 |
+| POST /audit-events/export | 生成有界、带哈希且自身留痕的 CSV/NDJSON 审计快照 |
 | GET/POST /users、PATCH /users/:id | 成员管理；创建成员同时生成初始角色审批 |
 | GET /roles、POST /role-assignments | 读取角色与申请角色变更 |
 | GET/POST /approvals、GET /approvals/:id、POST /approvals/:id/approve、POST /approvals/:id/reject | 人工审批 |
@@ -421,13 +422,31 @@ POST /external-actions/:id/transition 记录状态变化。manual 进入 submitt
 | POST /role-assignments | 请求角色分配或移除审批 |
 | GET /audit-events | 读取组织审计 |
 | GET /audit-events/:id | 读取单个审计事件 |
+| POST /audit-events/export | 同时要求 `audit-events:read`、`audit-events:export`；生成当前组织的受控审计文件 |
 | GET /settings/integrations | 列出集成模式 |
-
-`POST /settings/integrations/:id/test` 对数据库、对象存储、mock/disabled LLM 和 manual GitHub 同步返回检查记录。compatible LLM 与 read_only GitHub 会先原子创建 `status=queued` 的检查记录，再返回 202；worker 实际调用批准模型的结构化输出或对批准仓库执行带 token 的只读 GET，并把记录更新为 `healthy`/`unhealthy`。客户端应轮询 GET 列表直到离开 queued/running。202、queued、mock 的 simulated 或 manual 均不得显示为真实连接成功。
 | POST /settings/integrations/:id/test | 测试连接并审计结果 |
 | GET/POST /backups | 列出或排队备份任务 |
 | GET /operations/incidents | `operations-incidents:read`；分页读取租约失效处置事项 |
 | POST /operations/incidents/:id/resolve | `operations-incidents:update`；追加人工调查审计 |
+
+审计导出请求示例：
+
+~~~json
+{
+  "from": "2026-07-01",
+  "to": "2026-07-20",
+  "format": "csv",
+  "resourceType": "contracts",
+  "action": "update",
+  "acknowledgement": "INTERNAL_AUDIT_EXPORT_ACKNOWLEDGED"
+}
+~~~
+
+`from`/`to` 是北京时间自然日且含首尾两天，跨度最多 31 天；`resourceType`、`action` 可省略。单次最多 10,000 条且响应最多 25,000,000 字节，超限返回 413 并要求收窄范围，不会静默截断。CSV 带 UTF-8 BOM、全部字段引用，并对电子表格公式前缀做文本保护；NDJSON 每行恰好一个 `schemaVersion=1` 事件。两者都按 `createdAt,id` 正序，包含 before/after、metadata、IP 和 user agent，因此属于受保护内部数据。
+
+成功响应使用 attachment，并返回 `X-Audit-Event-Count` 与 `X-Content-SHA256`。Web 客户端会对实际 Blob 重新计算 SHA-256，不一致时拒绝保存。服务端只有在同一事务追加 `action=export_generated` 审计后才返回文件；审计 metadata 固定范围、筛选、条数、格式和内容哈希，但不宣称客户端下载完成或后续副本得到妥善处置。该 POST 受 Origin、会话、双权限和每分钟 10 次路由限流约束。
+
+`POST /settings/integrations/:id/test` 对数据库、对象存储、mock/disabled LLM 和 manual GitHub 同步返回检查记录。compatible LLM 与 read_only GitHub 会先原子创建 `status=queued` 的检查记录，再返回 202；worker 实际调用批准模型的结构化输出或对批准仓库执行带 token 的只读 GET，并把记录更新为 `healthy`/`unhealthy`。客户端应轮询 GET 列表直到离开 queued/running。202、queued、mock 的 simulated 或 manual 均不得显示为真实连接成功。
 
 连接测试只验证可达性，不执行业务动作。external-manual 测试只确认人工适配器可用。
 

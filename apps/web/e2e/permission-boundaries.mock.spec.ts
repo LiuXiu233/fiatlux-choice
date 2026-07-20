@@ -1,6 +1,62 @@
 import { expect, test } from "@playwright/test";
 import { installMockApi, login } from "./mock-api";
 
+test("owner 以确认、范围和格式生成可追溯审计导出", async ({ page }) => {
+  await installMockApi(page);
+  await login(page);
+  await page.goto("/resources/audit-events");
+  await page.waitForLoadState("networkidle");
+
+  await expect(page.getByRole("heading", { name: "审计日志" })).toBeVisible();
+  await page.getByRole("button", { name: "受控导出" }).click();
+  const dialog = page.getByRole("dialog", { name: "受控导出审计日志" });
+  await dialog.getByLabel("开始日期（北京时间）").fill("2026-07-01");
+  await dialog.getByLabel("结束日期（北京时间，含当天）").fill("2026-07-20");
+  await dialog.getByLabel("文件格式").selectOption("ndjson");
+  await dialog.getByLabel("对象类型（可选）").fill("contracts");
+  await dialog.getByLabel("动作（可选）").fill("update");
+  await dialog.getByLabel(/我确认只在获授权的内部范围保存和传递该文件/).check();
+  const dialogDimensions = await dialog.evaluate((element) => ({
+    scrollWidth: element.scrollWidth,
+    clientWidth: element.clientWidth,
+  }));
+  expect(dialogDimensions.scrollWidth).toBeLessThanOrEqual(dialogDimensions.clientWidth + 1);
+
+  const requestPromise = page.waitForRequest(
+    (request) =>
+      new URL(request.url()).pathname === "/api/v1/audit-events/export" &&
+      request.method() === "POST",
+  );
+  const downloadPromise = page.waitForEvent("download");
+  await dialog.getByRole("button", { name: "生成并下载" }).click();
+  const [request, download] = await Promise.all([requestPromise, downloadPromise]);
+  expect(request.postDataJSON()).toEqual({
+    from: "2026-07-01",
+    to: "2026-07-20",
+    format: "ndjson",
+    resourceType: "contracts",
+    action: "update",
+    acknowledgement: "INTERNAL_AUDIT_EXPORT_ACKNOWLEDGED",
+  });
+  expect(download.suggestedFilename()).toBe("fiatlux-audit-2026-07-01_to_2026-07-20.ndjson");
+  await expect(page.getByText(/已生成并校验 1 条审计记录/)).toBeVisible();
+});
+
+test("只有审计读取权限时不显示导出入口", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-chromium", "桌面项目执行审计导出权限验收");
+  await installMockApi(page, {
+    role: "custom-auditor",
+    displayName: "审计观察员",
+    permissions: ["dashboard:read", "audit-events:read"],
+  });
+  await login(page);
+  await page.goto("/resources/audit-events");
+  await page.waitForLoadState("networkidle");
+
+  await expect(page.getByRole("heading", { name: "审计日志" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "受控导出" })).toHaveCount(0);
+});
+
 test("member 可从文件菜单发起真实下载请求但看不到编辑和归档", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop-chromium", "桌面项目执行文件权限验收");
   await installMockApi(page, {

@@ -10,10 +10,17 @@ import {
   tasks,
 } from "@fiatlux/db";
 import { DomainError, hasPermission } from "@fiatlux/domain";
-import { and, asc, count, desc, eq, inArray, isNull, lt, notInArray, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, inArray, isNull, lt, notInArray, sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 
+import {
+  AUDIT_EXPORT_MAX_BYTES,
+  AUDIT_EXPORT_MAX_ROWS,
+  auditExportDateBounds,
+  auditExportRequestSchema,
+  renderAuditExport,
+} from "./audit-export.js";
 import { type AuthenticateHook, requirePermission } from "./auth.js";
 import type { AppDependencies } from "./types.js";
 
@@ -244,6 +251,97 @@ export function registerDashboardRoutes(
       ]);
       const total = totals[0]?.total ?? 0;
       return { data, meta: { ...query, total, pageCount: Math.ceil(total / query.pageSize) } };
+    },
+  );
+
+  app.post(
+    "/api/v1/audit-events/export",
+    {
+      preHandler: [
+        authenticate,
+        requirePermission("audit-events:read"),
+        requirePermission("audit-events:export"),
+      ],
+      config: { rateLimit: { max: 10, timeWindow: "1 minute" } },
+      schema: {
+        tags: ["audit"],
+        summary: "Export a bounded, auditable organization audit snapshot",
+      },
+    },
+    async (request, reply) => {
+      const input = auditExportRequestSchema.parse(request.body);
+      const { startAt, endExclusive } = auditExportDateBounds(input);
+      const userAgent = request.headers["user-agent"];
+      const result = await dependencies.db.transaction(async (tx) => {
+        const clauses = [
+          eq(auditEvents.orgId, request.auth.orgId),
+          gte(auditEvents.createdAt, startAt),
+          lt(auditEvents.createdAt, endExclusive),
+        ];
+        if (input.resourceType) clauses.push(eq(auditEvents.resourceType, input.resourceType));
+        if (input.action) clauses.push(eq(auditEvents.action, input.action));
+
+        const rows = await tx
+          .select()
+          .from(auditEvents)
+          .where(and(...clauses))
+          .orderBy(asc(auditEvents.createdAt), asc(auditEvents.id))
+          .limit(AUDIT_EXPORT_MAX_ROWS + 1);
+        if (rows.length > AUDIT_EXPORT_MAX_ROWS) {
+          throw new DomainError(
+            "PAYLOAD_TOO_LARGE",
+            `Audit export exceeds ${AUDIT_EXPORT_MAX_ROWS} events; narrow the date range or filters`,
+            413,
+            { maxRows: AUDIT_EXPORT_MAX_ROWS },
+          );
+        }
+
+        const artifact = renderAuditExport(rows, input.format);
+        if (artifact.body.byteLength > AUDIT_EXPORT_MAX_BYTES) {
+          throw new DomainError(
+            "PAYLOAD_TOO_LARGE",
+            `Audit export exceeds ${AUDIT_EXPORT_MAX_BYTES} bytes; narrow the date range or filters`,
+            413,
+            { maxBytes: AUDIT_EXPORT_MAX_BYTES },
+          );
+        }
+        await tx.insert(auditEvents).values({
+          orgId: request.auth.orgId,
+          actorUserId: request.auth.userId,
+          action: "export_generated",
+          resourceType: "audit-events",
+          resourceId: artifact.sha256,
+          requestId: request.id,
+          metadata: {
+            schemaVersion: 1,
+            format: input.format,
+            from: input.from,
+            to: input.to,
+            timeZone: "Asia/Shanghai",
+            rowCount: rows.length,
+            contentSha256: artifact.sha256,
+            filters: {
+              resourceType: input.resourceType ?? null,
+              action: input.action ?? null,
+            },
+            containsPersonalData: true,
+            acknowledgement: input.acknowledgement,
+            semantics:
+              "authorized snapshot generated; client receipt and onward handling are not asserted",
+          },
+          ipAddress: request.ip,
+          ...(typeof userAgent === "string" ? { userAgent } : {}),
+        });
+        return { artifact, rowCount: rows.length };
+      });
+
+      const filename = `fiatlux-audit-${input.from}_to_${input.to}.${result.artifact.extension}`;
+      return reply
+        .header("Content-Disposition", `attachment; filename="${filename}"`)
+        .header("X-Audit-Event-Count", String(result.rowCount))
+        .header("X-Content-SHA256", result.artifact.sha256)
+        .type(result.artifact.contentType)
+        .send(result.artifact.body);
     },
   );
 

@@ -114,6 +114,7 @@ export async function buildApp(dependencies: AppDependencies) {
     origin: dependencies.config.WEB_ORIGIN,
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    exposedHeaders: ["Content-Disposition", "X-Audit-Event-Count", "X-Content-SHA256"],
   });
   await app.register(helmet, {
     contentSecurityPolicy: false,

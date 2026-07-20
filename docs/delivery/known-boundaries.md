@@ -57,6 +57,7 @@
 - 恢复源与输出已分离：归档通过 `RESTORE_SOURCE_DIR` 只读挂载，恢复前加密备份写到独立的 `RESTORE_PRE_BACKUP_DIR`。这解决了批准介质只读时无法生成 pre-restore 的路径冲突，但目录容量只提供安全下限而非成功保证；MinIO 内部卷格式/身份元数据不在归档中，跨版本兼容仍需人工确认。
 - 定期恢复演练的日志/恢复报告写入独立 `RESTORE_DRILL_REPORT_DIR`；未配置或不可写时演练失败关闭，不会把只读归档源重新挂成可写。
 - PWA 不缓存 API 数据，离线不能可靠查看或编辑公司记录。
+- 审计日志支持 owner/admin 受控导出，但文件包含 before/after、metadata、IP 和 user agent，可能含个人信息或商业敏感信息。31 天、10,000 条、25 MB、独立权限、CSV 公式保护、响应/浏览器 SHA-256 和 `export_generated` 只能证明有界文件被生成并通过浏览器字节校验；系统无法证明本地保存完成、接收人身份、后续复制/转发或按期销毁，也没有对导出文件做数字签名。
 - 移动验证使用隔离 real Playwright 与 production-like/精确 SHA Web 镜像的原生 Python Playwright 390×844 Chromium 仿真；虽已有构建身份和失败关闭真机会话/附件入口，仍尚无真实 iPhone、Android、公司 MDM 或受管移动设备批准证据。
 - 单主机 Compose 无主机级高可用，故障恢复依赖可用备份和可接受 RTO。
 

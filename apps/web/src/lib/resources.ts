@@ -1047,7 +1047,7 @@ export const resources: Record<string, ResourceConfig> = {
     endpoint: "/audit-events",
     title: "审计日志",
     singular: "审计事件",
-    description: "不可修改的操作、模型与工具调用证据",
+    description: "不可修改的操作、模型与工具调用证据；授权管理员可生成范围有界的内部导出",
     icon: FileClock,
     permission: "audit-events",
     readOnly: true,

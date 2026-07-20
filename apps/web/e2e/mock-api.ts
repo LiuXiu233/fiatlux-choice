@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { Page, Route } from "@playwright/test";
 
 const session = {
@@ -201,6 +202,20 @@ const evidenceFile = {
   status: "active",
   version: 3,
 };
+const mockAuditEvents = [
+  {
+    id: "audit-event-1",
+    actorUserId: "user-owner",
+    action: "update",
+    resourceType: "contracts",
+    resourceId: "contract-active-1",
+    requestId: "request-audit-1",
+    before: { status: "review" },
+    after: { status: "active" },
+    metadata: {},
+    createdAt: "2026-07-20T02:00:00+08:00",
+  },
+];
 const obligations: Array<Record<string, unknown>> = [];
 const complianceEvents: Array<Record<string, unknown>> = [];
 const complianceMonitoringStatus = {
@@ -299,6 +314,46 @@ export async function installMockApi(
       return json(route, { data: { changed: true, revokedOtherSessions: 0 } });
     }
     if (path === "/dashboard") return json(route, { data: dashboard });
+    if (path === "/audit-events" && request.method() === "GET") {
+      return json(route, {
+        data: mockAuditEvents,
+        meta: { page: 1, pageSize: 20, total: mockAuditEvents.length, pageCount: 1 },
+      });
+    }
+    if (path === "/audit-events/export" && request.method() === "POST") {
+      const canExport =
+        sessionState.permissions.includes("*") ||
+        (sessionState.permissions.includes("audit-events:read") &&
+          sessionState.permissions.includes("audit-events:export"));
+      if (!canExport) return json(route, { error: { message: "没有审计导出权限" } }, 403);
+      const input = request.postDataJSON() as Record<string, unknown>;
+      if (
+        input.acknowledgement !== "INTERNAL_AUDIT_EXPORT_ACKNOWLEDGED" ||
+        typeof input.from !== "string" ||
+        typeof input.to !== "string" ||
+        !["csv", "ndjson"].includes(String(input.format))
+      ) {
+        return json(route, { error: { message: "审计导出输入无效" } }, 400);
+      }
+      const extension = String(input.format);
+      const contentType =
+        extension === "csv" ? "text/csv; charset=utf-8" : "application/x-ndjson; charset=utf-8";
+      const exportBody =
+        extension === "csv"
+          ? '\uFEFF"schema_version","event_id"\r\n"1","audit-event-1"\r\n'
+          : '{"schemaVersion":1,"eventId":"audit-event-1"}\n';
+      return route.fulfill({
+        status: 200,
+        headers: {
+          "Cache-Control": "no-store, max-age=0",
+          "Content-Disposition": `attachment; filename="fiatlux-audit-${String(input.from)}_to_${String(input.to)}.${extension}"`,
+          "Content-Type": contentType,
+          "X-Audit-Event-Count": "1",
+          "X-Content-SHA256": createHash("sha256").update(exportBody).digest("hex"),
+        },
+        body: exportBody,
+      });
+    }
     if (path === "/operations/incidents" && request.method() === "GET") {
       const requestedStatus = url.searchParams.get("status") ?? "open";
       const requestedType = url.searchParams.get("type");

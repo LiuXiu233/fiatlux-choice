@@ -186,6 +186,93 @@ describe.skipIf(!databaseUrl)("API PostgreSQL vertical slice", () => {
     expect(unchangedEvent?.action).toBe("create");
   });
 
+  it("exports a bounded organization audit snapshot and audits the export itself", async () => {
+    const requestId = `audit-export-${randomUUID()}`;
+    const resourceType = `audit-export-test-${suffix}`;
+    const firstEventId = randomUUID();
+    const secondEventId = randomUUID();
+    await dbHandle.db.insert(auditEvents).values([
+      {
+        id: firstEventId,
+        orgId: firstOrgId,
+        actorUserId: firstUserId,
+        action: '=HYPERLINK("https://example.invalid","open")',
+        resourceType,
+        resourceId: "first-org-visible",
+        requestId: `source-${requestId}`,
+        metadata: { purpose: "spreadsheet-injection-regression" },
+      },
+      {
+        id: secondEventId,
+        orgId: secondOrgId,
+        action: "create",
+        resourceType,
+        resourceId: "second-org-must-not-export",
+        requestId: `other-${requestId}`,
+        metadata: {},
+      },
+    ]);
+    const chinaToday = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Shanghai",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date());
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/audit-events/export",
+      headers: { cookie: firstCookie, "x-request-id": requestId },
+      payload: {
+        from: chinaToday,
+        to: chinaToday,
+        format: "csv",
+        resourceType,
+        acknowledgement: "INTERNAL_AUDIT_EXPORT_ACKNOWLEDGED",
+      },
+    });
+    expect(response.statusCode, response.body).toBe(200);
+    expect(response.headers["content-type"]).toContain("text/csv");
+    expect(response.headers["content-disposition"]).toBe(
+      `attachment; filename="fiatlux-audit-${chinaToday}_to_${chinaToday}.csv"`,
+    );
+    expect(response.headers["x-audit-event-count"]).toBe("1");
+    const exported = response.rawPayload.toString("utf8");
+    expect(exported.startsWith("\uFEFF")).toBe(true);
+    expect(exported).toContain(firstEventId);
+    expect(exported).toContain("'=HYPERLINK");
+    expect(exported).not.toContain(secondEventId);
+    expect(exported).not.toContain("second-org-must-not-export");
+    const contentSha256 = createHash("sha256").update(response.rawPayload).digest("hex");
+    expect(response.headers["x-content-sha256"]).toBe(contentSha256);
+
+    const [exportAudit] = await dbHandle.db
+      .select()
+      .from(auditEvents)
+      .where(
+        and(
+          eq(auditEvents.orgId, firstOrgId),
+          eq(auditEvents.requestId, requestId),
+          eq(auditEvents.action, "export_generated"),
+        ),
+      )
+      .limit(1);
+    expect(exportAudit).toMatchObject({
+      actorUserId: firstUserId,
+      resourceType: "audit-events",
+      resourceId: contentSha256,
+      metadata: {
+        schemaVersion: 1,
+        format: "csv",
+        from: chinaToday,
+        to: chinaToday,
+        rowCount: 1,
+        contentSha256,
+        containsPersonalData: true,
+      },
+    });
+  });
+
   it("rejects cross-organization foreign-key references", async () => {
     const secondObjectiveResponse = await app.inject({
       method: "POST",
@@ -546,6 +633,26 @@ describe.skipIf(!databaseUrl)("API PostgreSQL vertical slice", () => {
       memberPassword,
       "member-replacement-password-long-enough",
     );
+
+    const auditDate = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Shanghai",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date());
+    const forbiddenAuditExport = await app.inject({
+      method: "POST",
+      url: "/api/v1/audit-events/export",
+      headers: { cookie: memberCookie },
+      payload: {
+        from: auditDate,
+        to: auditDate,
+        format: "csv",
+        acknowledgement: "INTERNAL_AUDIT_EXPORT_ACKNOWLEDGED",
+      },
+    });
+    expect(forbiddenAuditExport.statusCode).toBe(403);
+    expect(body(forbiddenAuditExport).error).toMatchObject({ code: "FORBIDDEN" });
 
     const ownData = Buffer.from("member-owned upload");
     const ownMetadataResponse = await app.inject({

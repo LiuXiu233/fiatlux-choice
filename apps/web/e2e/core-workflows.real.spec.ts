@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { expect, type Locator, type Page, test } from "@playwright/test";
 
@@ -96,7 +97,62 @@ test("@desktop-core @mobile-core 真实栈呈现 12 篇受控电竞教育内容�
     clientWidth: document.documentElement.clientWidth,
   }));
   expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.clientWidth + 1);
+  await verifyAuditExport(page);
 });
+
+async function verifyAuditExport(page: Page) {
+  await page.goto("/resources/audit-events");
+  await expect(page.getByRole("heading", { name: "审计日志" })).toBeVisible();
+  await page.getByRole("button", { name: "受控导出" }).click();
+  const dialog = page.getByRole("dialog", { name: "受控导出审计日志" });
+  const chinaToday = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+  await dialog.getByLabel("开始日期（北京时间）").fill(chinaToday);
+  await dialog.getByLabel("结束日期（北京时间，含当天）").fill(chinaToday);
+  await dialog.getByLabel("文件格式").selectOption("ndjson");
+  await dialog.getByLabel(/我确认只在获授权的内部范围保存和传递该文件/).check();
+
+  const responsePromise = page.waitForResponse(
+    (response) =>
+      new URL(response.url()).pathname === "/api/v1/audit-events/export" &&
+      response.request().method() === "POST",
+  );
+  const downloadPromise = page.waitForEvent("download");
+  await dialog.getByRole("button", { name: "生成并下载" }).click();
+  const [response, download] = await Promise.all([responsePromise, downloadPromise]);
+  expect(response.status()).toBe(200);
+  expect(response.request().postDataJSON()).toEqual({
+    from: chinaToday,
+    to: chinaToday,
+    format: "ndjson",
+    acknowledgement: "INTERNAL_AUDIT_EXPORT_ACKNOWLEDGED",
+  });
+  const headers = await response.allHeaders();
+  expect(headers["x-audit-event-count"]).toMatch(/^\d+$/);
+  expect(headers["x-content-sha256"]).toMatch(/^[a-f0-9]{64}$/);
+  expect(download.suggestedFilename()).toBe(`fiatlux-audit-${chinaToday}_to_${chinaToday}.ndjson`);
+  const downloadedPath = await download.path();
+  expect(downloadedPath).toBeTruthy();
+  const downloadedBytes = await readFile(downloadedPath as string);
+  expect(createHash("sha256").update(downloadedBytes).digest("hex")).toBe(
+    headers["x-content-sha256"],
+  );
+  const lines = downloadedBytes.toString("utf8").trim().split("\n");
+  expect(lines.length).toBe(Number(headers["x-audit-event-count"]));
+  expect(lines.every((line) => JSON.parse(line).schemaVersion === 1)).toBe(true);
+  await expect(page.getByText(/已生成并校验 \d+ 条审计记录/)).toBeVisible();
+  await expect(page.getByRole("row").filter({ hasText: "export_generated" }).first()).toBeVisible();
+
+  const dimensions = await page.evaluate(() => ({
+    scrollWidth: document.documentElement.scrollWidth,
+    clientWidth: document.documentElement.clientWidth,
+  }));
+  expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.clientWidth + 1);
+}
 
 test("@desktop-core @mobile-core 真实栈登记隔离的证据型专业复核并保护历史证据", async ({
   page,

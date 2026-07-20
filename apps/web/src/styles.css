@@ -2320,6 +2320,22 @@ select:focus-visible {
   accent-color: var(--teal);
 }
 
+.resource-form .checkbox-field {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 10px;
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-weight: 450;
+  line-height: 1.55;
+}
+
+.resource-form .checkbox-field input {
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+
 .advisor-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

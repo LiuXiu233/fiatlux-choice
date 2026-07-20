@@ -92,6 +92,15 @@ df -h /var/lib/docker /var/backups/fiatlux-choice
 
 既有组织首次升级到该能力时，admin 需要新增 `operations-incidents:read` 和 `operations-incidents:update`。这属于关键权限变更：取得人工批准后使用 `SEED_MODE=system-role-maintenance` 补齐并核对审计；不得改用 `metadata-only` 或直接 SQL。
 
+### 受控审计导出
+
+1. 先记录用途、接收人、最小日期范围和必要筛选；外部顾问材料优先另行最小化，不默认导出完整 before/after、IP 与 user agent。
+2. 仅 owner 或同时具有 `audit-events:read`、`audit-events:export` 的受信任 admin 操作。既有组织补充 admin 导出权限属于关键权限变更，取得批准后运行 `SEED_MODE=system-role-maintenance`，不要直接写 `role_permissions`。
+3. 在“审计日志”选择不超过 31 个北京时间自然日，必要时按对象和动作分批。看到 413 表示超过 10,000 条或 25 MB；缩小范围，不要修改代码绕过上限。
+4. 下载后记录文件名和 SHA-256，并在日志中按请求 ID 核对 `export_generated` 的范围、条数与哈希。浏览器提示成功只证明响应字节通过校验并触发本地保存，不证明下载目录、转发、副本或销毁状态。
+5. 导出文件只保存在受管、加密设备和批准目录，按目的设置到期删除；不得上传到个人网盘、通用聊天或未经批准的 AI。CSV 即使有公式前缀保护仍按不可信数据打开。
+6. 若浏览器报告缺少哈希、哈希不一致或无法验证完整性，不要保留该文件；记录 request ID，按 P1/P0 影响等级调查 API、代理、浏览器扩展或内容篡改。
+
 ### 成员停用与离职处置
 
 1. 先确认至少保留一名未归档、状态为 `active` 的 owner，并确定另一名审批人或单人例外的事后复核责任人。

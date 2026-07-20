@@ -79,6 +79,7 @@ import {
   userUpdateSchema,
 } from "./admin-routes.js";
 import { promptVersionCreateSchema } from "./advisor-routes.js";
+import { auditExportRequestSchema } from "./audit-export.js";
 import { complianceSnapshotListQuerySchema } from "./compliance-monitor-routes.js";
 import { auditEventListQuerySchema } from "./dashboard-routes.js";
 import { fileArchiveQuerySchema, fileUpdateSchema } from "./file-routes.js";
@@ -303,6 +304,7 @@ const integrationParamsSchema = zodSchema(integrationIdParamsSchema);
 const archiveQuerySchema = zodSchema(resourceArchiveQuerySchema);
 const fileArchiveQueryJsonSchema = zodSchema(fileArchiveQuerySchema);
 const auditListQuerySchema = zodSchema(auditEventListQuerySchema);
+const auditExportBodySchema = zodSchema(auditExportRequestSchema);
 const listQueryJsonSchema = zodSchema(listQuerySchema);
 
 const resourceTables: Record<ResourceName, PgTable> = {
@@ -535,6 +537,24 @@ addOperation("GET", "/api/v1/audit-events", {
   operationId: "listAuditEvents",
   querystring: auditListQuerySchema,
   success: { 200: paginatedEnvelope(tableSchema(auditEvents)) },
+});
+addOperation("POST", "/api/v1/audit-events/export", {
+  operationId: "exportAuditEvents",
+  body: auditExportBodySchema,
+  success: {
+    200: {
+      description: "Bounded audit export with an integrity hash in X-Content-SHA256",
+      headers: {
+        "Content-Disposition": { schema: { type: "string" } },
+        "X-Audit-Event-Count": { schema: { type: "integer", minimum: 0, maximum: 10_000 } },
+        "X-Content-SHA256": { schema: { type: "string", pattern: "^[a-f0-9]{64}$" } },
+      },
+      content: {
+        "text/csv": { schema: { type: "string", format: "binary" } },
+        "application/x-ndjson": { schema: { type: "string", format: "binary" } },
+      },
+    },
+  },
 });
 addOperation("GET", "/api/v1/audit-events/:id", {
   operationId: "getAuditEvent",
