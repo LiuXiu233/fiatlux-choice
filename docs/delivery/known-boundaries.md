@@ -27,6 +27,8 @@
 
 不可变受管真机入口 `ffe102e75526c510a14c60ef90a29e174b40a00a` 为 PWA 增加成对版本/SHA 可见身份，并以严格 Schema、独立候选/环境期望、实际附件字节/SHA-256 和不可覆盖 `0600` 报告收集固定十步真机会话。精确 SHA 已完成 237 文件、7 项类型、220 单元、17 项定向、mock 48+6、生产 Web 镜像 390×844 Python Chromium、Gitleaks、依赖审计、Semgrep 96 目标、Trivy 0 和 176-package SPDX；本地镜像/归档/venv 已清理。所有会话仍是 synthetic，浏览器使用 loopback、headless viewport 和 API fixture；报告固定不独立证明物理设备、MDM 或批准，因此不得关闭真机门禁，详见[受管真机入口证据](./evidence/managed-device-pwa-verifier-acceptance-ffe102e-20260720.json)。
 
+不可变真实适配器防护候选 `d7cc156ef2c44a531416c60ed88023681b113ecf` 将 API 无密钥、worker-only 真实探测、七顾问质量/审计、供应商处理与预算、GitHub 单仓库 Metadata-only、撤销轮换和 disabled/manual 回退固化为失败关闭契约。精确 SHA 已完成 246 文件、7 项类型、239 单元、API 94/94、worker 33/33、MinIO 2/2、七镜像、空卷 Compose、desktop/mobile/PWA、重启、部署验证、Gitleaks、生产依赖、Semgrep 100 目标及七镜像 Trivy/SPDX；全部 QA 资源已清理。运行时故意为 LLM mock、GitHub manual 且没有真实凭据、调用、目标会话或批准，所以该证据只能巩固本地门禁，不能关闭真实适配器门禁，详见[防护验收证据](./evidence/real-adapter-guard-acceptance-d7cc156-20260720.json)。
+
 当前 schema 为 38 张业务表和 11 个迁移（`0000`–`0010`）。专用迁移测试已证明 `0000`–`0009` 数据原样保留、不会为 legacy reviewed 记录发明专业 provenance；当前签名恢复又逐项匹配 11 个 migration SQL hash，但这仍不是 GitHub runner、生产副本或目标内网升级证明。本地 synthetic bridge 只覆盖旧 10 迁移基线，历史生产 N−1、目标发布复演和经审批的破坏性 `restore.sh` 生产入口没有实跑。GitHub CI、最终 GHCR 镜像、目标内网、真实设备、MinIO 长期维护/支持风险处置和责任人批准仍是发布闸门，以[验收矩阵](./v1-acceptance-matrix.md)为准。
 
 ## 3. 身份与权限
@@ -80,7 +82,7 @@
 - 顾问运行默认是 requester-only：列表、详情和人工编辑均只对发起人可见。只有 `advisor-runs:read-all` 或 `*` 可尝试读他人运行，但仍需该顾问 requiredPermission 和快照中每类资源的读权限；不满足时按 404 隐藏存在性。
 - 结构校验和证据白名单不能消除模型误判、断章取义和提示注入。
 - compatible 请求已有单次输出 token 硬上限，顾问创建有每小时限速，调用审计记录实际 token；供应商账户月度硬预算、价格变化、模型弃用和可用性仍需目标环境运行监控。
-- 仓库已有 worker-only 真实结构化探测、GitHub 指定仓库身份探测和离线验收证据契约，但尚无真实目标凭据、七顾问质量样本、撤销轮换、供应商/权限复核或独立批准，因此真实适配器门禁仍阻断。
+- 仓库已有 worker-only 真实结构化探测、GitHub 指定仓库身份探测和离线验收证据契约，且 `d7cc156…` 已完成本地失败关闭验收；但尚无真实目标凭据、七顾问质量样本、撤销轮换、供应商/权限复核或独立批准，因此真实适配器门禁仍阻断。
 
 ## 7. 合规知识
 

@@ -2,19 +2,19 @@
   "schemaVersion": 1,
   "versionLabel": "V1 controlled candidate",
   "overallStatus": "blocked",
-  "evaluatedAt": "2026-07-20T15:54:39+08:00",
+  "evaluatedAt": "2026-07-20T18:16:58+08:00",
   "candidate": {
     "repository": "https://github.com/LiuXiu233/fiatlux-choice",
     "branch": "codex/v1-acceptance-hardening",
-    "implementationCommit": "231d8e82164f8e31b1cc978975bf56e7ac6a26bb",
-    "evidenceCommit": "231d8e82164f8e31b1cc978975bf56e7ac6a26bb"
+    "implementationCommit": "d7cc156ef2c44a531416c60ed88023681b113ecf",
+    "evidenceCommit": "d7cc156ef2c44a531416c60ed88023681b113ecf"
   },
   "gates": [
     {
       "id": "local_core_acceptance",
       "status": "passed",
       "ownerRole": "研发与交付负责人",
-      "summary": "核心闭环、真实栈、浏览器、移动端、PWA、运行异常、教育内容、受管真机入口和生产恢复防护已有分层本地机器证据。",
+      "summary": "核心闭环、真实栈、浏览器、移动端、PWA、运行异常、教育内容、生产恢复防护和真实适配器失败关闭入口已有分层本地机器证据。",
       "evidence": [
         {
           "kind": "machine_evidence",
@@ -87,16 +87,25 @@
           "subjectCommit": "231d8e82164f8e31b1cc978975bf56e7ac6a26bb",
           "sha256": "9d688ad7736d72b1ffb93d0035d6e595d30b8a4f507b028153f6b8943bdb8f72",
           "note": "当前实现提交的 exact-SHA 全仓、生产恢复防护、七镜像构建和真实签名隔离恢复验收；明确未执行生产 restore.sh 或独立批准。"
+        },
+        {
+          "kind": "machine_evidence",
+          "result": "success",
+          "reference": "docs/delivery/evidence/real-adapter-guard-acceptance-d7cc156-20260720.json",
+          "verifiedAt": "2026-07-20T18:16:58+08:00",
+          "subjectCommit": "d7cc156ef2c44a531416c60ed88023681b113ecf",
+          "sha256": "fa8cb3357cbf32cc38a9ba491e312e8467dd2addcecf0614e7449cc6b1f82463",
+          "note": "当前候选的全仓、API 94/94、worker 33/33、MinIO 2/2、七镜像、空卷 Compose、桌面/移动/PWA、重启和部署验证；真实适配器仍为 mock/manual。"
         }
       ],
       "blockers": [],
-      "reviewedAt": "2026-07-20T15:54:39+08:00"
+      "reviewedAt": "2026-07-20T18:16:58+08:00"
     },
     {
       "id": "local_security_and_sensitive_data",
       "status": "passed",
       "ownerRole": "信息安全负责人",
-      "summary": "当前实现提交已完成源码、历史、生产依赖、既有 SAST、PWA Web 镜像及变更后 backup 镜像 Trivy/SPDX 安全复核，未发现敏感数据。",
+      "summary": "当前实现提交已完成源码、完整历史、生产依赖、Semgrep 和七个本地镜像的 Trivy/SPDX 安全复核，未发现敏感数据或阻断漏洞。",
       "evidence": [
         {
           "kind": "machine_evidence",
@@ -151,10 +160,19 @@
           "subjectCommit": "231d8e82164f8e31b1cc978975bf56e7ac6a26bb",
           "sha256": "9d688ad7736d72b1ffb93d0035d6e595d30b8a4f507b028153f6b8943bdb8f72",
           "note": "当前提交的 Gitleaks、生产依赖审计、ShellCheck、backup 镜像 Trivy HIGH/CRITICAL 0 和 SPDX 178 packages 通过；未把本地镜像冒充 GHCR。"
+        },
+        {
+          "kind": "machine_evidence",
+          "result": "success",
+          "reference": "docs/delivery/evidence/real-adapter-guard-acceptance-d7cc156-20260720.json#sourceSecurity",
+          "verifiedAt": "2026-07-20T18:16:58+08:00",
+          "subjectCommit": "d7cc156ef2c44a531416c60ed88023681b113ecf",
+          "sha256": "fa8cb3357cbf32cc38a9ba491e312e8467dd2addcecf0614e7449cc6b1f82463",
+          "note": "当前候选 Gitleaks、官方生产依赖审计、Semgrep 100 个生产目标和七镜像 Trivy HIGH/CRITICAL 0、SPDX 均通过；本地镜像不冒充 GHCR。"
         }
       ],
       "blockers": [],
-      "reviewedAt": "2026-07-20T15:54:39+08:00"
+      "reviewedAt": "2026-07-20T18:16:58+08:00"
     },
     {
       "id": "github_ci_security",
@@ -300,7 +318,7 @@
       "id": "real_llm_github_adapters",
       "status": "blocked",
       "ownerRole": "信息安全与产品负责人",
-      "summary": "worker-only 真实探测与失败关闭验收契约已实现，但真实目标凭据、七顾问质量、最小权限和撤销回退尚未执行或批准。",
+      "summary": "worker-only 真实探测、失败关闭证据契约和本地 mock/manual 边界已通过，但真实目标凭据、七顾问质量、最小权限和撤销回退尚未执行或批准。",
       "evidence": [
         {
           "kind": "machine_evidence",
@@ -308,6 +326,15 @@
           "reference": "docs/admin/real-adapter-acceptance.md#1-目的与完成边界",
           "verifiedAt": "2026-07-20T16:56:38+08:00",
           "note": "工程入口和离线 verifier 不持有真实凭据，也不独立证明供应商、GitHub 权限、质量、撤销或批准事实。"
+        },
+        {
+          "kind": "machine_evidence",
+          "result": "blocked",
+          "reference": "docs/delivery/evidence/real-adapter-guard-acceptance-d7cc156-20260720.json#truthBoundary",
+          "verifiedAt": "2026-07-20T18:16:58+08:00",
+          "subjectCommit": "d7cc156ef2c44a531416c60ed88023681b113ecf",
+          "sha256": "fa8cb3357cbf32cc38a9ba491e312e8467dd2addcecf0614e7449cc6b1f82463",
+          "note": "exact-SHA 本地工程验收通过，但记录明确为真实凭据、真实调用、目标环境会话和独立批准均未发生，因此不能作为成功适配器证据。"
         },
         {
           "kind": "approval",
@@ -320,7 +347,7 @@
         "缺少目标环境真实 LLM 与 GitHub 最小权限凭据、七类顾问运行及指定仓库刷新会话。",
         "缺少供应商数据处理、质量、账户硬预算、两类凭据撤销轮换、disabled/manual 回退和独立负责人批准。"
       ],
-      "reviewedAt": "2026-07-20T16:56:38+08:00"
+      "reviewedAt": "2026-07-20T18:16:58+08:00"
     },
     {
       "id": "compliance_professional_review",

@@ -1,0 +1,354 @@
+{
+  "schemaVersion": 1,
+  "evidenceType": "real_adapter_guard_acceptance",
+  "generatedAt": "2026-07-20T18:16:58+08:00",
+  "result": "success",
+  "implementation": {
+    "commit": "d7cc156ef2c44a531416c60ed88023681b113ecf",
+    "parentCommit": "f8ad2e45422bb824716ea15527b951f0ff6d2bcc",
+    "branch": "codex/v1-acceptance-hardening",
+    "subject": "Fail-closed real LLM and GitHub adapter acceptance guard with zero-finding source security",
+    "implementationSeries": [
+      {
+        "commit": "f8ad2e45422bb824716ea15527b951f0ff6d2bcc",
+        "purpose": "real-adapter contract, worker-only probes, verifier, tests and documentation"
+      },
+      {
+        "commit": "d7cc156ef2c44a531416c60ed88023681b113ecf",
+        "purpose": "remove Semgrep ambiguity without suppressions while preserving fail-closed templates"
+      }
+    ],
+    "workingTreeCleanDuringFinalExactShaChecks": true
+  },
+  "scope": "Exact-SHA local engineering acceptance for real-adapter boundaries, evidence intake, disposable Compose behavior and security. This is not a successful live-provider, live-GitHub, target-environment or human-approval session.",
+  "truthBoundary": {
+    "realLlmCredentialProvided": false,
+    "realGitHubCredentialProvided": false,
+    "liveLlmProviderCallPerformed": false,
+    "liveAuthenticatedGitHubCallPerformed": false,
+    "sevenAdvisorLiveQualitySessionPerformed": false,
+    "providerDataProcessingReviewCompleted": false,
+    "providerAccountHardBudgetVerified": false,
+    "githubSelectedRepositoryMetadataOnlyPermissionVerified": false,
+    "realCredentialRevocationAndRotationPerformed": false,
+    "targetEnvironmentExecutionPerformed": false,
+    "independentHumanApprovalObtained": false,
+    "approvalIndependentlyVerified": false,
+    "realLlmGitHubAdaptersGateClosed": false,
+    "v1DeclaredComplete": false,
+    "note": "The accepted stack deliberately ran LLM_DRIVER=mock and GITHUB_INTEGRATION_MODE=manual with empty worker credentials. No result in this file represents a successful external adapter operation."
+  },
+  "implementedControls": {
+    "advisorCoverage": [
+      "general_manager",
+      "finance",
+      "legal_compliance",
+      "product_rnd",
+      "market_opportunity",
+      "hr_admin",
+      "information_security"
+    ],
+    "qualityDimensions": [
+      "factualGrounding",
+      "evidenceTraceability",
+      "factInferenceSeparation",
+      "actionability",
+      "safetyBoundaries"
+    ],
+    "llmIdentityBoundToProviderEndpointAndModel": true,
+    "returnedModelIdentityChecked": true,
+    "tokenUsageRequired": true,
+    "maxOutputTokensHardBounded": true,
+    "providerHttpsUserinfoQueryRedirectGuards": true,
+    "githubReadOnlyRequiresCredentialAndProbeRepository": true,
+    "githubSingleRepositoryIdentityChecked": true,
+    "githubMetadataOnlyEvidenceRequired": true,
+    "workerOnlyExternalCredentials": true,
+    "apiRejectsExternalCredentialInjection": true,
+    "integrationProbeQueue": "integration.test",
+    "concurrentProbeSingleFlight": true,
+    "workerCompareAndSwapClaim": true,
+    "expiredProbeLeaseRequiresManualReview": true,
+    "promptToolModelCallAndHumanEditAuditRequired": true,
+    "providerTermsPrivacyCostAndRotationEvidenceRequired": true,
+    "disabledManualNoNetworkFallbackRequired": true,
+    "sessionAndArtifactPermissions": {
+      "directoryMode": "0700",
+      "fileMode": "0600",
+      "regularFileAndNoSymlinkRequired": true,
+      "attachmentBytesAndSha256Verified": true,
+      "textCredentialPatternsRejected": true,
+      "existingReportOverwriteAllowed": false
+    },
+    "successReportApprovalIndependentlyVerified": false
+  },
+  "validation": {
+    "exactShaStandardCheck": {
+      "command": "CI=true pnpm check",
+      "status": "passed",
+      "commit": "d7cc156ef2c44a531416c60ed88023681b113ecf",
+      "biomeFilesChecked": 246,
+      "shellcheck": "passed",
+      "actionlint": "passed",
+      "typescriptProjectsPassed": 7,
+      "unitTestFilesPassed": 43,
+      "unitTestsPassed": 239,
+      "workspaceProductionBuild": "passed",
+      "pwaPrecacheEntries": 11,
+      "pwaPrecacheSizeKiB": 787.68,
+      "standardIntegrationWithoutDependencies": {
+        "objectStorageTestsSkipped": 2,
+        "apiTestsSkipped": 94,
+        "workerTestsSkipped": 33,
+        "countedAsPassed": false
+      }
+    },
+    "realAdapterGuardTests": {
+      "contractTestsPassed": 7,
+      "filesystemVerifierTestsPassed": 7,
+      "workerOnlyComposeBoundary": "passed",
+      "failClosedTemplate": "passed",
+      "negativeCoverage": [
+        "mock or synthetic live-provider assertion",
+        "missing token usage or seven-advisor coverage",
+        "provider, endpoint, model, candidate or environment mismatch",
+        "GitHub anonymous, multi-repository or writable permission evidence",
+        "missing hard budget, privacy review or credential rotation",
+        "unsafe URL, redirect or repository identity",
+        "artifact mutation, path escape, symlink or unsafe permission",
+        "credential pattern in a readable attachment",
+        "same-name or partial report overwrite"
+      ]
+    },
+    "isolatedPostgresqlIntegration": {
+      "status": "passed",
+      "apiTestFiles": 19,
+      "apiTests": 94,
+      "workerTestFiles": 6,
+      "workerTests": 33,
+      "skipped": 0,
+      "temporaryContainerAndDataRemoved": true
+    },
+    "realMinioBytes": {
+      "status": "passed",
+      "tests": 2,
+      "coverage": [
+        "upload declared bytes and SHA-256",
+        "verified download and delete",
+        "wrong checksum rejection and compensating delete"
+      ],
+      "fixtureContainerRemoved": true
+    },
+    "freshCompose": {
+      "project": "fiatlux-adapter-d7cc156",
+      "origin": "http://localhost:19581",
+      "originScope": "disposable loopback engineering environment",
+      "freshPostgresqlVolume": true,
+      "freshMinioVolume": true,
+      "applicationTables": 38,
+      "drizzleMigrations": 11,
+      "pgBossSchemaVersion": 24,
+      "applicationQueues": 8,
+      "officialComplianceSources": 73,
+      "runningHealthyServices": ["postgres", "minio", "api", "worker", "web", "caddy"],
+      "firstLoginPasswordRotation": "passed",
+      "apiWorkerDatabaseRole": "fiatlux_runtime",
+      "runtimeDatabaseLeastPrivilege": "passed",
+      "auditAppendOnlyTrigger": "passed",
+      "onlyGatewayPublishedToHost": true,
+      "apiExternalCredentialEnvironmentNamesAbsent": true,
+      "workerLlmMode": "mock",
+      "workerGitHubMode": "manual",
+      "workerRealCredentialValuesEmpty": true,
+      "minioLeastPrivilegeBeforeRestart": "passed",
+      "minioLeastPrivilegeAfterRestart": "passed",
+      "fullStackRestart": "passed",
+      "postRestartReady": "passed",
+      "postRestartRotatedPasswordLogin": "passed",
+      "deploymentVerifier": "passed"
+    },
+    "containerHardening": {
+      "allSixRunningServicesNonRoot": true,
+      "runtimeUids": {
+        "api": 1000,
+        "worker": 1000,
+        "web": 10001,
+        "caddy": 10001,
+        "minio": 1000,
+        "postgres": 70
+      },
+      "readOnlyRootFilesystem": true,
+      "capabilitiesDropped": "ALL",
+      "noNewPrivileges": true,
+      "privilegedContainers": 0
+    },
+    "browser": {
+      "runtime": "Python Playwright 1.58.0 with Chromium 145.0.7632.6",
+      "releaseVersion": "v1.0.0-adapter-rc2",
+      "releaseGitSha": "d7cc156ef2c44a531416c60ed88023681b113ecf",
+      "desktop": {
+        "viewport": "1440x1000",
+        "scrollWidth": 1440,
+        "clientWidth": 1440,
+        "horizontalOverflow": false
+      },
+      "mobile": {
+        "viewport": "390x844",
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "horizontalOverflow": false
+      },
+      "mockLlmTruthVisible": true,
+      "manualGitHubTruthVisible": true,
+      "buildIdentityVisibleOnDesktopAndMobile": true,
+      "manifestStatus": 200,
+      "manifestDisplay": "standalone",
+      "manifestIconSizes": ["192x192", "512x512"],
+      "serviceWorkerRegistrations": 1,
+      "serviceWorkerState": "activated",
+      "cacheEntries": 11,
+      "apiCacheEntries": 0,
+      "manifestErrors": 0,
+      "installabilityErrors": 0,
+      "authenticatedConsoleErrors": 0,
+      "pageErrors": 0,
+      "failedAuthenticatedResponses": 0,
+      "visualReview": "passed",
+      "screenshotsRetainedInRepository": false,
+      "countedAsPhysicalDeviceOrTargetHttpsEvidence": false
+    }
+  },
+  "sourceSecurity": {
+    "gitleaks": {
+      "runtime": "gitleaks 8.28.0",
+      "currentTreeIncludingNonIgnoredUntracked": "passed",
+      "completeGitHistory": "passed",
+      "defaultAndCustomCanaries": "passed",
+      "findings": 0
+    },
+    "productionDependencyAudit": {
+      "command": "pnpm audit --prod --audit-level high --registry=https://registry.npmjs.org",
+      "status": "passed",
+      "knownVulnerabilities": 0
+    },
+    "semgrep": {
+      "runtime": "Semgrep OSS 1.170.0",
+      "scannerImageDigest": "sha256:c98f8829eea377274ee4b10656458b078b88232469b2ff913f091c2317347c9d",
+      "configurationRules": 10,
+      "canaryFindings": 10,
+      "productionTargets": 100,
+      "productionFindings": 0,
+      "engineErrors": 0,
+      "finalReportSha256": "718cda839f9b9a79888823dc53120b0e7dce150b3098b5522b380d5997bcd5eb",
+      "initialCandidateFindings": 4,
+      "remediationCommit": "d7cc156ef2c44a531416c60ed88023681b113ecf",
+      "ruleSuppressionsAdded": 0
+    }
+  },
+  "localImages": {
+    "platform": "linux/arm64",
+    "registryPublished": false,
+    "trivy": {
+      "runtime": "aquasec/trivy 0.70.0",
+      "scannerImageDigest": "sha256:be1190afcb28352bfddc4ddeb71470835d16462af68d310f9f4bca710961a41e",
+      "severity": ["HIGH", "CRITICAL"]
+    },
+    "syft": {
+      "runtime": "anchore/syft 1.42.3",
+      "scannerImageDigest": "sha256:5999d209a342e55e9edf70bf8930fb5b86d8f2a783fa401178372c50e21b1d36",
+      "format": "SPDX-2.3"
+    },
+    "components": {
+      "api": {
+        "imageId": "sha256:4bf2d483b8f7aafc6acab5f5e15b0cefe2f0a9d1f4a4e660958f0dca742884ba",
+        "sizeBytes": 77518797,
+        "highCritical": 0,
+        "fixable": 0,
+        "unfixed": 0,
+        "trivyReportSha256": "019a295b1101d8f354c4c8683a86c0384d746c5a5f57de0454c6d17cfc7e3ae5",
+        "spdxPackages": 204,
+        "spdxSha256": "6f0df21804c1de6bbb52aa63dfddeb8e995a7041eebe9d7410cb38c5d6af8945"
+      },
+      "worker": {
+        "imageId": "sha256:a689fe5c5333b6ca12c1d321447f90e255d145fb0362e37ba4ff395b17a70b3e",
+        "sizeBytes": 82489075,
+        "highCritical": 0,
+        "fixable": 0,
+        "unfixed": 0,
+        "trivyReportSha256": "ae7d0ac82f266702eef5e3c2621c500f16d210ad2355ac8ff7e4f55a21f0afa2",
+        "spdxPackages": 225,
+        "spdxSha256": "2606df5f5457005ab025707d8fca87802b6930b5af63b86d27f1d106082d7bf8"
+      },
+      "web": {
+        "imageId": "sha256:c0c6761556053a124bd3100cdd40935875046d76cecc7d6d5e3c8805becc075c",
+        "sizeBytes": 38149348,
+        "highCritical": 0,
+        "fixable": 0,
+        "unfixed": 0,
+        "trivyReportSha256": "bb935429701c3c96891245d425e9b31c33aa7f5e20ce32fcd63902d864383223",
+        "spdxPackages": 176,
+        "spdxSha256": "a3c88099c5ae36e0c54bd1aba88f0135daaad49c4ec63eece6875ef0b18a6aeb"
+      },
+      "gateway": {
+        "imageId": "sha256:3ef5503e187b08ac8307276a1e795b967d5377ec3ba94c3eb0df8df5f8279f96",
+        "sizeBytes": 37563217,
+        "highCritical": 0,
+        "fixable": 0,
+        "unfixed": 0,
+        "trivyReportSha256": "8a80380bd58d975683e66c3d8a2280d493aaaa7f94fc23d718667709a360c8cf",
+        "spdxPackages": 176,
+        "spdxSha256": "7e10d2ca3570913113cf49ede5f03115d2cfe8254d1607609a0fad84028d4868"
+      },
+      "minio": {
+        "imageId": "sha256:b23b3cc0292ec21e9f517f278085f3b7091b765616892f93541d7fd2c023538a",
+        "sizeBytes": 51951443,
+        "highCritical": 0,
+        "fixable": 0,
+        "unfixed": 0,
+        "trivyReportSha256": "2e27dc5fa67e5307f7afd3714641afedc84ee4e9c65c8eb3fed838a9fcfe0fe1",
+        "spdxPackages": 372,
+        "spdxSha256": "dd7eea254061e41f5b51c1b28527549a9c57d379b433371e25e04b59c9b47337"
+      },
+      "postgres": {
+        "imageId": "sha256:93ea814ccf7c2e2e8404a442fab56d24e056b86141a68c69331f56ab3625e8c6",
+        "sizeBytes": 114660893,
+        "highCritical": 0,
+        "fixable": 0,
+        "unfixed": 0,
+        "trivyReportSha256": "a433d1725c43b5b5c2b8bf34c49e1232c8223cec8a2913d4d3720d6ec53a108e",
+        "spdxPackages": 47,
+        "spdxSha256": "dab7765c6adeee9a1ccaa04aa5102605f2f5df40fc425737356ff764ea4e9fb5"
+      },
+      "backup": {
+        "imageId": "sha256:bcfd4186b3f1a397ea6d1119ea46c312efcb1d2db97e44ad3850ac5c41bf3348",
+        "sizeBytes": 130674686,
+        "highCritical": 0,
+        "fixable": 0,
+        "unfixed": 0,
+        "trivyReportSha256": "da9672eab61be78e2c64c9c1d3b4fd76c49b485ca09e168f9bdcb344997216e8",
+        "spdxPackages": 178,
+        "spdxSha256": "364b20856c0e7dde7fca459b3c87563e5afe229a68edd2802e56c8813db8993b"
+      }
+    }
+  },
+  "cleanup": {
+    "qaComposeProjectsRemoved": ["fiatlux-adapter-f8ad2e4", "fiatlux-adapter-d7cc156"],
+    "qaContainersRemaining": 0,
+    "qaVolumesRemaining": 0,
+    "qaImageTagsRemaining": 0,
+    "temporaryDatabaseAndMinioFixturesRemoved": true,
+    "temporaryScreenshotsRemoved": true,
+    "temporaryScannerReportsRemoved": true,
+    "testCredentialsRetained": false
+  },
+  "remainingBlockers": [
+    "Provide separately approved short-lived LLM and GitHub credentials to the worker in the authorized target environment.",
+    "Run all seven advisors against permission-scoped company data and retain prompt, tool, citation, model-call, token-usage and human-edit audit evidence.",
+    "Complete provider terms, data-processing, retention, subprocessors, cross-border and account hard-budget review.",
+    "Prove one selected GitHub repository with Metadata-only permission and no write or multi-repository scope.",
+    "Perform both credential revocation, replacement and recovery drills plus disabled/manual no-network fallback.",
+    "Verify all original attachments and report hashes through an independent company channel and obtain identifiable approval.",
+    "Do not change real_llm_github_adapters to passed until the machine report and matching independent approval both exist."
+  ],
+  "conclusion": "The exact implementation commit passed the recorded local source, type, unit, isolated database, real MinIO, seven-image, fresh Compose, desktop, mobile, PWA, restart, deployment and security checks. The accepted runtime deliberately used mock/manual integrations with no real credentials, external adapter calls or independent approval, so this evidence strengthens the two local V1 gates but leaves real_llm_github_adapters and overall V1 readiness blocked."
+}

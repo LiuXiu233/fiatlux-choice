@@ -39,6 +39,7 @@
 - 旧底层 formatVersion 2 演练归档 SHA-256 `bcfd6c59d…b6ba`，核对 38 表、10 migrations、pg-boss 24 和 1 个 56-byte 对象，实测 RPO 2 秒、drill RTO 75 秒；它早于 Ed25519 来源签名门禁，只保留为历史恢复证据。
 - `101d2f0…` 已暂停写入完成真实 age+Ed25519 一致性备份；错误 S3 凭据负向路径未改变目标，随机全新卷精确恢复 38 表、11 migrations（到 `0010`）、pg-boss 24、五职责权限、worker/readiness 和 1 对象/94 bytes，完整 drill 23 秒。测试密钥/归档/源 sentinel 已删除；独立生产批准、业务 RPO/RTO、破坏性生产 `restore.sh`、异介质和目标内网仍未执行。旧 `6545c18…` 的 10 migration 结果只保留为历史证据。
 - `231d8e82164f8e31b1cc978975bf56e7ac6a26bb` 把生产恢复操作身份、批准引用/理由、跳过备份二次确认、每 operation 独占技术挂载、技术报告 SHA 和最终健康主机报告接入 `restore.sh`。同一 SHA 在全新七镜像栈完成 38 表/11 migration/pg-boss 24/1 对象 41 bytes 的签名隔离恢复、错误凭据负向、backup Trivy 0 和 SPDX 178 packages；旧 10-migration 栈先被正确拒绝。两次均未执行真实生产入口或验证独立批准，门禁保持 blocked。
+- `d7cc156ef2c44a531416c60ed88023681b113ecf` 已把真实 LLM/GitHub 的七顾问质量、审计、供应商处理、成本、单仓库最小权限、撤销轮换和回退转成 worker-only 失败关闭验收，并完成 246 文件、239 单元、API 94/94、worker 33/33、MinIO 2/2、七镜像、空卷 Compose、desktop/mobile/PWA、重启、部署和安全验证。下一步只能在授权目标环境使用短期真实凭据并取得独立批准；当前 mock/manual 结果不得算真实适配器成功。
 - 2026-07-18 的旧测试总数、镜像 digest、v1 归档、37 表/4 对象/16 秒恢复和同内容标签升级回滚均为历史证据，不能作为当前通过或发布门禁。
 - 首轮本地相邻演练在回滚后 idle 登录暴露 `CONNECT_TIMEOUT` 并正确阻断；修复后以 N 10 migrations、synthetic bridge 9 migrations 和七个全异镜像完成真实 registry push/pull、46 秒升级、43 秒应用回滚、双 formatVersion 2 恢复点和回滚后 308 秒 HTTPS CRUD，数据、审计、索引和对象均保留。该结果不是历史生产 N−1、GHCR 或目标内网证据。
 - 发布治理 `213d9b6…` 已将完成条件固化为 14 项失败关闭门禁，平台证明 `6e40b82…` 已加入只读 GitHub/GHCR 实证；目标证明入口 `25204d34d865b16941d099658d33fbb561424f09` 把 clean source、七类发布 digest/运行镜像和目标 HTTPS/最小权限组合为只在全部成功后生成 `0600` JSON 的入口；受管真机入口 `ffe102e75526c510a14c60ef90a29e174b40a00a` 又加入成对可见构建身份、固定十步物理设备会话、独立候选/环境期望、实际附件 SHA-256 和不可覆盖 `0600` 报告。两者均已完成失败关闭工程验收，但前者未在广州目标主机运行，后者只使用 synthetic 会话和 headless viewport，均未验证物理设备、MDM 或批准。
@@ -53,7 +54,7 @@
 
 ### 交付
 
-- 以当前候选 `231d8e82164f8e31b1cc978975bf56e7ac6a26bb`、受管真机入口 `ffe102e…`、完整恢复基线 `101d2f0…` 和各自分层运行证据为起点；任何功能、迁移、运行时依赖或镜像输入变化后重新冻结完整 Git SHA，并在同一 SHA 重跑 lint、类型、单元、集成、E2E、生产构建和受影响镜像安全扫描。
+- 以当前候选 `d7cc156ef2c44a531416c60ed88023681b113ecf`、生产恢复防护 `231d8e8…`、受管真机入口 `ffe102e…`、完整恢复基线 `101d2f0…` 和各自分层运行证据为起点；任何功能、迁移、运行时依赖或镜像输入变化后重新冻结完整 Git SHA，并在同一 SHA 重跑 lint、类型、单元、集成、E2E、生产构建和受影响镜像安全扫描。
 - 在耀光目标办公内网从空环境完成 11 个业务迁移 `0000`–`0010`、pg-boss 迁移和权限收敛；显式运行一次 `SEED_MODE=bootstrap`，验证 owner 首登改密、登录、MinIO、ready、CA 分发和重启持久性。随后用 `verify-target-intranet.sh` 绑定最终 Git SHA、七镜像发布清单及清单哈希生成机器报告，并从独立渠道核对防火墙、设备、恢复与运维批准，不能用 fixture JSON 代替。
 - 在同一目标 HTTPS 候选和公司 MDM 物理手机上按受管设备手册完成旧版浏览器安装、standalone 启动、Service Worker 升级、新版身份、核心登录、离线隐藏、联网重验、退出/卸载/站点数据清理及清理后重认证；使用独立批准的版本、完整 Git SHA、URL 和环境 ID 校验附件，再由终端与业务负责人交叉核对 MDM、原始附件和批准链。自动化 Chromium、viewport 或 verifier 的 `success` 均不能替代该步骤。
 - 在 legacy 副本验证 `metadata-only` 不改变组织、用户、membership、assignment 或权限；通过人工批准的 `system-role-maintenance` 演练角色基线升级，并完成一次受控离线 owner 恢复/回滚演练。

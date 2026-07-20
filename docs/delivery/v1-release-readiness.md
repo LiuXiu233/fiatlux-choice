@@ -57,7 +57,7 @@ pnpm exec tsx scripts/verify-v1-release-readiness.ts --file /absolute/path/to/ma
 
 生产恢复入口在 `231d8e82164f8e31b1cc978975bf56e7ac6a26bb` 完成了操作身份、外部批准引用、业务理由、跳过恢复前备份二次确认、每 operation 独占技术挂载、技术报告 SHA 和最终主机健康报告绑定。exact-SHA 本地栈又完成 38 表、11 migrations、pg-boss 24、错误 S3 凭据破坏前拒绝和 1 个 41-byte 对象的 age+Ed25519 隔离恢复；证据见[生产恢复防护验收](./evidence/production-restore-guard-acceptance-231d8e8-20260720.json)。该证据固定记录 `productionRestoreEntrypointExecuted=false`、`approvalIndependentlyVerified=false` 和 `productionBackupRestoreGateClosed=false`，不能替代经审批的目标环境 `restore.sh`、物理异介质、原始 `0600` 报告或业务 RPO/RTO。
 
-真实适配器工程入口要求 API 不持有 LLM/GitHub token，真实探测由 worker 执行；会话必须覆盖七类真实顾问、提示词/工具/人工修改审计、供应商数据处理、账户硬预算、GitHub 单仓库 Metadata-only 权限、两类凭据撤销/替换/恢复和 disabled/manual 无网络回退。操作顺序、模板和校验命令见[真实适配器验收手册](../admin/real-adapter-acceptance.md)。当前尚未提供任何真实凭据、目标会话或独立批准；本地正负向测试只证明工程门禁会失败关闭，不能把 `real_llm_github_adapters` 改为 passed。
+真实适配器工程入口要求 API 不持有 LLM/GitHub token，真实探测由 worker 执行；会话必须覆盖七类真实顾问、提示词/工具/人工修改审计、供应商数据处理、账户硬预算、GitHub 单仓库 Metadata-only 权限、两类凭据撤销/替换/恢复和 disabled/manual 无网络回退。操作顺序、模板和校验命令见[真实适配器验收手册](../admin/real-adapter-acceptance.md)。`d7cc156ef2c44a531416c60ed88023681b113ecf` 已完成 exact-SHA 全仓、独立 PostgreSQL/MinIO、七镜像、空卷 Compose、desktop/mobile/PWA、重启、部署和安全验收，脱敏记录见[真实适配器防护验收](./evidence/real-adapter-guard-acceptance-d7cc156-20260720.json)。该会话刻意使用 mock/manual 且没有真实凭据、调用、目标会话或独立批准；本地通过只证明工程门禁会失败关闭，不能把 `real_llm_github_adapters` 改为 passed。
 
 退出码定义：
 
@@ -124,4 +124,4 @@ pnpm exec tsx scripts/verify-v1-release-readiness.ts --file /absolute/path/to/ma
 
 ## 7. 当前阻断边界
 
-当前只有本地核心验收和本地安全/敏感数据两项通过。候选 `231d8e82164f8e31b1cc978975bf56e7ac6a26bb` 在 `ffe102e…` 受管真机证据入口基础上增加了生产恢复防护和 exact-SHA 签名隔离恢复，但没有物理设备、MDM 原始记录、真实生产恢复或独立批准，不能增加通过门禁。GitHub runner 受账户付款或额度限制，GHCR、目标办公内网、真实受管手机、生产范围恢复、真实 LLM/GitHub 适配器、73 条专业复核、十二篇教育内容权利/发布复核、真实责任人演练、残余风险决定、缺陷关闭确认和最终业务批准均未完成。清单如实保留这些状态；修复一个外部条件后，只更新有新证据覆盖的对应门禁。
+当前只有本地核心验收和本地安全/敏感数据两项通过。候选 `d7cc156ef2c44a531416c60ed88023681b113ecf` 在生产恢复和受管真机失败关闭入口基础上补齐了真实适配器工程防护及全层本地证据，但没有真实适配器凭据/调用、物理设备、MDM 原始记录、真实生产恢复或独立批准，不能增加通过门禁。GitHub runner 受账户付款或额度限制，GHCR、目标办公内网、真实受管手机、生产范围恢复、真实 LLM/GitHub 适配器、73 条专业复核、十二篇教育内容权利/发布复核、真实责任人演练、残余风险决定、缺陷关闭确认和最终业务批准均未完成。清单如实保留这些状态；修复一个外部条件后，只更新有新证据覆盖的对应门禁。
