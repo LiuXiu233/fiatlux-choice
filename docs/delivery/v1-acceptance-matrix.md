@@ -99,7 +99,7 @@ lease 到期不等于“安全重试”。操作员必须从“运行异常处�
 | formatVersion 2 签名恢复 | `101d2f0…` 实际暂停写入生成 age+Ed25519 归档；错误 S3 凭据破坏前失败，随机全新卷精确恢复 38 表/11 migration、pg-boss 24、五职责、worker/readiness 和 1 对象/94 bytes；全演练 23s | 不可变实现提交本地通过 / 生产范围待执行 | `productionRestoreEntrypointExecuted`、独立生产批准、目标内网/异介质与业务批准 RPO/RTO 仍分别验收 |
 | 旧 v1 恢复与升级 | 2026-07-18 的 v1 归档、37 表/4 对象/16 秒和同内容标签升级回滚均早于 formatVersion 2 与最新代码 | 历史证据 | 不能计入当前门禁；最终 SHA 需用真实版本变化重做升级/回滚 |
 | synthetic bridge 相邻版本 | N `859841f…`/10 migrations 与本地 bridge `b44a8d1…`/9 migrations；七 digest 全异，真实 push/pull，升级 46s、回滚 43s、双 v2 恢复点；回滚后 308s 登录与 CRUD 通过 | 本地演练已验证 / 范围受限 | 不是历史生产 N−1、GHCR 或目标内网；经批准生产候选仍须复演 |
-| 归档、签名与维护安全 | archive guard、资源上限、scratch、preflight、maintenance lock、Ed25519 类型/规范化证明及对应安全测试通过；错误公钥/指纹、篡改归档/证明/签名、错误来源/版本、缺失/部分签名均在 Compose/数据动作前失败 | 不可变实现提交本地通过 | 主机文件私钥不是 HSM；经审批生产 `restore.sh` 破坏性入口仍待目标演练 |
+| 归档、签名与维护安全 | `231d8e8…` 增加必填操作身份/理由/批准断言、跳过备份二次确认、每 operation 独占技术挂载和不可覆盖 `0600` 主机报告；archive guard、资源上限、scratch、preflight、maintenance lock、Ed25519 及正负向测试通过 | exact-SHA 本地通过；38 表/11 migration/1 对象签名隔离恢复通过 | 主机文件私钥不是 HSM；批准真实性固定未独立验证；经审批生产 `restore.sh` 破坏性入口仍待目标演练 |
 | 七镜像与供应链 | `101d2f0…` arm64 七镜像 Trivy HIGH/CRITICAL/fixable/unfixed 均 0，7 SPDX 均通过版本化验证；真实 BuildKit 双平台 fixture 与 API/worker amd64 补偿证据仍有效 | 不可变实现提交本地通过 / GHCR 待发布 | 最终发布 SHA 的双平台 registry digest、GitHub workflow 和残余风险批准 |
 | GitHub 交付 | 目标证明入口 `25204d34d865b16941d099658d33fbb561424f09` 已推送，Draft PR #12 保持开放；最新 CI `29719190354` 与 Security `29719190355` 的六个首级失败 job 均为 `runner_id=0`、`steps=[]`，仍由账户付款或 spending limit 在 runner 前阻断 | 部分完成 / 外部计费阻断 | PR Checks 为实时权威状态；修复 Billing & plans 后重跑并取得绿色 CI/security、候选制品、最终证明和批准；再合并 |
 | 目标办公内网 | `verify-target-intranet.sh` 已在 stub 的 macOS/Linux 环境证明成功/失败原子边界；尚未在耀光广州办公内网部署或运行 | 采集入口本地通过 / 真实目标待执行且阻断 | 绑定最终 SHA/清单在目标主机执行；另验主机基线、DNS、CA、防火墙、设备、备份介质、运行观察和独立批准 |
@@ -121,19 +121,19 @@ lease 到期不等于“安全重试”。操作员必须从“运行异常处�
 | 合规 | 专用复核、版本/哈希/登记人锁定、追加历史、通用状态绕过拒绝、实质编辑降级、当前/历史证据归档拒绝及完整 provenance 顾问门禁通过；到期/变化/第三次失败任务仍由真实 PostgreSQL 覆盖 | 73 条真实专业复核、目标环境首次抓取及负责人处置演练 |
 | 官网与教育 | 官网审计、内部教育页、成人试点草案和十二篇模块化版本内容已形成 | 十二篇仍未获专业/权利/发布批准；继续内容清理、逐篇权利/事实核验及九项业务/专业闸门批准 |
 | 桌面、移动与 PWA | `ffe102e…` 的成对构建身份、mock 48+6、生产 Web 镜像、SW active、11 个静态缓存、0 敏感缓存/安装性错误、offline shell 和 390 px 布局通过；真机会话 Schema/实际附件哈希入口已失败关闭 | 真实受管手机安装/升级/清理、MDM 与原始附件复核、终端/业务批准 |
-| 部署与恢复 | `101d2f0…` 已完成独立 Compose、38 表/11 migration、七镜像、desktop/mobile/PWA、签名一致性备份和随机全新卷恢复，脱敏证据已固化 | 仍需历史生产 N−1/目标发布、经审批生产恢复入口、目标内网/异介质与业务批准 RPO/RTO |
+| 部署与恢复 | `101d2f0…` 已完成基线独立恢复；`231d8e8…` 又在精确七镜像的全新 11-migration 栈完成签名备份、错误凭据负向、1 对象随机新卷恢复和资源清理，并验证生产入口报告契约 | 仍需历史生产 N−1/目标发布、经审批真实 `restore.sh`、目标内网/物理异介质、原始操作报告与业务批准 RPO/RTO |
 
 ## 8. 当前结论
 
 该仓库已经超过脚手架、静态仪表盘和数据库模型阶段。核心业务、首次改密与成员生命周期、归档角色即时失权、八类人工批准、typed refs、可追溯顾问、后台原子 claim 和 formatVersion 2 恢复路径均有实现与候选证据。
 
-当前仍只能称为**受控候选**。不可变基线 `101d2f0…` 已完成完整恢复层验收；运行异常实现 `f86bff4…` 已完成 exact-SHA 源码、数据库、三镜像和独立 Compose 三类真实 HTTPS 处置；电竞教育实现 `fccbaf9…` 又完成 exact-SHA 全仓、隔离集成/迁移、桌面/移动/PWA 和变更后 Web 镜像安全复验；发布门禁实现 `213d9b6…` 把 14 项完成条件固化为 Schema、CLI 和正反向测试；平台证明实现 `6e40b82…` 增加后置只读 GitHub/GHCR 实证；目标证明入口 `25204d3…` 增加目标主机机器证据失败关闭采集；受管真机入口 `ffe102e…` 增加可见构建身份、固定十步会话和实际附件校验，但二者都未在真实目标/物理手机执行。各范围与未重跑层分别在[运行异常证据](./evidence/operational-incident-final-acceptance-f86bff4-20260720.json)、[教育扩展证据](./evidence/esports-education-expansion-acceptance-fccbaf9-20260720.json)、[发布门禁证据](./evidence/v1-release-gate-acceptance-213d9b6-20260720.json)、[平台证明证据](./evidence/v1-platform-attestation-acceptance-6e40b82-20260720.json)、[目标证明入口证据](./evidence/target-intranet-verifier-acceptance-25204d3-20260720.json)及[受管真机入口证据](./evidence/managed-device-pwa-verifier-acceptance-ffe102e-20260720.json)明示。[机器发布门禁](./v1-release-readiness.json)当前只有 2 项通过、12 项阻断。GitHub/GHCR 与目标环境身份仍未统一；GitHub CI/security 因账户计费在 runner 前被阻断，GHCR、历史生产 N−1/目标发布、生产恢复入口、目标办公内网、真机、真实 LLM/GitHub、73 条专业复核、十二篇内容权利/发布复核、残余风险决策和业务批准仍未完成。在这些门禁全部关闭前，不得宣布“V1 已完成”，也不得用于无人监督的生产关键操作。
+当前仍只能称为**受控候选**。不可变基线 `101d2f0…` 已完成完整恢复层验收；运行异常实现 `f86bff4…` 已完成 exact-SHA 源码、数据库、三镜像和独立 Compose 三类真实 HTTPS 处置；电竞教育实现 `fccbaf9…` 又完成 exact-SHA 全仓、隔离集成/迁移、桌面/移动/PWA 和变更后 Web 镜像安全复验；发布门禁实现 `213d9b6…` 把 14 项完成条件固化为 Schema、CLI 和正反向测试；平台证明实现 `6e40b82…` 增加后置只读 GitHub/GHCR 实证；目标证明入口 `25204d3…` 增加目标主机机器证据失败关闭采集；受管真机入口 `ffe102e…` 增加可见构建身份、固定十步会话和实际附件校验；生产恢复防护 `231d8e8…` 又把人工操作断言、独占技术挂载和最终健康报告接入真实签名隔离恢复。各范围与未重跑层分别在[运行异常证据](./evidence/operational-incident-final-acceptance-f86bff4-20260720.json)、[教育扩展证据](./evidence/esports-education-expansion-acceptance-fccbaf9-20260720.json)、[发布门禁证据](./evidence/v1-release-gate-acceptance-213d9b6-20260720.json)、[平台证明证据](./evidence/v1-platform-attestation-acceptance-6e40b82-20260720.json)、[目标证明入口证据](./evidence/target-intranet-verifier-acceptance-25204d3-20260720.json)、[受管真机入口证据](./evidence/managed-device-pwa-verifier-acceptance-ffe102e-20260720.json)及[生产恢复防护证据](./evidence/production-restore-guard-acceptance-231d8e8-20260720.json)明示。[机器发布门禁](./v1-release-readiness.json)当前只有 2 项通过、12 项阻断。GitHub/GHCR 与目标环境身份仍未统一；GitHub CI/security 因账户计费在 runner 前被阻断，GHCR、历史生产 N−1/目标发布、真实生产恢复入口、目标办公内网、真机、真实 LLM/GitHub、73 条专业复核、十二篇内容权利/发布复核、残余风险决策和业务批准仍未完成。在这些门禁全部关闭前，不得宣布“V1 已完成”，也不得用于无人监督的生产关键操作。
 
 ## 9. 最终 SHA 与目标环境必须补录
 
 | 字段 | 当前值 | 要求 |
 | --- | --- | --- |
-| 完整 Git SHA / tag | 当前受管真机入口为 `ffe102e75526c510a14c60ef90a29e174b40a00a`，完整恢复仍绑定 `101d2f0938adfa0caa8ed576f6587a5c78ae74a5`；发布 tag 待创建 | 确定 commit/tag 签名政策，生产发布记录受保护 tag |
+| 完整 Git SHA / tag | 当前候选实现为 `231d8e82164f8e31b1cc978975bf56e7ac6a26bb`；受管真机入口基线为 `ffe102e…`，完整恢复基线为 `101d2f0…`；发布 tag 待创建 | 确定 commit/tag 签名政策，统一最终 Git/GitHub/GHCR/目标身份并记录受保护 tag |
 | GitHub PR / CI / 安全 run | Draft PR #12；`ffe102e…` 的 CI `29722396559` 与 Security `29722396542` 均由账户付款/spending limit 在 runner 前阻断，六个首级失败 job 为 `runner_id=0`、`steps=[]`，下游四项 skipped | PR Checks 是实时权威状态；修复 Billing & plans 后重跑，只有实际 step 执行且绿色才能关闭门禁 |
 | 38 表 / 11 migrations（`0000`–`0010`）证据 | **`101d2f0…` fresh/legacy、Compose、五职责与签名恢复本地通过** | GitHub runner、GHCR 与目标环境复现 |
 | 七镜像 digest / SBOM / provenance | **`101d2f0…` 本地 arm64/Trivy 0/7 SPDX/fixture 通过** | 从最终发布 SHA 生成并记录 GHCR 双平台 registry digest |

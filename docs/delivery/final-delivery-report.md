@@ -12,7 +12,7 @@
 | --- | --- | --- |
 | 产品版本 | V1 受控候选 | 所有阻断闸门关闭并取得业务负责人批准后才能改为 V1 完成 |
 | 目标仓库 | 私有 `LiuXiu233/fiatlux-choice`；候选分支已推送；[Draft PR #12](https://github.com/LiuXiu233/fiatlux-choice/pull/12) | 解除 Actions 计费阻断，取得绿色 CI/security；批准后再合并 |
-| Git SHA / tag | 当前受管真机证据入口为 `ffe102e75526c510a14c60ef90a29e174b40a00a`，完整恢复基线仍为 `101d2f0938adfa0caa8ed576f6587a5c78ae74a5`；未创建发布 tag | 生产发布仍须确定 commit/tag 签名政策，并统一最终 Git/GitHub/GHCR 身份 |
+| Git SHA / tag | 当前候选实现为 `231d8e82164f8e31b1cc978975bf56e7ac6a26bb`；受管真机入口基线 `ffe102e…`、完整恢复基线 `101d2f0…`；未创建发布 tag | 生产发布仍须确定 commit/tag 签名政策，并统一最终 Git/GitHub/GHCR/目标身份 |
 | GitHub PR / CI | Draft PR #12；`ffe102e…` 的 [CI run 29722396559](https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29722396559) 与 [Security run 29722396542](https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29722396542) 均在 runner 启动前失败；PR Checks 是后续远端状态权威来源 | 六个首级失败 job 均为 `runner_id=0`、`steps=[]`，annotation 为账户付款或 Actions spending limit；不反复盲目重跑 |
 | 数据库 | PostgreSQL 17.10；38 张业务表；11 个业务迁移 `0000`–`0010`；`101d2f0…` fresh、`0009→0010` 数据保留/幂等、fresh/legacy 五职责和签名恢复逐 migration hash 均本地通过 | GitHub CI、GHCR 与目标内网重新执行 |
 | 候选 QA 环境 | `101d2f0…` 在 `choice-review.localhost:20443` 完成完整基线和恢复；`f86bff4…` 在独立 `fiatlux-choice-opsfinal` 用同一 SHA 重建/扫描的 API、worker、Web 完成五职责、38 表/11 migration、73 条来源、六服务、MinIO 最小权限、三类运行异常处置、desktop/mobile/PWA 和整体重启。全部临时容器、网络、卷、镜像标签、报告和凭据已清理 | 本机环境不得改写成耀光广州办公内网、GHCR 双平台或目标制品；目标环境必须独立复现 |
@@ -200,6 +200,7 @@
 - [x] `6e40b82…` 增加后置只读最终证明、CI/Security/release 实时核验、七类 GHCR digest HEAD 核对及固定 Actionlint；exact-SHA 的 228 文件、7 项类型、203 单元、构建、Gitleaks、依赖审计和 Semgrep 93 个目标通过。当前 blocked 清单在联网前拒绝，未伪造真实平台成功。
 - [x] `25204d3…` 增加失败关闭目标办公内网机器证明入口；exact-SHA 的 229 文件、7 项类型、203 单元、构建、macOS/Linux 包装器、安全扫描和原子失败清理通过。所有成功报告均为 stub fixture，未冒充真实目标主机或批准。
 - [x] `ffe102e…` 增加成对 PWA 构建身份、固定十步受管真机会话和实际附件校验入口；exact-SHA 的 237 文件、7 项类型、220 单元、17 项定向、mock 48+6、生产 Web 镜像移动 Chromium、Trivy/SPDX 和源码安全通过。所有会话均为 synthetic，未冒充物理受管手机、MDM 或终端批准。
+- [x] `231d8e8…` 增加生产恢复操作身份/理由/批准断言、跳过备份二次确认、每 operation 独占技术挂载和不可覆盖最终健康报告；exact-SHA 的 238 文件、7 项类型、220 单元、恢复正负向、Gitleaks、生产依赖、backup Trivy/SPDX 通过，并在全新七镜像栈恢复 38 表/11 migration/pg-boss 24/1 对象 41 bytes。真实生产 `restore.sh`、独立批准、物理异介质和目标 RPO/RTO 未执行，未把本地演练冒充门禁通过。
 - [x] `101d2f0…` 的 production-like Compose 已在新卷完成 38 表/11 migration、HTTPS/PWA、六服务、最小权限和重启持久性验证；目标内网仍待复现。
 - [x] 首次强制改密、成员生命周期、版本化角色审批、归档角色即时失权、通知 queued-only、GitHub 刷新 CAS、工作流不可变快照、付款取消/驳回解链、顾问 requester-only/read-all、合规专业 provenance/source/evidence、typed refs 和文件并发场景已在分层测试覆盖。
 - [x] fresh/legacy 数据库、PostgreSQL 五职责和 MinIO 四身份的正/负向最小权限验证通过；目标凭据仍须重新执行。
@@ -207,7 +208,7 @@
 - [x] 本地 synthetic bridge 使用真实 schema 与七镜像差异完成升级、双恢复点、应用回滚和 idle 后 HTTPS CRUD；历史生产 N−1、GHCR 和目标内网复演仍待执行，不得把本地结果升级为生产证明。
 - [x] `101d2f0…` 已完成 Gitleaks、生产依赖审计、Semgrep+canary、七镜像 Trivy 0.70.0 与 Syft 1.42.3 SPDX；GitHub/GHCR 双平台 digest、CodeQL/等效 SAST 与剩余风险批准仍待执行。
 - [ ] 在真实受管手机完成 PWA 安装/升级和移动浏览器验证。
-- [x] 专业复核基线 `101d2f0…`、运行异常 `f86bff4…`、电竞教育 `fccbaf9…`、发布门禁 `213d9b6…`、平台证明 `6e40b82…`、目标证明入口 `25204d3…`、受管真机入口 `ffe102e…` 及其脱敏机器证据均已形成；各证据明确绑定实现 SHA，未把证据后继提交、stub JSON、自动化 viewport 冒充实现、目标环境或物理设备；本轮远端执行状态以 PR Checks 为准。
+- [x] 专业复核基线 `101d2f0…`、运行异常 `f86bff4…`、电竞教育 `fccbaf9…`、发布门禁 `213d9b6…`、平台证明 `6e40b82…`、目标证明入口 `25204d3…`、受管真机入口 `ffe102e…`、生产恢复防护 `231d8e8…` 及其脱敏机器证据均已形成；各证据明确绑定实现 SHA，未把证据后继提交、stub JSON、自动化 viewport 或本地恢复演练冒充实现、目标环境、物理设备或生产批准；本轮远端执行状态以 PR Checks 为准。
 - [ ] 修复 GitHub Actions 账户付款/spending limit 阻断，重跑 PR CI 与 Security；取得绿色 run、CodeQL 或经批准等效 SAST、制品证据，批准后再合并。
 - [ ] 在耀光广州办公内网按 `verify-target-intranet.sh` 绑定最终 Git SHA/七镜像清单运行机器证明，并另行验证防火墙、显式 seed、owner 首登改密、真实设备、备份介质、运行观察和独立批准。
 - [ ] 完成真实 LLM/GitHub 最小权限验收，或明确保持 disabled/manual 且不宣称外部集成完成。
@@ -218,4 +219,4 @@
 
 FIAT LUX CHOICE 已形成可运行的模块化单体候选，不是脚手架、静态仪表盘或仅有数据库模型。身份、权限、审计、业务模块、八类人工批准、七类顾问、后台任务、PWA、最小权限、七镜像供应链和 Ed25519 签名 formatVersion 2 独立恢复路径均有分层实证。
 
-不可变基线 `101d2f0…` 已完成 11 migration age+Ed25519 隔离恢复；运行异常实现 `f86bff4…` 已完成 exact-SHA 三镜像、独立 Compose、desktop/mobile/PWA 和三类实际人工处置；电竞教育实现 `fccbaf9…` 又完成 exact-SHA 全仓、隔离 PostgreSQL/MinIO/API/worker、迁移、desktop/mobile/PWA 与变更后 Web 镜像扫描/SPDX；目标内网证明入口 `25204d3…` 已完成失败关闭与 macOS/Linux fixture 验收；受管真机入口 `ffe102e…` 已完成可见候选身份、十步会话、附件校验、exact-SHA 浏览器/镜像/安全验收，但前者尚未在目标主机执行，后者尚未触碰物理受管手机。未重跑层和全部临时资源清理均已披露。14 项机器发布门禁当前为 2 项通过、12 项阻断；GitHub CI/security、GHCR、历史生产 N−1/目标发布、经审批生产恢复入口、耀光目标办公内网/真机、真实 LLM/GitHub、73 条真实专业复核、十二篇内容权利/发布复核、MinIO 支持风险决策及责任人批准仍未完成。因此唯一合法结论仍是：**受控候选，尚不可宣布 V1 已完成或已批准生产上线。**
+不可变基线 `101d2f0…` 已完成 11 migration age+Ed25519 隔离恢复；运行异常实现 `f86bff4…` 已完成 exact-SHA 三镜像、独立 Compose、desktop/mobile/PWA 和三类实际人工处置；电竞教育实现 `fccbaf9…` 又完成 exact-SHA 全仓、隔离 PostgreSQL/MinIO/API/worker、迁移、desktop/mobile/PWA 与变更后 Web 镜像扫描/SPDX；目标内网证明入口 `25204d3…` 已完成失败关闭与 macOS/Linux fixture 验收；受管真机入口 `ffe102e…` 已完成可见候选身份、十步会话和附件校验；生产恢复防护 `231d8e8…` 已完成操作证据契约、exact-SHA 七镜像与签名隔离恢复，但三个入口都尚未分别在目标主机、物理手机或经审批真实生产恢复中执行。未重跑层和全部临时资源清理均已披露。14 项机器发布门禁当前为 2 项通过、12 项阻断；GitHub CI/security、GHCR、历史生产 N−1/目标发布、经审批生产恢复入口、耀光目标办公内网/真机、真实 LLM/GitHub、73 条真实专业复核、十二篇内容权利/发布复核、MinIO 支持风险决策及责任人批准仍未完成。因此唯一合法结论仍是：**受控候选，尚不可宣布 V1 已完成或已批准生产上线。**

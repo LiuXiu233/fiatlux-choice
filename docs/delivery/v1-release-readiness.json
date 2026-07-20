@@ -2,19 +2,19 @@
   "schemaVersion": 1,
   "versionLabel": "V1 controlled candidate",
   "overallStatus": "blocked",
-  "evaluatedAt": "2026-07-20T14:44:36+08:00",
+  "evaluatedAt": "2026-07-20T15:54:39+08:00",
   "candidate": {
     "repository": "https://github.com/LiuXiu233/fiatlux-choice",
     "branch": "codex/v1-acceptance-hardening",
-    "implementationCommit": "ffe102e75526c510a14c60ef90a29e174b40a00a",
-    "evidenceCommit": "ffe102e75526c510a14c60ef90a29e174b40a00a"
+    "implementationCommit": "231d8e82164f8e31b1cc978975bf56e7ac6a26bb",
+    "evidenceCommit": "231d8e82164f8e31b1cc978975bf56e7ac6a26bb"
   },
   "gates": [
     {
       "id": "local_core_acceptance",
       "status": "passed",
       "ownerRole": "研发与交付负责人",
-      "summary": "核心闭环、真实栈、浏览器、移动端、PWA、运行异常、教育内容和受管真机证据入口已有分层本地机器证据。",
+      "summary": "核心闭环、真实栈、浏览器、移动端、PWA、运行异常、教育内容、受管真机入口和生产恢复防护已有分层本地机器证据。",
       "evidence": [
         {
           "kind": "machine_evidence",
@@ -78,16 +78,25 @@
           "subjectCommit": "ffe102e75526c510a14c60ef90a29e174b40a00a",
           "sha256": "da954f15fab4def65048db61502d8542cecf9f25c2e3ad59c0721b0d355b6f3d",
           "note": "当前实现提交的 exact-SHA 全仓、构建身份、受管真机合同/文件校验器、桌面/移动/PWA 和本地 Web 镜像验收；不是物理真机证据。"
+        },
+        {
+          "kind": "machine_evidence",
+          "result": "success",
+          "reference": "docs/delivery/evidence/production-restore-guard-acceptance-231d8e8-20260720.json",
+          "verifiedAt": "2026-07-20T15:54:39+08:00",
+          "subjectCommit": "231d8e82164f8e31b1cc978975bf56e7ac6a26bb",
+          "sha256": "9d688ad7736d72b1ffb93d0035d6e595d30b8a4f507b028153f6b8943bdb8f72",
+          "note": "当前实现提交的 exact-SHA 全仓、生产恢复防护、七镜像构建和真实签名隔离恢复验收；明确未执行生产 restore.sh 或独立批准。"
         }
       ],
       "blockers": [],
-      "reviewedAt": "2026-07-20T14:44:36+08:00"
+      "reviewedAt": "2026-07-20T15:54:39+08:00"
     },
     {
       "id": "local_security_and_sensitive_data",
       "status": "passed",
       "ownerRole": "信息安全负责人",
-      "summary": "当前实现提交已完成源码、历史、生产依赖、SAST canary、PWA Web 镜像和 SPDX 安全复核且未发现敏感数据。",
+      "summary": "当前实现提交已完成源码、历史、生产依赖、既有 SAST、PWA Web 镜像及变更后 backup 镜像 Trivy/SPDX 安全复核，未发现敏感数据。",
       "evidence": [
         {
           "kind": "machine_evidence",
@@ -133,10 +142,19 @@
           "subjectCommit": "ffe102e75526c510a14c60ef90a29e174b40a00a",
           "sha256": "da954f15fab4def65048db61502d8542cecf9f25c2e3ad59c0721b0d355b6f3d",
           "note": "当前提交的 Gitleaks、官方 registry 生产依赖审计、Semgrep 96 个生产目标及 Web 镜像 Trivy/SPDX 通过。"
+        },
+        {
+          "kind": "machine_evidence",
+          "result": "success",
+          "reference": "docs/delivery/evidence/production-restore-guard-acceptance-231d8e8-20260720.json#backupImageSecurity",
+          "verifiedAt": "2026-07-20T15:54:39+08:00",
+          "subjectCommit": "231d8e82164f8e31b1cc978975bf56e7ac6a26bb",
+          "sha256": "9d688ad7736d72b1ffb93d0035d6e595d30b8a4f507b028153f6b8943bdb8f72",
+          "note": "当前提交的 Gitleaks、生产依赖审计、ShellCheck、backup 镜像 Trivy HIGH/CRITICAL 0 和 SPDX 178 packages 通过；未把本地镜像冒充 GHCR。"
         }
       ],
       "blockers": [],
-      "reviewedAt": "2026-07-20T14:44:36+08:00"
+      "reviewedAt": "2026-07-20T15:54:39+08:00"
     },
     {
       "id": "github_ci_security",
@@ -245,7 +263,7 @@
       "id": "production_backup_restore",
       "status": "blocked",
       "ownerRole": "备份恢复批准人与运维负责人",
-      "summary": "formatVersion 2 的本地隔离签名恢复已通过，生产恢复入口、异介质、目标 RPO/RTO 和独立批准尚未执行。",
+      "summary": "exact-SHA formatVersion 2 签名隔离恢复和生产 restore.sh 防护已通过本地工程验收；破坏性生产入口、异介质、目标 RPO/RTO 和独立批准尚未执行。",
       "evidence": [
         {
           "kind": "machine_evidence",
@@ -257,6 +275,15 @@
           "note": "本地随机全新卷恢复通过，但不属于生产范围。"
         },
         {
+          "kind": "machine_evidence",
+          "result": "success",
+          "reference": "docs/delivery/evidence/production-restore-guard-acceptance-231d8e8-20260720.json",
+          "verifiedAt": "2026-07-20T15:54:39+08:00",
+          "subjectCommit": "231d8e82164f8e31b1cc978975bf56e7ac6a26bb",
+          "sha256": "9d688ad7736d72b1ffb93d0035d6e595d30b8a4f507b028153f6b8943bdb8f72",
+          "note": "本地 exact-SHA 恢复防护、operation 证据契约和 38 表/11 migration/1 对象签名隔离恢复通过；productionRestoreEntrypointExecuted=false。"
+        },
+        {
           "kind": "approval",
           "result": "not_run",
           "reference": "approval:v1:production-backup-restore:pending",
@@ -264,10 +291,10 @@
         }
       ],
       "blockers": [
-        "经审批生产 restore.sh 破坏性入口尚未在目标环境执行。",
-        "异介质恢复、目标 RPO/RTO 和独立生产批准尚未取得。"
+        "经审批生产 restore.sh 破坏性入口尚未使用最终不可变制品在目标环境执行。",
+        "异介质事实、目标 RPO/RTO、原始 0600 操作报告和独立生产批准尚未取得。"
       ],
-      "reviewedAt": "2026-07-20T12:07:56+08:00"
+      "reviewedAt": "2026-07-20T15:54:39+08:00"
     },
     {
       "id": "real_llm_github_adapters",

@@ -19,6 +19,8 @@
 | `scripts/test-target-intranet-verification.sh` | 覆盖成功报告、三层失败、哈希/URL/端口/符号链接、拒绝覆盖和中断清理 |
 | `scripts/verify-managed-device-pwa-evidence.ts` | 离线校验真实受管手机会话、候选/环境身份、固定步骤和实际附件，并原子生成不可覆盖报告 |
 | `docs/delivery/templates/managed-device-pwa-session.template.json` | 故意含占位值、不能直接通过 Schema 的受管手机会话填写模板 |
+| `scripts/restore.sh` | 在破坏性恢复前校验操作身份、批准断言、归档/发布身份和隔离路径，成功后生成绑定技术报告与最终健康状态的不可覆盖主机报告 |
+| `scripts/test-restore-prebackup-dir-security.sh` | 覆盖操作元数据、二次风险确认、路径/容器挂载隔离、报告身份、权限、拒绝覆盖和失败关闭 |
 | `.github/workflows/v1-readiness.yml` | 在候选制品和全部批准齐备后生成只读最终就绪证明，不执行生产操作 |
 | `packages/contracts/test/v1-release-readiness.test.ts` | 覆盖完整通过、真实阻断、缺失/重复门禁、证据失败、提交不匹配和人工批准缺失 |
 
@@ -50,6 +52,8 @@ pnpm exec tsx scripts/verify-v1-release-readiness.ts --file /absolute/path/to/ma
 
 真实受管手机证据同样不能由自动化浏览器替代。终端与业务验收负责人应按[受管手机验收手册](../admin/managed-device-pwa-verification.md)在目标 HTTPS origin 上完成旧版安装、Service Worker 升级、新版 standalone、核心登录、离线壳、联网重验、退出及站点数据清理，并用独立批准值向校验器提供版本、完整 Git SHA、URL 和环境 ID。报告会核对实际附件字节和哈希并保留 `sessionId`，但 `physicalDeviceIndependentlyVerified`、`managementStatusIndependentlyVerified`、`approvalIndependentlyVerified` 固定为 `false`；必须从 MDM、原始附件和公司批准渠道再复核，不能凭机器报告单独关闭 `managed_device_pwa`。
 
+生产恢复入口在 `231d8e82164f8e31b1cc978975bf56e7ac6a26bb` 完成了操作身份、外部批准引用、业务理由、跳过恢复前备份二次确认、每 operation 独占技术挂载、技术报告 SHA 和最终主机健康报告绑定。exact-SHA 本地栈又完成 38 表、11 migrations、pg-boss 24、错误 S3 凭据破坏前拒绝和 1 个 41-byte 对象的 age+Ed25519 隔离恢复；证据见[生产恢复防护验收](./evidence/production-restore-guard-acceptance-231d8e8-20260720.json)。该证据固定记录 `productionRestoreEntrypointExecuted=false`、`approvalIndependentlyVerified=false` 和 `productionBackupRestoreGateClosed=false`，不能替代经审批的目标环境 `restore.sh`、物理异介质、原始 `0600` 报告或业务 RPO/RTO。
+
 退出码定义：
 
 - `0`：清单有效；若使用 `--require-ready`，同时表示全部门禁通过。
@@ -67,6 +71,7 @@ pnpm exec tsx scripts/verify-v1-release-readiness.ts --file /absolute/path/to/ma
 - GitHub 门禁必须有两个不同的绿色 run，分别覆盖 CI 与 Security，并绑定同一 `evidenceCommit`。
 - GHCR 门禁必须有绑定 `evidenceCommit` 的绿色 `release` workflow，并分别有 `api`、`postgres`、`minio`、`worker`、`web`、`gateway`、`backup` 七个不同的成功 registry 制品引用。本地 image ID 不能代替 registry digest。
 - 目标内网、真机 PWA、生产恢复、真实适配器、专业复核、教育发布、运营演练、残余风险、阻断缺陷和业务发布门禁必须保留可识别批准人、角色、时间和批准引用；批准元数据必须与成功 approval 证据引用一致。
+- `restore.sh` 的操作者、理由和批准引用只是输入断言，主机报告中的 `approvalIndependentlyVerified` 必须保持 `false`；只有独立渠道复核原始审批、报告哈希、目标环境和介质/RPO/RTO 后才能更新生产恢复门禁。
 - `pending`、`todo`、`tbd` 等孤立占位值不能作为证据引用；阻断状态可以引用真实存在的待办、审批或受控登记编号，但不能把它改写成成功。
 - 银行、税务、发票红冲、正式签章、人事处分、关键权限和对外法律承诺继续由业务工作流的人工批准控制；本发布清单不执行任何外部动作。
 
@@ -114,4 +119,4 @@ pnpm exec tsx scripts/verify-v1-release-readiness.ts --file /absolute/path/to/ma
 
 ## 7. 当前阻断边界
 
-当前只有本地核心验收和本地安全/敏感数据两项通过。`ffe102e75526c510a14c60ef90a29e174b40a00a` 已把真实受管手机证据入口、可见构建身份、自动化 PWA 前置验证和本地 Web 镜像安全收口，但没有物理设备、MDM 原始记录或终端/业务批准，不能增加通过门禁。GitHub runner 受账户付款或额度限制，GHCR、目标办公内网、真实受管手机、生产范围恢复、真实 LLM/GitHub 适配器、73 条专业复核、十二篇教育内容权利/发布复核、真实责任人演练、残余风险决定、缺陷关闭确认和最终业务批准均未完成。清单如实保留这些状态；修复一个外部条件后，只更新有新证据覆盖的对应门禁。
+当前只有本地核心验收和本地安全/敏感数据两项通过。候选 `231d8e82164f8e31b1cc978975bf56e7ac6a26bb` 在 `ffe102e…` 受管真机证据入口基础上增加了生产恢复防护和 exact-SHA 签名隔离恢复，但没有物理设备、MDM 原始记录、真实生产恢复或独立批准，不能增加通过门禁。GitHub runner 受账户付款或额度限制，GHCR、目标办公内网、真实受管手机、生产范围恢复、真实 LLM/GitHub 适配器、73 条专业复核、十二篇教育内容权利/发布复核、真实责任人演练、残余风险决定、缺陷关闭确认和最终业务批准均未完成。清单如实保留这些状态；修复一个外部条件后，只更新有新证据覆盖的对应门禁。

@@ -1,0 +1,205 @@
+{
+  "schemaVersion": 1,
+  "evidenceType": "production_restore_guard_acceptance",
+  "generatedAt": "2026-07-20T15:54:39+08:00",
+  "result": "success",
+  "implementationCommit": "231d8e82164f8e31b1cc978975bf56e7ac6a26bb",
+  "scope": "Exact-SHA local engineering acceptance for the production restore guard, operation evidence contract, and signed isolated recovery path.",
+  "truthBoundary": {
+    "productionRestoreEntrypointExecuted": false,
+    "destructiveProductionRestoreExecuted": false,
+    "realTargetEnvironment": false,
+    "physicalOffHostMediaIndependentlyVerified": false,
+    "approvalIndependentlyVerified": false,
+    "businessRpoRtoApproved": false,
+    "productionBackupRestoreGateClosed": false,
+    "note": "The real signed drill used restore-drill.sh against disposable local volumes. Host restore.sh orchestration used deterministic fake-Compose fixtures and must still be executed with real approval, final release artifacts, independent media and target-environment evidence."
+  },
+  "implementedControls": {
+    "requiredOperationMetadata": [
+      "operationId",
+      "environmentId",
+      "operatorIdentity",
+      "assertedApprovalReference",
+      "reason"
+    ],
+    "approvalPlaceholderRejected": true,
+    "approvalIndependentlyVerifiedFixedFalse": true,
+    "skipPreBackupRequiresSecondConfirmation": true,
+    "reportRootPrecreatedOwnerOnly": true,
+    "reportRootMode": "0700",
+    "operationIdAtomicallyReserved": true,
+    "operationIdReuseRejected": true,
+    "operationContainerMount": "operations/<operationId>/technical",
+    "priorOperationReportsHiddenFromRestoreContainer": true,
+    "technicalReportMode": "0600",
+    "hostSuccessReportMode": "0600",
+    "hostSuccessReportPublishedOnlyAfter": [
+      "technical report identity and permission verification",
+      "object verification",
+      "migrations",
+      "database permission convergence",
+      "seven-image and six-running-service verification",
+      "deployment health verification",
+      "release state and history recording"
+    ],
+    "hostSuccessReportNoClobberPublication": true,
+    "hostHistoryBindsReportSha256": true,
+    "failedOrPartialOperationNeverReportedAsSuccess": true
+  },
+  "exactShaChecks": {
+    "workingTreeCleanBeforeExecution": true,
+    "pnpmCheck": {
+      "status": "passed",
+      "biomeFiles": 238,
+      "typecheckProjects": 7,
+      "unitTestFiles": 41,
+      "unitTests": 220,
+      "productionBuild": "passed",
+      "integrationWithoutExplicitServiceUrls": {
+        "status": "skipped",
+        "storageTests": 2,
+        "apiTests": 93,
+        "workerTests": 29,
+        "countedAsPass": false
+      }
+    },
+    "releaseTransitionSecurity": {
+      "status": "passed",
+      "coverage": [
+        "seven-image N-1 ordering",
+        "backup and restore tool provenance",
+        "PostgreSQL major/minor compatibility",
+        "pinned no-pull/no-build transitions",
+        "host report and history binding"
+      ]
+    },
+    "restoreGuardFixture": {
+      "status": "passed",
+      "coverage": [
+        "missing and placeholder operation metadata",
+        "duplicate operation ID and existing partial",
+        "relative, missing and symbolic-link report roots",
+        "source, pre-backup and scratch overlap",
+        "operation-scoped technical mount",
+        "missing and tampered technical report",
+        "skip-pre-backup second confirmation",
+        "0700 directories and 0600 reports",
+        "technical report SHA and final health binding"
+      ],
+      "composeAndBackupActionsBeforeRejectedPreflight": 0
+    },
+    "backupContainerSecurity": {
+      "status": "passed",
+      "successExit": 0,
+      "failureExit": 1,
+      "interruptedExit": 143,
+      "expandedPayloadMiB": 300,
+      "plaintextOrPartialResidue": 0
+    },
+    "gitleaks": {
+      "status": "passed",
+      "currentTreeIncludingNonIgnoredUntracked": "passed",
+      "completeGitHistory": "passed",
+      "allowlistCanary": "passed",
+      "findings": 0
+    },
+    "productionDependencyAudit": {
+      "command": "pnpm audit --prod --audit-level high --registry=https://registry.npmjs.org",
+      "status": "passed",
+      "knownVulnerabilities": 0
+    }
+  },
+  "exactShaLocalImages": {
+    "platform": "linux/arm64",
+    "registryPublished": false,
+    "api": "sha256:3bb50dab0248af594efeebc55579dc4a0885a34495be3a9131be4a5660b62fac",
+    "worker": "sha256:c204c08de6e8868f469139c4ad86916ddefeb48f8e2630d7fe300b972af07feb",
+    "web": "sha256:8e0478c484c4f4e7a59e73887e188f7a80544342a0b43bb57bf4318ca2835e97",
+    "gateway": "sha256:6815cda29cfb40f82e18827f2fde5f6bb361896cbf193064b3ea9815c1003dcf",
+    "minio": "sha256:8d3e6b8030c17d3185824e781827325bb7517115a8bc2bad02aeeb8150eeab13",
+    "backup": "sha256:222bd2b8e3833e56e435673cbfa9dfbce3185cebe5ccf5bd2384567f11734bd4",
+    "postgres": "sha256:b945f1099756bcb556f2b9a2f18258618796604c5347bf2badf006f423d4372b",
+    "webVisibleIdentity": {
+      "version": "ci",
+      "gitSha": "231d8e82164f8e31b1cc978975bf56e7ac6a26bb"
+    }
+  },
+  "signedIsolatedDrill": {
+    "executedAt": "2026-07-20T07:45:50Z",
+    "scope": "local-working-tree-signed-isolated-drill",
+    "sourceId": "fiatlux-restoreqa-231d8e8",
+    "backupToolRelease": "restoreqa-231d8e8",
+    "localBackupImageId": "sha256:222bd2b8e3833e56e435673cbfa9dfbce3185cebe5ccf5bd2384567f11734bd4",
+    "archiveSha256": "9faada164748bf0fb87288d27d1819c71346568b1ed4a5e952a6697eb14b38de",
+    "configurationArchiveSha256": "298cfbc1931545501c1aa839e4ca3a8ef9721ace3bd39abc754109db4329a318",
+    "attestationSha256": "7d11d1e100c5cbcaa31cb208858455e34cb5abe1fbb1b732ae8f2ac9252f4b4b",
+    "signingKeyFingerprintSha256": "d76249b532533a0a67922141a84f1528481167dded40009fb61d8d005674d599",
+    "backupSeconds": 15,
+    "rpoSeconds": 13,
+    "rtoSeconds": 22,
+    "publicTables": 38,
+    "migrations": 11,
+    "migrationRange": "0000_dusty_wither..0010_aspiring_maverick",
+    "pgBossSchemaVersion": 24,
+    "objectCount": 1,
+    "objectBytes": 41,
+    "objectManifestSha256": "09cc9583617363f8bab770df3a5517e7af0d924ce3b76dcce0c112861a3b978d",
+    "dataChecksumSidecarVerified": true,
+    "configurationChecksumSidecarVerified": true,
+    "configurationAttestationVerified": true,
+    "signatureVerified": true,
+    "wrongS3CredentialsRejectedBeforeTargetMutation": true,
+    "apiReady": true,
+    "workerHealthy": true,
+    "minimumPermissionsVerified": true,
+    "originalHealthyServices": 6,
+    "resourcesCleaned": true,
+    "productionRestoreEntrypointExecuted": false
+  },
+  "failedPreconditionEvidence": {
+    "countedAsPass": false,
+    "sourceStack": "pre-existing local finalqa fixture",
+    "expectedMigrations": 11,
+    "actualMigrations": 10,
+    "exitCode": 5,
+    "gate": "migration journal and SQL hash identity",
+    "outcome": "failed closed after isolated restore; no success evidence emitted",
+    "resourcesCleaned": true,
+    "sourceServicesRestoredHealthy": 6
+  },
+  "backupImageSecurity": {
+    "trivy": {
+      "runtime": "aquasec/trivy 0.70.0",
+      "os": "alpine 3.23.5",
+      "high": 0,
+      "critical": 0,
+      "fixable": 0,
+      "unfixed": 0
+    },
+    "syft": {
+      "runtime": "anchore/syft 1.42.3",
+      "format": "SPDX-2.3",
+      "packages": 178,
+      "files": 727,
+      "relationships": 1092
+    }
+  },
+  "cleanup": {
+    "temporaryQaComposeProjectRemoved": true,
+    "temporaryQaVolumesRemoved": true,
+    "isolatedRestoreContainersRemaining": 0,
+    "isolatedRestoreVolumesRemaining": 0,
+    "temporaryArchivesAndSigningKeysRemoved": true,
+    "exactShaLocalImageTagsRemoved": true,
+    "preExistingFinalQaServicesHealthy": 6,
+    "repositoryWorkingTreeCleanAfterExecution": true
+  },
+  "remainingBlockers": [
+    "Run destructive restore.sh with final immutable release artifacts on the authorized target environment.",
+    "Independently verify the operator, approval record, selected archive and signing-key fingerprint.",
+    "Restore from physically independent media and obtain business-approved RPO/RTO evidence.",
+    "Retain target-host logs and the original 0600 operation report in the controlled evidence store.",
+    "Obtain identifiable operations and business approvals before changing production_backup_restore to passed."
+  ]
+}

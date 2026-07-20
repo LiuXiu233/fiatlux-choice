@@ -123,6 +123,8 @@
 - 生产完整备份需要 age recipient 和主机 Ed25519 签名私钥；age identity、签名私钥与备份必须分离。在线签名私钥是受主机权限保护的普通文件，不是 HSM 或不可导出企业密钥。
 - age 加密不认证备份来源。当前备份会签署规范化 attestation，绑定密文 SHA/大小、来源、数据库/桶、backup tool release、创建时间和公钥 DER 指纹；生产恢复和演练同时强制匹配签名、独立批准的公钥指纹与归档 SHA-256，并通过只允许目录/普通文件的归档守卫。相邻 `.sha256`、公钥或指纹不能自动充当批准记录；无法建立独立审批渠道时仍属于生产恢复阻断项。错误公钥/指纹、篡改归档/attestation/signature、错误来源/版本、签名缺失/部分参数均有 fail-before-Compose 回归，但在线私钥或主机失陷仍是剩余风险。
 - 备份恢复是破坏性管理员操作，不提供普通 Web 恢复按钮。
+- `231d8e8…` 要求每次生产恢复提供唯一 operation ID、环境、可识别操作者、业务理由和外部批准引用；`--skip-pre-backup` 另需二次风险确认。每个 operation 原子保留独占目录，容器只挂载其中的 `technical/`，看不到历史主机报告；只有技术报告身份/权限、对象、迁移、权限、七镜像、六服务健康和本机发布状态全部通过后，才硬链接发布不可覆盖 `0600` 主机成功报告。报告固定保留 `approvalIndependentlyVerified=false`，CLI token、操作者身份和批准编号都不能自动证明真实授权。
+- 同一 exact SHA 的全新本地栈完成 38 表、11 migration、pg-boss 24、错误 S3 凭据负向和 1 对象/41 bytes 的 age+Ed25519 隔离恢复，RPO 13 秒、RTO 22 秒；旧 10-migration 栈先被 journal/hash 门禁以退出码 5 正确拒绝。两次临时资源均已清理。但真实破坏性 `restore.sh` 未执行，物理异介质、目标主机、最终 GHCR 制品、原始操作报告、独立批准和业务 RPO/RTO 均未证明，因此 `production_backup_restore` 仍为 blocked。
 - `101d2f0…` 已暂停 caddy/API/worker 创建新的 age+Ed25519 一致性归档，签名绑定密文 SHA `07570954…3f09`、来源和 tool release；错误 S3 凭据在破坏前失败且数据库/桶 sentinel 不变，随机全新卷随后精确恢复 38 表、11 migration SQL SHA、pg-boss 24、五职责权限、worker/readiness 与 1 对象/94 bytes，完整 drill 为 23 秒。测试 identity、签名私钥、归档和源 sentinel 均已删除。该证据的 `productionRestoreEntrypointExecuted=false`，独立生产摘要/公钥批准、业务 RPO/RTO、异介质、目标内网和经审批破坏性 `restore.sh` 仍未完成；旧 `6545c18…` 的 10 migration 恢复只保留为历史证据。
 - 2026-07-18 formatVersion 1 的 `final-rc-...`、37 表/4 对象/16 秒，以及同内容标签的 35/35/33 秒升级回滚只保留为历史证据，不能作为当前发布结论。
 - 首轮新演练虽完成升级和回滚脚本，但回滚后的常驻 API 在 idle 后连续两次登录 `CONNECT_TIMEOUT`/HTTP 500，任务 CRUD 未执行，因此正确 BLOCKED。连接恢复修复提交 `859841f…` 经 162 单元、API 83、worker 23、暖连接/断链/黑洞同句柄恢复与生产构建复验。

@@ -25,8 +25,8 @@ regexes = [
 ]
 
 [[rules.allowlists]]
-description = "Public Ed25519 DER fingerprints in two named sanitized 2026-07-20 evidence records"
+description = "Public Ed25519 DER fingerprints in named sanitized 2026-07-20 evidence records"
 condition = "AND"
 regexTarget = "match"
-paths = ['''(?:^|/)docs/delivery/evidence/(?:signed-backup-restore-drill|production-like-acceptance-101d2f0)-20260720\.json$''']
+paths = ['''(?:^|/)docs/delivery/evidence/(?:signed-backup-restore-drill|production-like-acceptance-101d2f0|production-restore-guard-acceptance-231d8e8)-20260720\.json$''']
 regexes = ['''^signingKeyFingerprintSha256":\s*"[0-9a-f]{64}"$''']
