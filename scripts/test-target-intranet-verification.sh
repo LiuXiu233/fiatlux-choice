@@ -3,6 +3,7 @@ set -euo pipefail
 
 ROOT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)
 SUBJECT="$ROOT_DIR/scripts/verify-target-intranet.sh"
+"$ROOT_DIR/scripts/test-runtime-environment-allowlists.sh"
 work=$(mktemp -d "$ROOT_DIR/tmp/target-intranet-test.XXXXXX")
 cleanup() {
   rm -rf "$work"

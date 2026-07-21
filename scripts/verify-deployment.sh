@@ -6,6 +6,8 @@ COMPOSE="$ROOT_DIR/scripts/compose.sh"
 # shellcheck source=scripts/lib/runtime-env.sh
 source "$ROOT_DIR/scripts/lib/runtime-env.sh"
 load_runtime_env
+# shellcheck source=scripts/lib/runtime-environment-allowlists.sh
+source "$ROOT_DIR/scripts/lib/runtime-environment-allowlists.sh"
 
 base_url=""
 ca_file=${CADDY_ROOT_CA_FILE:-}
@@ -87,10 +89,8 @@ done
 # Config.Env includes the three fixed variables inherited from the pinned Node image. Everything
 # else is an explicit runtime capability. This catches future anchor regressions that accidentally
 # hand session, object-storage, bootstrap, or integration credentials to the wrong service.
-assert_environment_allowlist api \
-  '^(PATH|NODE_VERSION|YARN_VERSION|NODE_ENV|API_HOST|API_PORT|WEB_ORIGIN|DATABASE_URL|DATABASE_POOL_SIZE|DATABASE_CONNECT_TIMEOUT_SECONDS|READINESS_TIMEOUT_MS|JWT_SECRET|JWT_TTL_SECONDS|COOKIE_SECURE|S3_ENDPOINT|S3_REGION|S3_BUCKET|S3_ACCESS_KEY_ID|S3_SECRET_ACCESS_KEY|LLM_DRIVER|LLM_BASE_URL|LLM_PROVIDER_ID|LLM_MODEL|LLM_MAX_OUTPUT_TOKENS|GITHUB_INTEGRATION_MODE|TRUST_PROXY)$'
-assert_environment_allowlist worker \
-  '^(PATH|NODE_VERSION|YARN_VERSION|NODE_ENV|DATABASE_URL|DATABASE_POOL_SIZE|DATABASE_CONNECT_TIMEOUT_SECONDS|COMPLIANCE_MONITOR_SWEEP_BATCH_SIZE|LLM_DRIVER|LLM_BASE_URL|LLM_API_KEY|LLM_PROVIDER_ID|LLM_MODEL|LLM_MAX_OUTPUT_TOKENS|GITHUB_INTEGRATION_MODE|GITHUB_TOKEN|GITHUB_PROBE_REPOSITORY|BACKUP_COMMAND|BACKUP_DIR|PGHOST|PGPORT|PGDATABASE|PGUSER|PGPASSWORD|BACKUP_AGE_RECIPIENT|BACKUP_REQUIRE_ENCRYPTION)$'
+assert_environment_allowlist api "$API_RUNTIME_ENVIRONMENT_ALLOWLIST"
+assert_environment_allowlist worker "$WORKER_RUNTIME_ENVIRONMENT_ALLOWLIST"
 
 for service in api worker; do
   container_id=$("$COMPOSE" ps -q "$service")
