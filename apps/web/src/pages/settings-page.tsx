@@ -9,9 +9,12 @@ import {
   Settings,
 } from "lucide-react";
 import { type FormEvent, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { MfaPanel } from "../components/mfa-panel";
 import { PageHeader } from "../components/page-header";
 import { EmptyState, ErrorState, Spinner, StatusBadge, useToast } from "../components/ui";
 import { ApiError, api } from "../lib/api";
+import { useAuth } from "../lib/auth";
 import { formatDateTime } from "../lib/format";
 
 interface IntegrationStatus {
@@ -35,11 +38,20 @@ interface BackupRecord {
 }
 
 export function SettingsPage() {
+  const auth = useAuth();
   const toast = useToast();
   const queryClient = useQueryClient();
+  const mustChangePassword = auth.user?.mustChangePassword === true;
+  const mustSetupMfa = auth.user?.mustSetupMfa === true;
+  const securitySetupRequired = mustChangePassword || mustSetupMfa;
   const integrations = useQuery({
     queryKey: ["integrations"],
     queryFn: async () => (await api.get<IntegrationStatus[]>("/settings/integrations")).data,
+    refetchInterval: (query) =>
+      query.state.data?.some((integration) => ["queued", "running"].includes(integration.status))
+        ? 2500
+        : false,
+    enabled: !securitySetupRequired,
   });
   const backups = useQuery({
     queryKey: ["backups"],
@@ -48,6 +60,7 @@ export function SettingsPage() {
       query.state.data?.some((backup) => ["queued", "running"].includes(backup.status))
         ? 2500
         : false,
+    enabled: !securitySetupRequired,
   });
   const backupMutation = useMutation({
     mutationFn: () => api.post<BackupRecord>("/backups", { scope: "database" }),
@@ -61,8 +74,13 @@ export function SettingsPage() {
   const testMutation = useMutation({
     mutationFn: (id: string) => api.post<IntegrationStatus>(`/settings/integrations/${id}/test`),
     onSuccess: async (response) => {
+      const queued = response.data.status === "queued" || response.data.status === "running";
       toast.push(
-        response.data.status === "healthy" ? "连接验证成功" : "验证已完成，请检查状态",
+        queued
+          ? "验证任务已交给隔离的后台执行器"
+          : response.data.status === "healthy"
+            ? "连接验证成功"
+            : "验证已完成，请检查状态",
         response.data.status === "healthy" ? "success" : "info",
       );
       await queryClient.invalidateQueries({ queryKey: ["integrations"] });
@@ -72,6 +90,40 @@ export function SettingsPage() {
   });
   const integrationItems = integrations.data ?? [];
   const backupItems = backups.data ?? [];
+
+  if (mustChangePassword) {
+    return (
+      <>
+        <PageHeader
+          title="首次登录安全设置"
+          description="更换临时密码后才能进入公司工作区"
+          icon={LockKeyhole}
+        />
+        <p className="restore-boundary" role="status">
+          <LockKeyhole aria-hidden="true" />
+          当前账号使用临时凭据。除改密、查看会话和退出登录外，服务端已暂停其他操作。
+        </p>
+        <PasswordChangePanel />
+      </>
+    );
+  }
+
+  if (mustSetupMfa) {
+    return (
+      <>
+        <PageHeader
+          title="多因素认证安全设置"
+          description="完成验证器登记并离线保存恢复码后才能进入公司工作区"
+          icon={LockKeyhole}
+        />
+        <p className="restore-boundary" role="status">
+          <LockKeyhole aria-hidden="true" />
+          当前角色要求多因素认证。除安全设置、查看会话和退出登录外，服务端已暂停其他操作。
+        </p>
+        <MfaPanel />
+      </>
+    );
+  }
 
   return (
     <>
@@ -137,6 +189,8 @@ export function SettingsPage() {
       </section>
 
       <PasswordChangePanel />
+
+      <MfaPanel />
 
       <section className="settings-section backup-section">
         <header>
@@ -208,17 +262,23 @@ function PasswordChangePanel() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
   const toast = useToast();
+  const queryClient = useQueryClient();
+  const auth = useAuth();
+  const navigate = useNavigate();
   const mutation = useMutation({
     mutationFn: () =>
       api.post<{ changed: boolean }>("/auth/change-password", {
         currentPassword,
         newPassword,
       }),
-    onSuccess: () => {
+    onSuccess: async () => {
+      const wasRequired = auth.user?.mustChangePassword === true;
       setCurrentPassword("");
       setNewPassword("");
       setConfirmation("");
+      await queryClient.invalidateQueries({ queryKey: ["session"] });
       toast.push("密码已更新，其他会话已撤销", "success");
+      if (wasRequired) navigate("/", { replace: true });
     },
     onError: (error) =>
       toast.push(error instanceof ApiError ? error.message : "无法更新密码", "error"),

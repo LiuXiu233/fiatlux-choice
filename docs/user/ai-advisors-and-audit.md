@@ -4,6 +4,8 @@
 
 每次运行都必须选择一个业务顾问、提出具体问题，并显式选择公司记录作为上下文。系统不会默认把整库数据发送给模型，也不会允许顾问越过发起人的读取权限。
 
+运行默认仅发起人可见。member 只能在列表、详情和人工修改接口访问自己发起且当前仍具备权限的运行；admin/owner 可凭 `advisor-runs:read-all` 或 `*` 跨发起人读取，但仍必须拥有该顾问的 requiredPermission 和运行中每个上下文资源的 `:read` 权限。`read-all` 不扩大业务数据权限；任一条件不满足时接口按 404 返回，避免泄露运行是否存在。人工修改使用同一可见性规则。
+
 顾问输出必须包含六个结构：
 
 1. facts：带公司记录引用的事实。
@@ -38,7 +40,8 @@
 - API 验证 advisor-runs:create。
 - 验证用户具备顾问要求的权限。
 - 对每个上下文引用同时检查顾问范围、用户 read 权限、组织归属和资源类型。
-- 合规记录只有 status=active 且 reviewStatus=reviewed 才进入模型上下文；其他内容只形成“存在复核缺口”的提示。
+- 合规来源只有 `status=active`、`reviewStatus=reviewed`、`nextReviewAt` 尚未到期，并且同时存在确定结论、复核人姓名/角色/机构、胜任依据、明确缺失信息、已上传证据引用、站内登记人、登记时间和锁定来源版本时，才进入模型上下文。只有旧 `reviewed` 字样或部分字段的 legacy 记录会 withheld；后台扫描是否及时运行不会放宽请求时的 fail-closed 判断。
+- 对带 `sourceId` 的 obligations 或 compliance-events，系统还会读取被链接来源并继承完整 provenance、active/reviewed/未来复核日门禁；只有来源结论为 `applicable` 时，关联义务或事件才可进入上下文。`not_applicable` 来源本身可以作为被复核事实，但不能证明关联义务；来源缺失、未复核、非 active、无完整 provenance、结论不适用、未安排复核或已过期时，关联内容会 withheld。没有 `sourceId` 的内部公司义务不因缺少来源自动被扣留；compliance-event 自身还必须为 reviewed。`evidenceFileId` 是完成凭证引用，不替代来源适用性复核。
 - 固定本次 active 提示词版本，并保存上下文快照。
 
 ### 运行中
@@ -108,9 +111,12 @@
 
 - 默认 mock 提供商只用于流程演示，不能当作真实顾问能力验收。
 - 配置真实 LLM 前，确认供应商、处理地域、保留策略、训练用途、分包商、删除能力和事件通知。
+- `LLM_BASE_URL` 必须是经批准的 HTTPS 地址；HTTP（包括生产环回地址）会被拒绝，模型调用不会跟随供应商重定向。
 - 不发送无关个人信息、身份证件、银行账号、未公开商业秘密或整份文件。
 - 必要时先创建脱敏摘要作为上下文，并保留摘要来源和审阅人。
 - LLM_API_KEY 只进入运行环境密钥，不写入仓库、提示词或审计载荷。
+- LLM_API_KEY 和 GITHUB_TOKEN 只注入 worker；API 容器不持有它们。设置页对真实适配器返回 202/queued 后，由 worker 完成实际探测；queued 不是连接成功。
+- compatible 调用始终携带 `LLM_MAX_OUTPUT_TOKENS` 单次硬上限，创建顾问运行另有每小时限速；供应商账户仍必须配置月度硬预算和告警。
 - 真实模型连接失败必须显示 failed，不回退成未标识的 mock 结果。
 
 ## 9. 工具与外部动作边界
@@ -133,12 +139,14 @@
 | queued 长时间不动 | 检查 worker、pg-boss 和 ready 健康状态 |
 | failed | 查看模型调用错误；不要反复提交敏感上下文 |
 | 引用被拒绝 | 检查用户权限、顾问范围、组织和资源 ID |
-| 合规内容 withheld | 完成人工复核并确认 active，而非绕过过滤 |
+| 合规内容 withheld | 完成人工复核，确认 reviewed、active 且下次复核日在未来，而非绕过过滤 |
 | 事实无有效引用 | 不采纳；补充上下文或报告提示词缺陷 |
 | 输出疑似提示注入 | 保全运行 ID，停止使用结果并按安全事件处理 |
 | 人工修改冲突 | 重新读取最新 version 后比较，不覆盖他人修改 |
 
 安全威胁及响应见[威胁模型](../security/threat-model.md)和[事件响应](../security/incident-response.md)。
+
+生产真实适配器的七顾问质量、最小权限、成本、撤销和回退验收见[真实适配器验收手册](../admin/real-adapter-acceptance.md)。普通连接检查不能替代该门禁。
 
 ## 11. 审计抽查
 
@@ -148,7 +156,8 @@
 - 模型供应商和模型名称是否与批准配置一致。
 - promptVersionId 是否可追溯到未修改的历史版本。
 - toolCalls 和 citations 是否与 contextSnapshot 一致。
-- 合规来源是否在运行时为 reviewed 和 active。
+- 合规来源是否在运行时为 reviewed、active，且 `nextReviewAt` 非空并晚于当前时间；带 `sourceId` 的义务和合规事件是否正确继承该门禁，worker 是否运行不影响此 fail-closed 判断。
+- 抽查同组织不同发起人的运行：member 应无法在列表、详情或人工修改接口看到他人的运行；admin/owner 的 `read-all` 仍应在缺少顾问 requiredPermission 或任一上下文 `:read` 时返回 404。
 - 人工 edits 是否有真实理由和编辑人。
 - 高风险建议是否经过独立审批和外部凭证确认。
 - 日志和模型载荷是否出现不必要的个人信息或密钥。

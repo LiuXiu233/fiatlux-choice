@@ -1,19 +1,28 @@
 import { randomUUID } from "node:crypto";
-import { idSchema, listQuerySchema } from "@fiatlux/contracts";
+import {
+  idSchema,
+  listQuerySchema,
+  membershipLifecycleApprovalPayloadSchema,
+  membershipLifecycleRequestSchema,
+  roleAssignmentApprovalPayloadSchema,
+  roleAssignmentRequestSchema,
+} from "@fiatlux/contracts";
 import {
   approvals,
   auditEvents,
   backups,
   githubInsights,
   integrationChecks,
+  membershipRoles,
   memberships,
   rolePermissions,
   roles,
   users,
 } from "@fiatlux/db";
 import { DomainError } from "@fiatlux/domain";
+import { sanitizeIntegrationError } from "@fiatlux/integrations";
 import argon2 from "argon2";
-import { and, count, desc, eq, ilike, inArray, isNull, sql } from "drizzle-orm";
+import { and, count, desc, eq, ilike, inArray, isNull, or, sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 
@@ -22,22 +31,17 @@ import { requestAuditContext } from "./resource-repository.js";
 import type { AppDependencies, RequestAuditContext } from "./types.js";
 
 const idParamsSchema = z.object({ id: idSchema });
-const userCreateSchema = z.object({
+export const userCreateSchema = z.object({
   email: z.string().trim().toLowerCase().email().max(320),
   displayName: z.string().trim().min(1).max(200),
   password: z.string().min(14).max(256),
   roleId: idSchema,
 });
-const userUpdateSchema = z.object({
+export const userUpdateSchema = z.object({
   displayName: z.string().trim().min(1).max(200),
   expectedVersion: z.number().int().min(1),
 });
-const roleAssignmentSchema = z.object({
-  membershipId: idSchema,
-  roleId: idSchema,
-  mode: z.enum(["assign", "remove"]),
-  reason: z.string().trim().min(1).max(5_000),
-});
+export const roleAssignmentSchema = roleAssignmentRequestSchema;
 
 function auditValue(
   context: RequestAuditContext,
@@ -78,14 +82,18 @@ export function registerAdminRoutes(
     },
     async (request) => {
       const query = listQuerySchema.parse(request.query);
-      const where = query.search
-        ? and(
-            eq(memberships.orgId, request.auth.orgId),
-            isNull(memberships.archivedAt),
-            ilike(users.displayName, `%${query.search}%`),
-          )
-        : and(eq(memberships.orgId, request.auth.orgId), isNull(memberships.archivedAt));
-      const data = await dependencies.db
+      const where = and(
+        eq(memberships.orgId, request.auth.orgId),
+        isNull(memberships.archivedAt),
+        query.search
+          ? or(
+              ilike(users.displayName, `%${query.search}%`),
+              ilike(users.email, `%${query.search}%`),
+            )
+          : undefined,
+        query.status ? eq(memberships.status, query.status) : undefined,
+      );
+      const memberRows = await dependencies.db
         .select({
           id: users.id,
           membershipId: memberships.id,
@@ -102,10 +110,82 @@ export function registerAdminRoutes(
         .orderBy(desc(memberships.createdAt))
         .limit(query.pageSize)
         .offset((query.page - 1) * query.pageSize);
+      const pendingLifecycleRows =
+        memberRows.length === 0
+          ? []
+          : await dependencies.db
+              .select({
+                id: approvals.id,
+                resourceId: approvals.resourceId,
+                payload: approvals.payload,
+              })
+              .from(approvals)
+              .where(
+                and(
+                  eq(approvals.orgId, request.auth.orgId),
+                  eq(approvals.resourceType, "membership-lifecycle"),
+                  eq(approvals.status, "pending"),
+                  inArray(
+                    approvals.resourceId,
+                    memberRows.map((member) => member.membershipId),
+                  ),
+                  isNull(approvals.archivedAt),
+                ),
+              )
+              .orderBy(desc(approvals.createdAt));
+      const memberRoleRows =
+        memberRows.length === 0
+          ? []
+          : await dependencies.db
+              .select({
+                membershipId: membershipRoles.membershipId,
+                id: roles.id,
+                name: roles.name,
+                systemKey: roles.systemKey,
+              })
+              .from(membershipRoles)
+              .innerJoin(
+                roles,
+                and(eq(roles.id, membershipRoles.roleId), eq(roles.orgId, membershipRoles.orgId)),
+              )
+              .where(
+                and(
+                  eq(membershipRoles.orgId, request.auth.orgId),
+                  inArray(
+                    membershipRoles.membershipId,
+                    memberRows.map((member) => member.membershipId),
+                  ),
+                  isNull(roles.archivedAt),
+                ),
+              );
+      const pendingLifecycleByMembership = new Map<
+        string,
+        { approvalId: string; action: "deactivate" | "offboard" | "reactivate" }
+      >();
+      for (const pending of pendingLifecycleRows) {
+        const parsed = membershipLifecycleApprovalPayloadSchema.safeParse(pending.payload);
+        if (!parsed.success || pendingLifecycleByMembership.has(pending.resourceId)) continue;
+        pendingLifecycleByMembership.set(pending.resourceId, {
+          approvalId: pending.id,
+          action: parsed.data.action,
+        });
+      }
+      const data = memberRows.map((member) => {
+        const pending = pendingLifecycleByMembership.get(member.membershipId);
+        return {
+          ...member,
+          pendingLifecycleAction: pending?.action ?? null,
+          pendingLifecycleApprovalId: pending?.approvalId ?? null,
+          roles: memberRoleRows
+            .filter((role) => role.membershipId === member.membershipId)
+            .map(({ membershipId: _membershipId, ...role }) => role),
+        };
+      });
       const totals = await dependencies.db
         .select({ total: count() })
         .from(memberships)
-        .where(and(eq(memberships.orgId, request.auth.orgId), isNull(memberships.archivedAt)));
+        .innerJoin(users, eq(users.id, memberships.userId))
+        .where(where);
       const total = totals[0]?.total ?? 0;
       return { data, meta: { ...query, total, pageCount: Math.ceil(total / query.pageSize) } };
     },
@@ -147,6 +227,7 @@ export function registerAdminRoutes(
             email: input.email,
             displayName: input.displayName,
             passwordHash,
+            mustChangePassword: true,
           })
           .returning();
         if (!user) throw new Error("Failed to create user");
@@ -173,6 +254,8 @@ export function registerAdminRoutes(
               membershipId: membership.id,
               roleId: input.roleId,
               mode: "assign",
+              expectedVersion: membership.version,
+              idempotencyKey: `initial-role-${randomUUID()}`,
               activateMembership: true,
             },
           })
@@ -197,6 +280,152 @@ export function registerAdminRoutes(
         };
       });
       return reply.status(201).send({ data: created });
+    },
+  );
+
+  app.post(
+    "/api/v1/users/:id/lifecycle",
+    {
+      preHandler: [authenticate, requirePermission("users:update")],
+      schema: {
+        tags: ["users"],
+        summary:
+          "Request human-approved organization membership deactivation, offboarding, or reactivation",
+      },
+    },
+    async (request, reply) => {
+      const { id: userId } = idParamsSchema.parse(request.params);
+      const input = membershipLifecycleRequestSchema.parse(request.body);
+      const context = requestAuditContext(request);
+      const result = await dependencies.db.transaction(async (tx) => {
+        const [membership] = await tx
+          .select({
+            id: memberships.id,
+            userId: memberships.userId,
+            status: memberships.status,
+            version: memberships.version,
+            archivedAt: memberships.archivedAt,
+          })
+          .from(memberships)
+          .where(
+            and(
+              eq(memberships.orgId, request.auth.orgId),
+              eq(memberships.userId, userId),
+              isNull(memberships.archivedAt),
+            ),
+          )
+          .limit(1)
+          .for("update");
+        if (!membership) {
+          throw new DomainError("NOT_FOUND", "Organization member not found", 404);
+        }
+
+        const lifecycleApprovals = await tx
+          .select()
+          .from(approvals)
+          .where(
+            and(
+              eq(approvals.orgId, request.auth.orgId),
+              eq(approvals.resourceType, "membership-lifecycle"),
+              eq(approvals.resourceId, membership.id),
+              isNull(approvals.archivedAt),
+            ),
+          )
+          .orderBy(desc(approvals.createdAt));
+        const sameKey = lifecycleApprovals.find((approval) => {
+          const parsed = membershipLifecycleApprovalPayloadSchema.safeParse(approval.payload);
+          return parsed.success && parsed.data.idempotencyKey === input.idempotencyKey;
+        });
+        if (sameKey) {
+          const parsed = membershipLifecycleApprovalPayloadSchema.parse(sameKey.payload);
+          if (
+            parsed.action !== input.action ||
+            parsed.expectedVersion !== input.expectedVersion ||
+            parsed.membershipId !== membership.id ||
+            parsed.userId !== userId ||
+            sameKey.reason !== input.reason
+          ) {
+            throw new DomainError(
+              "CONFLICT",
+              "Idempotency key was already used for a different membership lifecycle request",
+              409,
+            );
+          }
+          return { approval: sameKey, replay: true };
+        }
+
+        const requiredStatus = input.action === "reactivate" ? "inactive" : "active";
+        if (membership.status !== requiredStatus) {
+          throw new DomainError(
+            "CONFLICT",
+            input.action === "reactivate"
+              ? "Only an inactive membership can be reactivated; offboarded members require a new onboarding process"
+              : `Only an active membership can be ${input.action === "deactivate" ? "deactivated" : "offboarded"}`,
+            409,
+          );
+        }
+        if (membership.version !== input.expectedVersion) {
+          throw new DomainError("CONFLICT", "Member changed concurrently", 409);
+        }
+        if (lifecycleApprovals.some((approval) => approval.status === "pending")) {
+          throw new DomainError(
+            "CONFLICT",
+            "A membership lifecycle request is already pending approval",
+            409,
+          );
+        }
+
+        const payload = membershipLifecycleApprovalPayloadSchema.parse({
+          membershipId: membership.id,
+          userId,
+          action: input.action,
+          expectedVersion: input.expectedVersion,
+          idempotencyKey: input.idempotencyKey,
+        });
+        const [approval] = await tx
+          .insert(approvals)
+          .values({
+            orgId: request.auth.orgId,
+            resourceType: "membership-lifecycle",
+            resourceId: membership.id,
+            operation:
+              input.action === "deactivate"
+                ? "membership_deactivate"
+                : input.action === "offboard"
+                  ? "membership_offboard"
+                  : "membership_reactivate",
+            reason: input.reason,
+            riskLevel: "critical",
+            requestedBy: request.auth.userId,
+            payload,
+          })
+          .returning();
+        if (!approval) throw new Error("Failed to create membership lifecycle approval");
+        await tx.insert(auditEvents).values(
+          auditValue(context, {
+            action: "request",
+            resourceType: "membership-lifecycle",
+            resourceId: membership.id,
+            before: {
+              membershipId: membership.id,
+              userId: membership.userId,
+              status: membership.status,
+              version: membership.version,
+            },
+            after: {
+              approvalId: approval.id,
+              action: input.action,
+              approvalStatus: approval.status,
+              expectedVersion: input.expectedVersion,
+            },
+          }),
+        );
+        return { approval, replay: false };
+      });
+      return reply.status(result.replay ? 200 : 201).send({
+        data: result.approval,
+        meta: { replay: result.replay },
+      });
     },
   );
 
@@ -249,7 +478,15 @@ export function registerAdminRoutes(
           .update(users)
           .set({ displayName: input.displayName, updatedAt: now })
           .where(eq(users.id, id))
-          .returning();
+          .returning({
+            id: users.id,
+            email: users.email,
+            displayName: users.displayName,
+            status: users.status,
+            lastLoginAt: users.lastLoginAt,
+            createdAt: users.createdAt,
+            updatedAt: users.updatedAt,
+          });
         if (!changed) throw new DomainError("CONFLICT", "User changed concurrently", 409);
         const response = { ...changed, version: updatedMembership.version };
         await tx.insert(auditEvents).values(
@@ -321,9 +558,10 @@ export function registerAdminRoutes(
     },
     async (request, reply) => {
       const input = roleAssignmentSchema.parse(request.body);
-      const [membership, role] = await Promise.all([
-        dependencies.db
-          .select({ id: memberships.id })
+      const context = requestAuditContext(request);
+      const result = await dependencies.db.transaction(async (tx) => {
+        const [membership] = await tx
+          .select({ id: memberships.id, version: memberships.version })
           .from(memberships)
           .where(
             and(
@@ -332,8 +570,9 @@ export function registerAdminRoutes(
               isNull(memberships.archivedAt),
             ),
           )
-          .limit(1),
-        dependencies.db
+          .limit(1)
+          .for("update");
+        const [role] = await tx
           .select({ id: roles.id })
           .from(roles)
           .where(
@@ -343,12 +582,79 @@ export function registerAdminRoutes(
               isNull(roles.archivedAt),
             ),
           )
-          .limit(1),
-      ]);
-      if (!membership[0] || !role[0])
-        throw new DomainError("NOT_FOUND", "Role or membership not found", 404);
-      const context = requestAuditContext(request);
-      const [approval] = await dependencies.db.transaction(async (tx) => {
+          .limit(1);
+        if (!membership || !role)
+          throw new DomainError("NOT_FOUND", "Role or membership not found", 404);
+        const existingApprovals = await tx
+          .select()
+          .from(approvals)
+          .where(
+            and(
+              eq(approvals.orgId, request.auth.orgId),
+              eq(approvals.resourceType, "role-assignment"),
+              eq(approvals.resourceId, input.membershipId),
+              isNull(approvals.archivedAt),
+            ),
+          )
+          .orderBy(desc(approvals.createdAt));
+        const sameKey = existingApprovals.find((approval) => {
+          const parsed = roleAssignmentApprovalPayloadSchema.safeParse(approval.payload);
+          return parsed.success && parsed.data.idempotencyKey === input.idempotencyKey;
+        });
+        if (sameKey) {
+          const parsed = roleAssignmentApprovalPayloadSchema.parse(sameKey.payload);
+          if (
+            parsed.membershipId !== input.membershipId ||
+            parsed.roleId !== input.roleId ||
+            parsed.mode !== input.mode ||
+            parsed.expectedVersion !== input.expectedVersion ||
+            sameKey.reason !== input.reason
+          ) {
+            throw new DomainError(
+              "CONFLICT",
+              "Idempotency key was already used for a different role assignment request",
+              409,
+            );
+          }
+          return { approval: sameKey, replay: true } as const;
+        }
+        if (membership.version !== input.expectedVersion) {
+          throw new DomainError("CONFLICT", "Member changed concurrently", 409);
+        }
+        if (existingApprovals.some((approval) => approval.status === "pending")) {
+          throw new DomainError(
+            "CONFLICT",
+            "A role assignment request is already pending for this member",
+            409,
+          );
+        }
+        const [existingAssignment] = await tx
+          .select({ roleId: membershipRoles.roleId })
+          .from(membershipRoles)
+          .where(
+            and(
+              eq(membershipRoles.orgId, request.auth.orgId),
+              eq(membershipRoles.membershipId, input.membershipId),
+              eq(membershipRoles.roleId, input.roleId),
+            ),
+          )
+          .limit(1);
+        if (input.mode === "assign" ? existingAssignment : !existingAssignment) {
+          throw new DomainError(
+            "CONFLICT",
+            input.mode === "assign"
+              ? "The member already has this role"
+              : "The member does not have this role",
+            409,
+          );
+        }
+        const payload = roleAssignmentApprovalPayloadSchema.parse({
+          membershipId: input.membershipId,
+          roleId: input.roleId,
+          mode: input.mode,
+          expectedVersion: input.expectedVersion,
+          idempotencyKey: input.idempotencyKey,
+        });
         const [created] = await tx
           .insert(approvals)
           .values({
@@ -359,7 +665,7 @@ export function registerAdminRoutes(
             reason: input.reason,
             riskLevel: "critical",
             requestedBy: request.auth.userId,
-            payload: { membershipId: input.membershipId, roleId: input.roleId, mode: input.mode },
+            payload,
           })
           .returning();
         if (!created) throw new Error("Failed to create role assignment approval");
@@ -371,14 +677,17 @@ export function registerAdminRoutes(
             after: created,
           }),
         );
-        return [created];
+        return { approval: created, replay: false } as const;
       });
-      return reply.status(201).send({ data: approval });
+      return reply.status(result.replay ? 200 : 201).send({
+        data: result.approval,
+        meta: { replay: result.replay },
+      });
     },
   );
 }
 
-const integrationDefinitions = [
+export const integrationDefinitions = [
   {
     id: "database",
     name: "PostgreSQL",
@@ -416,6 +725,17 @@ const integrationDefinitions = [
   },
 ] as const;
 
+export const integrationIdParamsSchema = z.object({
+  id: z.enum(integrationDefinitions.map((item) => item.id) as [string, ...string[]]),
+});
+
+export const backupCreateSchema = z.object({
+  name: z.string().trim().min(1).max(200).optional(),
+  // The queued worker intentionally produces a PostgreSQL dump only. Full
+  // database+object-storage archives require the quiesced administrator CLI.
+  scope: z.literal("database").default("database"),
+});
+
 export function registerOperationsRoutes(
   app: FastifyInstance,
   dependencies: AppDependencies,
@@ -440,7 +760,11 @@ export function registerOperationsRoutes(
       }
       const { id } = idParamsSchema.parse(request.params);
       const [insight] = await dependencies.db
-        .select({ id: githubInsights.id, repository: githubInsights.repository })
+        .select({
+          id: githubInsights.id,
+          repository: githubInsights.repository,
+          version: githubInsights.version,
+        })
         .from(githubInsights)
         .where(
           and(
@@ -452,20 +776,50 @@ export function registerOperationsRoutes(
         .limit(1);
       if (!insight) throw new DomainError("NOT_FOUND", "GitHub insight not found", 404);
 
-      await dependencies.queue.send("github.refresh", {
-        orgId: request.auth.orgId,
-        insightId: insight.id,
-      });
+      try {
+        await dependencies.queue.send("github.refresh", {
+          orgId: request.auth.orgId,
+          insightId: insight.id,
+          expectedVersion: insight.version,
+        });
+      } catch (error) {
+        const message = sanitizeIntegrationError(error, "Background queue dispatch failed", {
+          maxLength: 500,
+        });
+        await dependencies.db.insert(auditEvents).values(
+          auditValue(requestAuditContext(request), {
+            action: "queue_refresh_fail",
+            resourceType: "github-insight",
+            resourceId: insight.id,
+            after: {
+              repository: insight.repository,
+              expectedVersion: insight.version,
+              integrationMode: "read_only",
+            },
+            metadata: { error: message },
+          }),
+        );
+        throw new DomainError("INTEGRATION_UNAVAILABLE", "Background queue is unavailable", 503);
+      }
       await dependencies.db.insert(auditEvents).values(
         auditValue(requestAuditContext(request), {
           action: "queue_refresh",
           resourceType: "github-insight",
           resourceId: insight.id,
-          after: { repository: insight.repository, integrationMode: "read_only" },
+          after: {
+            repository: insight.repository,
+            expectedVersion: insight.version,
+            integrationMode: "read_only",
+          },
         }),
       );
       return reply.status(202).send({
-        data: { insightId: insight.id, repository: insight.repository, status: "queued" },
+        data: {
+          insightId: insight.id,
+          repository: insight.repository,
+          expectedVersion: insight.version,
+          status: "queued",
+        },
       });
     },
   );
@@ -536,17 +890,120 @@ export function registerOperationsRoutes(
     "/api/v1/settings/integrations/:id/test",
     {
       preHandler: [authenticate, requirePermission("settings:test")],
+      config: { rateLimit: { max: 12, timeWindow: "1 hour" } },
       schema: {
         tags: ["settings"],
         summary: "Probe an integration without performing business actions",
       },
     },
-    async (request) => {
-      const { id } = z
-        .object({
-          id: z.enum(integrationDefinitions.map((item) => item.id) as [string, ...string[]]),
-        })
-        .parse(request.params);
+    async (request, reply) => {
+      const { id } = integrationIdParamsSchema.parse(request.params);
+      const workerOnlyProbe =
+        (id === "llm" && dependencies.config.LLM_DRIVER === "compatible") ||
+        (id === "github" && dependencies.config.GITHUB_INTEGRATION_MODE === "read_only");
+      const context = requestAuditContext(request);
+      if (workerOnlyProbe) {
+        if (!dependencies.queue) {
+          throw new DomainError("INTEGRATION_UNAVAILABLE", "Background queue is unavailable", 503);
+        }
+        const integrationId = id as "llm" | "github";
+        const queued = await dependencies.db.transaction(async (tx) => {
+          await tx.execute(
+            sql`SELECT pg_advisory_xact_lock(hashtextextended(${`${request.auth.orgId}:integration-test:${integrationId}`}, 0))`,
+          );
+          const [active] = await tx
+            .select()
+            .from(integrationChecks)
+            .where(
+              and(
+                eq(integrationChecks.orgId, request.auth.orgId),
+                eq(integrationChecks.integrationId, integrationId),
+                inArray(integrationChecks.status, ["queued", "running"]),
+                isNull(integrationChecks.archivedAt),
+              ),
+            )
+            .orderBy(desc(integrationChecks.createdAt))
+            .limit(1);
+          if (active) {
+            await tx.insert(auditEvents).values(
+              auditValue(context, {
+                action: "queue_test_replay",
+                resourceType: "integration",
+                resourceId: integrationId,
+                after: active,
+                metadata: { checkId: active.id, executionBoundary: "worker_only" },
+              }),
+            );
+            return active;
+          }
+          const [created] = await tx
+            .insert(integrationChecks)
+            .values({
+              orgId: request.auth.orgId,
+              integrationId,
+              status: "queued",
+              detail: "Worker-only authenticated probe queued",
+              checkedBy: request.auth.userId,
+            })
+            .returning();
+          if (!created) throw new Error("Failed to store queued integration check");
+          await tx.insert(auditEvents).values(
+            auditValue(context, {
+              action: "queue_test",
+              resourceType: "integration",
+              resourceId: integrationId,
+              after: created,
+              metadata: { checkId: created.id, executionBoundary: "worker_only" },
+            }),
+          );
+          return created;
+        });
+        try {
+          await dependencies.queue.send("integration.test", {
+            orgId: request.auth.orgId,
+            checkId: queued.id,
+            integrationId,
+            requestedBy: queued.checkedBy,
+          });
+        } catch (error) {
+          const message = sanitizeIntegrationError(error, "Background queue dispatch failed", {
+            maxLength: 500,
+          });
+          await dependencies.db.transaction(async (tx) => {
+            const [failed] = await tx
+              .update(integrationChecks)
+              .set({
+                status: "unhealthy",
+                detail: message,
+                checkedAt: new Date(),
+                updatedAt: new Date(),
+                version: queued.version + 1,
+              })
+              .where(
+                and(
+                  eq(integrationChecks.id, queued.id),
+                  eq(integrationChecks.orgId, request.auth.orgId),
+                  eq(integrationChecks.status, "queued"),
+                  eq(integrationChecks.version, queued.version),
+                ),
+              )
+              .returning();
+            await tx.insert(auditEvents).values(
+              auditValue(context, {
+                action: failed ? "queue_test_fail" : "queue_test_dispatch_ambiguous",
+                resourceType: "integration",
+                resourceId: integrationId,
+                before: queued,
+                ...(failed ? { after: failed } : {}),
+                metadata: { checkId: queued.id, error: message },
+              }),
+            );
+          });
+          throw new DomainError("INTEGRATION_UNAVAILABLE", "Background queue is unavailable", 503);
+        }
+        return reply.status(202).send({ data: queued });
+      }
+
       let status = "healthy";
       let detail = "Connectivity verified";
       try {
@@ -559,44 +1016,20 @@ export function registerOperationsRoutes(
           } else if (dependencies.config.LLM_DRIVER === "mock") {
             status = "simulated";
             detail = "Mock driver active; no external model call was performed";
-          } else {
-            if (!dependencies.config.LLM_BASE_URL || !dependencies.config.LLM_API_KEY) {
-              throw new Error("Compatible LLM driver is not configured");
-            }
-            const response = await fetch(
-              `${dependencies.config.LLM_BASE_URL.replace(/\/$/, "")}/v1/models`,
-              {
-                headers: { authorization: `Bearer ${dependencies.config.LLM_API_KEY}` },
-                signal: AbortSignal.timeout(10_000),
-              },
-            );
-            if (!response.ok) throw new Error(`LLM endpoint returned HTTP ${response.status}`);
           }
         }
         if (id === "github") {
           if (dependencies.config.GITHUB_INTEGRATION_MODE === "manual") {
             status = "manual";
             detail = "Manual import is available; no GitHub network request was performed";
-          } else {
-            const response = await fetch("https://api.github.com/rate_limit", {
-              headers: {
-                accept: "application/vnd.github+json",
-                ...(dependencies.config.GITHUB_TOKEN
-                  ? { authorization: `Bearer ${dependencies.config.GITHUB_TOKEN}` }
-                  : {}),
-              },
-              signal: AbortSignal.timeout(10_000),
-            });
-            if (!response.ok) throw new Error(`GitHub returned HTTP ${response.status}`);
           }
         }
         if (id === "external-manual")
           detail = "Manual adapter available; no external action was performed";
       } catch (error) {
         status = "unhealthy";
-        detail = error instanceof Error ? error.message : "Unknown integration error";
+        detail = sanitizeIntegrationError(error, "Unknown integration error", { maxLength: 500 });
       }
-      const context = requestAuditContext(request);
       const [check] = await dependencies.db.transaction(async (tx) => {
         const [created] = await tx
           .insert(integrationChecks)
@@ -662,12 +1095,11 @@ export function registerOperationsRoutes(
     async (request, reply) => {
       if (!dependencies.queue)
         throw new DomainError("INTEGRATION_UNAVAILABLE", "Background queue is unavailable", 503);
-      const input = z
-        .object({
-          name: z.string().trim().min(1).max(200).default(`backup-${new Date().toISOString()}`),
-          scope: z.enum(["database", "files", "full"]).default("full"),
-        })
-        .parse(request.body ?? {});
+      const requested = backupCreateSchema.parse(request.body ?? {});
+      const input = {
+        ...requested,
+        name: requested.name ?? `backup-${new Date().toISOString()}`,
+      };
       const id = randomUUID();
       const context = requestAuditContext(request);
       const [created] = await dependencies.db.transaction(async (tx) => {
@@ -696,7 +1128,9 @@ export function registerOperationsRoutes(
       try {
         await dependencies.queue.send("backup.create", { orgId: request.auth.orgId, backupId: id });
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Failed to enqueue backup";
+        const message = sanitizeIntegrationError(error, "Failed to enqueue backup", {
+          maxLength: 500,
+        });
         await dependencies.db.transaction(async (tx) => {
           const [failed] = await tx
             .update(backups)
@@ -720,7 +1154,7 @@ export function registerOperationsRoutes(
             }),
           );
         });
-        throw error;
+        throw new DomainError("INTEGRATION_UNAVAILABLE", "Background queue is unavailable", 503);
       }
       return reply.status(202).send({ data: created });
     },

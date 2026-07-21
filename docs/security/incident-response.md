@@ -7,13 +7,21 @@
 ## 处置顺序
 
 1. 记录发现时间、发现人、现象、受影响账户/主机和当前版本。
-2. 疑似主动攻击时停止 Caddy、API 与 worker，保留 PostgreSQL/MinIO 和容器日志：
+2. 疑似主动攻击时停止 Caddy、API 与 worker，保留 PostgreSQL/MinIO 和容器日志。先在受控主机的加密介质上创建仅响应人员可读的证据目录，并把当前 shell 的新文件权限收紧；不得把证据写到仓库、普通用户目录或共享临时目录：
 
 ```sh
+evidence_dir=/var/lib/fiatlux-choice/incidents/REPLACE_WITH_INCIDENT_ID
+install -d -m 0700 "$evidence_dir"
+umask 077
 ./scripts/compose.sh stop caddy api worker
-./scripts/compose.sh logs --since 24h > incident-containers.log
-docker inspect $(./scripts/compose.sh ps -q) > incident-inspect.json
+./scripts/compose.sh logs --since 24h > "$evidence_dir/incident-containers.log"
+./scripts/compose.sh ps -q | xargs docker inspect > "$evidence_dir/incident-inspect.json"
+chmod 0600 "$evidence_dir/incident-containers.log" "$evidence_dir/incident-inspect.json"
+sha256sum "$evidence_dir/incident-containers.log" "$evidence_dir/incident-inspect.json" \
+  > "$evidence_dir/SHA256SUMS"
 ```
+
+`docker inspect` 会把容器环境变量、挂载和网络配置写入原始证据，其中可能包含数据库、MinIO、LLM、GitHub 和会话凭据。该 JSON 必须视为最高敏感级别：只允许进入批准的事件证据库，不得上传普通工单、聊天、邮件、GitHub issue 或 CI artifact，也不得作为一般诊断附件。完成取证后仍须按事件流程立即轮换其中出现的全部凭据；限制访问并不能替代撤销。
 
 3. 不执行 prune、不删除卷、不清空审计、不在原日志上编辑脱敏。
 4. 从可信管理员设备轮换受影响的 GitHub、LLM、会话和外部 token；撤销旧凭据。
@@ -26,6 +34,7 @@ docker inspect $(./scripts/compose.sh ps -q) > incident-inspect.json
 - 计算导出日志与备份的 SHA-256，记录保管链。
 - 原始证据只读保存；用于分析的副本需单独标识。
 - 日志和数据库可能包含个人信息，只向必要人员开放。
+- 容器 inspect 原始证据可能直接包含生产 secret；访问、复制、解密、销毁和凭据轮换都要进入保管链。
 - 系统时钟、时区和 NTP 状态纳入证据，所有报告同时记录 UTC 与 Asia/Shanghai。
 
 ## 恢复上线门槛

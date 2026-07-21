@@ -5,6 +5,7 @@ export const HUMAN_APPROVAL_ACTIONS = [
   "tax_filing",
   "invoice_red",
   "contract_sign",
+  "contract_terminate",
   "hr_discipline",
   "permission_change",
   "external_legal_commitment",

@@ -15,6 +15,76 @@
       "when": 1784356708862,
       "tag": "0001_glorious_screwball",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1784384614495,
+      "tag": "0002_needy_miracleman",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1784387860381,
+      "tag": "0003_cheerful_captain_cross",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1784388771422,
+      "tag": "0004_lowly_elektra",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1784392493803,
+      "tag": "0005_notification_recipient_privacy",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1784393924814,
+      "tag": "0006_user_first_login_password",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1784405108089,
+      "tag": "0007_petite_agent_brand",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1784406527068,
+      "tag": "0008_panoramic_midnight",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1784406914986,
+      "tag": "0009_foamy_loa",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1784486537155,
+      "tag": "0010_aspiring_maverick",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1784597014897,
+      "tag": "0011_lonely_shadowcat",
+      "breakpoints": true
     }
   ]
 }

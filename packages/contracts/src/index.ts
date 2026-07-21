@@ -1,10 +1,29 @@
 import { z } from "zod";
 
+export * from "./education-content-clearance.js";
+export * from "./real-adapter-acceptance.js";
+
 export const idSchema = z.string().uuid();
 const offsetDateTimeSchema = z.string().datetime({ offset: true });
+function isValidCalendarDate(year: number, month: number, day: number): boolean {
+  if (month < 1 || month > 12 || day < 1) return false;
+  return day <= new Date(Date.UTC(year, month, 0)).getUTCDate();
+}
+
 const chinaLocalDateTimeSchema = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?$/)
+  .refine((value) => {
+    const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?/.exec(value);
+    if (!match) return false;
+    const [, year, month, day, hour, minute, second = "0"] = match;
+    return (
+      isValidCalendarDate(Number(year), Number(month), Number(day)) &&
+      Number(hour) <= 23 &&
+      Number(minute) <= 59 &&
+      Number(second) <= 59
+    );
+  }, "Invalid China local calendar date-time")
   .transform((value) => `${value.length === 16 ? `${value}:00` : value}+08:00`);
 export const dateTimeSchema = z.union([offsetDateTimeSchema, chinaLocalDateTimeSchema]);
 export const dateOrDateTimeSchema = z.union([
@@ -12,6 +31,10 @@ export const dateOrDateTimeSchema = z.union([
   z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .refine((value) => {
+      const [year, month, day] = value.split("-").map(Number);
+      return isValidCalendarDate(year ?? 0, month ?? 0, day ?? 0);
+    }, "Invalid calendar date")
     .transform((value) => `${value}T00:00:00+08:00`),
 ]);
 export const currencySchema = z
@@ -21,6 +44,128 @@ export const currencySchema = z
 export const jsonObjectSchema = z.record(z.string(), z.unknown());
 export const MAX_FILE_SIZE_BYTES = 50_000_000;
 
+export const FILE_UPLOAD_MIME_TYPES_BY_EXTENSION = {
+  pdf: ["application/pdf"],
+  txt: ["text/plain"],
+  csv: ["text/csv"],
+  md: ["text/markdown", "text/plain"],
+  json: ["application/json"],
+  png: ["image/png"],
+  jpg: ["image/jpeg"],
+  jpeg: ["image/jpeg"],
+  webp: ["image/webp"],
+  gif: ["image/gif"],
+  docx: ["application/vnd.openxmlformats-officedocument.wordprocessingml.document"],
+  xlsx: ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"],
+  pptx: ["application/vnd.openxmlformats-officedocument.presentationml.presentation"],
+} as const;
+
+const blockedFilenameSegments = new Set([
+  "app",
+  "apk",
+  "bat",
+  "bash",
+  "bin",
+  "cjs",
+  "cmd",
+  "com",
+  "desktop",
+  "dmg",
+  "docm",
+  "exe",
+  "fish",
+  "htm",
+  "html",
+  "jar",
+  "js",
+  "jsx",
+  "lnk",
+  "mjs",
+  "msi",
+  "msix",
+  "php",
+  "pl",
+  "pkg",
+  "ps1",
+  "pptm",
+  "py",
+  "rb",
+  "scr",
+  "sh",
+  "svg",
+  "ts",
+  "tsx",
+  "url",
+  "vbe",
+  "vbs",
+  "wsf",
+  "xhtml",
+  "xlam",
+  "xlsm",
+  "zsh",
+]);
+const reservedFilenameStem = /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])$/i;
+const allowedUploadMimeTypes = new Set<string>(
+  Object.values(FILE_UPLOAD_MIME_TYPES_BY_EXTENSION).flat(),
+);
+
+export function fileNamePolicyIssue(filename: string): string | undefined {
+  const normalized = filename.normalize("NFKC");
+  if (/[/\\]/.test(normalized) || /[\p{Cc}\p{Cf}]/u.test(normalized)) {
+    return "Filename contains a path separator or control character";
+  }
+  if (
+    normalized !== normalized.trim() ||
+    normalized.startsWith(".") ||
+    normalized.endsWith(".") ||
+    normalized.includes("..")
+  ) {
+    return "Filename cannot be hidden or contain ambiguous dot segments";
+  }
+  const originalExtensionMatch = /\.([A-Za-z0-9]+)$/.exec(filename);
+  const normalizedExtensionMatch = /\.([A-Za-z0-9]+)$/.exec(normalized);
+  if (!originalExtensionMatch || !normalizedExtensionMatch) {
+    return "Filename must end with an allowed ASCII extension";
+  }
+  const extension = normalizedExtensionMatch[1]?.toLowerCase();
+  if (originalExtensionMatch[1]?.toLowerCase() !== extension) {
+    return "Filename extension uses an ambiguous Unicode representation";
+  }
+  if (!extension || !(extension in FILE_UPLOAD_MIME_TYPES_BY_EXTENSION)) {
+    return "Filename extension is not allowed";
+  }
+  const normalizedSegments = normalized.toLowerCase().split(".");
+  if (normalizedSegments.some((segment) => !segment || segment !== segment.trim())) {
+    return "Filename contains an empty or whitespace-padded segment";
+  }
+  const stem = normalizedSegments[0] ?? "";
+  if (!stem || reservedFilenameStem.test(stem)) return "Filename stem is reserved";
+  if (normalizedSegments.slice(0, -1).some((segment) => blockedFilenameSegments.has(segment))) {
+    return "Filename contains a blocked executable, script, active-content, or macro extension";
+  }
+  return undefined;
+}
+
+export function fileMetadataPolicyIssue(filename: string, contentType: string): string | undefined {
+  const filenameIssue = fileNamePolicyIssue(filename);
+  if (filenameIssue) return filenameIssue;
+  const normalizedContentType = contentType.trim().toLowerCase();
+  if (!allowedUploadMimeTypes.has(normalizedContentType)) {
+    return "Declared MIME type is not allowed";
+  }
+  const extension = filename.slice(filename.lastIndexOf(".") + 1).toLowerCase();
+  const allowedForExtension = FILE_UPLOAD_MIME_TYPES_BY_EXTENSION[
+    extension as keyof typeof FILE_UPLOAD_MIME_TYPES_BY_EXTENSION
+  ] as readonly string[] | undefined;
+  if (!allowedForExtension?.includes(normalizedContentType)) {
+    return "Filename extension does not match the declared MIME type";
+  }
+  return undefined;
+}
+
+export const moneyCentsSchema = z.number().int().min(0).max(Number.MAX_SAFE_INTEGER);
+export const positiveMoneyCentsSchema = moneyCentsSchema.min(1);
+
 export const listQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
@@ -29,10 +174,70 @@ export const listQuerySchema = z.object({
   category: z.string().trim().max(100).optional(),
 });
 
+export const operationalIncidentTypeSchema = z.enum(["advisor-run", "workflow-run", "backup"]);
+export const operationalIncidentStatusSchema = z.enum(["open", "resolved"]);
+export const operationalIncidentResolutionTypeSchema = z.enum([
+  "no_partial_effects_found",
+  "manual_compensation_completed",
+]);
+
+export const operationalIncidentListQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(20),
+  status: operationalIncidentStatusSchema.default("open"),
+  type: operationalIncidentTypeSchema.optional(),
+});
+
+export const operationalIncidentResolutionSchema = z
+  .object({
+    resolution: operationalIncidentResolutionTypeSchema,
+    reviewSummary: z.string().trim().min(20).max(5_000),
+    evidenceReferences: z.array(z.string().trim().min(1).max(500)).min(1).max(20),
+    compensationReference: z.string().trim().min(1).max(500).optional(),
+    acknowledgement: z.literal("NO_AUTOMATIC_REPLAY_ACKNOWLEDGED"),
+  })
+  .superRefine((input, context) => {
+    if (input.resolution === "manual_compensation_completed" && !input.compensationReference) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["compensationReference"],
+        message: "A compensation reference is required when manual compensation is completed",
+      });
+    }
+  });
+
 export const loginSchema = z.object({
   email: z.string().trim().toLowerCase().email().max(320),
   password: z.string().min(10).max(256),
   orgId: idSchema.optional(),
+});
+
+export const mfaTotpCodeSchema = z
+  .string()
+  .trim()
+  .regex(/^\d{6}$/u, "TOTP code must contain 6 digits");
+export const mfaRecoveryCodeSchema = z
+  .string()
+  .trim()
+  .toUpperCase()
+  .regex(
+    /^FLX(?:[-\s]?[A-Z2-7]{4}){4}$/u,
+    "Recovery code must use the FIAT LUX recovery-code format",
+  );
+export const mfaVerificationCodeSchema = z.union([mfaTotpCodeSchema, mfaRecoveryCodeSchema]);
+export const mfaSetupSchema = z.object({
+  confirmation: z.literal("START_MFA_ENROLLMENT"),
+});
+export const mfaConfirmSchema = z.object({ code: mfaTotpCodeSchema });
+export const mfaVerifySchema = z.object({ code: mfaVerificationCodeSchema });
+export const mfaRegenerateRecoveryCodesSchema = z.object({
+  code: mfaVerificationCodeSchema,
+  confirmation: z.literal("REPLACE_MFA_RECOVERY_CODES"),
+});
+export const mfaDisableSchema = z.object({
+  currentPassword: z.string().min(1).max(256),
+  code: mfaVerificationCodeSchema,
+  confirmation: z.literal("DISABLE_MFA"),
 });
 
 export const changePasswordSchema = z
@@ -45,9 +250,47 @@ export const changePasswordSchema = z
     path: ["newPassword"],
   });
 
+export const membershipLifecycleActionSchema = z.enum(["deactivate", "offboard", "reactivate"]);
+export const membershipLifecycleStatusSchema = z.enum([
+  "pending",
+  "active",
+  "inactive",
+  "offboarded",
+]);
+export const membershipLifecycleRequestSchema = z.object({
+  action: membershipLifecycleActionSchema,
+  reason: z.string().trim().min(1).max(5_000),
+  expectedVersion: z.number().int().min(1),
+  idempotencyKey: z.string().trim().min(8).max(200),
+});
+export const membershipLifecycleApprovalPayloadSchema = membershipLifecycleRequestSchema
+  .omit({ reason: true })
+  .extend({
+    membershipId: idSchema,
+    userId: idSchema,
+  });
+
+export const roleAssignmentModeSchema = z.enum(["assign", "remove"]);
+export const roleAssignmentRequestSchema = z.object({
+  membershipId: idSchema,
+  roleId: idSchema,
+  mode: roleAssignmentModeSchema,
+  reason: z.string().trim().min(1).max(5_000),
+  expectedVersion: z.number().int().min(1),
+  idempotencyKey: z.string().trim().min(8).max(200),
+});
+export const roleAssignmentApprovalPayloadSchema = z.object({
+  membershipId: idSchema,
+  roleId: idSchema,
+  mode: roleAssignmentModeSchema,
+  expectedVersion: z.number().int().min(1).optional(),
+  idempotencyKey: z.string().trim().min(8).max(200).optional(),
+  activateMembership: z.boolean().optional().default(false),
+});
+
 export const objectiveCreateSchema = z.object({
   title: z.string().trim().min(1).max(200),
-  description: z.string().trim().max(10_000).optional(),
+  description: z.string().trim().max(10_000).nullish(),
   status: z.enum(["draft", "active", "at_risk", "completed", "cancelled"]).default("draft"),
   ownerId: idSchema.nullish(),
   startsAt: dateTimeSchema.nullish(),
@@ -58,7 +301,7 @@ export const objectiveCreateSchema = z.object({
 export const projectCreateSchema = z.object({
   objectiveId: idSchema.nullish(),
   name: z.string().trim().min(1).max(200),
-  description: z.string().trim().max(10_000).optional(),
+  description: z.string().trim().max(10_000).nullish(),
   status: z.enum(["planned", "active", "blocked", "completed", "cancelled"]).default("planned"),
   ownerId: idSchema.nullish(),
   startsAt: dateTimeSchema.nullish(),
@@ -68,7 +311,7 @@ export const projectCreateSchema = z.object({
 export const taskCreateSchema = z.object({
   projectId: idSchema.nullish(),
   title: z.string().trim().min(1).max(300),
-  description: z.string().trim().max(20_000).optional(),
+  description: z.string().trim().max(20_000).nullish(),
   status: z.enum(["todo", "in_progress", "blocked", "done", "cancelled"]).default("todo"),
   priority: z.enum(["low", "normal", "high", "urgent"]).default("normal"),
   assigneeId: idSchema.nullish(),
@@ -76,22 +319,26 @@ export const taskCreateSchema = z.object({
 });
 
 export const decisionCreateSchema = z.object({
+  objectiveId: idSchema.nullish(),
+  projectId: idSchema.nullish(),
+  taskId: idSchema.nullish(),
   title: z.string().trim().min(1).max(300),
   context: z.string().trim().min(1).max(30_000),
-  decision: z.string().trim().max(30_000).optional(),
+  decision: z.string().trim().max(30_000).nullish(),
   status: z.enum(["proposed", "approved", "rejected", "superseded"]).default("proposed"),
   decidedAt: dateTimeSchema.nullish(),
 });
 
 export const obligationCreateSchema = z.object({
   title: z.string().trim().min(1).max(300),
-  description: z.string().trim().max(20_000).optional(),
+  description: z.string().trim().max(20_000).nullish(),
   category: z.enum(["corporate", "tax", "labor", "contract", "data", "ip", "archive", "other"]),
   status: z.enum(["open", "in_progress", "satisfied", "overdue", "waived"]).default("open"),
   ownerId: idSchema.nullish(),
   dueAt: dateTimeSchema.nullish(),
   recurrenceRule: z.string().trim().max(500).nullish(),
   sourceId: idSchema.nullish(),
+  evidenceFileId: idSchema.nullish(),
 });
 
 export const complianceItemCreateSchema = z.object({
@@ -102,16 +349,101 @@ export const complianceItemCreateSchema = z.object({
   effectiveDate: dateOrDateTimeSchema.nullish(),
   lastVerifiedAt: dateOrDateTimeSchema.nullish(),
   reviewStatus: z.enum(["pending", "reviewed", "stale"]).default("pending"),
-  applicability: z.string().trim().max(20_000).optional(),
-  summary: z.string().trim().max(30_000).optional(),
+  applicability: z.string().trim().max(20_000).nullish(),
+  summary: z.string().trim().max(30_000).nullish(),
   jurisdiction: z.string().trim().min(1).max(100).default("中国/广东省/广州市"),
-  sourceTitle: z.string().trim().min(1).max(500).optional(),
+  sourceTitle: z.string().trim().min(1).max(500).nullish(),
   sourcePublishedAt: dateOrDateTimeSchema.nullish(),
-  sourceStatus: z.string().trim().max(100).optional(),
+  sourceStatus: z.string().trim().max(100).nullish(),
   sourceMetadata: jsonObjectSchema.optional(),
   status: z.enum(["draft", "active", "superseded", "repealed", "uncertain"]).default("draft"),
   contentHash: z.string().trim().max(128).nullish(),
   metadataHash: z.string().trim().max(128).nullish(),
+  contentHashStatus: z
+    .enum(["pending_fetch", "current", "changed", "failed"])
+    .default("pending_fetch"),
+  nextReviewAt: dateOrDateTimeSchema.nullish(),
+  monitoringCadenceDays: z.number().int().min(1).max(365).default(30),
+});
+
+export const complianceMonitorRequestSchema = z.object({
+  reason: z.string().trim().min(1).max(2_000).optional(),
+});
+
+export const complianceMonitorDispatchSummarySchema = z
+  .object({
+    occurredAt: dateTimeSchema,
+    batchLimit: z.number().int().min(1).max(250),
+    dueCount: z.number().int().min(0),
+    queuedCount: z.number().int().min(0),
+    hasMoreDue: z.boolean(),
+  })
+  .refine((summary) => summary.queuedCount <= summary.dueCount, {
+    message: "Queued compliance sources cannot exceed selected due sources",
+    path: ["queuedCount"],
+  });
+
+export const complianceMonitoringStatusSchema = z.object({
+  generatedAt: dateTimeSchema,
+  sourceCount: z.number().int().min(0),
+  dueAvailableCount: z.number().int().min(0),
+  inFlightCount: z.number().int().min(0),
+  pendingFetchCount: z.number().int().min(0),
+  failedCount: z.number().int().min(0),
+  changedCount: z.number().int().min(0),
+  staleReviewCount: z.number().int().min(0),
+  overdueReviewCount: z.number().int().min(0),
+  oldestDueAt: dateTimeSchema.nullable(),
+  nextFutureMonitorAt: dateTimeSchema.nullable(),
+  latestDispatch: complianceMonitorDispatchSummarySchema.nullable(),
+});
+
+export const complianceReviewOutcomeSchema = z.enum([
+  "applicable",
+  "not_applicable",
+  "changes_required",
+  "insufficient_information",
+]);
+
+export const complianceProfessionalReviewSchema = z
+  .object({
+    expectedVersion: z.number().int().min(1),
+    reviewOutcome: complianceReviewOutcomeSchema,
+    resultingStatus: z.enum(["active", "superseded", "repealed", "uncertain"]),
+    reviewerName: z.string().trim().min(2).max(200),
+    reviewerRole: z.string().trim().min(2).max(200),
+    reviewerOrganization: z.string().trim().min(2).max(300),
+    reviewerQualification: z.string().trim().min(10).max(5_000),
+    evidenceFileId: idSchema,
+    applicability: z.string().trim().min(10).max(20_000),
+    summary: z.string().trim().min(10).max(30_000),
+    missingInformation: z.string().trim().min(5).max(20_000),
+    nextReviewAt: dateOrDateTimeSchema,
+    reason: z.string().trim().min(10).max(5_000),
+  })
+  .superRefine((input, context) => {
+    const unresolved = ["changes_required", "insufficient_information"].includes(
+      input.reviewOutcome,
+    );
+    if (unresolved && input.resultingStatus !== "uncertain") {
+      context.addIssue({
+        code: "custom",
+        path: ["resultingStatus"],
+        message: "Unresolved review outcomes must leave the source uncertain",
+      });
+    }
+    if (!unresolved && input.resultingStatus === "uncertain") {
+      context.addIssue({
+        code: "custom",
+        path: ["resultingStatus"],
+        message: "A conclusive review must record the source lifecycle status",
+      });
+    }
+  });
+
+export const complianceReviewListQuerySchema = listQuerySchema.pick({
+  page: true,
+  pageSize: true,
 });
 
 export const riskCreateSchema = z.object({
@@ -119,7 +451,7 @@ export const riskCreateSchema = z.object({
   description: z.string().trim().min(1).max(20_000),
   likelihood: z.number().int().min(1).max(5),
   impact: z.number().int().min(1).max(5),
-  treatment: z.string().trim().max(20_000).optional(),
+  treatment: z.string().trim().max(20_000).nullish(),
   status: z.enum(["open", "mitigating", "accepted", "closed"]).default("open"),
   ownerId: idSchema.nullish(),
 });
@@ -133,7 +465,7 @@ export const contractCreateSchema = z.object({
     .default("draft"),
   startsAt: dateTimeSchema.nullish(),
   endsAt: dateTimeSchema.nullish(),
-  valueCents: z.number().int().nonnegative().nullish(),
+  valueCents: moneyCentsSchema.nullish(),
   currency: currencySchema,
   fileId: idSchema.nullish(),
   ownerId: idSchema.nullish(),
@@ -144,18 +476,17 @@ export const financialEntryCreateSchema = z.object({
   type: z.enum(["income", "expense", "transfer", "adjustment"]),
   category: z.string().trim().min(1).max(100),
   description: z.string().trim().min(1).max(2_000),
-  amountCents: z.number().int().nonnegative(),
+  amountCents: moneyCentsSchema,
   currency: currencySchema,
   status: z.enum(["draft", "posted", "void"]).default("draft"),
-  externalActionId: idSchema.nullish(),
 });
 
 export const invoiceCreateSchema = z.object({
   invoiceNumber: z.string().trim().max(100).nullish(),
   direction: z.enum(["incoming", "outgoing"]),
   counterparty: z.string().trim().min(1).max(300),
-  amountCents: z.number().int().nonnegative(),
-  taxAmountCents: z.number().int().nonnegative().default(0),
+  amountCents: moneyCentsSchema,
+  taxAmountCents: moneyCentsSchema.default(0),
   currency: currencySchema,
   status: z
     .enum(["draft", "issued", "received", "paid", "void", "red_pending", "red_confirmed"])
@@ -169,15 +500,16 @@ export const cashFlowCreateSchema = z.object({
   occurredAt: dateTimeSchema,
   direction: z.enum(["in", "out"]),
   category: z.string().trim().min(1).max(100),
-  amountCents: z.number().int().positive(),
+  amountCents: positiveMoneyCentsSchema,
   currency: currencySchema,
-  description: z.string().trim().max(2_000).optional(),
+  description: z.string().trim().max(2_000).nullish(),
   status: z.enum(["forecast", "actual", "cancelled"]).default("forecast"),
 });
 
 export const productCreateSchema = z.object({
+  projectId: idSchema.nullish(),
   name: z.string().trim().min(1).max(200),
-  description: z.string().trim().max(20_000).optional(),
+  description: z.string().trim().max(20_000).nullish(),
   category: z
     .enum(["online_education", "esports_service", "software", "content", "other"])
     .default("other"),
@@ -203,21 +535,24 @@ export const complianceEventCreateSchema = z.object({
     ])
     .default("draft"),
   reviewStatus: z.enum(["pending", "reviewed", "stale"]).default("pending"),
-  description: z.string().trim().max(20_000).optional(),
+  description: z.string().trim().max(20_000).nullish(),
   eventType: z
     .enum(["deadline", "review", "filing", "renewal", "training", "monitoring"])
     .default("deadline"),
   sourceId: idSchema.nullish(),
+  evidenceFileId: idSchema.nullish(),
   ownerId: idSchema.nullish(),
 });
 
 export const opportunityCreateSchema = z.object({
+  productId: idSchema.nullish(),
+  projectId: idSchema.nullish(),
   title: z.string().trim().min(1).max(300),
-  source: z.string().trim().max(200).optional(),
-  organization: z.string().trim().max(300).optional(),
-  contact: z.string().trim().max(300).optional(),
+  source: z.string().trim().max(200).nullish(),
+  organization: z.string().trim().max(300).nullish(),
+  contact: z.string().trim().max(300).nullish(),
   status: z.enum(["new", "qualified", "proposal", "won", "lost", "on_hold"]).default("new"),
-  valueCents: z.number().int().nonnegative().nullish(),
+  valueCents: moneyCentsSchema.nullish(),
   currency: currencySchema,
   nextActionAt: dateTimeSchema.nullish(),
   ownerId: idSchema.nullish(),
@@ -240,72 +575,11 @@ export const notificationCreateSchema = z.object({
   title: z.string().trim().min(1).max(300),
   body: z.string().trim().min(1).max(10_000),
   channel: z.enum(["in_app", "email", "webhook"]).default("in_app"),
-  status: z.enum(["queued", "sent", "failed", "read"]).default("queued"),
+  status: z.literal("queued").default("queued"),
 });
 
-export const workflowDefinitionCreateSchema = z.object({
-  name: z.string().trim().min(1).max(200),
-  trigger: z.string().trim().min(1).max(200),
-  enabled: z.boolean().default(true),
-  steps: z
-    .array(
-      z.object({
-        type: z.enum(["notify", "create_task", "request_approval", "advisor_run"]),
-        config: jsonObjectSchema,
-      }),
-    )
-    .min(1)
-    .max(50),
-});
-
-export const workflowRunCreateSchema = z.object({
-  definitionId: idSchema,
-  input: jsonObjectSchema.default({}),
-});
-
-export const fileCreateSchema = z.object({
-  filename: z.string().trim().min(1).max(500),
-  contentType: z.string().trim().min(1).max(200),
-  sizeBytes: z.number().int().min(0).max(MAX_FILE_SIZE_BYTES),
-  checksumSha256: z.string().regex(/^[a-f0-9]{64}$/),
-  classification: z.enum(["internal", "confidential", "personal", "public"]).default("internal"),
-});
-
-export const approvalRequestSchema = z.object({
-  resourceType: z.string().trim().min(1).max(100),
-  resourceId: idSchema,
-  operation: z.string().trim().min(1).max(100),
-  reason: z.string().trim().min(1).max(5_000),
-  riskLevel: z.enum(["low", "medium", "high", "critical"]).default("high"),
-});
-
-export const approvalDecisionSchema = z.object({
-  comment: z.string().trim().min(1).max(5_000),
-  acknowledgement: z.string().trim().max(500).optional(),
-});
-
-export const externalActionCreateSchema = z.object({
-  kind: z.enum([
-    "bank_payment",
-    "tax_filing",
-    "invoice_red",
-    "contract_sign",
-    "hr_discipline",
-    "permission_change",
-    "external_legal_commitment",
-    "notification",
-    "github_sync",
-  ]),
-  adapter: z.enum(["manual", "mock", "real"]),
-  payload: jsonObjectSchema,
-  idempotencyKey: z.string().trim().min(8).max(200),
-  reason: z.string().trim().min(1).max(5_000),
-});
-
-export const externalActionTransitionSchema = z.object({
-  targetStatus: z.enum(["submitted", "confirmed", "failed", "cancelled", "simulated"]),
-  evidence: jsonObjectSchema.optional(),
-  note: z.string().trim().max(5_000).optional(),
+export const notificationMarkReadSchema = z.object({
+  expectedVersion: z.number().int().min(1),
 });
 
 export const advisorKeySchema = z.enum([
@@ -317,6 +591,217 @@ export const advisorKeySchema = z.enum([
   "hr_admin",
   "information_security",
 ]);
+
+export const workflowStepSchema = z.discriminatedUnion("type", [
+  z.object({
+    type: z.literal("notify"),
+    config: notificationCreateSchema.extend({ status: z.literal("queued").default("queued") }),
+  }),
+  z.object({ type: z.literal("create_task"), config: taskCreateSchema }),
+  z.object({
+    type: z.literal("request_approval"),
+    config: z
+      .object({
+        resourceType: z.string().trim().min(1).max(100),
+        resourceId: idSchema,
+        operation: z.string().trim().min(1).max(100),
+        reason: z.string().trim().min(1).max(5_000),
+        riskLevel: z.enum(["low", "medium", "high", "critical"]).default("high"),
+      })
+      .refine(
+        (input) =>
+          !["external-action", "membership-lifecycle", "role-assignment"].includes(
+            input.resourceType,
+          ),
+        "Reserved approvals must use their controlled business workflow",
+      ),
+  }),
+  z.object({
+    type: z.literal("advisor_run"),
+    config: z.object({
+      advisor: advisorKeySchema,
+      question: z.string().trim().min(1).max(20_000),
+    }),
+  }),
+]);
+
+export const workflowDefinitionCreateSchema = z.object({
+  name: z.string().trim().min(1).max(200),
+  trigger: z.string().trim().min(1).max(200),
+  enabled: z.boolean().default(true),
+  steps: z.array(workflowStepSchema).min(1).max(50),
+});
+
+export const workflowRunCreateSchema = z.object({
+  definitionId: idSchema,
+  input: jsonObjectSchema.default({}),
+});
+
+export const fileCreateSchema = z
+  .object({
+    filename: z.string().min(1).max(255),
+    contentType: z.string().trim().toLowerCase().min(1).max(200),
+    sizeBytes: z.number().int().min(1).max(MAX_FILE_SIZE_BYTES),
+    checksumSha256: z.string().regex(/^[a-f0-9]{64}$/),
+    classification: z.enum(["internal", "confidential", "personal", "public"]).default("internal"),
+  })
+  .superRefine((input, context) => {
+    const issue = fileMetadataPolicyIssue(input.filename, input.contentType);
+    if (issue) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: issue,
+        path: [issue.startsWith("Declared MIME") ? "contentType" : "filename"],
+      });
+    }
+  });
+
+export const RESERVED_APPROVAL_RESOURCE_TYPES = [
+  "external-action",
+  "membership-lifecycle",
+  "role-assignment",
+] as const;
+
+export const approvalRequestSchema = z
+  .object({
+    resourceType: z.string().trim().min(1).max(100),
+    resourceId: idSchema,
+    operation: z.string().trim().min(1).max(100),
+    reason: z.string().trim().min(1).max(5_000),
+    riskLevel: z.enum(["low", "medium", "high", "critical"]).default("high"),
+  })
+  .refine(
+    (input) =>
+      !(RESERVED_APPROVAL_RESOURCE_TYPES as readonly string[]).includes(input.resourceType),
+    {
+      message: "This approval type can only be created by its controlled business workflow",
+      path: ["resourceType"],
+    },
+  );
+
+export const approvalDecisionSchema = z.object({
+  comment: z.string().trim().min(1).max(5_000),
+  acknowledgement: z.string().trim().max(500).optional(),
+});
+
+const externalActionRequestFields = {
+  adapter: z.enum(["manual", "mock"]),
+  idempotencyKey: z.string().trim().min(8).max(200),
+  reason: z.string().trim().min(1).max(5_000),
+} as const;
+
+export const externalActionCreateSchema = z.discriminatedUnion("kind", [
+  z
+    .object({
+      kind: z.literal("bank_payment"),
+      ...externalActionRequestFields,
+      payload: z
+        .object({
+          beneficiary: z.string().trim().min(1).max(500),
+          amountCents: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
+          purpose: z.string().trim().min(1).max(2_000).optional(),
+          financialEntryId: idSchema.optional(),
+        })
+        .strict(),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal("tax_filing"),
+      ...externalActionRequestFields,
+      payload: z
+        .object({
+          filingPeriod: z.string().trim().min(1).max(100),
+          taxType: z.string().trim().min(1).max(200),
+        })
+        .strict(),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal("invoice_red"),
+      ...externalActionRequestFields,
+      payload: z
+        .object({
+          invoiceId: idSchema,
+          reason: z.string().trim().min(1).max(2_000).optional(),
+          reasonCode: z.string().trim().min(1).max(200).optional(),
+        })
+        .strict()
+        .refine((payload) => Boolean(payload.reason || payload.reasonCode), {
+          message: "Invoice red-letter actions require a reason or reasonCode",
+        }),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal("contract_sign"),
+      ...externalActionRequestFields,
+      payload: z
+        .object({
+          contractId: idSchema,
+          signingBasis: z.string().trim().min(1).max(2_000).optional(),
+          fileId: idSchema.optional(),
+        })
+        .strict(),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal("contract_terminate"),
+      ...externalActionRequestFields,
+      payload: z
+        .object({
+          contractId: idSchema,
+          terminationBasis: z.string().trim().min(1).max(5_000),
+          effectiveAt: dateTimeSchema.optional(),
+        })
+        .strict(),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal("hr_discipline"),
+      ...externalActionRequestFields,
+      payload: z
+        .object({
+          userId: idSchema,
+          proposedMeasure: z.string().trim().min(1).max(2_000),
+        })
+        .strict(),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal("permission_change"),
+      ...externalActionRequestFields,
+      payload: z
+        .object({
+          membershipId: idSchema,
+          requestedChange: z.string().trim().min(1).max(2_000),
+        })
+        .strict(),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal("external_legal_commitment"),
+      ...externalActionRequestFields,
+      payload: z
+        .object({
+          counterparty: z.string().trim().min(1).max(500),
+          commitment: z.string().trim().min(1).max(5_000),
+        })
+        .strict(),
+    })
+    .strict(),
+]);
+
+export const externalActionTransitionSchema = z.object({
+  targetStatus: z.enum(["submitted", "confirmed", "failed", "cancelled", "simulated"]),
+  evidence: jsonObjectSchema.optional(),
+  note: z.string().trim().max(5_000).optional(),
+});
 
 const evidenceSchema = z.object({
   sourceType: z.string().min(1).max(100),
@@ -398,6 +883,7 @@ export type ResourceName = keyof typeof resourceContracts;
 export type AdvisorKey = z.infer<typeof advisorKeySchema>;
 export type AdvisorOutput = z.infer<typeof advisorOutputSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
+export type ComplianceMonitoringStatus = z.infer<typeof complianceMonitoringStatusSchema>;
 
 export const resourceNameSchema = z.enum(
   Object.keys(resourceContracts) as [ResourceName, ...ResourceName[]],
@@ -412,4 +898,659 @@ export function updateSchemaFor(resource: ResourceName) {
 export interface ApiResponse<T> {
   data: T;
   meta?: Record<string, unknown>;
+}
+
+export const v1ReleaseGateIds = [
+  "local_core_acceptance",
+  "local_security_and_sensitive_data",
+  "github_ci_security",
+  "ghcr_release_artifacts",
+  "target_intranet_deployment",
+  "managed_device_pwa",
+  "production_backup_restore",
+  "real_llm_github_adapters",
+  "compliance_professional_review",
+  "education_content_clearance",
+  "operational_responsibility_drills",
+  "residual_risk_decisions",
+  "known_blocking_defects_closed",
+  "business_release_approval",
+] as const;
+
+export const v1ReleaseGateIdSchema = z.enum(v1ReleaseGateIds);
+export const v1ReleaseEvidenceKindSchema = z.enum([
+  "repository",
+  "machine_evidence",
+  "github_run",
+  "registry",
+  "target_environment",
+  "approval",
+  "professional_review",
+  "risk_decision",
+  "external_publication",
+]);
+export const v1ReleaseGitHubWorkflowSchema = z.enum(["ci", "security", "release"]);
+export const v1ReleaseArtifactSchema = z.enum([
+  "api",
+  "postgres",
+  "minio",
+  "worker",
+  "web",
+  "gateway",
+  "backup",
+]);
+
+const gitCommitSchema = z.string().regex(/^[0-9a-f]{40}$/, "必须使用完整小写 Git commit SHA");
+const sha256Schema = z.string().regex(/^[0-9a-f]{64}$/, "必须使用 64 位小写 SHA-256");
+const evidenceReferenceSchema = z
+  .string()
+  .trim()
+  .min(5)
+  .max(2_000)
+  .refine(
+    (value) => !/^(?:pending|todo|tbd|unknown|none|n\/a|placeholder)$/i.test(value),
+    "证据引用不能使用占位值",
+  );
+
+export const managedDevicePwaCheckIds = [
+  "managed_status_confirmed",
+  "trusted_https_install",
+  "standalone_launch_before_update",
+  "update_to_candidate",
+  "standalone_launch_after_update",
+  "authenticated_core_flow",
+  "offline_shell_no_company_data",
+  "online_session_revalidated",
+  "logout_and_site_data_cleared",
+  "post_clear_auth_required",
+] as const;
+
+export const managedDevicePwaCheckIdSchema = z.enum(managedDevicePwaCheckIds);
+const managedDevicePwaVersionSchema = z
+  .string()
+  .regex(
+    /^v(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)(?:-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?$/,
+    "必须使用 vMAJOR.MINOR.PATCH[-PRERELEASE]",
+  );
+const managedDevicePwaBaseUrlSchema = z
+  .string()
+  .url()
+  .refine((value) => {
+    const url = new URL(value);
+    return (
+      url.protocol === "https:" &&
+      !url.username &&
+      !url.password &&
+      !url.search &&
+      !url.hash &&
+      url.pathname === "/"
+    );
+  }, "必须是无 userinfo、path、query 或 fragment 的 HTTPS origin");
+const managedDeviceEvidencePathSchema = z
+  .string()
+  .trim()
+  .min(3)
+  .max(240)
+  .refine(
+    (value) =>
+      !value.startsWith("/") &&
+      !value.includes("\\") &&
+      value
+        .split("/")
+        .every((segment) => segment.length > 0 && segment !== "." && segment !== ".."),
+    "证据文件必须使用无路径穿越的相对 POSIX 路径",
+  );
+const managedDeviceArtifactIdSchema = z
+  .string()
+  .regex(/^[a-z0-9][a-z0-9._-]{2,79}$/, "附件 ID 必须是 3–80 位小写稳定标识");
+const managedDeviceEnvironmentIdSchema = z
+  .string()
+  .regex(
+    /^[A-Za-z0-9][A-Za-z0-9._:-]{1,199}$/,
+    "环境 ID 必须是 2–200 位稳定标识，且只能包含字母、数字、点、下划线、冒号或连字符",
+  );
+
+export const managedDevicePwaSessionSchema = z
+  .object({
+    schemaVersion: z.literal(1),
+    evidenceType: z.literal("managed_device_pwa_session"),
+    sessionId: z.string().regex(/^[a-z0-9][a-z0-9._-]{7,119}$/),
+    candidate: z
+      .object({
+        version: managedDevicePwaVersionSchema,
+        gitSha: gitCommitSchema,
+        baseUrl: managedDevicePwaBaseUrlSchema,
+        environmentId: managedDeviceEnvironmentIdSchema,
+      })
+      .strict(),
+    device: z
+      .object({
+        assetId: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{2,99}$/),
+        assetIdIsPseudonymous: z.literal(true),
+        isPhysicalDevice: z.literal(true),
+        isSimulator: z.literal(false),
+        managementStatus: z.literal("company_managed"),
+        managementEvidenceReference: evidenceReferenceSchema,
+        platform: z.enum(["ios", "android"]),
+        osVersion: z.string().trim().min(1).max(100),
+        browserName: z.string().trim().min(2).max(100),
+        browserVersion: z.string().trim().min(1).max(100),
+        serialOrImeiRecorded: z.literal(false),
+      })
+      .strict(),
+    installation: z
+      .object({
+        installSource: z.literal("browser_ui"),
+        displayMode: z.literal("standalone"),
+        previousVersion: managedDevicePwaVersionSchema,
+        previousGitSha: gitCommitSchema,
+        candidateVersion: managedDevicePwaVersionSchema,
+        candidateGitSha: gitCommitSchema,
+        updateMethod: z.literal("service_worker_auto_update"),
+        serviceWorkerUpdateObserved: z.literal(true),
+        previousBuildIdentityObserved: z.string().trim().min(20).max(200),
+        candidateBuildIdentityObserved: z.string().trim().min(20).max(200),
+      })
+      .strict(),
+    execution: z
+      .object({
+        startedAt: offsetDateTimeSchema,
+        finishedAt: offsetDateTimeSchema,
+        timezone: z.literal("Asia/Shanghai"),
+        operatorIdentity: z.string().trim().min(2).max(200),
+        assertedApprovalReference: evidenceReferenceSchema,
+      })
+      .strict(),
+    privacy: z
+      .object({
+        rawCredentialsCaptured: z.literal(false),
+        sessionCookiesCaptured: z.literal(false),
+        deviceSerialOrImeiCaptured: z.literal(false),
+        companyDataRedacted: z.literal(true),
+      })
+      .strict(),
+    checks: z
+      .array(
+        z
+          .object({
+            id: managedDevicePwaCheckIdSchema,
+            result: z.literal("passed"),
+            observedAt: offsetDateTimeSchema,
+            artifactIds: z.array(managedDeviceArtifactIdSchema).min(1).max(10),
+            note: z.string().trim().min(10).max(1_000),
+          })
+          .strict(),
+      )
+      .length(managedDevicePwaCheckIds.length),
+    artifacts: z
+      .array(
+        z
+          .object({
+            id: managedDeviceArtifactIdSchema,
+            file: managedDeviceEvidencePathSchema,
+            sha256: sha256Schema,
+            bytes: z.number().int().min(1).max(250_000_000),
+            mimeType: z.enum([
+              "image/png",
+              "image/jpeg",
+              "video/mp4",
+              "text/plain",
+              "application/json",
+            ]),
+            capturedAt: offsetDateTimeSchema,
+          })
+          .strict(),
+      )
+      .min(4)
+      .max(30),
+  })
+  .strict()
+  .superRefine((session, context) => {
+    const startedAt = Date.parse(session.execution.startedAt);
+    const finishedAt = Date.parse(session.execution.finishedAt);
+    if (startedAt >= finishedAt) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["execution", "finishedAt"],
+        message: "finishedAt 必须晚于 startedAt",
+      });
+    }
+
+    if (
+      session.candidate.version !== session.installation.candidateVersion ||
+      session.candidate.gitSha !== session.installation.candidateGitSha
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["installation"],
+        message: "升级后的版本与 Git SHA 必须匹配候选身份",
+      });
+    }
+    if (
+      session.installation.previousVersion === session.installation.candidateVersion ||
+      session.installation.previousGitSha === session.installation.candidateGitSha
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["installation", "previousVersion"],
+        message: "真机升级必须来自不同版本和不同 Git SHA",
+      });
+    }
+    const expectedPreviousIdentity = `构建 ${session.installation.previousVersion} · ${session.installation.previousGitSha.slice(0, 7)}`;
+    const expectedCandidateIdentity = `构建 ${session.installation.candidateVersion} · ${session.installation.candidateGitSha.slice(0, 7)}`;
+    if (session.installation.previousBuildIdentityObserved !== expectedPreviousIdentity) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["installation", "previousBuildIdentityObserved"],
+        message: "旧版可见构建身份与 previousVersion/previousGitSha 不一致",
+      });
+    }
+    if (session.installation.candidateBuildIdentityObserved !== expectedCandidateIdentity) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["installation", "candidateBuildIdentityObserved"],
+        message: "升级后可见构建身份与候选版本/Git SHA 不一致",
+      });
+    }
+
+    const artifactIds = new Set<string>();
+    const artifactFiles = new Set<string>();
+    for (const [index, artifact] of session.artifacts.entries()) {
+      if (artifactIds.has(artifact.id)) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["artifacts", index, "id"],
+          message: "附件 ID 不能重复",
+        });
+      }
+      if (artifactFiles.has(artifact.file)) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["artifacts", index, "file"],
+          message: "附件路径不能重复",
+        });
+      }
+      artifactIds.add(artifact.id);
+      artifactFiles.add(artifact.file);
+      const capturedAt = Date.parse(artifact.capturedAt);
+      if (capturedAt < startedAt || capturedAt > finishedAt) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["artifacts", index, "capturedAt"],
+          message: "附件采集时间必须位于本次会话窗口内",
+        });
+      }
+    }
+
+    const referencedArtifactIds = new Set<string>();
+    let previousObservedAt = startedAt;
+    for (const [index, check] of session.checks.entries()) {
+      if (check.id !== managedDevicePwaCheckIds[index]) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["checks", index, "id"],
+          message: `检查必须按固定顺序出现：${managedDevicePwaCheckIds[index]}`,
+        });
+      }
+      const observedAt = Date.parse(check.observedAt);
+      if (observedAt < startedAt || observedAt > finishedAt || observedAt < previousObservedAt) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["checks", index, "observedAt"],
+          message: "检查时间必须位于会话窗口内并按顺序递增",
+        });
+      }
+      previousObservedAt = observedAt;
+      const checkArtifactIds = new Set(check.artifactIds);
+      if (checkArtifactIds.size !== check.artifactIds.length) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["checks", index, "artifactIds"],
+          message: "同一检查不能重复引用附件",
+        });
+      }
+      for (const artifactId of checkArtifactIds) {
+        referencedArtifactIds.add(artifactId);
+        if (!artifactIds.has(artifactId)) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["checks", index, "artifactIds"],
+            message: `检查引用了不存在的附件：${artifactId}`,
+          });
+        }
+      }
+    }
+    for (const [index, artifact] of session.artifacts.entries()) {
+      if (!referencedArtifactIds.has(artifact.id)) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["artifacts", index, "id"],
+          message: "每个附件必须至少支持一项固定检查",
+        });
+      }
+    }
+  });
+
+export type ManagedDevicePwaSession = z.infer<typeof managedDevicePwaSessionSchema>;
+
+export const v1ReleaseEvidenceSchema = z
+  .object({
+    kind: v1ReleaseEvidenceKindSchema,
+    result: z.enum(["success", "blocked", "failure", "not_run"]),
+    reference: evidenceReferenceSchema,
+    verifiedAt: offsetDateTimeSchema,
+    subjectCommit: gitCommitSchema.optional(),
+    sha256: sha256Schema.optional(),
+    githubWorkflow: v1ReleaseGitHubWorkflowSchema.optional(),
+    releaseArtifact: v1ReleaseArtifactSchema.optional(),
+    note: z.string().trim().min(5).max(2_000).optional(),
+  })
+  .strict()
+  .superRefine((evidence, context) => {
+    if (evidence.kind === "github_run" && !evidence.githubWorkflow) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["githubWorkflow"],
+        message: "GitHub run 证据必须标识 ci 或 security workflow",
+      });
+    } else if (evidence.kind !== "github_run" && evidence.githubWorkflow) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["githubWorkflow"],
+        message: "只有 GitHub run 证据可以标识 githubWorkflow",
+      });
+    }
+
+    if (
+      evidence.kind === "registry" &&
+      evidence.result === "success" &&
+      !evidence.releaseArtifact
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["releaseArtifact"],
+        message: "成功 registry 证据必须标识七类发布制品之一",
+      });
+    } else if (evidence.kind !== "registry" && evidence.releaseArtifact) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["releaseArtifact"],
+        message: "只有 registry 证据可以标识 releaseArtifact",
+      });
+    }
+  });
+
+export const v1ReleaseApprovalSchema = z
+  .object({
+    approverIdentity: z.string().trim().min(2).max(200),
+    approverRole: z.string().trim().min(2).max(200),
+    approvalReference: evidenceReferenceSchema,
+    approvedAt: offsetDateTimeSchema,
+  })
+  .strict();
+
+export const v1ReleaseGateSchema = z
+  .object({
+    id: v1ReleaseGateIdSchema,
+    status: z.enum(["passed", "blocked"]),
+    ownerRole: z.string().trim().min(2).max(200),
+    summary: z.string().trim().min(10).max(2_000),
+    evidence: z.array(v1ReleaseEvidenceSchema).min(1).max(30),
+    blockers: z.array(z.string().trim().min(10).max(2_000)).max(20),
+    approval: v1ReleaseApprovalSchema.optional(),
+    reviewedAt: offsetDateTimeSchema,
+  })
+  .strict();
+
+const approvalRequiredGateIds = new Set<(typeof v1ReleaseGateIds)[number]>([
+  "target_intranet_deployment",
+  "managed_device_pwa",
+  "production_backup_restore",
+  "real_llm_github_adapters",
+  "compliance_professional_review",
+  "education_content_clearance",
+  "operational_responsibility_drills",
+  "residual_risk_decisions",
+  "known_blocking_defects_closed",
+  "business_release_approval",
+]);
+
+const requiredEvidenceKinds = {
+  local_core_acceptance: ["machine_evidence"],
+  local_security_and_sensitive_data: ["machine_evidence"],
+  ghcr_release_artifacts: ["github_run", "registry"],
+  target_intranet_deployment: ["target_environment", "approval"],
+  managed_device_pwa: ["target_environment", "approval"],
+  production_backup_restore: ["machine_evidence", "approval"],
+  real_llm_github_adapters: ["machine_evidence", "approval"],
+  compliance_professional_review: ["professional_review", "approval"],
+  education_content_clearance: [
+    "machine_evidence",
+    "professional_review",
+    "external_publication",
+    "approval",
+  ],
+  operational_responsibility_drills: ["target_environment", "approval"],
+  residual_risk_decisions: ["risk_decision", "approval"],
+  known_blocking_defects_closed: ["risk_decision", "approval"],
+  business_release_approval: ["approval"],
+} as const satisfies Partial<
+  Record<(typeof v1ReleaseGateIds)[number], readonly z.infer<typeof v1ReleaseEvidenceKindSchema>[]>
+>;
+
+export const v1ReleaseReadinessManifestSchema = z
+  .object({
+    schemaVersion: z.literal(1),
+    versionLabel: z.string().trim().min(3).max(100),
+    overallStatus: z.enum(["ready", "blocked"]),
+    evaluatedAt: offsetDateTimeSchema,
+    candidate: z
+      .object({
+        repository: z.string().url().startsWith("https://github.com/"),
+        branch: z.string().trim().min(1).max(255),
+        implementationCommit: gitCommitSchema,
+        evidenceCommit: gitCommitSchema,
+      })
+      .strict(),
+    gates: z.array(v1ReleaseGateSchema).length(v1ReleaseGateIds.length),
+  })
+  .strict()
+  .superRefine((manifest, context) => {
+    const seen = new Set<string>();
+    for (const [index, gate] of manifest.gates.entries()) {
+      if (seen.has(gate.id)) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["gates", index, "id"],
+          message: `V1 门禁重复：${gate.id}`,
+        });
+      }
+      seen.add(gate.id);
+
+      if (gate.status === "passed") {
+        if (gate.blockers.length > 0) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["gates", index, "blockers"],
+            message: "已通过门禁不得保留阻断项",
+          });
+        }
+        const nonSuccessEvidence = gate.evidence.find(({ result }) => result !== "success");
+        if (nonSuccessEvidence) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["gates", index, "evidence"],
+            message: "已通过门禁的全部证据必须为 success",
+          });
+        }
+        if (approvalRequiredGateIds.has(gate.id) && !gate.approval) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["gates", index, "approval"],
+            message: "该门禁必须保留可识别人工批准",
+          });
+        }
+        if (
+          gate.approval &&
+          !gate.evidence.some(
+            ({ kind, result, reference }) =>
+              kind === "approval" &&
+              result === "success" &&
+              reference === gate.approval?.approvalReference,
+          )
+        ) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["gates", index, "evidence"],
+            message: "人工批准元数据必须与一条 success approval 证据引用一致",
+          });
+        }
+        const requiredKinds = requiredEvidenceKinds[gate.id as keyof typeof requiredEvidenceKinds];
+        for (const requiredKind of requiredKinds ?? []) {
+          if (
+            !gate.evidence.some(({ kind, result }) => kind === requiredKind && result === "success")
+          ) {
+            context.addIssue({
+              code: z.ZodIssueCode.custom,
+              path: ["gates", index, "evidence"],
+              message: `已通过门禁缺少 ${requiredKind} 成功证据`,
+            });
+          }
+        }
+      } else if (gate.blockers.length === 0) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["gates", index, "blockers"],
+          message: "阻断门禁必须说明至少一个具体阻断项",
+        });
+      }
+
+      if (gate.id === "github_ci_security" && gate.status === "passed") {
+        const githubRuns = gate.evidence.filter(
+          ({ kind, result }) => kind === "github_run" && result === "success",
+        );
+        const distinctRunReferences = new Set(githubRuns.map(({ reference }) => reference));
+        const workflowScopes = new Set(githubRuns.map(({ githubWorkflow }) => githubWorkflow));
+        if (
+          distinctRunReferences.size < 2 ||
+          !workflowScopes.has("ci") ||
+          !workflowScopes.has("security") ||
+          githubRuns.some(
+            ({ subjectCommit }) => subjectCommit !== manifest.candidate.evidenceCommit,
+          )
+        ) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["gates", index, "evidence"],
+            message: "GitHub CI 与 Security 必须有两个绑定 evidenceCommit 的独立绿色 run",
+          });
+        }
+      }
+
+      if (
+        (gate.id === "local_core_acceptance" || gate.id === "local_security_and_sensitive_data") &&
+        gate.status === "passed" &&
+        !gate.evidence.some(
+          ({ kind, result, subjectCommit }) =>
+            kind === "machine_evidence" &&
+            result === "success" &&
+            subjectCommit === manifest.candidate.implementationCommit,
+        )
+      ) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["gates", index, "evidence"],
+          message: "本地通过门禁必须有绑定 implementationCommit 的成功机器证据",
+        });
+      }
+
+      if (
+        gate.id === "education_content_clearance" &&
+        gate.status === "passed" &&
+        !gate.evidence.some(
+          ({ kind, result, subjectCommit }) =>
+            kind === "machine_evidence" &&
+            result === "success" &&
+            subjectCommit === manifest.candidate.implementationCommit,
+        )
+      ) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["gates", index, "evidence"],
+          message: "教育内容放行必须有绑定 implementationCommit 的逐篇机器验证报告",
+        });
+      }
+
+      if (gate.id === "ghcr_release_artifacts" && gate.status === "passed") {
+        const registryEvidence = gate.evidence.filter(
+          ({ kind, result }) => kind === "registry" && result === "success",
+        );
+        const releaseRuns = gate.evidence.filter(
+          ({ kind, result, githubWorkflow }) =>
+            kind === "github_run" && result === "success" && githubWorkflow === "release",
+        );
+        const distinctArtifacts = new Set(registryEvidence.map(({ reference }) => reference));
+        const artifactScopes = new Set(
+          registryEvidence.map(({ releaseArtifact }) => releaseArtifact),
+        );
+        if (
+          distinctArtifacts.size < 7 ||
+          artifactScopes.size < v1ReleaseArtifactSchema.options.length ||
+          releaseRuns.length < 1 ||
+          releaseRuns.some(
+            ({ subjectCommit }) => subjectCommit !== manifest.candidate.evidenceCommit,
+          ) ||
+          registryEvidence.some(
+            ({ subjectCommit }) => subjectCommit !== manifest.candidate.evidenceCommit,
+          )
+        ) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["gates", index, "evidence"],
+            message: "GHCR 必须有绿色 release run 和七个绑定 evidenceCommit 的独立发布制品证据",
+          });
+        }
+      }
+    }
+
+    const missingGateIds = v1ReleaseGateIds.filter((gateId) => !seen.has(gateId));
+    if (missingGateIds.length > 0) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["gates"],
+        message: `缺少 V1 门禁：${missingGateIds.join("、")}`,
+      });
+    }
+
+    const computedStatus = manifest.gates.every(({ status }) => status === "passed")
+      ? "ready"
+      : "blocked";
+    if (manifest.overallStatus !== computedStatus) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["overallStatus"],
+        message: `overallStatus 必须与逐项门禁一致：${computedStatus}`,
+      });
+    }
+  });
+
+export type V1ReleaseGateId = z.infer<typeof v1ReleaseGateIdSchema>;
+export type V1ReleaseReadinessManifest = z.infer<typeof v1ReleaseReadinessManifestSchema>;
+
+export function evaluateV1ReleaseReadiness(manifest: V1ReleaseReadinessManifest) {
+  const passedGateIds = manifest.gates
+    .filter(({ status }) => status === "passed")
+    .map(({ id }) => id);
+  const blockedGates = manifest.gates
+    .filter(({ status }) => status === "blocked")
+    .map(({ id, blockers, ownerRole }) => ({ id, blockers, ownerRole }));
+  return {
+    ready: blockedGates.length === 0,
+    overallStatus: manifest.overallStatus,
+    totalGateCount: manifest.gates.length,
+    passedGateCount: passedGateIds.length,
+    blockedGateCount: blockedGates.length,
+    passedGateIds,
+    blockedGates,
+  } as const;
 }

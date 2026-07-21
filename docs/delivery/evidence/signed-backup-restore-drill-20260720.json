@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "executedAt": "2026-07-19T17:45:28Z",
+  "localDate": "2026-07-20",
+  "timezone": "Asia/Shanghai",
+  "scope": "local-committed-implementation-signed-isolated-drill",
+  "scriptReportedScope": "local-working-tree-signed-isolated-drill",
+  "sourceBaselineCommit": "6545c186753b5b7ba9a84d41d20879e6197362aa",
+  "workingTreeIncludedBackupAttestationChanges": false,
+  "testScript": "scripts/test-signed-backup-restore-drill.sh",
+  "localBackupImageId": "sha256:7da0b0f826a3f1e7ce7d0609b5d9ad25b5332db46ffa4c41364c99b71d73bd70",
+  "localBackupImageTrivy": {
+    "version": "0.70.0",
+    "highCritical": 0,
+    "fixable": 0,
+    "unfixed": 0
+  },
+  "backup": {
+    "encrypted": true,
+    "signatureAlgorithm": "Ed25519",
+    "archiveSha256": "fa60a4392c6785c47d1700f440f87b6b448c899770245f018bab0a2f74cd0e85",
+    "attestationSha256": "ef26e210955d5a5a16dbddf2603ac2ab13e9760801c2dbac68a94a39fe281cae",
+    "signingKeyFingerprintSha256": "0eec7ab6d5ad31606498e238cd146ac3a657ee1fa70f7209d5c2dc4aed301ba6",
+    "sourceId": "fiatlux-finalqa-20260719",
+    "backupToolRelease": "finalqa",
+    "durationSeconds": 26,
+    "dataChecksumSidecarVerified": true,
+    "configurationArchiveSha256": "fb500d411a04805f24d7637d70bc6c1247b9d2bab281cbb9239f5414ca4d1d97",
+    "configurationChecksumSidecarVerified": true,
+    "configurationAttestationVerified": true
+  },
+  "restore": {
+    "signatureVerified": true,
+    "approvedDigestMatched": true,
+    "checksumVerified": true,
+    "metadataVerified": true,
+    "objectsVerified": true,
+    "rpoSeconds": 20,
+    "rtoSeconds": 45,
+    "publicTables": 38,
+    "migrations": 10,
+    "firstMigration": "0000_dusty_wither",
+    "lastMigration": "0009_foamy_loa",
+    "pgBossSchemaVersion": 24,
+    "workerHealthy": true,
+    "apiReadyChecks": ["database", "queue", "objectStorage"],
+    "objectCount": 3,
+    "objectBytes": 132,
+    "objectManifestSha256": "020ea53def20c62445e52d4c9c867c95f84bf99f7e8ec7fa946122d9a3621421",
+    "invalidS3CredentialPreflightPreservedDatabaseAndBucket": true
+  },
+  "cleanup": {
+    "generatedSigningPrivateKeyDeleted": true,
+    "encryptedArchivesDeleted": true,
+    "scratchEmpty": true,
+    "extraRestoreContainers": 0,
+    "extraRestoreVolumes": 0,
+    "originalFinalQaContainerIdsPreserved": true,
+    "originalFinalQaHealthyServices": 6,
+    "temporaryBackupImageTagRemoved": true
+  },
+  "limitations": {
+    "productionRestoreEntrypointExecuted": false,
+    "targetOfficeIntranetExecuted": false,
+    "independentMediaExecuted": false,
+    "immutableGitCommitExecuted": true,
+    "githubRunnerExecuted": false,
+    "businessApprovalRecorded": false
+  }
+}

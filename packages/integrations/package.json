@@ -15,7 +15,7 @@
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:unit": "vitest run test/integrations.test.ts",
+    "test:unit": "vitest run test --exclude '**/*.integration.test.ts'",
     "test:integration": "vitest run test/storage.integration.test.ts"
   },
   "dependencies": {

@@ -15,7 +15,7 @@
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:unit": "vitest run test/contracts.test.ts"
+    "test:unit": "vitest run test"
   },
   "dependencies": {
     "zod": "^3.24.2"

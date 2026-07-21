@@ -42,6 +42,10 @@ env:
   TEST_S3_SECRET_ACCESS_KEY: fiatlux_ci_minio_password
   LLM_DRIVER: mock
   GITHUB_INTEGRATION_MODE: manual
+  BUILDX_VERSION: v0.35.0
+  BUILDKIT_VERSION: v0.31.2
+  BUILDKIT_IMAGE: docker.io/moby/buildkit:v0.31.2@sha256:2f5adac4ecd194d9f8c10b7b5d7bceb5186853db1b26e5abd3a657af0b7e26ec
+  BINFMT_IMAGE: docker.io/tonistiigi/binfmt:qemu-v10.2.3@sha256:400a4873b838d1b89194d982c45e5fb3cda4593fbfd7e08a02e76b03b21166f0
 
 jobs:
   quality:
@@ -50,6 +54,10 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+      - name: Run reproducible redacted Gitleaks current-tree and history gate
+        run: ./scripts/test-secret-scan.sh
       - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
         with:
           version: 11.13.0
@@ -60,9 +68,30 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
+      - name: ShellCheck operational and recovery scripts
+        run: pnpm lint:shell
+      - name: Validate every GitHub Actions workflow with pinned actionlint
+        run: pnpm lint:actions
       - run: pnpm typecheck
       - run: pnpm test:unit
-      - run: pnpm build
+      - name: Test release-manifest and seven-image digest enforcement
+        run: ./scripts/test-release-image-verification.sh
+      - name: Test fail-closed target-intranet evidence generation
+        run: pnpm test:target-intranet-verification
+      - name: Test managed-device PWA evidence contracts and file verification
+        run: pnpm test:managed-device-pwa-evidence
+      - name: Test release transition ordering and N-1 backup image selection
+        run: ./scripts/test-release-transition-security.sh
+      - name: Test cross-operation maintenance lock and stale residue fail-closed behavior
+        run: ./scripts/test-maintenance-lock-security.sh
+      - name: Test restore approval metadata, isolated paths and immutable reports
+        run: ./scripts/test-restore-prebackup-dir-security.sh
+      - name: Test restored object path, byte and SHA-256 verification
+        run: ./scripts/test-restored-object-verification.sh
+      - name: Build production applications
+        env:
+          NODE_ENV: production
+        run: pnpm build
 
   integration:
     name: Migrations and integration tests
@@ -70,7 +99,7 @@ jobs:
     timeout-minutes: 40
     services:
       postgres:
-        image: postgres:17.5-alpine
+        image: postgres:17.10-alpine3.23@sha256:8189a1f6e40904781fc9e2612687877791d21679866db58b1de996b31fc312e4
         env:
           POSTGRES_DB: fiatlux_choice
           POSTGRES_USER: fiatlux
@@ -94,6 +123,30 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+        with:
+          version: ${{ env.BUILDX_VERSION }}
+          driver-opts: image=${{ env.BUILDKIT_IMAGE }}
+      - name: Verify pinned Buildx and BuildKit
+        env:
+          EXPECTED_BUILDX_VERSION: ${{ env.BUILDX_VERSION }}
+          EXPECTED_BUILDKIT_VERSION: ${{ env.BUILDKIT_VERSION }}
+          EXPECTED_BUILDKIT_IMAGE: ${{ env.BUILDKIT_IMAGE }}
+          REQUIRED_BUILDKIT_PLATFORMS: linux/amd64
+        run: ./scripts/verify-build-toolchain.sh
+      - name: Test encrypted-backup success, failure and interruption cleanup
+        run: ./scripts/test-backup-container-security.sh
+      - name: Test PostgreSQL least-privilege roles on fresh and legacy-owned schemas
+        run: |
+          ./scripts/test-database-privileges.sh
+          DB_PRIVILEGE_TEST_SKIP_BUILD=1 \
+            DB_PRIVILEGE_TEST_SIMULATE_LEGACY=1 \
+            ./scripts/test-database-privileges.sh
+      - name: Test previous-release upgrade and fresh migrations
+        env:
+          MIGRATION_TEST_DATABASE_URL: ${{ env.DATABASE_URL }}
+          MIGRATION_TEST_RESET: RESET_DEDICATED_MIGRATION_TEST_DATABASE
+          MIGRATION_TEST_ALLOW_CI_DATABASE: "true"
+        run: pnpm test:database-migrations
       - name: Build the repository MinIO test image
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
@@ -103,6 +156,11 @@ jobs:
           tags: fiatlux-ci-minio:local
           cache-from: type=gha,scope=minio-integration
           cache-to: type=gha,mode=max,scope=minio-integration
+      - name: Test explicit MinIO legacy access-key revocation
+        env:
+          MINIO_ROTATION_IMAGE_PREFIX: fiatlux-ci
+          MINIO_ROTATION_IMAGE_TAG: local
+        run: ./scripts/test-minio-legacy-rotation.sh
       - name: Start MinIO
         run: |
           docker run --detach --name fiatlux-ci-minio \
@@ -135,12 +193,29 @@ jobs:
       - run: pnpm test:integration
 
   e2e:
-    name: Browser and mobile E2E
+    name: Mock UI and real-stack browser E2E
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 45
     needs:
       - quality
       - integration
+    services:
+      postgres:
+        image: postgres:17.10-alpine3.23@sha256:8189a1f6e40904781fc9e2612687877791d21679866db58b1de996b31fc312e4
+        env:
+          POSTGRES_DB: fiatlux_choice_e2e
+          POSTGRES_USER: fiatlux
+          POSTGRES_PASSWORD: fiatlux_ci_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U fiatlux -d fiatlux_choice_e2e"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      DATABASE_URL: postgresql://fiatlux:fiatlux_ci_password@127.0.0.1:5432/fiatlux_choice_e2e
+      TEST_DATABASE_URL: postgresql://fiatlux:fiatlux_ci_password@127.0.0.1:5432/fiatlux_choice_e2e
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
@@ -153,17 +228,86 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @fiatlux/web exec playwright install --with-deps chromium
-      - run: pnpm test:e2e
-      - name: Upload Playwright report
+      - uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+        with:
+          version: ${{ env.BUILDX_VERSION }}
+          driver-opts: image=${{ env.BUILDKIT_IMAGE }}
+      - name: Verify pinned Buildx and BuildKit
+        env:
+          EXPECTED_BUILDX_VERSION: ${{ env.BUILDX_VERSION }}
+          EXPECTED_BUILDKIT_VERSION: ${{ env.BUILDKIT_VERSION }}
+          EXPECTED_BUILDKIT_IMAGE: ${{ env.BUILDKIT_IMAGE }}
+          REQUIRED_BUILDKIT_PLATFORMS: linux/amd64
+        run: ./scripts/verify-build-toolchain.sh
+      - name: Build MinIO for the real-stack browser test
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        with:
+          context: .
+          file: Dockerfile.minio
+          load: true
+          tags: fiatlux-real-e2e-minio:local
+          cache-from: type=gha,scope=minio-real-e2e
+          cache-to: type=gha,mode=max,scope=minio-real-e2e
+      - name: Start real MinIO and create its private E2E bucket
+        run: |
+          docker run --detach --name fiatlux-real-e2e-minio \
+            --pull never \
+            --publish 9000:9000 \
+            --env MINIO_ROOT_USER="$S3_ACCESS_KEY_ID" \
+            --env MINIO_ROOT_PASSWORD="$S3_SECRET_ACCESS_KEY" \
+            fiatlux-real-e2e-minio:local server /data
+          for _ in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:9000/minio/health/ready >/dev/null; then
+              break
+            fi
+            sleep 2
+          done
+          curl --fail --silent http://127.0.0.1:9000/minio/health/ready >/dev/null
+          docker run --rm --pull never --network host \
+            --entrypoint /bin/sh \
+            --env S3_ACCESS_KEY_ID \
+            --env S3_SECRET_ACCESS_KEY \
+            --env S3_BUCKET \
+            fiatlux-real-e2e-minio:local -ec '
+              mc alias set e2e http://127.0.0.1:9000 "$S3_ACCESS_KEY_ID" "$S3_SECRET_ACCESS_KEY" --api S3v4 >/dev/null
+              mc mb --ignore-existing "e2e/$S3_BUCKET"
+              mc anonymous set none "e2e/$S3_BUCKET"
+            '
+      - name: Run isolated mock UI E2E
+        run: pnpm test:e2e:mock
+      - name: Run real Web, Fastify, PostgreSQL, MinIO and pg-boss worker E2E
+        if: ${{ !cancelled() }}
+        run: pnpm test:e2e:real
+      - name: Collect real-stack infrastructure logs on failure
+        if: failure()
+        run: |
+          mkdir -p artifacts/real-stack/logs
+          docker logs fiatlux-real-e2e-minio >artifacts/real-stack/logs/minio.log 2>&1 || true
+            postgres_id=$(docker ps --filter ancestor=postgres:17.10-alpine3.23@sha256:8189a1f6e40904781fc9e2612687877791d21679866db58b1de996b31fc312e4 --quiet | head -n 1)
+          if [[ -n "$postgres_id" ]]; then
+            docker logs "$postgres_id" >artifacts/real-stack/logs/postgres.log 2>&1 || true
+          fi
+      - name: Upload Playwright reports
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: playwright-report
+          name: playwright-reports-${{ github.run_id }}
           path: |
-            playwright-report
-            test-results
+            apps/web/playwright-report
+            apps/web/test-results
           if-no-files-found: ignore
           retention-days: 14
+      - name: Upload failed real-stack logs
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: real-stack-logs-${{ github.run_id }}
+          path: artifacts/real-stack/logs
+          if-no-files-found: ignore
+          retention-days: 14
+      - name: Stop browser-test MinIO
+        if: always()
+        run: docker rm --force fiatlux-real-e2e-minio 2>/dev/null || true
 
   compose-and-images:
     name: Production image (${{ matrix.image }})
@@ -181,32 +325,75 @@ jobs:
             dockerfile: Dockerfile.worker
           - image: web
             dockerfile: Dockerfile.web
+            build_args: |
+              FIATLUX_RELEASE_VERSION=ci
+              FIATLUX_RELEASE_GIT_SHA=${{ github.sha }}
           - image: gateway
             dockerfile: Dockerfile.caddy
           - image: minio
             dockerfile: Dockerfile.minio
           - image: backup
             dockerfile: Dockerfile.backup
+          - image: postgres
+            dockerfile: Dockerfile.postgres
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: docker/setup-qemu-action@96fe6ef7f33517b61c61be40b68a1882f3264fb8 # v4.2.0
+        id: qemu
+        with:
+          image: ${{ env.BINFMT_IMAGE }}
+          platforms: arm64
       - uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+        with:
+          version: ${{ env.BUILDX_VERSION }}
+          driver-opts: image=${{ env.BUILDKIT_IMAGE }}
+      - name: Verify pinned Buildx, BuildKit and QEMU
+        env:
+          EXPECTED_BUILDX_VERSION: ${{ env.BUILDX_VERSION }}
+          EXPECTED_BUILDKIT_VERSION: ${{ env.BUILDKIT_VERSION }}
+          EXPECTED_BUILDKIT_IMAGE: ${{ env.BUILDKIT_IMAGE }}
+          REQUIRED_BUILDKIT_PLATFORMS: linux/amd64,linux/arm64
+          QEMU_REGISTERED_PLATFORMS: ${{ steps.qemu.outputs.platforms }}
+          REQUIRED_QEMU_PLATFORMS: arm64
+        run: ./scripts/verify-build-toolchain.sh
       - name: Validate production Compose
         if: matrix.image == 'api'
         env:
           APP_DOMAIN: choice.internal.example
           BACKUP_AGE_RECIPIENT: ci-compose-age-recipient-placeholder
           BACKUP_DIR: /tmp/fiatlux-backups
+          BACKUP_SCRATCH_DIR: /tmp/fiatlux-backup-scratch
           INITIAL_ADMIN_PASSWORD: ci-compose-admin-password
+          MFA_ENCRYPTION_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+          MFA_ENCRYPTION_KEY_ID: ci-compose-v1
+          MFA_REQUIRED_ROLES: owner,admin
+          MFA_CHALLENGE_TTL_SECONDS: "180"
+          MFA_SETUP_TTL_SECONDS: "900"
           MINIO_ROOT_PASSWORD: ci_compose_minio_password
           MINIO_ROOT_USER: fiatlux
-          POSTGRES_PASSWORD: ci_compose_db_password
+          S3_ACCESS_KEY_ID: fiatlux-app
+          S3_SECRET_ACCESS_KEY: ci-compose-app-object-password
+          S3_BACKUP_ACCESS_KEY_ID: fiatlux-backup
+          S3_BACKUP_SECRET_ACCESS_KEY: ci-compose-backup-object-password
+          S3_RESTORE_ACCESS_KEY_ID: fiatlux-restore
+          S3_RESTORE_SECRET_ACCESS_KEY: ci-compose-restore-object-password
+          POSTGRES_BOOTSTRAP_USER: fiatlux_bootstrap
+          POSTGRES_BOOTSTRAP_PASSWORD: ci-compose-bootstrap-password
+          POSTGRES_MIGRATION_PASSWORD: ci-compose-migration-password
+          POSTGRES_RUNTIME_PASSWORD: ci-compose-runtime-password
+          POSTGRES_BACKUP_PASSWORD: ci-compose-backup-password
+          POSTGRES_RESTORE_PASSWORD: ci-compose-restore-password
+          RESTORE_SCRATCH_DIR: /tmp/fiatlux-restore-scratch
           SESSION_SECRET: ci-compose-session-secret-with-more-than-32-characters
-        run: docker compose -f compose.yml -f compose.prod.yml config --quiet
+        run: |
+          sh -n infra/minio/bootstrap.sh
+          docker compose -f compose.yml -f compose.prod.yml config --quiet
       - uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
           context: .
           file: ${{ matrix.dockerfile }}
           platforms: linux/amd64,linux/arm64
+          build-args: ${{ matrix.build_args }}
           push: false
           cache-from: type=gha,scope=${{ matrix.image }}
           cache-to: type=gha,mode=max,scope=${{ matrix.image }}

@@ -1,5 +1,6 @@
 # Dependencies and build output
 node_modules/
+.pnpm-store/
 dist/
 .turbo/
 coverage/
@@ -27,6 +28,13 @@ playwright-report/
 test-results/
 blob-report/
 screenshots/
+semgrep-results/
+# Evidence is ignored by default. Only the reviewed public-site research
+# package is intentionally deliverable; never force-add runtime evidence.
+artifacts/**
+!artifacts/browser/
+!artifacts/browser/fiatlux-gg/
+!artifacts/browser/fiatlux-gg/**
 
 # Editors and operating systems
 .DS_Store

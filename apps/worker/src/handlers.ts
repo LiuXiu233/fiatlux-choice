@@ -10,6 +10,7 @@ import {
   approvalRequestSchema,
   notificationCreateSchema,
   taskCreateSchema,
+  workflowStepSchema,
 } from "@fiatlux/contracts";
 import {
   advisorCitations,
@@ -19,16 +20,23 @@ import {
   auditEvents,
   backups,
   complianceEvents,
+  complianceItems,
+  complianceSourceSnapshots,
   type Database,
   githubInsights,
+  integrationChecks,
+  lockReferenceChain,
+  membershipRoles,
   memberships,
   notifications,
   obligations,
   organizations,
   projects,
   promptVersions,
+  rolePermissions,
+  roles,
   tasks,
-  workflowDefinitions,
+  users,
   workflowRuns,
 } from "@fiatlux/db";
 import {
@@ -36,8 +44,17 @@ import {
   buildAdvisorInput,
   confidenceBasisPoints,
 } from "@fiatlux/domain";
-import type { GitHubReader, JobQueue, LlmProvider } from "@fiatlux/integrations";
-import { and, eq, inArray, isNull, lt, sql } from "drizzle-orm";
+import {
+  BACKUP_CLAIM_LEASE_SECONDS,
+  type GitHubReader,
+  type JobPayloads,
+  type JobQueue,
+  type LlmProvider,
+  type OfficialSourceFetcher,
+  OfficialSourceReader,
+  sanitizeIntegrationError,
+} from "@fiatlux/integrations";
+import { and, asc, eq, inArray, isNull, lt, lte, or, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import type { WorkerConfig } from "./config.js";
@@ -49,11 +66,12 @@ export interface WorkerDependencies {
   queue: JobQueue;
   llmProvider: LlmProvider;
   github: GitHubReader;
+  officialSource?: OfficialSourceFetcher;
   config: WorkerConfig;
 }
 
 function safeError(error: unknown) {
-  return error instanceof Error ? error.message.slice(0, 5_000) : "Unknown worker error";
+  return sanitizeIntegrationError(error, "Unknown worker error", { maxLength: 5_000 });
 }
 
 async function appendSystemAudit(
@@ -81,62 +99,146 @@ async function appendSystemAudit(
   });
 }
 
-export async function handleAdvisorRun(
+const RUN_CLAIM_LEASE_MS = 5 * 60 * 1_000;
+const STALE_RUN_ERROR =
+  "Worker execution lease expired; the prior attempt may have partial effects and requires manual review";
+
+// A database dump can legitimately run for longer than the short advisor/workflow
+// lease.  A duplicate delivery only expires a backup after this larger window;
+// it never requeues or restarts the external backup command automatically.
+export const BACKUP_CLAIM_LEASE_MS = BACKUP_CLAIM_LEASE_SECONDS * 1_000;
+export const STALE_BACKUP_ERROR =
+  "Backup execution lease expired; the prior attempt may have partial effects and requires manual review";
+
+async function expireStaleAdvisorRun(
   dependencies: WorkerDependencies,
   payload: { orgId: string; runId: string },
+  now: Date,
 ) {
-  const [run] = await dependencies.db
+  const staleBefore = new Date(now.getTime() - RUN_CLAIM_LEASE_MS);
+  const [candidate] = await dependencies.db
     .select()
     .from(advisorRuns)
     .where(
       and(
         eq(advisorRuns.id, payload.runId),
         eq(advisorRuns.orgId, payload.orgId),
-        inArray(advisorRuns.status, ["queued", "failed"]),
+        eq(advisorRuns.status, "running"),
+        lt(advisorRuns.updatedAt, staleBefore),
         isNull(advisorRuns.archivedAt),
       ),
     )
     .limit(1);
-  if (!run) return;
-  const [prompt] = await dependencies.db
-    .select()
-    .from(promptVersions)
-    .where(and(eq(promptVersions.id, run.promptVersionId), eq(promptVersions.orgId, payload.orgId)))
-    .limit(1);
-  if (!prompt) throw new Error("Advisor prompt version no longer exists");
+  if (!candidate) return false;
 
-  const modelInput = buildAdvisorInput({
-    systemPrompt: prompt.systemPrompt,
-    question: run.question,
-    context: z.array(z.record(z.string(), z.unknown())).parse(run.contextSnapshot),
-  });
-  const [modelCall] = await dependencies.db
-    .insert(advisorModelCalls)
-    .values({
+  return dependencies.db.transaction(async (tx) => {
+    const [failed] = await tx
+      .update(advisorRuns)
+      .set({
+        status: "failed",
+        error: STALE_RUN_ERROR,
+        completedAt: now,
+        updatedAt: now,
+        version: candidate.version + 1,
+      })
+      .where(
+        and(
+          eq(advisorRuns.id, candidate.id),
+          eq(advisorRuns.orgId, candidate.orgId),
+          eq(advisorRuns.status, "running"),
+          eq(advisorRuns.version, candidate.version),
+          lt(advisorRuns.updatedAt, staleBefore),
+          isNull(advisorRuns.archivedAt),
+        ),
+      )
+      .returning();
+    if (!failed) return false;
+    await tx
+      .update(advisorModelCalls)
+      .set({ status: "failed", error: STALE_RUN_ERROR, updatedAt: now })
+      .where(
+        and(
+          eq(advisorModelCalls.orgId, payload.orgId),
+          eq(advisorModelCalls.runId, candidate.id),
+          eq(advisorModelCalls.status, "started"),
+        ),
+      );
+    await appendSystemAudit(tx, {
       orgId: payload.orgId,
-      runId: run.id,
-      provider: dependencies.config.LLM_DRIVER,
-      model:
-        dependencies.config.LLM_DRIVER === "mock"
-          ? "simulated-advisor-v1"
-          : dependencies.config.LLM_MODEL,
-      promptVersionId: prompt.id,
-      requestPayload: modelInput,
-      status: "started",
-    })
-    .returning();
-  if (!modelCall) throw new Error("Failed to create model-call audit record");
-  await dependencies.db
+      action: "lease_expired",
+      resourceType: "advisor-run",
+      resourceId: candidate.id,
+      before: candidate,
+      after: failed,
+      metadata: { error: STALE_RUN_ERROR, initiatedBy: candidate.requestedBy },
+    });
+    return true;
+  });
+}
+
+export async function handleAdvisorRun(
+  dependencies: WorkerDependencies,
+  payload: { orgId: string; runId: string },
+) {
+  const claimTime = new Date();
+  const [run] = await dependencies.db
     .update(advisorRuns)
     .set({
       status: "running",
-      startedAt: new Date(),
+      startedAt: claimTime,
       error: null,
-      updatedAt: new Date(),
+      updatedAt: claimTime,
+      version: sql`${advisorRuns.version} + 1`,
     })
-    .where(eq(advisorRuns.id, run.id));
+    .where(
+      and(
+        eq(advisorRuns.id, payload.runId),
+        eq(advisorRuns.orgId, payload.orgId),
+        eq(advisorRuns.status, "queued"),
+        isNull(advisorRuns.archivedAt),
+      ),
+    )
+    .returning();
+  if (!run) {
+    await expireStaleAdvisorRun(dependencies, payload, claimTime);
+    return;
+  }
+
+  let modelCall: typeof advisorModelCalls.$inferSelect | undefined;
 
   try {
+    const [prompt] = await dependencies.db
+      .select()
+      .from(promptVersions)
+      .where(
+        and(eq(promptVersions.id, run.promptVersionId), eq(promptVersions.orgId, payload.orgId)),
+      )
+      .limit(1);
+    if (!prompt) throw new Error("Advisor prompt version no longer exists");
+
+    const modelInput = buildAdvisorInput({
+      systemPrompt: prompt.systemPrompt,
+      question: run.question,
+      context: z.array(z.record(z.string(), z.unknown())).parse(run.contextSnapshot),
+    });
+    [modelCall] = await dependencies.db
+      .insert(advisorModelCalls)
+      .values({
+        orgId: payload.orgId,
+        runId: run.id,
+        provider: dependencies.config.LLM_DRIVER,
+        model:
+          dependencies.config.LLM_DRIVER === "mock"
+            ? "simulated-advisor-v1"
+            : dependencies.config.LLM_MODEL,
+        promptVersionId: prompt.id,
+        requestPayload: modelInput,
+        status: "started",
+      })
+      .returning();
+    if (!modelCall) throw new Error("Failed to create model-call audit record");
+    const claimedModelCall = modelCall;
+
     const result = await dependencies.llmProvider.completeAdvisor(modelInput);
     const output = advisorOutputSchema.parse(result.output);
     assertAdvisorEvidenceAllowed(
@@ -156,7 +258,7 @@ export async function handleAdvisorRun(
           latencyMs: result.latencyMs,
           updatedAt: new Date(),
         })
-        .where(eq(advisorModelCalls.id, modelCall.id));
+        .where(eq(advisorModelCalls.id, claimedModelCall.id));
       const [completed] = await tx
         .update(advisorRuns)
         .set({
@@ -167,8 +269,16 @@ export async function handleAdvisorRun(
           updatedAt: new Date(),
           version: run.version + 1,
         })
-        .where(eq(advisorRuns.id, run.id))
+        .where(
+          and(
+            eq(advisorRuns.id, run.id),
+            eq(advisorRuns.orgId, payload.orgId),
+            eq(advisorRuns.status, "running"),
+            eq(advisorRuns.version, run.version),
+          ),
+        )
         .returning();
+      if (!completed) throw new Error("Advisor run claim was lost before completion");
       const citations = output.facts.flatMap((fact) =>
         fact.evidence.map((evidence) => ({
           orgId: payload.orgId,
@@ -185,80 +295,182 @@ export async function handleAdvisorRun(
         action: "complete",
         resourceType: "advisor-run",
         resourceId: run.id,
-        requestId: `worker:${modelCall.id}`,
+        requestId: `worker:${claimedModelCall.id}`,
         before: run,
         after: completed,
-        metadata: { actorType: "system", modelCallId: modelCall.id, initiatedBy: run.requestedBy },
+        metadata: {
+          actorType: "system",
+          modelCallId: claimedModelCall.id,
+          initiatedBy: run.requestedBy,
+        },
       });
     });
   } catch (error) {
     const message = safeError(error);
     await dependencies.db.transaction(async (tx) => {
-      await tx
-        .update(advisorModelCalls)
-        .set({ status: "failed", error: message, updatedAt: new Date() })
-        .where(eq(advisorModelCalls.id, modelCall.id));
-      await tx
+      if (modelCall) {
+        await tx
+          .update(advisorModelCalls)
+          .set({ status: "failed", error: message, updatedAt: new Date() })
+          .where(
+            and(eq(advisorModelCalls.id, modelCall.id), eq(advisorModelCalls.status, "started")),
+          );
+      }
+      const [failed] = await tx
         .update(advisorRuns)
-        .set({ status: "failed", error: message, updatedAt: new Date() })
-        .where(eq(advisorRuns.id, run.id));
-      await tx.insert(auditEvents).values({
-        orgId: payload.orgId,
-        actorUserId: null,
-        action: "fail",
-        resourceType: "advisor-run",
-        resourceId: run.id,
-        requestId: `worker:${modelCall.id}`,
-        metadata: { actorType: "system", modelCallId: modelCall.id, error: message },
-      });
+        .set({
+          status: "failed",
+          error: message,
+          completedAt: new Date(),
+          updatedAt: new Date(),
+          version: run.version + 1,
+        })
+        .where(
+          and(
+            eq(advisorRuns.id, run.id),
+            eq(advisorRuns.orgId, payload.orgId),
+            eq(advisorRuns.status, "running"),
+            eq(advisorRuns.version, run.version),
+          ),
+        )
+        .returning();
+      if (failed) {
+        await tx.insert(auditEvents).values({
+          orgId: payload.orgId,
+          actorUserId: null,
+          action: "fail",
+          resourceType: "advisor-run",
+          resourceId: run.id,
+          requestId: `worker:${modelCall?.id ?? randomUUID()}`,
+          before: run,
+          after: failed,
+          metadata: {
+            actorType: "system",
+            ...(modelCall ? { modelCallId: modelCall.id } : {}),
+            error: message,
+          },
+        });
+      }
     });
-    throw error;
+    throw new Error(`Advisor run failed: ${message}`);
   }
 }
 
-const workflowStepSchema = z.object({
-  type: z.enum(["notify", "create_task", "request_approval", "advisor_run"]),
-  config: z.record(z.string(), z.unknown()),
-});
-
-export async function handleWorkflowRun(
+async function expireStaleWorkflowRun(
   dependencies: WorkerDependencies,
   payload: { orgId: string; runId: string },
+  now: Date,
 ) {
-  const [run] = await dependencies.db
+  const staleBefore = new Date(now.getTime() - RUN_CLAIM_LEASE_MS);
+  const [candidate] = await dependencies.db
     .select()
     .from(workflowRuns)
     .where(
       and(
         eq(workflowRuns.id, payload.runId),
         eq(workflowRuns.orgId, payload.orgId),
-        eq(workflowRuns.status, "queued"),
+        eq(workflowRuns.status, "running"),
+        lt(workflowRuns.updatedAt, staleBefore),
+        isNull(workflowRuns.archivedAt),
       ),
     )
     .limit(1);
-  if (!run) return;
-  const [definition] = await dependencies.db
-    .select()
-    .from(workflowDefinitions)
+  if (!candidate) return false;
+
+  return dependencies.db.transaction(async (tx) => {
+    const [failed] = await tx
+      .update(workflowRuns)
+      .set({
+        status: "failed",
+        error: STALE_RUN_ERROR,
+        finishedAt: now,
+        updatedAt: now,
+        version: candidate.version + 1,
+      })
+      .where(
+        and(
+          eq(workflowRuns.id, candidate.id),
+          eq(workflowRuns.orgId, candidate.orgId),
+          eq(workflowRuns.status, "running"),
+          eq(workflowRuns.version, candidate.version),
+          lt(workflowRuns.updatedAt, staleBefore),
+          isNull(workflowRuns.archivedAt),
+        ),
+      )
+      .returning();
+    if (!failed) return false;
+    await appendSystemAudit(tx, {
+      orgId: payload.orgId,
+      action: "lease_expired",
+      resourceType: "workflow-run",
+      resourceId: candidate.id,
+      before: candidate,
+      after: failed,
+      metadata: { error: STALE_RUN_ERROR, initiatedBy: candidate.requestedBy },
+    });
+    return true;
+  });
+}
+
+async function checkpointWorkflowRun(
+  dependencies: WorkerDependencies,
+  payload: { orgId: string; runId: string },
+  claimVersion: number,
+  results: Array<Record<string, unknown>>,
+) {
+  const [checkpointed] = await dependencies.db
+    .update(workflowRuns)
+    .set({ output: { steps: results }, updatedAt: new Date() })
     .where(
       and(
-        eq(workflowDefinitions.id, run.definitionId),
-        eq(workflowDefinitions.orgId, payload.orgId),
-        eq(workflowDefinitions.enabled, true),
-        isNull(workflowDefinitions.archivedAt),
+        eq(workflowRuns.id, payload.runId),
+        eq(workflowRuns.orgId, payload.orgId),
+        eq(workflowRuns.status, "running"),
+        eq(workflowRuns.version, claimVersion),
       ),
     )
-    .limit(1);
-  if (!definition) throw new Error("Enabled workflow definition not found");
-  const steps = z.array(workflowStepSchema).parse(definition.steps);
-  await dependencies.db
+    .returning({ id: workflowRuns.id });
+  if (!checkpointed) throw new Error("Workflow run claim was lost while checkpointing");
+}
+
+export async function handleWorkflowRun(
+  dependencies: WorkerDependencies,
+  payload: { orgId: string; runId: string },
+) {
+  const claimTime = new Date();
+  const [run] = await dependencies.db
     .update(workflowRuns)
-    .set({ status: "running", startedAt: new Date(), updatedAt: new Date() })
-    .where(eq(workflowRuns.id, run.id));
+    .set({
+      status: "running",
+      startedAt: claimTime,
+      finishedAt: null,
+      output: null,
+      error: null,
+      updatedAt: claimTime,
+      version: sql`${workflowRuns.version} + 1`,
+    })
+    .where(
+      and(
+        eq(workflowRuns.id, payload.runId),
+        eq(workflowRuns.orgId, payload.orgId),
+        eq(workflowRuns.status, "queued"),
+        isNull(workflowRuns.archivedAt),
+      ),
+    )
+    .returning();
+  if (!run) {
+    await expireStaleWorkflowRun(dependencies, payload, claimTime);
+    return;
+  }
   const results: Array<Record<string, unknown>> = [];
 
   try {
+    if (!Number.isInteger(run.definitionVersion) || !run.stepsSnapshot) {
+      throw new Error("Workflow run is missing its immutable definition snapshot");
+    }
+    const steps = z.array(workflowStepSchema).parse(run.stepsSnapshot);
     for (const [index, step] of steps.entries()) {
+      let enqueueAfterCheckpoint: (() => Promise<unknown>) | undefined;
       if (step.type === "notify") {
         const notification = notificationCreateSchema.parse(step.config);
         const [recipient] = await dependencies.db
@@ -298,44 +510,48 @@ export async function handleWorkflowRun(
           });
           return record;
         });
-        await dependencies.queue.send("notification.deliver", {
-          orgId: payload.orgId,
-          notificationId: created.id,
-        });
         results.push({ index, type: step.type, resourceId: created.id });
+        enqueueAfterCheckpoint = () =>
+          dependencies.queue.send("notification.deliver", {
+            orgId: payload.orgId,
+            notificationId: created.id,
+          });
       }
       if (step.type === "create_task") {
         const task = taskCreateSchema.parse(step.config);
-        if (task.projectId) {
-          const [project] = await dependencies.db
-            .select({ id: projects.id })
-            .from(projects)
-            .where(
-              and(
-                eq(projects.id, task.projectId),
-                eq(projects.orgId, payload.orgId),
-                isNull(projects.archivedAt),
-              ),
-            )
-            .limit(1);
-          if (!project) throw new Error("Workflow task project is outside the organization");
-        }
-        if (task.assigneeId) {
-          const [assignee] = await dependencies.db
-            .select({ id: memberships.id })
-            .from(memberships)
-            .where(
-              and(
-                eq(memberships.orgId, payload.orgId),
-                eq(memberships.userId, task.assigneeId),
-                eq(memberships.status, "active"),
-                isNull(memberships.archivedAt),
-              ),
-            )
-            .limit(1);
-          if (!assignee) throw new Error("Workflow task assignee is outside the organization");
-        }
         const created = await dependencies.db.transaction(async (tx) => {
+          await lockReferenceChain(tx, payload.orgId);
+          if (task.projectId) {
+            const [project] = await tx
+              .select({ id: projects.id })
+              .from(projects)
+              .where(
+                and(
+                  eq(projects.id, task.projectId),
+                  eq(projects.orgId, payload.orgId),
+                  isNull(projects.archivedAt),
+                ),
+              )
+              .limit(1)
+              .for("share");
+            if (!project) throw new Error("Workflow task project is outside the organization");
+          }
+          if (task.assigneeId) {
+            const [assignee] = await tx
+              .select({ id: memberships.id })
+              .from(memberships)
+              .where(
+                and(
+                  eq(memberships.orgId, payload.orgId),
+                  eq(memberships.userId, task.assigneeId),
+                  eq(memberships.status, "active"),
+                  isNull(memberships.archivedAt),
+                ),
+              )
+              .limit(1)
+              .for("share");
+            if (!assignee) throw new Error("Workflow task assignee is outside the organization");
+          }
           const [record] = await tx
             .insert(tasks)
             .values({
@@ -390,6 +606,9 @@ export async function handleWorkflowRun(
         results.push({ index, type: step.type, resourceId: created.id });
       }
       if (step.type === "advisor_run") {
+        if (dependencies.config.LLM_DRIVER === "disabled") {
+          throw new Error("AI advisors are explicitly disabled");
+        }
         const advisor = z
           .object({ advisor: advisorKeySchema, question: z.string().min(1).max(20_000) })
           .parse(step.config);
@@ -434,9 +653,12 @@ export async function handleWorkflowRun(
           });
           return record;
         });
-        await dependencies.queue.send("advisor.run", { orgId: payload.orgId, runId: created.id });
         results.push({ index, type: step.type, resourceId: created.id });
+        enqueueAfterCheckpoint = () =>
+          dependencies.queue.send("advisor.run", { orgId: payload.orgId, runId: created.id });
       }
+      await checkpointWorkflowRun(dependencies, payload, run.version, results);
+      await enqueueAfterCheckpoint?.();
     }
 
     await dependencies.db.transaction(async (tx) => {
@@ -449,8 +671,16 @@ export async function handleWorkflowRun(
           updatedAt: new Date(),
           version: run.version + 1,
         })
-        .where(eq(workflowRuns.id, run.id))
+        .where(
+          and(
+            eq(workflowRuns.id, run.id),
+            eq(workflowRuns.orgId, payload.orgId),
+            eq(workflowRuns.status, "running"),
+            eq(workflowRuns.version, run.version),
+          ),
+        )
         .returning();
+      if (!completed) throw new Error("Workflow run claim was lost before completion");
       await appendSystemAudit(tx, {
         orgId: payload.orgId,
         action: "complete",
@@ -462,26 +692,37 @@ export async function handleWorkflowRun(
       });
     });
   } catch (error) {
+    const message = safeError(error);
     await dependencies.db.transaction(async (tx) => {
       const [failed] = await tx
         .update(workflowRuns)
         .set({
           status: "failed",
-          error: safeError(error),
+          error: message,
           finishedAt: new Date(),
           updatedAt: new Date(),
+          version: run.version + 1,
         })
-        .where(eq(workflowRuns.id, run.id))
+        .where(
+          and(
+            eq(workflowRuns.id, run.id),
+            eq(workflowRuns.orgId, payload.orgId),
+            eq(workflowRuns.status, "running"),
+            eq(workflowRuns.version, run.version),
+          ),
+        )
         .returning();
-      await appendSystemAudit(tx, {
-        orgId: payload.orgId,
-        action: "fail",
-        resourceType: "workflow-run",
-        resourceId: run.id,
-        before: run,
-        after: failed,
-        metadata: { error: safeError(error), initiatedBy: run.requestedBy },
-      });
+      if (failed) {
+        await appendSystemAudit(tx, {
+          orgId: payload.orgId,
+          action: "fail",
+          resourceType: "workflow-run",
+          resourceId: run.id,
+          before: run,
+          after: failed,
+          metadata: { error: message, initiatedBy: run.requestedBy },
+        });
+      }
     });
   }
 }
@@ -513,10 +754,18 @@ export async function handleNotification(
           ? null
           : `${notification.channel} delivery adapter is not configured`,
         updatedAt: new Date(),
-        version: notification.version + 1,
+        version: sql`${notifications.version} + 1`,
       })
-      .where(eq(notifications.id, notification.id))
+      .where(
+        and(
+          eq(notifications.id, notification.id),
+          eq(notifications.orgId, payload.orgId),
+          eq(notifications.status, "queued"),
+          eq(notifications.version, notification.version),
+        ),
+      )
       .returning();
+    if (!updated) return;
     await appendSystemAudit(tx, {
       orgId: payload.orgId,
       action: isInApp ? "deliver" : "delivery_fail",
@@ -530,7 +779,7 @@ export async function handleNotification(
 
 export async function handleGitHubRefresh(
   dependencies: WorkerDependencies,
-  payload: { orgId: string; insightId: string },
+  payload: JobPayloads["github.refresh"],
 ) {
   const [insight] = await dependencies.db
     .select()
@@ -539,12 +788,27 @@ export async function handleGitHubRefresh(
       and(
         eq(githubInsights.id, payload.insightId),
         eq(githubInsights.orgId, payload.orgId),
+        eq(githubInsights.version, payload.expectedVersion),
         isNull(githubInsights.archivedAt),
       ),
     )
     .limit(1);
   if (!insight) return;
-  const snapshot = await dependencies.github.getRepository(insight.repository);
+  let snapshot: Awaited<ReturnType<GitHubReader["getRepository"]>>;
+  try {
+    snapshot = await dependencies.github.getRepository(insight.repository);
+  } catch (error) {
+    const message = safeError(error);
+    await appendSystemAudit(dependencies.db, {
+      orgId: payload.orgId,
+      action: "refresh_fail",
+      resourceType: "github-insight",
+      resourceId: insight.id,
+      before: insight,
+      metadata: { error: message, integrationMode: "read_only" },
+    });
+    throw new Error(`GitHub refresh failed: ${message}`);
+  }
   await dependencies.db.transaction(async (tx) => {
     const [updated] = await tx
       .update(githubInsights)
@@ -556,8 +820,16 @@ export async function handleGitHubRefresh(
         updatedAt: new Date(),
         version: insight.version + 1,
       })
-      .where(eq(githubInsights.id, insight.id))
+      .where(
+        and(
+          eq(githubInsights.id, insight.id),
+          eq(githubInsights.orgId, payload.orgId),
+          eq(githubInsights.version, payload.expectedVersion),
+          isNull(githubInsights.archivedAt),
+        ),
+      )
       .returning();
+    if (!updated) return;
     await appendSystemAudit(tx, {
       orgId: payload.orgId,
       action: "refresh",
@@ -567,6 +839,965 @@ export async function handleGitHubRefresh(
       after: updated,
     });
   });
+}
+
+const INTEGRATION_CHECK_CLAIM_LEASE_MS = 10 * 60 * 1_000;
+const STALE_INTEGRATION_CHECK_ERROR =
+  "Integration probe lease expired; the prior attempt may have reached the provider and requires manual review";
+
+async function expireStaleIntegrationCheck(
+  dependencies: WorkerDependencies,
+  payload: JobPayloads["integration.test"],
+  now: Date,
+) {
+  const staleBefore = new Date(now.getTime() - INTEGRATION_CHECK_CLAIM_LEASE_MS);
+  const [candidate] = await dependencies.db
+    .select()
+    .from(integrationChecks)
+    .where(
+      and(
+        eq(integrationChecks.id, payload.checkId),
+        eq(integrationChecks.orgId, payload.orgId),
+        eq(integrationChecks.integrationId, payload.integrationId),
+        eq(integrationChecks.checkedBy, payload.requestedBy),
+        eq(integrationChecks.status, "running"),
+        lte(integrationChecks.updatedAt, staleBefore),
+        isNull(integrationChecks.archivedAt),
+      ),
+    )
+    .limit(1);
+  if (!candidate) return false;
+
+  return dependencies.db.transaction(async (tx) => {
+    const [failed] = await tx
+      .update(integrationChecks)
+      .set({
+        status: "unhealthy",
+        detail: STALE_INTEGRATION_CHECK_ERROR,
+        checkedAt: now,
+        updatedAt: now,
+        version: candidate.version + 1,
+      })
+      .where(
+        and(
+          eq(integrationChecks.id, candidate.id),
+          eq(integrationChecks.orgId, candidate.orgId),
+          eq(integrationChecks.status, "running"),
+          eq(integrationChecks.version, candidate.version),
+          lte(integrationChecks.updatedAt, staleBefore),
+        ),
+      )
+      .returning();
+    if (!failed) return false;
+    await appendSystemAudit(tx, {
+      orgId: payload.orgId,
+      action: "test_lease_expired",
+      resourceType: "integration",
+      resourceId: payload.integrationId,
+      before: candidate,
+      after: failed,
+      metadata: {
+        checkId: candidate.id,
+        requestedBy: payload.requestedBy,
+        error: STALE_INTEGRATION_CHECK_ERROR,
+      },
+    });
+    return true;
+  });
+}
+
+export async function handleIntegrationTest(
+  dependencies: WorkerDependencies,
+  payload: JobPayloads["integration.test"],
+) {
+  const claimTime = new Date();
+  const [check] = await dependencies.db
+    .update(integrationChecks)
+    .set({
+      status: "running",
+      detail: "Worker-only authenticated probe is running",
+      checkedAt: claimTime,
+      updatedAt: claimTime,
+      version: sql`${integrationChecks.version} + 1`,
+    })
+    .where(
+      and(
+        eq(integrationChecks.id, payload.checkId),
+        eq(integrationChecks.orgId, payload.orgId),
+        eq(integrationChecks.integrationId, payload.integrationId),
+        eq(integrationChecks.checkedBy, payload.requestedBy),
+        eq(integrationChecks.status, "queued"),
+        isNull(integrationChecks.archivedAt),
+      ),
+    )
+    .returning();
+  if (!check) {
+    await expireStaleIntegrationCheck(dependencies, payload, claimTime);
+    return;
+  }
+
+  let status: "healthy" | "unhealthy" = "healthy";
+  let detail: string;
+  let metadata: Record<string, unknown>;
+  try {
+    if (payload.integrationId === "llm") {
+      if (dependencies.config.LLM_DRIVER !== "compatible") {
+        throw new Error("Worker LLM mode changed before the authenticated probe ran");
+      }
+      const result = await dependencies.llmProvider.completeAdvisor({
+        system:
+          "This is a connectivity and structured-output acceptance probe. Return the required advisor JSON schema with no facts, one clearly labelled inference, one safe recommendation, one risk, at least one missing-information item, confidence 0, and a disclaimer. Do not claim access to company data or perform any action.",
+        user: {
+          question:
+            "Confirm only that the configured model can return the required safe structure.",
+          companyContext: [],
+          acceptanceProbe: true,
+        },
+      });
+      if (
+        result.provider !== dependencies.config.LLM_PROVIDER_ID ||
+        result.model !== dependencies.config.LLM_MODEL ||
+        !Number.isInteger(result.usage.inputTokens) ||
+        (result.usage.inputTokens ?? 0) < 1 ||
+        !Number.isInteger(result.usage.outputTokens) ||
+        (result.usage.outputTokens ?? 0) < 1
+      ) {
+        throw new Error("LLM probe did not return the approved provider/model identity and usage");
+      }
+      detail = `Authenticated structured output verified; provider=${result.provider}; endpoint=${dependencies.config.LLM_BASE_URL}; model=${result.model}; inputTokens=${result.usage.inputTokens}; outputTokens=${result.usage.outputTokens}; latencyMs=${result.latencyMs}`;
+      metadata = {
+        mode: "compatible",
+        provider: result.provider,
+        endpoint: dependencies.config.LLM_BASE_URL,
+        model: result.model,
+        inputTokens: result.usage.inputTokens,
+        outputTokens: result.usage.outputTokens,
+        latencyMs: result.latencyMs,
+        maxOutputTokens: dependencies.config.LLM_MAX_OUTPUT_TOKENS,
+      };
+    } else {
+      if (
+        dependencies.config.GITHUB_INTEGRATION_MODE !== "read_only" ||
+        !dependencies.config.GITHUB_PROBE_REPOSITORY
+      ) {
+        throw new Error("Worker GitHub mode changed before the authenticated probe ran");
+      }
+      const snapshot = await dependencies.github.getRepository(
+        dependencies.config.GITHUB_PROBE_REPOSITORY,
+      );
+      if (
+        snapshot.repository.toLowerCase() !==
+        dependencies.config.GITHUB_PROBE_REPOSITORY.toLowerCase()
+      ) {
+        throw new Error("GitHub probe returned a different repository identity");
+      }
+      detail = `Authenticated read-only repository identity verified: ${snapshot.repository}`;
+      metadata = {
+        mode: "read_only",
+        authenticatedRequest: true,
+        repository: snapshot.repository,
+        url: snapshot.url,
+        archived: snapshot.archived,
+      };
+    }
+  } catch (error) {
+    status = "unhealthy";
+    detail = sanitizeIntegrationError(error, "Unknown integration error", { maxLength: 500 });
+    metadata = { mode: payload.integrationId === "llm" ? "compatible" : "read_only" };
+  }
+
+  const completedAt = new Date();
+  await dependencies.db.transaction(async (tx) => {
+    const [completed] = await tx
+      .update(integrationChecks)
+      .set({
+        status,
+        detail,
+        checkedAt: completedAt,
+        updatedAt: completedAt,
+        version: check.version + 1,
+      })
+      .where(
+        and(
+          eq(integrationChecks.id, check.id),
+          eq(integrationChecks.orgId, payload.orgId),
+          eq(integrationChecks.status, "running"),
+          eq(integrationChecks.version, check.version),
+        ),
+      )
+      .returning();
+    if (!completed) throw new Error("Integration probe claim was lost before completion");
+    await appendSystemAudit(tx, {
+      orgId: payload.orgId,
+      action: status === "healthy" ? "test" : "test_fail",
+      resourceType: "integration",
+      resourceId: payload.integrationId,
+      before: check,
+      after: completed,
+      metadata: { checkId: check.id, requestedBy: payload.requestedBy, ...metadata },
+    });
+  });
+}
+
+const ONE_DAY_MS = 24 * 60 * 60 * 1_000;
+const MONITORING_LEASE_MS = 2 * 60 * 60 * 1_000;
+
+type ComplianceReviewReason = "review_expired" | "content_changed" | "monitor_failed";
+
+const complianceReviewReasonCopy: Record<
+  ComplianceReviewReason,
+  { label: string; requiredAction: string }
+> = {
+  review_expired: {
+    label: "人工复核日期已到期",
+    requiredAction:
+      "打开登记的官方原文，重新核对现行有效性、适用条件和公司事实；完成后由有权人员显式更新复核状态、复核日期、摘要及依据。",
+  },
+  content_changed: {
+    label: "官方正文哈希发生变化",
+    requiredAction:
+      "对比监控快照与官方原文，判断变化是否实质影响现行有效性、适用条件、义务或截止日；保存必要证据后由有权人员显式完成复核。",
+  },
+  monitor_failed: {
+    label: "官方来源连续三次监测失败",
+    requiredAction:
+      "通过同一发布机关官网、国务院公报或国家法律法规数据库核对来源是否迁移，并检查网络、证书或访问限制；不得用商业转载或模型记忆替代人工确认。",
+  },
+};
+
+function truncateComplianceTaskText(value: string, maxLength: number) {
+  if (value.length <= maxLength) return value;
+  return `${value.slice(0, Math.max(0, maxLength - 1))}…`;
+}
+
+type ComplianceCoordinatorStrategy =
+  | "initiator"
+  | "primary_active_owner"
+  | "unassigned_no_active_owner";
+
+async function resolveComplianceCoordinator(
+  db: Pick<Database, "select">,
+  input: { orgId: string; initiatedBy?: string },
+): Promise<{ userId: string | null; strategy: ComplianceCoordinatorStrategy }> {
+  if (input.initiatedBy) {
+    const [initiator] = await db
+      .select({ userId: memberships.userId })
+      .from(memberships)
+      .innerJoin(users, eq(users.id, memberships.userId))
+      .innerJoin(
+        membershipRoles,
+        and(
+          eq(membershipRoles.orgId, memberships.orgId),
+          eq(membershipRoles.membershipId, memberships.id),
+        ),
+      )
+      .innerJoin(
+        roles,
+        and(eq(roles.orgId, membershipRoles.orgId), eq(roles.id, membershipRoles.roleId)),
+      )
+      .innerJoin(
+        rolePermissions,
+        and(
+          eq(rolePermissions.orgId, membershipRoles.orgId),
+          eq(rolePermissions.roleId, membershipRoles.roleId),
+        ),
+      )
+      .where(
+        and(
+          eq(memberships.orgId, input.orgId),
+          eq(memberships.userId, input.initiatedBy),
+          eq(memberships.status, "active"),
+          isNull(memberships.archivedAt),
+          eq(users.status, "active"),
+          isNull(roles.archivedAt),
+          inArray(rolePermissions.permission, [
+            "*",
+            "compliance-items:*",
+            "compliance-items:update",
+          ]),
+        ),
+      )
+      .limit(1)
+      .for("share");
+    if (initiator) return { userId: initiator.userId, strategy: "initiator" };
+  }
+
+  const [owner] = await db
+    .select({ userId: memberships.userId })
+    .from(memberships)
+    .innerJoin(users, eq(users.id, memberships.userId))
+    .innerJoin(
+      membershipRoles,
+      and(
+        eq(membershipRoles.orgId, memberships.orgId),
+        eq(membershipRoles.membershipId, memberships.id),
+      ),
+    )
+    .innerJoin(
+      roles,
+      and(eq(roles.orgId, membershipRoles.orgId), eq(roles.id, membershipRoles.roleId)),
+    )
+    .where(
+      and(
+        eq(memberships.orgId, input.orgId),
+        eq(memberships.status, "active"),
+        isNull(memberships.archivedAt),
+        eq(users.status, "active"),
+        eq(roles.systemKey, "owner"),
+        isNull(roles.archivedAt),
+      ),
+    )
+    .orderBy(asc(memberships.createdAt), asc(memberships.userId))
+    .limit(1)
+    .for("share");
+  return owner
+    ? { userId: owner.userId, strategy: "primary_active_owner" }
+    : { userId: null, strategy: "unassigned_no_active_owner" };
+}
+
+async function createComplianceReviewTask(
+  db: Pick<Database, "insert" | "select" | "update">,
+  input: {
+    orgId: string;
+    source: Pick<
+      typeof complianceItems.$inferSelect,
+      "id" | "title" | "issuingAuthority" | "sourceUrl"
+    >;
+    reason: ComplianceReviewReason;
+    dueAt: Date;
+    initiatedBy?: string;
+    error?: string;
+  },
+) {
+  const reasonCopy = complianceReviewReasonCopy[input.reason];
+  const coordinator = await resolveComplianceCoordinator(db, {
+    orgId: input.orgId,
+    ...(input.initiatedBy ? { initiatedBy: input.initiatedBy } : {}),
+  });
+  const descriptionLines = [
+    "系统监测已建立人工复核任务；本任务不表示法规已完成复核、仍然有效或问题已经解决。",
+    `来源 ID：${input.source.id}`,
+    `来源标题：${truncateComplianceTaskText(input.source.title, 2_000)}`,
+    `发布机关：${truncateComplianceTaskText(input.source.issuingAuthority, 2_000)}`,
+    `官方地址：${truncateComplianceTaskText(input.source.sourceUrl, 4_000)}`,
+    `触发原因：${reasonCopy.label}`,
+    `人工动作：${reasonCopy.requiredAction}`,
+  ];
+  if (input.error) {
+    descriptionLines.push(`最近一次脱敏错误：${truncateComplianceTaskText(input.error, 5_000)}`);
+  }
+  const task = taskCreateSchema.parse({
+    projectId: null,
+    title: truncateComplianceTaskText(
+      `【合规人工复核】${input.source.title}：${reasonCopy.label}`,
+      300,
+    ),
+    description: truncateComplianceTaskText(descriptionLines.join("\n"), 20_000),
+    status: "todo",
+    priority: "high",
+    assigneeId: coordinator.userId,
+    dueAt: input.dueAt.toISOString(),
+  });
+  const [record] = await db
+    .insert(tasks)
+    .values({
+      orgId: input.orgId,
+      ...task,
+      dueAt: task.dueAt ? new Date(task.dueAt) : null,
+    })
+    .returning();
+  if (!record) throw new Error("Failed to create compliance review task");
+
+  let deliveredNotification: typeof notifications.$inferSelect | null = null;
+  let queuedNotification: typeof notifications.$inferSelect | null = null;
+  if (coordinator.userId) {
+    const notification = notificationCreateSchema.parse({
+      recipientId: coordinator.userId,
+      title: `合规人工复核待处理：${reasonCopy.label}`,
+      body: truncateComplianceTaskText(
+        [
+          "系统已为你分配一项高优先级合规协调任务。",
+          `任务：${record.title}`,
+          `来源：${input.source.title}`,
+          `触发原因：${reasonCopy.label}`,
+          `截止时间：${input.dueAt.toISOString()}`,
+          "请核对事实、证据和专业人员安排；本通知不表示法规有效、适用或已经完成专业复核。",
+        ].join("\n"),
+        10_000,
+      ),
+      channel: "in_app",
+      status: "queued",
+    });
+    const [createdNotification] = await db
+      .insert(notifications)
+      .values({ orgId: input.orgId, ...notification })
+      .returning();
+    if (!createdNotification) throw new Error("Failed to create compliance review notification");
+    queuedNotification = createdNotification;
+  }
+
+  await appendSystemAudit(db, {
+    orgId: input.orgId,
+    action: "create",
+    resourceType: "task",
+    resourceId: record.id,
+    after: record,
+    metadata: {
+      trigger: "compliance_source_monitor",
+      complianceSourceId: input.source.id,
+      escalationReason: input.reason,
+      initiatedBy: input.initiatedBy ?? null,
+      assigneeId: coordinator.userId,
+      assignmentStrategy: coordinator.strategy,
+      notificationId: queuedNotification?.id ?? null,
+    },
+  });
+
+  if (queuedNotification) {
+    await appendSystemAudit(db, {
+      orgId: input.orgId,
+      action: "create",
+      resourceType: "notification",
+      resourceId: queuedNotification.id,
+      after: queuedNotification,
+      metadata: {
+        trigger: "compliance_source_monitor",
+        complianceSourceId: input.source.id,
+        escalationReason: input.reason,
+        taskId: record.id,
+        initiatedBy: input.initiatedBy ?? null,
+        assignmentStrategy: coordinator.strategy,
+      },
+    });
+    const deliveredAt = new Date();
+    const [sentNotification] = await db
+      .update(notifications)
+      .set({
+        status: "sent",
+        sentAt: deliveredAt,
+        failureReason: null,
+        updatedAt: deliveredAt,
+        version: sql`${notifications.version} + 1`,
+      })
+      .where(
+        and(
+          eq(notifications.id, queuedNotification.id),
+          eq(notifications.orgId, input.orgId),
+          eq(notifications.status, "queued"),
+          eq(notifications.version, queuedNotification.version),
+        ),
+      )
+      .returning();
+    if (!sentNotification) throw new Error("Failed to deliver compliance review notification");
+    deliveredNotification = sentNotification;
+    await appendSystemAudit(db, {
+      orgId: input.orgId,
+      action: "deliver",
+      resourceType: "notification",
+      resourceId: deliveredNotification.id,
+      before: queuedNotification,
+      after: deliveredNotification,
+      metadata: {
+        trigger: "compliance_source_monitor",
+        complianceSourceId: input.source.id,
+        escalationReason: input.reason,
+        taskId: record.id,
+        deliveryMode: "atomic_in_app",
+      },
+    });
+  }
+
+  return {
+    task: record,
+    notificationId: deliveredNotification?.id ?? null,
+    assignmentStrategy: coordinator.strategy,
+  };
+}
+
+function nextMonitorAt(now: Date, cadenceDays: number, failed = false) {
+  const days = failed ? Math.min(cadenceDays, 1) : cadenceDays;
+  return new Date(now.getTime() + Math.max(1, days) * ONE_DAY_MS);
+}
+
+async function expireOverdueComplianceReviews(
+  dependencies: WorkerDependencies,
+  orgId: string,
+  now: Date,
+) {
+  return dependencies.db.transaction(async (tx) => {
+    const overdue = await tx
+      .select()
+      .from(complianceItems)
+      .where(
+        and(
+          eq(complianceItems.orgId, orgId),
+          eq(complianceItems.reviewStatus, "reviewed"),
+          lte(complianceItems.nextReviewAt, now),
+          isNull(complianceItems.archivedAt),
+        ),
+      );
+    const expiredIds: string[] = [];
+    for (const source of overdue) {
+      const [expired] = await tx
+        .update(complianceItems)
+        .set({
+          reviewStatus: "stale",
+          status: "uncertain",
+          nextMonitorAt: now,
+          updatedAt: now,
+          version: sql`${complianceItems.version} + 1`,
+        })
+        .where(
+          and(
+            eq(complianceItems.id, source.id),
+            eq(complianceItems.orgId, orgId),
+            eq(complianceItems.reviewStatus, "reviewed"),
+            eq(complianceItems.version, source.version),
+            lte(complianceItems.nextReviewAt, now),
+          ),
+        )
+        .returning();
+      if (!expired) continue;
+      expiredIds.push(expired.id);
+      const escalation = await createComplianceReviewTask(tx, {
+        orgId,
+        source,
+        reason: "review_expired",
+        dueAt: now,
+      });
+      await appendSystemAudit(tx, {
+        orgId,
+        action: "review_expired",
+        resourceType: "compliance-item",
+        resourceId: expired.id,
+        before: {
+          reviewStatus: source.reviewStatus,
+          status: source.status,
+          nextReviewAt: source.nextReviewAt,
+        },
+        after: {
+          reviewStatus: expired.reviewStatus,
+          status: expired.status,
+          nextReviewAt: expired.nextReviewAt,
+        },
+        metadata: {
+          trigger: "schedule",
+          escalationTaskId: escalation.task.id,
+          escalationNotificationId: escalation.notificationId,
+          escalationAssigneeId: escalation.task.assigneeId,
+          assignmentStrategy: escalation.assignmentStrategy,
+        },
+      });
+    }
+    return expiredIds;
+  });
+}
+
+async function enqueueDueComplianceSources(dependencies: WorkerDependencies, orgId: string) {
+  const now = new Date();
+  const expiredReviewIds = await expireOverdueComplianceReviews(dependencies, orgId, now);
+  const batchLimit = dependencies.config.COMPLIANCE_MONITOR_SWEEP_BATCH_SIZE;
+  const dueCandidates = await dependencies.db
+    .select({ id: complianceItems.id, version: complianceItems.version })
+    .from(complianceItems)
+    .where(
+      and(
+        eq(complianceItems.orgId, orgId),
+        lte(complianceItems.nextMonitorAt, now),
+        or(
+          isNull(complianceItems.monitoringLeaseUntil),
+          lte(complianceItems.monitoringLeaseUntil, now),
+        ),
+        isNull(complianceItems.archivedAt),
+      ),
+    )
+    .orderBy(asc(complianceItems.nextMonitorAt), asc(complianceItems.id))
+    .limit(batchLimit + 1);
+  const hasMoreDue = dueCandidates.length > batchLimit;
+  const dueSources = dueCandidates.slice(0, batchLimit);
+  const queuedSourceIds: string[] = [];
+  for (const source of dueSources) {
+    const claimToken = randomUUID();
+    const leaseUntil = new Date(now.getTime() + MONITORING_LEASE_MS);
+    const [claimed] = await dependencies.db
+      .update(complianceItems)
+      .set({
+        monitoringLeaseToken: claimToken,
+        monitoringLeaseUntil: leaseUntil,
+        monitoringJobId: null,
+        updatedAt: now,
+        version: sql`${complianceItems.version} + 1`,
+      })
+      .where(
+        and(
+          eq(complianceItems.id, source.id),
+          eq(complianceItems.orgId, orgId),
+          eq(complianceItems.version, source.version),
+          lte(complianceItems.nextMonitorAt, now),
+          or(
+            isNull(complianceItems.monitoringLeaseUntil),
+            lte(complianceItems.monitoringLeaseUntil, now),
+          ),
+          isNull(complianceItems.archivedAt),
+        ),
+      )
+      .returning({ id: complianceItems.id });
+    if (!claimed) continue;
+    try {
+      const jobId = await dependencies.queue.send("compliance-source.monitor", {
+        orgId,
+        sourceId: source.id,
+        claimToken,
+      });
+      await dependencies.db
+        .update(complianceItems)
+        .set({ monitoringJobId: jobId, updatedAt: new Date() })
+        .where(
+          and(
+            eq(complianceItems.id, source.id),
+            eq(complianceItems.orgId, orgId),
+            eq(complianceItems.monitoringLeaseToken, claimToken),
+          ),
+        );
+      queuedSourceIds.push(source.id);
+    } catch (error) {
+      await dependencies.db
+        .update(complianceItems)
+        .set({
+          monitoringLeaseToken: null,
+          monitoringLeaseUntil: null,
+          monitoringJobId: null,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(complianceItems.id, source.id),
+            eq(complianceItems.orgId, orgId),
+            eq(complianceItems.monitoringLeaseToken, claimToken),
+          ),
+        );
+      await appendSystemAudit(dependencies.db, {
+        orgId,
+        action: "monitor_dispatch_fail",
+        resourceType: "compliance-item",
+        resourceId: source.id,
+        metadata: { error: safeError(error), trigger: "schedule" },
+      });
+      throw new Error(`Compliance monitoring dispatch failed: ${safeError(error)}`);
+    }
+  }
+  await appendSystemAudit(dependencies.db, {
+    orgId,
+    action: "monitor_dispatch",
+    resourceType: "compliance-source-monitor",
+    resourceId: orgId,
+    after: { queuedSourceIds },
+    metadata: {
+      trigger: "schedule",
+      dueCount: dueSources.length,
+      queuedCount: queuedSourceIds.length,
+      batchLimit,
+      hasMoreDue,
+      expiredReviewIds,
+    },
+  });
+}
+
+async function claimComplianceSource(
+  dependencies: WorkerDependencies,
+  payload: { orgId: string; sourceId: string; claimToken?: string },
+) {
+  if (payload.claimToken) {
+    const [claimed] = await dependencies.db
+      .select()
+      .from(complianceItems)
+      .where(
+        and(
+          eq(complianceItems.id, payload.sourceId),
+          eq(complianceItems.orgId, payload.orgId),
+          eq(complianceItems.monitoringLeaseToken, payload.claimToken),
+          isNull(complianceItems.archivedAt),
+        ),
+      )
+      .limit(1);
+    return claimed ? { source: claimed, claimToken: payload.claimToken } : null;
+  }
+
+  const now = new Date();
+  const claimToken = randomUUID();
+  const [claimed] = await dependencies.db
+    .update(complianceItems)
+    .set({
+      monitoringLeaseToken: claimToken,
+      monitoringLeaseUntil: new Date(now.getTime() + MONITORING_LEASE_MS),
+      monitoringJobId: null,
+      updatedAt: now,
+      version: sql`${complianceItems.version} + 1`,
+    })
+    .where(
+      and(
+        eq(complianceItems.id, payload.sourceId),
+        eq(complianceItems.orgId, payload.orgId),
+        or(
+          isNull(complianceItems.monitoringLeaseUntil),
+          lte(complianceItems.monitoringLeaseUntil, now),
+        ),
+        isNull(complianceItems.archivedAt),
+      ),
+    )
+    .returning();
+  return claimed ? { source: claimed, claimToken } : null;
+}
+
+export async function handleComplianceSourceMonitor(
+  dependencies: WorkerDependencies,
+  payload: {
+    orgId: string;
+    sourceId?: string;
+    requestedBy?: string;
+    claimToken?: string;
+  },
+) {
+  if (payload.orgId === "*") {
+    const orgRows = await dependencies.db.select({ id: organizations.id }).from(organizations);
+    for (const organization of orgRows) {
+      await enqueueDueComplianceSources(dependencies, organization.id);
+    }
+    return;
+  }
+  if (!payload.sourceId) {
+    await enqueueDueComplianceSources(dependencies, payload.orgId);
+    return;
+  }
+
+  const claim = await claimComplianceSource(dependencies, {
+    orgId: payload.orgId,
+    sourceId: payload.sourceId,
+    ...(payload.claimToken ? { claimToken: payload.claimToken } : {}),
+  });
+  if (!claim) return;
+  const { source, claimToken } = claim;
+  const reader = dependencies.officialSource ?? new OfficialSourceReader();
+  const checkedAt = new Date();
+
+  try {
+    const snapshot = await reader.fetch({
+      url: source.sourceUrl,
+      etag: source.lastEtag,
+      lastModified: source.lastModified,
+    });
+    if (snapshot.notModified && !source.contentHash) {
+      throw new Error("Official source returned not-modified without a stored content baseline");
+    }
+    const observedHash = snapshot.normalizedHash ?? source.contentHash;
+    const changed = Boolean(
+      !snapshot.notModified &&
+        source.contentHash &&
+        observedHash &&
+        source.contentHash !== observedHash,
+    );
+    const nextStatus = changed ? "changed" : "current";
+    const updated = await dependencies.db.transaction(async (tx) => {
+      const [savedSnapshot] = await tx
+        .insert(complianceSourceSnapshots)
+        .values({
+          orgId: payload.orgId,
+          sourceId: source.id,
+          requestedUrl: snapshot.requestedUrl,
+          finalUrl: snapshot.finalUrl,
+          httpStatus: snapshot.httpStatus,
+          contentType: snapshot.contentType,
+          sizeBytes: snapshot.sizeBytes,
+          etag: snapshot.etag,
+          lastModified: snapshot.lastModified,
+          rawHash: snapshot.rawHash,
+          normalizedHash: snapshot.normalizedHash,
+          previousContentHash: source.contentHash,
+          normalizedExcerpt: snapshot.normalizedExcerpt,
+          changed,
+          notModified: snapshot.notModified,
+          fetcherVersion: snapshot.fetcherVersion,
+          fetchedAt: checkedAt,
+        })
+        .returning({ id: complianceSourceSnapshots.id });
+      if (!savedSnapshot) throw new Error("Failed to persist the compliance source snapshot");
+      const [record] = await tx
+        .update(complianceItems)
+        .set({
+          contentHash: observedHash,
+          rawSnapshotHash: snapshot.rawHash ?? source.rawSnapshotHash,
+          contentHashStatus: nextStatus,
+          reviewStatus: changed ? "stale" : source.reviewStatus,
+          status: changed ? "uncertain" : source.status,
+          lastCheckedAt: checkedAt,
+          lastFetchedAt: checkedAt,
+          lastResolvedUrl: snapshot.finalUrl,
+          lastHttpStatus: snapshot.httpStatus,
+          lastEtag: snapshot.etag ?? source.lastEtag,
+          lastModified: snapshot.lastModified ?? source.lastModified,
+          monitoringFailureCount: 0,
+          lastMonitoringError: null,
+          monitoringLeaseToken: null,
+          monitoringLeaseUntil: null,
+          monitoringJobId: null,
+          nextMonitorAt: nextMonitorAt(checkedAt, source.monitoringCadenceDays),
+          updatedAt: checkedAt,
+          version: sql`${complianceItems.version} + 1`,
+        })
+        .where(
+          and(
+            eq(complianceItems.id, source.id),
+            eq(complianceItems.orgId, payload.orgId),
+            eq(complianceItems.version, source.version),
+            eq(complianceItems.monitoringLeaseToken, claimToken),
+          ),
+        )
+        .returning();
+      if (!record) throw new Error("Compliance source changed concurrently during monitoring");
+      const escalation = changed
+        ? await createComplianceReviewTask(tx, {
+            orgId: payload.orgId,
+            source,
+            reason: "content_changed",
+            dueAt: checkedAt,
+            ...(payload.requestedBy ? { initiatedBy: payload.requestedBy } : {}),
+          })
+        : null;
+      await appendSystemAudit(tx, {
+        orgId: payload.orgId,
+        action: changed ? "monitor_change_detected" : "monitor_complete",
+        resourceType: "compliance-item",
+        resourceId: source.id,
+        before: {
+          contentHash: source.contentHash,
+          contentHashStatus: source.contentHashStatus,
+          reviewStatus: source.reviewStatus,
+          status: source.status,
+          monitoringFailureCount: source.monitoringFailureCount,
+        },
+        after: {
+          contentHash: record.contentHash,
+          contentHashStatus: record.contentHashStatus,
+          reviewStatus: record.reviewStatus,
+          status: record.status,
+          monitoringFailureCount: record.monitoringFailureCount,
+          snapshotId: savedSnapshot.id,
+        },
+        metadata: {
+          initiatedBy: payload.requestedBy ?? null,
+          trigger: payload.requestedBy ? "manual" : "schedule",
+          httpStatus: snapshot.httpStatus,
+          finalHost: new URL(snapshot.finalUrl).hostname,
+          fetcherVersion: snapshot.fetcherVersion,
+          notModified: snapshot.notModified,
+          escalationTaskId: escalation?.task.id ?? null,
+          escalationNotificationId: escalation?.notificationId ?? null,
+          escalationAssigneeId: escalation?.task.assigneeId ?? null,
+          assignmentStrategy: escalation?.assignmentStrategy ?? null,
+        },
+      });
+      return record;
+    });
+    return updated;
+  } catch (error) {
+    const message = safeError(error);
+    const failureCount = source.monitoringFailureCount + 1;
+    const requiresReview = failureCount >= 3;
+    const failurePersisted = await dependencies.db.transaction(async (tx) => {
+      const [failed] = await tx
+        .update(complianceItems)
+        .set({
+          contentHashStatus: "failed",
+          lastCheckedAt: checkedAt,
+          monitoringFailureCount: failureCount,
+          lastMonitoringError: message,
+          monitoringLeaseUntil: new Date(checkedAt.getTime() + MONITORING_LEASE_MS),
+          reviewStatus: requiresReview ? "stale" : source.reviewStatus,
+          status: requiresReview ? "uncertain" : source.status,
+          nextMonitorAt: nextMonitorAt(checkedAt, source.monitoringCadenceDays, true),
+          updatedAt: checkedAt,
+          version: sql`${complianceItems.version} + 1`,
+        })
+        .where(
+          and(
+            eq(complianceItems.id, source.id),
+            eq(complianceItems.orgId, payload.orgId),
+            eq(complianceItems.version, source.version),
+            eq(complianceItems.monitoringLeaseToken, claimToken),
+          ),
+        )
+        .returning();
+      if (!failed) return false;
+      const escalation =
+        failureCount === 3
+          ? await createComplianceReviewTask(tx, {
+              orgId: payload.orgId,
+              source,
+              reason: "monitor_failed",
+              dueAt: checkedAt,
+              ...(payload.requestedBy ? { initiatedBy: payload.requestedBy } : {}),
+              error: message,
+            })
+          : null;
+      await appendSystemAudit(tx, {
+        orgId: payload.orgId,
+        action: "monitor_fail",
+        resourceType: "compliance-item",
+        resourceId: source.id,
+        before: {
+          contentHashStatus: source.contentHashStatus,
+          reviewStatus: source.reviewStatus,
+          status: source.status,
+          monitoringFailureCount: source.monitoringFailureCount,
+        },
+        after: {
+          contentHashStatus: failed.contentHashStatus,
+          reviewStatus: failed.reviewStatus,
+          status: failed.status,
+          monitoringFailureCount: failed.monitoringFailureCount,
+        },
+        metadata: {
+          error: message,
+          initiatedBy: payload.requestedBy ?? null,
+          trigger: payload.requestedBy ? "manual" : "schedule",
+          escalationTaskId: escalation?.task.id ?? null,
+          escalationNotificationId: escalation?.notificationId ?? null,
+          escalationAssigneeId: escalation?.task.assigneeId ?? null,
+          assignmentStrategy: escalation?.assignmentStrategy ?? null,
+        },
+      });
+      return true;
+    });
+    if (!failurePersisted) {
+      await dependencies.db
+        .update(complianceItems)
+        .set({
+          monitoringLeaseToken: null,
+          monitoringLeaseUntil: null,
+          monitoringJobId: null,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(complianceItems.id, source.id),
+            eq(complianceItems.orgId, payload.orgId),
+            eq(complianceItems.monitoringLeaseToken, claimToken),
+          ),
+        );
+      await appendSystemAudit(dependencies.db, {
+        orgId: payload.orgId,
+        action: "monitor_result_discarded",
+        resourceType: "compliance-item",
+        resourceId: source.id,
+        metadata: {
+          reason: "source_changed_concurrently",
+          initiatedBy: payload.requestedBy ?? null,
+        },
+      });
+      return;
+    }
+    throw new Error(`Compliance source monitoring failed: ${message}`);
+  }
 }
 
 export async function handleObligationSweep(
@@ -581,6 +1812,7 @@ export async function handleObligationSweep(
     return;
   }
   const now = new Date();
+  const startOfTodayInChina = startOfChinaCalendarDay(now);
   await dependencies.db.transaction(async (tx) => {
     const overdueObligations = await tx
       .update(obligations)
@@ -609,7 +1841,7 @@ export async function handleObligationSweep(
         and(
           eq(complianceEvents.orgId, payload.orgId),
           inArray(complianceEvents.status, ["active", "pending"]),
-          lt(complianceEvents.dueDate, now),
+          lt(complianceEvents.dueDate, startOfTodayInChina),
           isNull(complianceEvents.archivedAt),
         ),
       )
@@ -625,6 +1857,11 @@ export async function handleObligationSweep(
       },
     });
   });
+}
+
+export function startOfChinaCalendarDay(now: Date): Date {
+  const chinaCalendarDate = new Date(now.getTime() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  return new Date(`${chinaCalendarDate}T00:00:00+08:00`);
 }
 
 async function hashFile(path: string) {
@@ -664,26 +1901,99 @@ async function runDatabaseBackup(config: WorkerConfig, backupId: string) {
   return { storageKey: target, sizeBytes: fileStat.size, checksumSha256: await hashFile(target) };
 }
 
-export async function handleBackup(
+async function expireStaleBackup(
   dependencies: WorkerDependencies,
   payload: { orgId: string; backupId: string },
+  now: Date,
 ) {
-  const [backup] = await dependencies.db
+  const staleBefore = new Date(now.getTime() - BACKUP_CLAIM_LEASE_MS);
+  const [candidate] = await dependencies.db
     .select()
     .from(backups)
     .where(
       and(
         eq(backups.id, payload.backupId),
         eq(backups.orgId, payload.orgId),
-        eq(backups.status, "queued"),
+        eq(backups.status, "running"),
+        lt(backups.updatedAt, staleBefore),
+        isNull(backups.archivedAt),
       ),
     )
     .limit(1);
-  if (!backup) return;
-  await dependencies.db
+  if (!candidate) return false;
+
+  return dependencies.db.transaction(async (tx) => {
+    const [failed] = await tx
+      .update(backups)
+      .set({
+        status: "failed",
+        error: STALE_BACKUP_ERROR,
+        completedAt: now,
+        updatedAt: now,
+        version: candidate.version + 1,
+      })
+      .where(
+        and(
+          eq(backups.id, candidate.id),
+          eq(backups.orgId, candidate.orgId),
+          eq(backups.status, "running"),
+          eq(backups.version, candidate.version),
+          lt(backups.updatedAt, staleBefore),
+          isNull(backups.archivedAt),
+        ),
+      )
+      .returning();
+    if (!failed) return false;
+    await appendSystemAudit(tx, {
+      orgId: payload.orgId,
+      action: "lease_expired",
+      resourceType: "backup",
+      resourceId: candidate.id,
+      before: candidate,
+      after: failed,
+      metadata: {
+        error: STALE_BACKUP_ERROR,
+        initiatedBy: candidate.requestedBy,
+        automaticRetry: false,
+      },
+    });
+    return true;
+  });
+}
+
+export async function handleBackup(
+  dependencies: WorkerDependencies,
+  payload: { orgId: string; backupId: string },
+) {
+  const claimTime = new Date();
+  // Claim in one conditional UPDATE.  Two workers receiving the same pg-boss
+  // delivery can therefore never both run the external backup command.
+  const [backup] = await dependencies.db
     .update(backups)
-    .set({ status: "running", startedAt: new Date(), updatedAt: new Date() })
-    .where(eq(backups.id, backup.id));
+    .set({
+      status: "running",
+      startedAt: claimTime,
+      completedAt: null,
+      error: null,
+      updatedAt: claimTime,
+      version: sql`${backups.version} + 1`,
+    })
+    .where(
+      and(
+        eq(backups.id, payload.backupId),
+        eq(backups.orgId, payload.orgId),
+        eq(backups.status, "queued"),
+        isNull(backups.archivedAt),
+      ),
+    )
+    .returning();
+  if (!backup) {
+    // A duplicate delivery is a no-op while another worker is still within its
+    // lease.  Once the lease is stale, fail the row for human investigation;
+    // never restart a command that may have produced partial backup data.
+    await expireStaleBackup(dependencies, payload, claimTime);
+    return;
+  }
   try {
     let result: { storageKey: string; sizeBytes: number; checksumSha256: string };
     if (dependencies.config.BACKUP_COMMAND) {
@@ -716,10 +2026,19 @@ export async function handleBackup(
           ...result,
           completedAt: new Date(),
           updatedAt: new Date(),
-          version: backup.version + 1,
+          version: sql`${backups.version} + 1`,
         })
-        .where(eq(backups.id, backup.id))
+        .where(
+          and(
+            eq(backups.id, backup.id),
+            eq(backups.orgId, payload.orgId),
+            eq(backups.status, "running"),
+            eq(backups.version, backup.version),
+            isNull(backups.archivedAt),
+          ),
+        )
         .returning();
+      if (!completed) throw new Error("Backup claim was lost before completion");
       await appendSystemAudit(tx, {
         orgId: payload.orgId,
         action: "complete",
@@ -730,17 +2049,28 @@ export async function handleBackup(
       });
     });
   } catch (error) {
+    const message = safeError(error);
     await dependencies.db.transaction(async (tx) => {
       const [failed] = await tx
         .update(backups)
         .set({
           status: "failed",
-          error: safeError(error),
+          error: message,
           completedAt: new Date(),
           updatedAt: new Date(),
+          version: sql`${backups.version} + 1`,
         })
-        .where(eq(backups.id, backup.id))
+        .where(
+          and(
+            eq(backups.id, backup.id),
+            eq(backups.orgId, payload.orgId),
+            eq(backups.status, "running"),
+            eq(backups.version, backup.version),
+            isNull(backups.archivedAt),
+          ),
+        )
         .returning();
+      if (!failed) return;
       await appendSystemAudit(tx, {
         orgId: payload.orgId,
         action: "fail",
@@ -748,7 +2078,7 @@ export async function handleBackup(
         resourceId: backup.id,
         before: backup,
         after: failed,
-        metadata: { error: safeError(error) },
+        metadata: { error: message },
       });
     });
   }

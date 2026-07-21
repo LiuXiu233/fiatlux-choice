@@ -2,6 +2,8 @@ import type { AdvisorKey, AdvisorOutput } from "@fiatlux/contracts";
 
 import { ADVISOR_DATA_SCOPES } from "./permissions.js";
 
+export const MAX_ADVISOR_CONTEXT_BYTES = 512_000;
+
 export interface AdvisorDefinition {
   key: AdvisorKey;
   name: string;
@@ -90,55 +92,281 @@ export interface AdvisorContextCandidate {
   resourceType: string;
   resourceId: string;
   record: Record<string, unknown>;
+  complianceSourceReview?: {
+    resourceId: string;
+    version: unknown;
+    status: unknown;
+    reviewStatus: unknown;
+    contentHash: unknown;
+    metadataHash: unknown;
+    reviewOutcome: unknown;
+    reviewerName: unknown;
+    reviewerRole: unknown;
+    reviewerOrganization: unknown;
+    reviewerQualification: unknown;
+    reviewMissingInformation: unknown;
+    reviewEvidenceFileId: unknown;
+    reviewedByUserId: unknown;
+    reviewedAt: unknown;
+    reviewedSourceVersion: unknown;
+    reviewedContentHash: unknown;
+    reviewedMetadataHash: unknown;
+    nextReviewAt: unknown;
+  } | null;
 }
 
-export function filterAdvisorContext(candidates: readonly AdvisorContextCandidate[]) {
+export type AdvisorContextWithheldReason =
+  | "compliance_item_not_active_and_reviewed"
+  | "compliance_item_professional_review_not_conclusive"
+  | "compliance_item_review_expired_or_unscheduled"
+  | "compliance_event_not_reviewed"
+  | "linked_compliance_source_not_active_and_reviewed"
+  | "linked_compliance_source_not_applicable"
+  | "linked_compliance_source_professional_review_not_conclusive"
+  | "linked_compliance_source_review_expired_or_unscheduled";
+
+export interface WithheldAdvisorContext {
+  resourceType: string;
+  resourceId: string;
+  reasons: AdvisorContextWithheldReason[];
+}
+
+function hasLinkedComplianceSource(candidate: AdvisorContextCandidate) {
+  return candidate.record.sourceId !== undefined && candidate.record.sourceId !== null;
+}
+
+function linkedComplianceSourceIsActiveAndReviewed(candidate: AdvisorContextCandidate) {
+  const sourceId = candidate.record.sourceId;
+  return (
+    typeof sourceId === "string" &&
+    candidate.complianceSourceReview?.resourceId === sourceId &&
+    candidate.complianceSourceReview.status === "active" &&
+    candidate.complianceSourceReview.reviewStatus === "reviewed"
+  );
+}
+
+function hasConclusiveProfessionalReview(outcome: unknown) {
+  return outcome === "applicable" || outcome === "not_applicable";
+}
+
+function lockedHashMatches(
+  review: Record<string, unknown>,
+  currentKey: "contentHash" | "metadataHash",
+  reviewedKey: "reviewedContentHash" | "reviewedMetadataHash",
+) {
+  if (!(currentKey in review) || !(reviewedKey in review)) return false;
+  const current = review[currentKey];
+  const reviewed = review[reviewedKey];
+  return (current === null || typeof current === "string") && reviewed === current;
+}
+
+function hasProfessionalReviewProvenance(
+  review: Record<string, unknown> | null | undefined,
+  now: Date,
+) {
+  if (!review) return false;
+  const reviewedAt =
+    typeof review.reviewedAt === "string" || review.reviewedAt instanceof Date
+      ? new Date(review.reviewedAt)
+      : null;
+  return (
+    hasConclusiveProfessionalReview(review.reviewOutcome) &&
+    typeof review.reviewerName === "string" &&
+    review.reviewerName.trim().length > 0 &&
+    typeof review.reviewerRole === "string" &&
+    review.reviewerRole.trim().length > 0 &&
+    typeof review.reviewerOrganization === "string" &&
+    review.reviewerOrganization.trim().length > 0 &&
+    typeof review.reviewerQualification === "string" &&
+    review.reviewerQualification.trim().length > 0 &&
+    typeof review.reviewMissingInformation === "string" &&
+    review.reviewMissingInformation.trim().length > 0 &&
+    typeof review.reviewEvidenceFileId === "string" &&
+    review.reviewEvidenceFileId.length > 0 &&
+    typeof review.reviewedByUserId === "string" &&
+    review.reviewedByUserId.length > 0 &&
+    reviewedAt !== null &&
+    !Number.isNaN(reviewedAt.valueOf()) &&
+    reviewedAt <= now &&
+    typeof review.version === "number" &&
+    Number.isInteger(review.version) &&
+    typeof review.reviewedSourceVersion === "number" &&
+    Number.isInteger(review.reviewedSourceVersion) &&
+    review.reviewedSourceVersion > 0 &&
+    review.reviewedSourceVersion < review.version &&
+    lockedHashMatches(review, "contentHash", "reviewedContentHash") &&
+    lockedHashMatches(review, "metadataHash", "reviewedMetadataHash")
+  );
+}
+
+function reviewWindowIsCurrent(value: unknown, now: Date) {
+  if (typeof value !== "string" && !(value instanceof Date)) return false;
+  const nextReviewAt = new Date(value);
+  return !Number.isNaN(nextReviewAt.valueOf()) && nextReviewAt > now;
+}
+
+function isSensitiveContextKey(key: string) {
+  const normalized = key.toLowerCase().replace(/[^a-z0-9]/g, "");
+  return (
+    normalized.includes("password") ||
+    normalized.includes("passwd") ||
+    normalized.includes("secret") ||
+    normalized === "token" ||
+    normalized.endsWith("token") ||
+    normalized.includes("authorization") ||
+    normalized.includes("cookie") ||
+    normalized.endsWith("apikey") ||
+    normalized.endsWith("storagekey") ||
+    normalized.includes("privatekey") ||
+    normalized.includes("credential")
+  );
+}
+
+function redactSensitiveText(value: string) {
+  return value
+    .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[REDACTED_EMAIL]")
+    .replace(
+      /(^|[^\d])([1-9]\d{5}(?:18|19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])\d{3}[\dXx])(?![\dXx])/g,
+      "$1[REDACTED_CN_ID]",
+    )
+    .replace(/(^|[^\d])((?:\+?86[- ]?)?1[3-9]\d{9})(?!\d)/g, "$1[REDACTED_PHONE]")
+    .replace(/(^|[^\d])((?:\d[ -]?){15,18}\d)(?!\d)/g, "$1[REDACTED_BANK_CARD]");
+}
+
+function sanitizeAdvisorContextValue(value: unknown): unknown {
+  if (typeof value === "string") return redactSensitiveText(value);
+  if (Array.isArray(value)) return value.map(sanitizeAdvisorContextValue);
+  if (value instanceof Date) return value;
+  if (typeof value !== "object" || value === null) return value;
+
+  return Object.fromEntries(
+    Object.entries(value).flatMap(([key, nestedValue]) =>
+      isSensitiveContextKey(key) ? [] : [[key, sanitizeAdvisorContextValue(nestedValue)] as const],
+    ),
+  );
+}
+
+export function filterAdvisorContext(
+  candidates: readonly AdvisorContextCandidate[],
+  now = new Date(),
+) {
   const accepted: AdvisorContextCandidate[] = [];
-  let withheldComplianceCount = 0;
+  const withheld: WithheldAdvisorContext[] = [];
 
   for (const candidate of candidates) {
+    const reasons: AdvisorContextWithheldReason[] = [];
     if (candidate.resourceType === "compliance-items") {
       if (candidate.record.status !== "active" || candidate.record.reviewStatus !== "reviewed") {
-        withheldComplianceCount += 1;
-        continue;
+        reasons.push("compliance_item_not_active_and_reviewed");
+      } else if (!hasProfessionalReviewProvenance(candidate.record, now)) {
+        reasons.push("compliance_item_professional_review_not_conclusive");
+      } else if (!reviewWindowIsCurrent(candidate.record.nextReviewAt, now)) {
+        reasons.push("compliance_item_review_expired_or_unscheduled");
       }
     }
+
+    if (
+      candidate.resourceType === "compliance-events" &&
+      candidate.record.reviewStatus !== "reviewed"
+    ) {
+      reasons.push("compliance_event_not_reviewed");
+    }
+
+    if (
+      (candidate.resourceType === "compliance-events" ||
+        candidate.resourceType === "obligations") &&
+      hasLinkedComplianceSource(candidate)
+    ) {
+      const complianceSourceReview = candidate.complianceSourceReview;
+      if (!complianceSourceReview || !linkedComplianceSourceIsActiveAndReviewed(candidate)) {
+        reasons.push("linked_compliance_source_not_active_and_reviewed");
+      } else if (!hasProfessionalReviewProvenance(complianceSourceReview, now)) {
+        reasons.push("linked_compliance_source_professional_review_not_conclusive");
+      } else if (complianceSourceReview.reviewOutcome !== "applicable") {
+        reasons.push("linked_compliance_source_not_applicable");
+      } else if (!reviewWindowIsCurrent(complianceSourceReview.nextReviewAt, now)) {
+        reasons.push("linked_compliance_source_review_expired_or_unscheduled");
+      }
+    }
+
+    if (reasons.length > 0) {
+      withheld.push({
+        resourceType: candidate.resourceType,
+        resourceId: candidate.resourceId,
+        reasons,
+      });
+      continue;
+    }
+
     accepted.push(candidate);
   }
 
-  const modelContext: Record<string, unknown>[] = accepted.map((candidate) => ({ ...candidate }));
+  const withheldComplianceCount = withheld.length;
+  const withheldReasonCounts = withheld.reduce<
+    Partial<Record<AdvisorContextWithheldReason, number>>
+  >((counts, item) => {
+    for (const reason of item.reasons) counts[reason] = (counts[reason] ?? 0) + 1;
+    return counts;
+  }, {});
+  const modelContext: Record<string, unknown>[] = accepted.map((candidate) => ({
+    resourceType: candidate.resourceType,
+    resourceId: candidate.resourceId,
+    record: sanitizeAdvisorContextValue(candidate.record),
+  }));
   if (withheldComplianceCount > 0) {
     modelContext.push({
       resourceType: "compliance-review-gaps",
       withheldCount: withheldComplianceCount,
+      reasonCounts: withheldReasonCounts,
       instruction:
-        "Treat these records only as missing information. Their contents were withheld and must not be stated as facts.",
+        "Treat withheld records only as missing information. Their contents and identifiers were withheld and must not be stated as facts or cited as evidence.",
     });
   }
 
-  return { accepted, modelContext, withheldComplianceCount };
+  return {
+    accepted,
+    withheld,
+    modelContext,
+    withheldComplianceCount,
+    withheldReasonCounts,
+  };
+}
+
+export function advisorContextSizeBytes(context: readonly Record<string, unknown>[]) {
+  return new TextEncoder().encode(JSON.stringify(context)).byteLength;
 }
 
 export function assertAdvisorEvidenceAllowed(
   output: AdvisorOutput,
   context: readonly Record<string, unknown>[],
 ) {
-  const allowed = new Set(
+  const allowed = new Map(
     context.flatMap((item) => {
       const resourceType = item.resourceType;
       const resourceId = item.resourceId;
       return typeof resourceType === "string" && typeof resourceId === "string"
-        ? [`${resourceType}:${resourceId}`]
+        ? [[`${resourceType}:${resourceId}`, item.record] as const]
         : [];
     }),
   );
 
   for (const fact of output.facts) {
     for (const evidence of fact.evidence) {
-      if (!allowed.has(`${evidence.sourceType}:${evidence.sourceId}`)) {
+      const source = allowed.get(`${evidence.sourceType}:${evidence.sourceId}`);
+      if (source === undefined) {
         throw new Error(
           `Advisor cited evidence outside its permission-filtered context: ${evidence.sourceType}:${evidence.sourceId}`,
         );
+      }
+      if (evidence.excerpt) {
+        const normalize = (value: string) => value.normalize("NFKC").replace(/\s+/g, " ").trim();
+        const sourceText = normalize(JSON.stringify(source));
+        const excerpt = normalize(evidence.excerpt);
+        if (!excerpt || !sourceText.includes(excerpt)) {
+          throw new Error(
+            `Advisor evidence excerpt was not found in its context snapshot: ${evidence.sourceType}:${evidence.sourceId}`,
+          );
+        }
       }
     }
   }

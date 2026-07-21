@@ -1,36 +1,102 @@
 import {
   idSchema,
   listQuerySchema,
+  notificationMarkReadSchema,
   type ResourceName,
   resourceContracts,
   updateSchemaFor,
+  workflowStepSchema,
 } from "@fiatlux/contracts";
-import { assertArchivable, assertBusinessRules, DomainError } from "@fiatlux/domain";
+import { auditEvents, type Database, notifications, workflowDefinitions } from "@fiatlux/db";
+import {
+  assertArchivable,
+  assertBusinessRules,
+  DomainError,
+  getAdvisor,
+  hasPermission,
+} from "@fiatlux/domain";
+import { sanitizeIntegrationError } from "@fiatlux/integrations";
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 
 import { type AuthenticateHook, requirePermission } from "./auth.js";
-import { assertResourceReferences } from "./reference-validation.js";
+import {
+  assertNoActiveResourceDependents,
+  assertReferenceChainMutationSafe,
+  assertResourceReferences,
+} from "./reference-validation.js";
 import { ResourceRepository, requestAuditContext } from "./resource-repository.js";
 import type { AppDependencies } from "./types.js";
 
 const idParamsSchema = z.object({ id: idSchema });
-const archiveQuerySchema = z.object({ expectedVersion: z.coerce.number().int().min(1) });
+export const resourceArchiveQuerySchema = z.object({
+  expectedVersion: z.coerce.number().int().min(1),
+});
 
 const queueFailureMessage = "Background queue dispatch failed";
+const conclusiveComplianceLifecycleStatuses = new Set(["active", "superseded", "repealed"]);
+const complianceReviewSensitiveFields = new Set([
+  "title",
+  "category",
+  "issuingAuthority",
+  "sourceUrl",
+  "effectiveDate",
+  "jurisdiction",
+  "sourceTitle",
+  "sourcePublishedAt",
+  "sourceStatus",
+  "sourceMetadata",
+  "applicability",
+  "summary",
+  "contentHash",
+  "metadataHash",
+  "contentHashStatus",
+]);
 type ResourceQueueJobData =
   | { orgId: string; runId: string }
   | { orgId: string; notificationId: string };
 
+function canManageNotifications(request: FastifyRequest) {
+  return (
+    request.auth.permissions.includes("*") ||
+    request.auth.permissions.includes("notifications:manage")
+  );
+}
+
 function safeQueueError(error: unknown, fallback = queueFailureMessage) {
-  const raw = error instanceof Error ? error.message : fallback;
-  const sanitized = raw
-    .replace(/((?:password|secret|token|api[_-]?key)\s*[:=]\s*)["']?[^,\s"'&}]+/gi, "$1[REDACTED]")
-    .replace(/bearer\s+[A-Za-z0-9._~-]+/gi, "bearer [REDACTED]")
-    .replace(/[\r\n\t]+/g, " ")
-    .trim()
-    .slice(0, 500);
-  return sanitized || fallback;
+  return sanitizeIntegrationError(error, fallback, { maxLength: 500 });
+}
+
+async function assertNoLiveControlledAction(
+  executor: Pick<Database, "execute">,
+  input: {
+    orgId: string;
+    resource: "contracts" | "invoices";
+    resourceId: string;
+    operation: "update status" | "archive";
+  },
+) {
+  const targetFilter =
+    input.resource === "contracts"
+      ? sql`kind IN ('contract_sign', 'contract_terminate') AND payload ->> 'contractId' = ${input.resourceId}`
+      : sql`kind = 'invoice_red' AND payload ->> 'invoiceId' = ${input.resourceId}`;
+  const result = await executor.execute(sql`
+    SELECT id
+    FROM external_actions
+    WHERE org_id = ${input.orgId}
+      AND archived_at IS NULL
+      AND status IN ('pending_approval', 'approved', 'submitted', 'failed')
+      AND ${targetFilter}
+    LIMIT 1
+  `);
+  if (Array.from(result).length > 0) {
+    throw new DomainError(
+      "CONFLICT",
+      `Cannot ${input.operation} while a controlled external action is unresolved`,
+      409,
+    );
+  }
 }
 
 async function markQueueResourceFailed(
@@ -123,6 +189,9 @@ export function registerResourceRoutes(
           ...(query.search ? { search: query.search } : {}),
           ...(query.status ? { status: query.status } : {}),
           ...(query.category ? { category: query.category } : {}),
+          ...(resource === "notifications" && !canManageNotifications(request)
+            ? { recipientId: request.auth.userId }
+            : {}),
         });
         return {
           data: result.items,
@@ -143,11 +212,32 @@ export function registerResourceRoutes(
         schema: { tags: [resource], summary: `Create ${resource}` },
       },
       async (request, reply) => {
+        if (resource === "notifications" && !canManageNotifications(request)) {
+          throw new DomainError("FORBIDDEN", "Only notification managers can create notices", 403);
+        }
         const parsedInput = createSchema.parse(request.body) as Record<string, unknown>;
         const rawBody =
           typeof request.body === "object" && request.body !== null
             ? (request.body as Record<string, unknown>)
             : {};
+        if (resource === "financial-entries" && "externalActionId" in rawBody) {
+          throw new DomainError(
+            "APPROVAL_REQUIRED",
+            "Payment links can only be created by the controlled bank-payment workflow",
+            409,
+          );
+        }
+        if (
+          resource === "compliance-items" &&
+          (parsedInput.reviewStatus === "reviewed" ||
+            conclusiveComplianceLifecycleStatuses.has(String(parsedInput.status)))
+        ) {
+          throw new DomainError(
+            "PROFESSIONAL_REVIEW_REQUIRED",
+            "Reviewed or conclusive compliance lifecycle states must use the evidence-backed professional review action",
+            409,
+          );
+        }
         if (resource === "compliance-items" && !("status" in rawBody)) {
           parsedInput.status =
             parsedInput.reviewStatus === "reviewed" && parsedInput.lastVerifiedAt
@@ -156,17 +246,96 @@ export function registerResourceRoutes(
                 ? "uncertain"
                 : "draft";
         }
-        const input =
-          resource === "workflow-runs"
-            ? { ...parsedInput, requestedBy: request.auth.userId }
-            : parsedInput;
+        let workflowDefinitionSnapshot:
+          | { id: string; version: number; steps: z.infer<typeof workflowStepSchema>[] }
+          | undefined;
+        if (resource === "workflow-runs") {
+          const [definition] = await dependencies.db
+            .select()
+            .from(workflowDefinitions)
+            .where(
+              and(
+                eq(workflowDefinitions.id, String(parsedInput.definitionId)),
+                eq(workflowDefinitions.orgId, request.auth.orgId),
+                eq(workflowDefinitions.enabled, true),
+                isNull(workflowDefinitions.archivedAt),
+              ),
+            )
+            .limit(1);
+          if (!definition) {
+            throw new DomainError("CONFLICT", "Enabled workflow definition not found", 409);
+          }
+          const steps = z.array(workflowStepSchema).parse(definition.steps);
+          for (const step of steps) {
+            const requiredPermissions =
+              step.type === "notify"
+                ? ["notifications:create", "notifications:manage"]
+                : step.type === "create_task"
+                  ? ["tasks:create"]
+                  : step.type === "request_approval"
+                    ? ["approvals:create"]
+                    : ["advisor-runs:create", getAdvisor(step.config.advisor).requiredPermission];
+            if (
+              requiredPermissions.some(
+                (permission) => !hasPermission(request.auth.permissions, permission),
+              )
+            ) {
+              throw new DomainError(
+                "FORBIDDEN",
+                `Workflow step ${step.type} exceeds the requester's permissions`,
+                403,
+              );
+            }
+            if (step.type === "advisor_run" && dependencies.config.LLM_DRIVER === "disabled") {
+              throw new DomainError(
+                "INTEGRATION_UNAVAILABLE",
+                "AI advisors are explicitly disabled",
+                503,
+              );
+            }
+          }
+          workflowDefinitionSnapshot = {
+            id: definition.id,
+            version: definition.version,
+            steps,
+          };
+        }
+        const input = workflowDefinitionSnapshot
+          ? {
+              ...parsedInput,
+              requestedBy: request.auth.userId,
+              definitionVersion: workflowDefinitionSnapshot.version,
+              stepsSnapshot: workflowDefinitionSnapshot.steps,
+            }
+          : parsedInput;
         assertBusinessRules(resource, input);
-        await assertResourceReferences(dependencies.db, request.auth.orgId, resource, input);
         const created = await repository.create(
           resource,
           request.auth.orgId,
           input,
           requestAuditContext(request),
+          async (tx) => {
+            await assertResourceReferences(tx, request.auth.orgId, resource, input);
+            if (workflowDefinitionSnapshot) {
+              const locked = await tx.execute(sql`
+                SELECT 1 FROM workflow_definitions
+                WHERE id = ${workflowDefinitionSnapshot.id}
+                  AND org_id = ${request.auth.orgId}
+                  AND version = ${workflowDefinitionSnapshot.version}
+                  AND enabled = true
+                  AND archived_at IS NULL
+                LIMIT 1
+                FOR SHARE
+              `);
+              if (Array.from(locked).length === 0) {
+                throw new DomainError(
+                  "CONFLICT",
+                  "Workflow definition changed while the run was being created",
+                  409,
+                );
+              }
+            }
+          },
         );
 
         if (resource === "workflow-runs") {
@@ -204,7 +373,16 @@ export function registerResourceRoutes(
       },
       async (request) => {
         const { id } = idParamsSchema.parse(request.params);
-        return { data: await repository.get(resource, request.auth.orgId, id) };
+        return {
+          data: await repository.get(
+            resource,
+            request.auth.orgId,
+            id,
+            resource === "notifications" && !canManageNotifications(request)
+              ? request.auth.userId
+              : undefined,
+          ),
+        };
       },
     );
 
@@ -216,10 +394,71 @@ export function registerResourceRoutes(
       },
       async (request) => {
         const { id } = idParamsSchema.parse(request.params);
-        const { expectedVersion, ...patch } = updateSchemaFor(resource).parse(
-          request.body,
-        ) as Record<string, unknown> & { expectedVersion: number };
+        if (resource === "notifications") {
+          throw new DomainError(
+            "INVALID_TRANSITION",
+            "Notification content is immutable; use the dedicated read endpoint",
+            409,
+          );
+        }
+        const rawBody =
+          typeof request.body === "object" && request.body !== null
+            ? (request.body as Record<string, unknown>)
+            : {};
+        if (resource === "financial-entries" && "externalActionId" in rawBody) {
+          throw new DomainError(
+            "APPROVAL_REQUIRED",
+            "Payment links can only be changed by the controlled bank-payment workflow",
+            409,
+          );
+        }
+        const { expectedVersion, ...patch } = updateSchemaFor(resource).parse(rawBody) as Record<
+          string,
+          unknown
+        > & { expectedVersion: number };
         const current = await repository.get(resource, request.auth.orgId, id);
+        if (expectedVersion !== current.version) {
+          throw new DomainError("CONFLICT", "The record changed since it was loaded", 409, {
+            expectedVersion,
+            actualVersion: current.version,
+          });
+        }
+        if (resource === "compliance-items") {
+          if (
+            patch.reviewStatus === "reviewed" ||
+            conclusiveComplianceLifecycleStatuses.has(String(patch.status))
+          ) {
+            throw new DomainError(
+              "PROFESSIONAL_REVIEW_REQUIRED",
+              "Reviewed or conclusive compliance lifecycle states must use the evidence-backed professional review action",
+              409,
+            );
+          }
+          if (
+            current.reviewStatus === "reviewed" &&
+            ("nextReviewAt" in patch || "lastVerifiedAt" in patch)
+          ) {
+            throw new DomainError(
+              "PROFESSIONAL_REVIEW_REQUIRED",
+              "A reviewed source's verification dates can only change through a new professional review",
+              409,
+            );
+          }
+          if (current.reviewStatus === "reviewed" && "status" in patch) {
+            throw new DomainError(
+              "PROFESSIONAL_REVIEW_REQUIRED",
+              "A reviewed source's lifecycle status can only change through a new professional review",
+              409,
+            );
+          }
+          if (
+            current.reviewStatus === "reviewed" &&
+            Object.keys(patch).some((field) => complianceReviewSensitiveFields.has(field))
+          ) {
+            patch.reviewStatus = "stale";
+            patch.status = "uncertain";
+          }
+        }
         if (
           resource === "compliance-items" &&
           !("status" in patch) &&
@@ -235,7 +474,6 @@ export function registerResourceRoutes(
                 : "draft";
         }
         assertBusinessRules(resource, patch, current);
-        await assertResourceReferences(dependencies.db, request.auth.orgId, resource, patch);
         const updated = await repository.update(
           resource,
           request.auth.orgId,
@@ -243,6 +481,29 @@ export function registerResourceRoutes(
           patch,
           expectedVersion,
           requestAuditContext(request),
+          async (tx) => {
+            await assertResourceReferences(tx, request.auth.orgId, resource, patch, current);
+            await assertReferenceChainMutationSafe(
+              tx,
+              request.auth.orgId,
+              resource,
+              id,
+              patch,
+              current,
+            );
+            if (
+              (resource === "contracts" || resource === "invoices") &&
+              "status" in patch &&
+              patch.status !== current.status
+            ) {
+              await assertNoLiveControlledAction(tx, {
+                orgId: request.auth.orgId,
+                resource,
+                resourceId: id,
+                operation: "update status",
+              });
+            }
+          },
         );
         return { data: updated };
       },
@@ -256,8 +517,17 @@ export function registerResourceRoutes(
       },
       async (request) => {
         const { id } = idParamsSchema.parse(request.params);
-        const { expectedVersion } = archiveQuerySchema.parse(request.query);
+        if (resource === "notifications" && !canManageNotifications(request)) {
+          throw new DomainError("FORBIDDEN", "Only notification managers can archive notices", 403);
+        }
+        const { expectedVersion } = resourceArchiveQuerySchema.parse(request.query);
         const current = await repository.get(resource, request.auth.orgId, id);
+        if (expectedVersion !== current.version) {
+          throw new DomainError("CONFLICT", "The record changed since it was loaded", 409, {
+            expectedVersion,
+            actualVersion: current.version,
+          });
+        }
         assertArchivable(resource, current);
         const archived = await repository.archive(
           resource,
@@ -265,9 +535,98 @@ export function registerResourceRoutes(
           id,
           expectedVersion,
           requestAuditContext(request),
+          async (tx) => {
+            await assertNoActiveResourceDependents(tx, request.auth.orgId, resource, id);
+            if (resource === "contracts" || resource === "invoices") {
+              await assertNoLiveControlledAction(tx, {
+                orgId: request.auth.orgId,
+                resource,
+                resourceId: id,
+                operation: "archive",
+              });
+            }
+          },
         );
         return { data: archived };
       },
     );
   }
+
+  app.post(
+    "/api/v1/notifications/:id/read",
+    {
+      preHandler: [authenticate, requirePermission("notifications:read")],
+      schema: { tags: ["notifications"], summary: "Mark the current user's in-app notice read" },
+    },
+    async (request) => {
+      const { id } = idParamsSchema.parse(request.params);
+      const { expectedVersion } = notificationMarkReadSchema.parse(request.body);
+      const context = requestAuditContext(request);
+      const [result] = await dependencies.db.transaction(async (tx) => {
+        const [current] = await tx
+          .select()
+          .from(notifications)
+          .where(
+            and(
+              eq(notifications.id, id),
+              eq(notifications.orgId, request.auth.orgId),
+              eq(notifications.recipientId, request.auth.userId),
+              isNull(notifications.archivedAt),
+            ),
+          )
+          .limit(1)
+          .for("update");
+        if (!current) throw new DomainError("NOT_FOUND", "Notification not found", 404);
+        if (current.version !== expectedVersion) {
+          throw new DomainError("CONFLICT", "Notification changed concurrently", 409, {
+            expectedVersion,
+            actualVersion: current.version,
+          });
+        }
+        if (current.readAt) return [current];
+        if (current.channel !== "in_app" || !["queued", "sent"].includes(current.status)) {
+          throw new DomainError(
+            "INVALID_TRANSITION",
+            "Only queued or delivered in-app notifications can be marked read",
+            409,
+          );
+        }
+        const now = new Date();
+        const [changed] = await tx
+          .update(notifications)
+          .set({
+            status: "read",
+            readAt: now,
+            updatedAt: now,
+            version: sql`${notifications.version} + 1`,
+          })
+          .where(
+            and(
+              eq(notifications.id, current.id),
+              eq(notifications.orgId, request.auth.orgId),
+              eq(notifications.recipientId, request.auth.userId),
+              eq(notifications.version, expectedVersion),
+              inArray(notifications.status, ["queued", "sent"]),
+            ),
+          )
+          .returning();
+        if (!changed) throw new DomainError("CONFLICT", "Notification changed concurrently", 409);
+        await tx.insert(auditEvents).values({
+          orgId: context.orgId,
+          actorUserId: context.actorUserId,
+          action: "mark_read",
+          resourceType: "notification",
+          resourceId: current.id,
+          requestId: context.requestId,
+          before: current,
+          after: changed,
+          metadata: {},
+          ipAddress: context.ipAddress,
+          userAgent: context.userAgent,
+        });
+        return [changed];
+      });
+      return { data: result };
+    },
+  );
 }

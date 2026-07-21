@@ -1,0 +1,177 @@
+{
+  "schemaVersion": 1,
+  "evidenceType": "v1_platform_attestation_acceptance",
+  "generatedAt": "2026-07-20T05:00:43Z",
+  "implementation": {
+    "commit": "6e40b82914e237b0941ad7a5d5496a73d7a65190",
+    "parentCommit": "9745f7a3af313766aca633ba08f4d51617a72d03",
+    "branch": "codex/v1-acceptance-hardening",
+    "remoteBranch": "origin/codex/v1-acceptance-hardening",
+    "implementationCommitPushed": true,
+    "workingTreeCleanDuringExactShaCheck": true,
+    "changedPathCount": 16,
+    "subject": "Read-only post-candidate V1 platform evidence verification and final attestation workflow"
+  },
+  "scope": {
+    "candidateReleaseWorkflowRemainsNonProduction": true,
+    "finalAttestationRunsAfterCandidateArtifacts": true,
+    "finalAttestationIsReadOnly": true,
+    "readyManifestRequiredBeforeNetwork": true,
+    "githubWorkflowsVerifiedLive": ["ci", "security", "release"],
+    "registryArtifactsVerifiedLive": [
+      "api",
+      "postgres",
+      "minio",
+      "worker",
+      "web",
+      "gateway",
+      "backup"
+    ],
+    "githubEnvironmentName": "v1-production-approval",
+    "manifestCommitMustBeOnMain": true,
+    "commitAncestryRequired": "implementationCommit -> evidenceCommit -> manifest_commit",
+    "attestationArtifactContents": ["manifest.json", "platform-verification.json", "SHA256SUMS"]
+  },
+  "validation": {
+    "exactShaStandardCheck": {
+      "command": "pnpm check",
+      "status": "passed",
+      "commit": "6e40b82914e237b0941ad7a5d5496a73d7a65190",
+      "biomeFilesChecked": 228,
+      "shellcheck": "passed",
+      "actionlint": "passed",
+      "typescriptProjectsPassed": 7,
+      "unitTestFilesPassed": 38,
+      "unitTestsPassed": 203,
+      "workspaceProductionBuild": "passed",
+      "standardIntegrationWithoutDependencies": {
+        "objectStorageTestsSkipped": 2,
+        "apiTestsSkipped": 93,
+        "workerTestsSkipped": 29,
+        "countedAsPassed": false,
+        "reason": "No PostgreSQL or MinIO integration credentials were configured for the standard exact-SHA entrypoint; runtime integration remains bound to earlier immutable isolated evidence."
+      }
+    },
+    "releaseReadinessContracts": {
+      "command": "pnpm --filter @fiatlux/contracts exec vitest run test/v1-release-readiness.test.ts",
+      "status": "passed",
+      "testFilesPassed": 1,
+      "testsPassed": 8,
+      "newInvariant": "A passed GHCR gate requires a green release workflow plus seven distinct artifact scopes bound to evidenceCommit."
+    },
+    "platformEvidenceAdapter": {
+      "command": "pnpm --filter @fiatlux/integrations exec vitest run test/v1-release-evidence.test.ts",
+      "status": "passed",
+      "testFilesPassed": 1,
+      "testsPassed": 4,
+      "covered": [
+        "three green GitHub workflow identities and head SHAs",
+        "seven GHCR immutable digest HEAD responses",
+        "non-green GitHub run rejection",
+        "registry digest mismatch rejection",
+        "blocked manifest rejection before external calls"
+      ]
+    },
+    "workflowStaticValidation": {
+      "command": "pnpm lint:actions",
+      "status": "passed",
+      "actionlintVersion": "1.7.12",
+      "actionlintImage": "docker.io/rhysd/actionlint:1.7.12@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667",
+      "workflowFilesValidated": 4,
+      "ciAndReleaseInvokePinnedGate": true
+    },
+    "currentBlockedPlatformCli": {
+      "command": "pnpm delivery:v1:verify-platform",
+      "exitCode": 1,
+      "networkRequestsMade": 0,
+      "message": "清单尚未 ready，拒绝查询或证明外部平台证据"
+    }
+  },
+  "sourceSecurity": {
+    "gitleaks": {
+      "runtime": "gitleaks 8.28.0",
+      "currentTreeIncludingNonIgnoredUntracked": "passed",
+      "completeGitHistory": "passed",
+      "defaultAndCustomCanaries": "passed",
+      "findings": 0
+    },
+    "productionDependencyAudit": {
+      "command": "pnpm audit --prod --audit-level high --registry=https://registry.npmjs.org/",
+      "status": "passed",
+      "knownVulnerabilities": 0
+    },
+    "semgrep": {
+      "runtime": "Semgrep OSS 1.170.0",
+      "ruleCount": 10,
+      "productionTargetsScanned": 93,
+      "productionFindings": 0
+    },
+    "tokenBoundary": {
+      "workflowPermissions": ["contents:read", "actions:read", "packages:read"],
+      "tokenPersistedInArtifact": false,
+      "tokenLogged": false,
+      "registryOperations": ["GET scoped pull token", "HEAD immutable manifest digest"],
+      "mutatingRegistryOperations": 0
+    }
+  },
+  "github": {
+    "pullRequest": {
+      "number": 12,
+      "url": "https://github.com/LiuXiu233/fiatlux-choice/pull/12",
+      "draft": true,
+      "head": "codex/v1-acceptance-hardening",
+      "base": "main"
+    },
+    "ciRun": {
+      "id": 29718120626,
+      "url": "https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29718120626",
+      "headSha": "6e40b82914e237b0941ad7a5d5496a73d7a65190",
+      "status": "completed",
+      "conclusion": "failure",
+      "primaryFailedJobs": 2,
+      "primaryFailedJobsWithRunnerIdZero": 2,
+      "primaryFailedJobsWithNoSteps": 2,
+      "dependentSkippedJobs": 2
+    },
+    "securityRun": {
+      "id": 29718120610,
+      "url": "https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29718120610",
+      "headSha": "6e40b82914e237b0941ad7a5d5496a73d7a65190",
+      "status": "completed",
+      "conclusion": "failure",
+      "primaryFailedJobs": 4,
+      "primaryFailedJobsWithRunnerIdZero": 4,
+      "primaryFailedJobsWithNoSteps": 4,
+      "dependentSkippedJobs": 2
+    },
+    "platformAnnotation": "The job was not started because recent account payments have failed or your spending limit needs to be increased.",
+    "codeStepsExecutedOnGitHub": 0,
+    "blindRerunPerformed": false,
+    "mergeState": "UNSTABLE"
+  },
+  "hashesSha256": {
+    "contracts": "c59edebd9fdc575710f40e386006f9fb680d830a0ba13eb0440acf35e8e41d23",
+    "contractTests": "63b889bcad650fa1f1f0881ed36ae044903d7feeec5da9f1e87c2fb699939212",
+    "platformAdapter": "afa8fe4bc8811a3acb19084a8ef79f9e1d90cd8e4bf5050f00db27d69795dc92",
+    "platformAdapterTests": "3ceb56fc3864f603405b5ca5e15a61e880d16c131879e9f6673467197175bbd2",
+    "platformCli": "d99919f92552a1cd20b27dbded17fd520cde88426642b291ffed37d1705a5080",
+    "actionlintWrapper": "50932607fcc1fff785320108765a9a8e993b2a7228ec31c18115f91e7524b123",
+    "finalAttestationWorkflow": "e7ecb8c8265b96042f9ce8a681433ec9193144bc10a716406035a6152a12bf96",
+    "ciWorkflow": "704c6656c6bcc361b6909670579c649d15a9b55148e098674aa125bae6516253",
+    "releaseWorkflow": "64062d2ee91821f77589d9f527c7a098680ee5aca51af04fb0de783eba542218"
+  },
+  "boundaries": [
+    "The final attestation workflow was statically validated but was not dispatched because the authoritative manifest is blocked and GitHub Actions cannot start runners while account billing or spending limits remain unresolved.",
+    "The live success path is covered with deterministic mocked HTTP unit tests. No green CI, Security, release run or real GHCR digest was fabricated or claimed.",
+    "The repository names v1-production-approval, but code cannot prove that GitHub Environment required reviewers or deployment-branch restrictions are configured. Repository settings and real reviewer approval remain external gates.",
+    "The final attestation only reads GitHub and GHCR and uploads a proof artifact. It does not deploy, restore, publish content, modify permissions, create package tags, or execute any high-risk business action.",
+    "All target-intranet, managed-device, production-restore, real-adapter, professional-review, content-clearance, operational-drill, risk, defect and business approval gates remain blocked."
+  ],
+  "cleanup": {
+    "temporaryTestFilesCreated": false,
+    "rawLogsCommitted": false,
+    "credentialsCommitted": false,
+    "workingTreeCleanAfterValidation": true
+  },
+  "conclusion": "The post-candidate, read-only V1 platform attestation implementation passed exact-SHA local static, type, unit, build and source-security checks. It now fails closed before network for a blocked manifest and can verify live CI, Security, release and seven GHCR digest records after all gates are genuinely ready. GitHub runners, GHCR artifacts, protected environment settings and every target or human gate remain unverified, so this evidence does not declare V1 complete."
+}

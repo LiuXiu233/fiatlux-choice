@@ -2,8 +2,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CloudOff, RefreshCw } from "lucide-react";
 import { createContext, type ReactNode, useContext, useEffect, useState } from "react";
 import { Navigate, useLocation } from "react-router-dom";
-import { ApiError, getSession, login, logout } from "./api";
-import type { UserSession } from "./types";
+import { ApiError, getSession, login, logout, verifyMfaLogin } from "./api";
+import { buildInfo, formatBuildIdentity } from "./build-info";
+import type { LoginResult, MfaLoginChallenge, UserSession } from "./types";
 
 interface AuthContextValue {
   user: UserSession | null;
@@ -12,7 +13,10 @@ interface AuthContextValue {
   isRetryingSession: boolean;
   needsSessionRefresh: boolean;
   hasSessionConnectionError: boolean;
-  login: (email: string, password: string) => Promise<UserSession>;
+  mfaChallenge: MfaLoginChallenge | null;
+  login: (email: string, password: string) => Promise<LoginResult>;
+  verifyMfa: (code: string) => Promise<UserSession>;
+  cancelMfaChallenge: () => void;
   logout: () => Promise<void>;
   retrySession: () => Promise<void>;
   can: (permission: string) => boolean;
@@ -25,6 +29,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const initiallyOffline = typeof navigator !== "undefined" && !navigator.onLine;
   const [isOffline, setIsOffline] = useState(initiallyOffline);
   const [needsSessionRefresh, setNeedsSessionRefresh] = useState(initiallyOffline);
+  const [mfaChallenge, setMfaChallenge] = useState<MfaLoginChallenge | null>(null);
   const session = useQuery({
     queryKey: ["session"],
     queryFn: getSession,
@@ -36,6 +41,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       login(email, password),
   });
   const logoutMutation = useMutation({ mutationFn: logout });
+  const verifyMfaMutation = useMutation({ mutationFn: verifyMfaLogin });
   const unauthorized = session.error instanceof ApiError && session.error.status === 401;
   const hasSessionConnectionError = session.isError && !unauthorized;
 
@@ -61,14 +67,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isRetryingSession: session.isFetching,
     needsSessionRefresh,
     hasSessionConnectionError,
+    mfaChallenge,
     async login(email, password) {
-      const user = await loginMutation.mutateAsync({ email, password });
+      const result = await loginMutation.mutateAsync({ email, password });
+      if (result.kind === "mfa_challenge") {
+        queryClient.setQueryData(["session"], undefined);
+        setMfaChallenge(result.challenge);
+      } else {
+        setMfaChallenge(null);
+        queryClient.setQueryData(["session"], result.session);
+      }
+      setNeedsSessionRefresh(false);
+      return result;
+    },
+    async verifyMfa(code) {
+      const user = await verifyMfaMutation.mutateAsync(code);
+      setMfaChallenge(null);
       queryClient.setQueryData(["session"], user);
       setNeedsSessionRefresh(false);
       return user;
     },
+    cancelMfaChallenge() {
+      setMfaChallenge(null);
+    },
     async logout() {
       await logoutMutation.mutateAsync();
+      setMfaChallenge(null);
       queryClient.clear();
     },
     async retrySession() {
@@ -130,7 +154,10 @@ export function SessionConnectionState() {
           <CloudOff />
         </span>
         <h1>{title}</h1>
-        <p>{description}</p>
+        <p className="session-connection-description">{description}</p>
+        <small className="session-build-identity" data-testid="connection-build-identity">
+          {formatBuildIdentity(buildInfo)}
+        </small>
         <button
           type="button"
           className="button primary session-retry"
@@ -164,6 +191,14 @@ export function RequireAuth({ children }: { children: ReactNode }) {
 
   if (!auth.user) {
     return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+  }
+
+  if (auth.user.mustChangePassword && location.pathname !== "/settings") {
+    return <Navigate to="/settings" replace />;
+  }
+
+  if (auth.user.mustSetupMfa && location.pathname !== "/settings") {
+    return <Navigate to="/settings" replace />;
   }
 
   return children;

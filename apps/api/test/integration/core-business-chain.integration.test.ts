@@ -12,6 +12,7 @@ import {
   files,
   financialEntries,
   invoices,
+  lockReferenceChain,
   objectives,
   obligations,
   opportunities,
@@ -87,6 +88,7 @@ describe.skipIf(!databaseUrl)("API PostgreSQL repeatable core business chain", (
       adminEmail: `core-chain-${suffix}@example.test`,
       adminDisplayName: "Core Chain Owner",
       adminPassword: "correct-horse-battery-staple-core",
+      adminMustChangePassword: false,
     });
     const secondary = await seedDatabase(dbHandle.db, {
       organizationName: "Core Business Other Company",
@@ -94,6 +96,7 @@ describe.skipIf(!databaseUrl)("API PostgreSQL repeatable core business chain", (
       adminEmail: `core-chain-other-${suffix}@example.test`,
       adminDisplayName: "Core Chain Other Owner",
       adminPassword: "correct-horse-battery-staple-other",
+      adminMustChangePassword: false,
     });
     orgId = primary.organization.id;
     otherOrgId = secondary.organization.id;
@@ -235,11 +238,12 @@ describe.skipIf(!databaseUrl)("API PostgreSQL repeatable core business chain", (
       dueAt: "2026-08-31T18:00",
     });
 
-    // Decision has no typed task/project reference in v1. Its context preserves the UUID,
-    // but the test does not present this text-only association as a database-enforced link.
     const proposedDecision = await createResource("decisions", {
+      objectiveId: objective.id,
+      projectId: deliveryProject.id,
+      taskId: deliveryTask.id,
       title: `Pilot cohort go/no-go ${suffix}`,
-      context: `Evidence is tracked by task ${String(deliveryTask.id)} in project ${String(deliveryProject.id)}.`,
+      context: "Review the learner-validation evidence before committing to a pilot cohort.",
       status: "proposed",
     });
     const decisionResponse = await app.inject({
@@ -287,7 +291,10 @@ describe.skipIf(!databaseUrl)("API PostgreSQL repeatable core business chain", (
       headers: { cookie: ownerCookie },
       payload: { status: "active", expectedVersion: officialSource.version },
     });
-    expect(prohibitedSourceActivation.statusCode, prohibitedSourceActivation.body).toBe(400);
+    expect(prohibitedSourceActivation.statusCode, prohibitedSourceActivation.body).toBe(409);
+    expect(body(prohibitedSourceActivation).error).toMatchObject({
+      code: "PROFESSIONAL_REVIEW_REQUIRED",
+    });
 
     const obligation = await createResource("obligations", {
       title: `Review annual-report applicability ${suffix}`,
@@ -332,6 +339,17 @@ describe.skipIf(!databaseUrl)("API PostgreSQL repeatable core business chain", (
       upload: JsonObject;
     };
     const fileId = String(fileTicket.file.id);
+    const pendingEvidenceReference = await app.inject({
+      method: "POST",
+      url: "/api/v1/obligations",
+      headers: { cookie: ownerCookie },
+      payload: {
+        title: `Must reject pending evidence ${suffix}`,
+        category: "archive",
+        evidenceFileId: fileId,
+      },
+    });
+    expect(pendingEvidenceReference.statusCode, pendingEvidenceReference.body).toBe(400);
     const uploadResponse = await app.inject({
       method: "PUT",
       url: String(fileTicket.upload.uploadUrl),
@@ -350,6 +368,22 @@ describe.skipIf(!databaseUrl)("API PostgreSQL repeatable core business chain", (
     });
     expect(completeResponse.statusCode, completeResponse.body).toBe(200);
     expect(body(completeResponse).data).toMatchObject({ uploadStatus: "uploaded" });
+    const obligationEvidenceResponse = await app.inject({
+      method: "PATCH",
+      url: `/api/v1/obligations/${String(obligation.id)}`,
+      headers: { cookie: ownerCookie },
+      payload: { evidenceFileId: fileId, expectedVersion: obligation.version },
+    });
+    expect(obligationEvidenceResponse.statusCode, obligationEvidenceResponse.body).toBe(200);
+    const complianceEventEvidenceResponse = await app.inject({
+      method: "PATCH",
+      url: `/api/v1/compliance-events/${String(complianceEvent.id)}`,
+      headers: { cookie: ownerCookie },
+      payload: { evidenceFileId: fileId, expectedVersion: complianceEvent.version },
+    });
+    expect(complianceEventEvidenceResponse.statusCode, complianceEventEvidenceResponse.body).toBe(
+      200,
+    );
     const downloadResponse = await app.inject({
       method: "GET",
       url: `/api/v1/files/${fileId}/download`,
@@ -395,7 +429,7 @@ describe.skipIf(!databaseUrl)("API PostgreSQL repeatable core business chain", (
       headers: { cookie: ownerCookie },
       payload: {
         targetStatus: "confirmed",
-        evidence: { receipt: "must-not-be-accepted-without-submission" },
+        evidence: { receiptReference: "must-not-be-accepted-without-submission" },
       },
     });
     expect(shortcutContractConfirmation.statusCode, shortcutContractConfirmation.body).toBe(409);
@@ -433,20 +467,10 @@ describe.skipIf(!databaseUrl)("API PostgreSQL repeatable core business chain", (
       idempotencyKey: `bank-payment-${suffix}`,
       reason: "Bank payment requires human approval and separately captured bank evidence.",
     });
-    const linkedExpenseResponse = await app.inject({
-      method: "PATCH",
-      url: `/api/v1/financial-entries/${String(expenseEntry.id)}`,
-      headers: { cookie: ownerCookie },
-      payload: {
-        externalActionId: bankPaymentAction.id,
-        expectedVersion: expenseEntry.version,
-      },
-    });
-    expect(linkedExpenseResponse.statusCode, linkedExpenseResponse.body).toBe(200);
-    const linkedExpense = body(linkedExpenseResponse).data as JsonObject;
-    expect(linkedExpense).toMatchObject({
+    expect(await readResource("financial-entries", expenseEntry.id)).toMatchObject({
       externalActionId: bankPaymentAction.id,
       status: "draft",
+      version: Number(expenseEntry.version) + 1,
     });
     const approvedBankPaymentAction = await approveManualAction(
       bankPaymentAction,
@@ -500,7 +524,17 @@ describe.skipIf(!databaseUrl)("API PostgreSQL repeatable core business chain", (
       status: "forecast",
     });
 
+    const marketProject = await createResource("projects", {
+      objectiveId: objective.id,
+      name: `School pilot conversion ${suffix}`,
+      description: "Convert the qualified school opportunity into a controlled education pilot.",
+      status: "planned",
+      ownerId: ownerUserId,
+      startsAt: "2026-08-01T09:00",
+      dueAt: "2026-10-31T18:00",
+    });
     const product = await createResource("products", {
+      projectId: marketProject.id,
       name: `FIAT LUX Esports Education ${suffix}`,
       description: "An online course and coaching product for esports learners.",
       category: "online_education",
@@ -509,8 +543,10 @@ describe.skipIf(!databaseUrl)("API PostgreSQL repeatable core business chain", (
       ownerId: ownerUserId,
     });
     const opportunity = await createResource("opportunities", {
+      productId: product.id,
+      projectId: marketProject.id,
       title: `School pilot opportunity ${suffix}`,
-      source: `product:${String(product.id)}`,
+      source: "company-website",
       organization: "Integration Test School",
       contact: "Manual follow-up required",
       status: "qualified",
@@ -518,17 +554,6 @@ describe.skipIf(!databaseUrl)("API PostgreSQL repeatable core business chain", (
       currency: "CNY",
       nextActionAt: "2026-07-30T10:00",
       ownerId: ownerUserId,
-    });
-    // v1 has no productId/opportunityId columns on opportunities/projects. These IDs are
-    // deliberately retained as context only and are not asserted as foreign-key links.
-    const marketProject = await createResource("projects", {
-      objectiveId: objective.id,
-      name: `School pilot conversion ${suffix}`,
-      description: `Context only: product=${String(product.id)}; opportunity=${String(opportunity.id)}.`,
-      status: "planned",
-      ownerId: ownerUserId,
-      startsAt: "2026-08-01T09:00",
-      dueAt: "2026-10-31T18:00",
     });
 
     const [storedObjective, storedProject, storedTask, storedDecision] = await Promise.all([
@@ -556,7 +581,12 @@ describe.skipIf(!databaseUrl)("API PostgreSQL repeatable core business chain", (
     expect(storedObjective[0]).toMatchObject({ orgId, ownerId: ownerUserId });
     expect(storedProject[0]).toMatchObject({ orgId, objectiveId: objective.id });
     expect(storedTask[0]).toMatchObject({ orgId, projectId: deliveryProject.id });
-    expect(storedDecision[0]?.context).toContain(String(deliveryTask.id));
+    expect(storedDecision[0]).toMatchObject({
+      orgId,
+      objectiveId: objective.id,
+      projectId: deliveryProject.id,
+      taskId: deliveryTask.id,
+    });
 
     const [storedObligation, storedComplianceEvent, sourceAfterRejectedActivation] =
       await Promise.all([
@@ -576,10 +606,15 @@ describe.skipIf(!databaseUrl)("API PostgreSQL repeatable core business chain", (
           .where(eq(complianceItems.id, officialSource.id))
           .limit(1),
       ]);
-    expect(storedObligation[0]).toMatchObject({ orgId, sourceId: officialSource.id });
+    expect(storedObligation[0]).toMatchObject({
+      orgId,
+      sourceId: officialSource.id,
+      evidenceFileId: fileId,
+    });
     expect(storedComplianceEvent[0]).toMatchObject({
       orgId,
       sourceId: officialSource.id,
+      evidenceFileId: fileId,
       reviewStatus: "pending",
     });
     expect(sourceAfterRejectedActivation[0]).toMatchObject({
@@ -649,6 +684,137 @@ describe.skipIf(!databaseUrl)("API PostgreSQL repeatable core business chain", (
       });
     }
 
+    const submitAndConfirmManualAction = async (action: JsonObject, label: string) => {
+      const submission = await app.inject({
+        method: "POST",
+        url: `/api/v1/external-actions/${String(action.id)}/transition`,
+        headers: { cookie: ownerCookie },
+        payload: {
+          targetStatus: "submitted",
+          evidence: { externalReference: `manual-submission-${label}-${suffix}` },
+          note: "An operator recorded the external submission reference after approval.",
+        },
+      });
+      expect(submission.statusCode, submission.body).toBe(200);
+      expect(body(submission).data).toMatchObject({
+        status: "submitted",
+        evidence: { externalReference: `manual-submission-${label}-${suffix}` },
+      });
+
+      const confirmationWithoutReceipt = await app.inject({
+        method: "POST",
+        url: `/api/v1/external-actions/${String(action.id)}/transition`,
+        headers: { cookie: ownerCookie },
+        payload: { targetStatus: "confirmed", evidence: { note: "not a receipt" } },
+      });
+      expect(confirmationWithoutReceipt.statusCode, confirmationWithoutReceipt.body).toBe(400);
+
+      const confirmation = await app.inject({
+        method: "POST",
+        url: `/api/v1/external-actions/${String(action.id)}/transition`,
+        headers: { cookie: ownerCookie },
+        payload: {
+          targetStatus: "confirmed",
+          evidence: { receiptReference: `manual-receipt-${label}-${suffix}` },
+          note: "The operator verified and recorded external receipt evidence.",
+        },
+      });
+      expect(confirmation.statusCode, confirmation.body).toBe(200);
+      expect(body(confirmation).data).toMatchObject({
+        status: "confirmed",
+        evidence: {
+          externalReference: `manual-submission-${label}-${suffix}`,
+          receiptReference: `manual-receipt-${label}-${suffix}`,
+        },
+      });
+      return body(confirmation).data as JsonObject;
+    };
+
+    const confirmedContractSignAction = await submitAndConfirmManualAction(
+      approvedContractSignAction,
+      "contract-sign",
+    );
+    const confirmedInvoiceRedAction = await submitAndConfirmManualAction(
+      approvedInvoiceRedAction,
+      "invoice-red",
+    );
+    const confirmedBankPaymentAction = await submitAndConfirmManualAction(
+      approvedBankPaymentAction,
+      "bank-payment",
+    );
+    expect(confirmedContractSignAction).toMatchObject({
+      submittedAt: expect.any(String),
+      confirmedAt: expect.any(String),
+    });
+    expect(confirmedInvoiceRedAction).toMatchObject({
+      submittedAt: expect.any(String),
+      confirmedAt: expect.any(String),
+    });
+    expect(confirmedBankPaymentAction).toMatchObject({
+      submittedAt: expect.any(String),
+      confirmedAt: expect.any(String),
+    });
+    expect(await readResource("contracts", contract.id)).toMatchObject({ status: "active" });
+    expect(await readResource("invoices", invoice.id)).toMatchObject({ status: "red_confirmed" });
+    expect(await readResource("financial-entries", expenseEntry.id)).toMatchObject({
+      status: "posted",
+      externalActionId: bankPaymentAction.id,
+    });
+    const activeContractRecord = await readResource("contracts", contract.id);
+    const redInvoiceRecord = await readResource("invoices", invoice.id);
+    const postedIncomeRecord = await readResource("financial-entries", incomeEntry.id);
+    for (const attempt of [
+      {
+        resource: "contracts",
+        id: contract.id,
+        payload: {
+          counterparty: "Rewritten after signature",
+          expectedVersion: activeContractRecord.version,
+        },
+      },
+      {
+        resource: "contracts",
+        id: contract.id,
+        payload: {
+          status: "pending_signature",
+          expectedVersion: activeContractRecord.version,
+        },
+      },
+      {
+        resource: "invoices",
+        id: invoice.id,
+        payload: { status: "paid", expectedVersion: redInvoiceRecord.version },
+      },
+      {
+        resource: "financial-entries",
+        id: incomeEntry.id,
+        payload: { amountCents: 1, expectedVersion: postedIncomeRecord.version },
+      },
+    ]) {
+      const immutable = await app.inject({
+        method: "PATCH",
+        url: `/api/v1/${attempt.resource}/${String(attempt.id)}`,
+        headers: { cookie: ownerCookie },
+        payload: attempt.payload,
+      });
+      expect(immutable.statusCode, `${attempt.resource}: ${immutable.body}`).toBe(409);
+    }
+    const archiveReferencedEvidence = await app.inject({
+      method: "DELETE",
+      url: `/api/v1/files/${fileId}?expectedVersion=3`,
+      headers: { cookie: ownerCookie },
+    });
+    expect(archiveReferencedEvidence.statusCode, archiveReferencedEvidence.body).toBe(409);
+    expect(await readResource("external-actions", approvedBankPaymentAction.id)).toMatchObject({
+      status: "confirmed",
+      evidence: {
+        externalReference: `manual-submission-bank-payment-${suffix}`,
+        receiptReference: `manual-receipt-bank-payment-${suffix}`,
+      },
+      submittedAt: expect.any(String),
+      confirmedAt: expect.any(String),
+    });
+
     const [storedProduct, storedOpportunity, storedMarketProject] = await Promise.all([
       dbHandle.db
         .select()
@@ -666,13 +832,17 @@ describe.skipIf(!databaseUrl)("API PostgreSQL repeatable core business chain", (
         .where(eq(projects.id, String(marketProject.id)))
         .limit(1),
     ]);
-    expect(storedProduct[0]).toMatchObject({ orgId, category: "online_education" });
+    expect(storedProduct[0]).toMatchObject({
+      orgId,
+      projectId: marketProject.id,
+      category: "online_education",
+    });
     expect(storedOpportunity[0]).toMatchObject({
       orgId,
-      source: `product:${String(product.id)}`,
+      productId: product.id,
+      projectId: marketProject.id,
     });
     expect(storedMarketProject[0]).toMatchObject({ orgId, objectiveId: objective.id });
-    expect(storedMarketProject[0]?.description).toContain(String(opportunity.id));
 
     const crossOrganizationRecords: Array<[string, string]> = [
       ["objectives", String(objective.id)],
@@ -708,6 +878,138 @@ describe.skipIf(!databaseUrl)("API PostgreSQL repeatable core business chain", (
       payload: { name: "Must reject cross-organization objective", objectiveId: objective.id },
     });
     expect(crossOrganizationProject.statusCode, crossOrganizationProject.body).toBe(400);
+    const crossOrganizationReferenceCases = [
+      {
+        resource: "decisions",
+        payload: {
+          title: "Invalid objective decision",
+          context: "test",
+          objectiveId: objective.id,
+        },
+      },
+      {
+        resource: "decisions",
+        payload: {
+          title: "Invalid project decision",
+          context: "test",
+          projectId: deliveryProject.id,
+        },
+      },
+      {
+        resource: "decisions",
+        payload: { title: "Invalid task decision", context: "test", taskId: deliveryTask.id },
+      },
+      {
+        resource: "products",
+        payload: { name: "Invalid project product", projectId: marketProject.id },
+      },
+      {
+        resource: "opportunities",
+        payload: { title: "Invalid product opportunity", productId: product.id },
+      },
+      {
+        resource: "opportunities",
+        payload: { title: "Invalid project opportunity", projectId: marketProject.id },
+      },
+      {
+        resource: "obligations",
+        payload: {
+          title: "Invalid source obligation",
+          category: "archive",
+          sourceId: officialSource.id,
+        },
+      },
+      {
+        resource: "obligations",
+        payload: {
+          title: "Invalid evidence obligation",
+          category: "archive",
+          evidenceFileId: fileId,
+        },
+      },
+      {
+        resource: "compliance-events",
+        payload: {
+          title: "Invalid evidence event",
+          category: "archive",
+          dueDate: "2027-01-01",
+          evidenceFileId: fileId,
+        },
+      },
+    ];
+    for (const testCase of crossOrganizationReferenceCases) {
+      const response = await app.inject({
+        method: "POST",
+        url: `/api/v1/${testCase.resource}`,
+        headers: { cookie: otherOwnerCookie },
+        payload: testCase.payload,
+      });
+      expect(response.statusCode, `${testCase.resource}: ${response.body}`).toBe(400);
+      expect(response.body).toContain("does not belong to the active organization");
+    }
+
+    const missingReferenceId = randomUUID();
+    const missingReferenceCases = [
+      {
+        resource: "decisions",
+        payload: {
+          title: "Missing objective decision",
+          context: "test",
+          objectiveId: missingReferenceId,
+        },
+      },
+      {
+        resource: "decisions",
+        payload: {
+          title: "Missing project decision",
+          context: "test",
+          projectId: missingReferenceId,
+        },
+      },
+      {
+        resource: "decisions",
+        payload: { title: "Missing task decision", context: "test", taskId: missingReferenceId },
+      },
+      {
+        resource: "products",
+        payload: { name: "Missing project product", projectId: missingReferenceId },
+      },
+      {
+        resource: "opportunities",
+        payload: { title: "Missing product opportunity", productId: missingReferenceId },
+      },
+      {
+        resource: "opportunities",
+        payload: { title: "Missing project opportunity", projectId: missingReferenceId },
+      },
+      {
+        resource: "obligations",
+        payload: {
+          title: "Missing evidence obligation",
+          category: "archive",
+          evidenceFileId: missingReferenceId,
+        },
+      },
+      {
+        resource: "compliance-events",
+        payload: {
+          title: "Missing evidence event",
+          category: "archive",
+          dueDate: "2027-01-01",
+          evidenceFileId: missingReferenceId,
+        },
+      },
+    ];
+    for (const testCase of missingReferenceCases) {
+      const response = await app.inject({
+        method: "POST",
+        url: `/api/v1/${testCase.resource}`,
+        headers: { cookie: ownerCookie },
+        payload: testCase.payload,
+      });
+      expect(response.statusCode, `${testCase.resource}: ${response.body}`).toBe(400);
+      expect(response.body).toContain("does not belong to the active organization");
+    }
     const crossOrganizationContract = await app.inject({
       method: "POST",
       url: "/api/v1/contracts",
@@ -760,9 +1062,14 @@ describe.skipIf(!databaseUrl)("API PostgreSQL repeatable core business chain", (
       expectAudit(resourceType, resourceId, "create");
     }
     expectAudit("decisions", String(approvedDecision.id), "update");
-    expectAudit("financial-entries", String(expenseEntry.id), "update");
+    expectAudit("financial-entries", String(expenseEntry.id), "external_action_apply");
     expectAudit("file", fileId, "content_stored");
     expectAudit("file", fileId, "upload_verified");
+    const downloadIssuedAudit = expectAudit("file", fileId, "download_issued");
+    expect(downloadIssuedAudit?.metadata).toMatchObject({
+      classification: "confidential",
+      sizeBytes: contractBytes.byteLength,
+    });
     for (const action of [contractSignAction, bankPaymentAction, invoiceRedAction]) {
       expectAudit("external-action", String(action.id), "create");
       expectAudit("approval", String(action.approvalId), "approve");
@@ -804,5 +1111,388 @@ describe.skipIf(!databaseUrl)("API PostgreSQL repeatable core business chain", (
         ),
       );
     expect(otherOrgApprovals).toHaveLength(0);
+  }, 60_000);
+
+  it("rejects decision and opportunity references that do not form one active business chain", async () => {
+    const createResource = async (resource: string, payload: JsonObject) => {
+      const response = await app.inject({
+        method: "POST",
+        url: `/api/v1/${resource}`,
+        headers: { cookie: ownerCookie },
+        payload,
+      });
+      expect(response.statusCode, `${resource}: ${response.body}`).toBe(201);
+      return body(response).data as JsonObject;
+    };
+    const expectValidationFailure = (
+      response: { statusCode: number; body: string },
+      message: string,
+    ) => {
+      expect(response.statusCode, response.body).toBe(400);
+      expect(body(response).error).toMatchObject({ code: "VALIDATION_FAILED", message });
+    };
+    const expectConflict = (response: { statusCode: number; body: string }, message: string) => {
+      expect(response.statusCode, response.body).toBe(409);
+      expect(body(response).error).toMatchObject({ code: "CONFLICT", message });
+    };
+
+    const objectiveA = await createResource("objectives", {
+      title: `Chain objective A ${suffix}`,
+      status: "active",
+    });
+    const objectiveB = await createResource("objectives", {
+      title: `Chain objective B ${suffix}`,
+      status: "active",
+    });
+    const projectA = await createResource("projects", {
+      objectiveId: objectiveA.id,
+      name: `Chain project A ${suffix}`,
+      status: "active",
+    });
+    const projectB = await createResource("projects", {
+      objectiveId: objectiveB.id,
+      name: `Chain project B ${suffix}`,
+      status: "active",
+    });
+    const taskA = await createResource("tasks", {
+      projectId: projectA.id,
+      title: `Chain task A ${suffix}`,
+    });
+    const taskB = await createResource("tasks", {
+      projectId: projectB.id,
+      title: `Chain task B ${suffix}`,
+    });
+    const productA = await createResource("products", {
+      projectId: projectA.id,
+      name: `Chain product A ${suffix}`,
+    });
+    const productB = await createResource("products", {
+      projectId: projectB.id,
+      name: `Chain product B ${suffix}`,
+    });
+    const productWithoutProject = await createResource("products", {
+      name: `Unassigned chain product ${suffix}`,
+    });
+
+    const decisionPairCases = [
+      {
+        payload: {
+          objectiveId: objectiveA.id,
+          projectId: projectB.id,
+          title: `Mismatched decision objective-project ${suffix}`,
+          context: "The project belongs to another objective.",
+        },
+        message: "projectId must reference a project in objectiveId",
+      },
+      {
+        payload: {
+          projectId: projectA.id,
+          taskId: taskB.id,
+          title: `Mismatched decision project-task ${suffix}`,
+          context: "The task belongs to another project.",
+        },
+        message: "taskId must reference a task in projectId",
+      },
+      {
+        payload: {
+          objectiveId: objectiveA.id,
+          taskId: taskB.id,
+          title: `Mismatched decision objective-task ${suffix}`,
+          context: "The task's project belongs to another objective.",
+        },
+        message: "taskId must reference a task whose project belongs to objectiveId",
+      },
+    ];
+    for (const testCase of decisionPairCases) {
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/v1/decisions",
+        headers: { cookie: ownerCookie },
+        payload: testCase.payload,
+      });
+      expectValidationFailure(response, testCase.message);
+    }
+
+    const validDecision = await createResource("decisions", {
+      objectiveId: objectiveA.id,
+      projectId: projectA.id,
+      taskId: taskA.id,
+      title: `Valid chain decision ${suffix}`,
+      context: "All references belong to one chain.",
+    });
+    const invalidDecisionPatch = await app.inject({
+      method: "PATCH",
+      url: `/api/v1/decisions/${String(validDecision.id)}`,
+      headers: { cookie: ownerCookie },
+      payload: { projectId: projectB.id, expectedVersion: validDecision.version },
+    });
+    expectValidationFailure(
+      invalidDecisionPatch,
+      "objectiveId, projectId, and taskId must form one active objective-project-task chain",
+    );
+    const unchangedDecision = await app.inject({
+      method: "GET",
+      url: `/api/v1/decisions/${String(validDecision.id)}`,
+      headers: { cookie: ownerCookie },
+    });
+    expect(unchangedDecision.statusCode, unchangedDecision.body).toBe(200);
+    expect(body(unchangedDecision).data).toMatchObject({
+      objectiveId: objectiveA.id,
+      projectId: projectA.id,
+      taskId: taskA.id,
+      version: validDecision.version,
+    });
+
+    const invalidOpportunity = await app.inject({
+      method: "POST",
+      url: "/api/v1/opportunities",
+      headers: { cookie: ownerCookie },
+      payload: {
+        productId: productA.id,
+        projectId: projectB.id,
+        title: `Mismatched product-project opportunity ${suffix}`,
+      },
+    });
+    expectValidationFailure(
+      invalidOpportunity,
+      "productId and projectId must reference the same active project chain",
+    );
+    const unassignedProductOpportunity = await app.inject({
+      method: "POST",
+      url: "/api/v1/opportunities",
+      headers: { cookie: ownerCookie },
+      payload: {
+        productId: productWithoutProject.id,
+        projectId: projectA.id,
+        title: `Unassigned product with explicit project ${suffix}`,
+      },
+    });
+    expectValidationFailure(
+      unassignedProductOpportunity,
+      "productId and projectId must reference the same active project chain",
+    );
+
+    const validOpportunity = await createResource("opportunities", {
+      productId: productA.id,
+      projectId: projectA.id,
+      title: `Valid chain opportunity ${suffix}`,
+    });
+    const invalidOpportunityPatch = await app.inject({
+      method: "PATCH",
+      url: `/api/v1/opportunities/${String(validOpportunity.id)}`,
+      headers: { cookie: ownerCookie },
+      payload: { productId: productB.id, expectedVersion: validOpportunity.version },
+    });
+    expectValidationFailure(
+      invalidOpportunityPatch,
+      "productId and projectId must reference the same active project chain",
+    );
+    const unchangedOpportunity = await app.inject({
+      method: "GET",
+      url: `/api/v1/opportunities/${String(validOpportunity.id)}`,
+      headers: { cookie: ownerCookie },
+    });
+    expect(unchangedOpportunity.statusCode, unchangedOpportunity.body).toBe(200);
+    expect(body(unchangedOpportunity).data).toMatchObject({
+      productId: productA.id,
+      projectId: projectA.id,
+      version: validOpportunity.version,
+    });
+
+    const parentMutationCases = [
+      {
+        resource: "projects",
+        id: projectA.id,
+        payload: { objectiveId: objectiveB.id, expectedVersion: projectA.version },
+        message:
+          "Project objective cannot change while active decisions depend on the existing chain",
+      },
+      {
+        resource: "tasks",
+        id: taskA.id,
+        payload: { projectId: projectB.id, expectedVersion: taskA.version },
+        message: "Task project cannot change while active decisions depend on the existing chain",
+      },
+      {
+        resource: "products",
+        id: productA.id,
+        payload: { projectId: projectB.id, expectedVersion: productA.version },
+        message:
+          "Product project cannot change while active opportunities depend on the existing chain",
+      },
+    ];
+    for (const testCase of parentMutationCases) {
+      const response = await app.inject({
+        method: "PATCH",
+        url: `/api/v1/${testCase.resource}/${String(testCase.id)}`,
+        headers: { cookie: ownerCookie },
+        payload: testCase.payload,
+      });
+      expectConflict(response, testCase.message);
+    }
+
+    const archiveDependencyCases = [
+      {
+        resource: "objectives",
+        id: objectiveA.id,
+        version: objectiveA.version,
+        message: "Cannot archive objectives while active projects reference it",
+      },
+      {
+        resource: "projects",
+        id: projectA.id,
+        version: projectA.version,
+        message: "Cannot archive projects while active tasks reference it",
+      },
+      {
+        resource: "tasks",
+        id: taskA.id,
+        version: taskA.version,
+        message: "Cannot archive tasks while active decisions reference it",
+      },
+      {
+        resource: "products",
+        id: productA.id,
+        version: productA.version,
+        message: "Cannot archive products while active opportunities reference it",
+      },
+    ];
+    for (const testCase of archiveDependencyCases) {
+      const response = await app.inject({
+        method: "DELETE",
+        url: `/api/v1/${testCase.resource}/${String(testCase.id)}?expectedVersion=${String(testCase.version)}`,
+        headers: { cookie: ownerCookie },
+      });
+      expectConflict(response, testCase.message);
+    }
+
+    const clearDecisionTask = await app.inject({
+      method: "PATCH",
+      url: `/api/v1/decisions/${String(validDecision.id)}`,
+      headers: { cookie: ownerCookie },
+      payload: { taskId: null, expectedVersion: validDecision.version },
+    });
+    expect(clearDecisionTask.statusCode, clearDecisionTask.body).toBe(200);
+    expect(body(clearDecisionTask).data).toMatchObject({
+      objectiveId: objectiveA.id,
+      projectId: projectA.id,
+      taskId: null,
+      version: Number(validDecision.version) + 1,
+    });
+
+    const assignPreviouslyUnassignedProduct = await app.inject({
+      method: "PATCH",
+      url: `/api/v1/products/${String(productWithoutProject.id)}`,
+      headers: { cookie: ownerCookie },
+      payload: { projectId: projectA.id, expectedVersion: productWithoutProject.version },
+    });
+    expect(
+      assignPreviouslyUnassignedProduct.statusCode,
+      assignPreviouslyUnassignedProduct.body,
+    ).toBe(200);
+    expect(body(assignPreviouslyUnassignedProduct).data).toMatchObject({
+      projectId: projectA.id,
+      version: Number(productWithoutProject.version) + 1,
+    });
+
+    const clearProduct = await app.inject({
+      method: "PATCH",
+      url: `/api/v1/opportunities/${String(validOpportunity.id)}`,
+      headers: { cookie: ownerCookie },
+      payload: { productId: null, expectedVersion: validOpportunity.version },
+    });
+    expect(clearProduct.statusCode, clearProduct.body).toBe(200);
+    expect(body(clearProduct).data).toMatchObject({
+      productId: null,
+      projectId: projectA.id,
+      version: Number(validOpportunity.version) + 1,
+    });
+  }, 60_000);
+
+  it("serializes a decision write against a concurrent task reparent", async () => {
+    const createResource = async (resource: string, payload: JsonObject) => {
+      const response = await app.inject({
+        method: "POST",
+        url: `/api/v1/${resource}`,
+        headers: { cookie: ownerCookie },
+        payload,
+      });
+      expect(response.statusCode, `${resource}: ${response.body}`).toBe(201);
+      return body(response).data as JsonObject;
+    };
+    const objectiveA = await createResource("objectives", {
+      title: `Concurrent chain objective A ${suffix}`,
+      status: "active",
+    });
+    const objectiveB = await createResource("objectives", {
+      title: `Concurrent chain objective B ${suffix}`,
+      status: "active",
+    });
+    const projectA = await createResource("projects", {
+      objectiveId: objectiveA.id,
+      name: `Concurrent chain project A ${suffix}`,
+      status: "active",
+    });
+    const projectB = await createResource("projects", {
+      objectiveId: objectiveB.id,
+      name: `Concurrent chain project B ${suffix}`,
+      status: "active",
+    });
+    const task = await createResource("tasks", {
+      projectId: projectA.id,
+      title: `Concurrent chain task ${suffix}`,
+    });
+
+    let signalLocked: (() => void) | undefined;
+    const locked = new Promise<void>((resolve) => {
+      signalLocked = resolve;
+    });
+    let releaseLock: (() => void) | undefined;
+    const release = new Promise<void>((resolve) => {
+      releaseLock = resolve;
+    });
+    const reparent = dbHandle.db.transaction(async (tx) => {
+      await lockReferenceChain(tx, orgId);
+      signalLocked?.();
+      await release;
+      await tx
+        .update(tasks)
+        .set({ projectId: String(projectB.id), updatedAt: new Date() })
+        .where(and(eq(tasks.orgId, orgId), eq(tasks.id, String(task.id))));
+    });
+    await locked;
+
+    let requestSettled = false;
+    const decisionRequest = app
+      .inject({
+        method: "POST",
+        url: "/api/v1/decisions",
+        headers: { cookie: ownerCookie },
+        payload: {
+          objectiveId: objectiveA.id,
+          projectId: projectA.id,
+          taskId: task.id,
+          title: `Concurrent chain decision ${suffix}`,
+          context: "The request must validate after the serialized reparent commits.",
+        },
+      })
+      .then((response) => {
+        requestSettled = true;
+        return response;
+      });
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      expect(requestSettled).toBe(false);
+    } finally {
+      releaseLock?.();
+    }
+    await reparent;
+    const decisionResponse = await decisionRequest;
+    expect(decisionResponse.statusCode, decisionResponse.body).toBe(400);
+    expect(body(decisionResponse).error).toMatchObject({
+      code: "VALIDATION_FAILED",
+      message:
+        "objectiveId, projectId, and taskId must form one active objective-project-task chain",
+    });
   }, 60_000);
 });

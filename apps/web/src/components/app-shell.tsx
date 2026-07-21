@@ -2,6 +2,7 @@ import { Bell, ChevronDown, Download, LogOut, Search } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../lib/auth";
+import { buildInfo, formatBuildIdentity } from "../lib/build-info";
 import { findNavItem, mobileNav, navGroups } from "../lib/navigation";
 import { CommandPalette } from "./command-palette";
 
@@ -98,6 +99,9 @@ export function AppShell() {
           <div>
             <strong>耀光电竞</strong>
             <small>广州 · 内部工作区</small>
+            <small className="build-identity" data-testid="build-identity">
+              {formatBuildIdentity(buildInfo)}
+            </small>
           </div>
         </div>
       </aside>
@@ -148,6 +152,9 @@ export function AppShell() {
               {profileOpen ? (
                 <div className="profile-popover">
                   <p>{auth.user?.email}</p>
+                  <p className="profile-build-identity" data-testid="profile-build-identity">
+                    {formatBuildIdentity(buildInfo)}
+                  </p>
                   <button
                     type="button"
                     onClick={async () => {
@@ -170,15 +177,17 @@ export function AppShell() {
       </div>
 
       <nav className="mobile-bottom-nav" aria-label="移动导航">
-        {mobileNav.map((item) => {
-          const Icon = item.icon;
-          return (
-            <NavLink key={item.path} to={item.path} end={item.path === "/"}>
-              <Icon aria-hidden="true" />
-              <span>{item.label}</span>
-            </NavLink>
-          );
-        })}
+        {mobileNav
+          .filter((item) => !item.permission || auth.can(item.permission))
+          .map((item) => {
+            const Icon = item.icon;
+            return (
+              <NavLink key={item.path} to={item.path} end={item.path === "/"}>
+                <Icon aria-hidden="true" />
+                <span>{item.label}</span>
+              </NavLink>
+            );
+          })}
       </nav>
 
       <CommandPalette open={commandOpen} onClose={() => setCommandOpen(false)} />

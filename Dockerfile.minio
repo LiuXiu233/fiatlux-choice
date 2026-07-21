@@ -1,13 +1,19 @@
-# syntax=docker/dockerfile:1.7
-FROM --platform=$BUILDPLATFORM golang:1.26.5-alpine AS minio-build
+# syntax=docker/dockerfile:1.25.0@sha256:0adf442eae370b6087e08edc7c50b552d80ddf261576f4ebd6421006b2461f12
+FROM --platform=$BUILDPLATFORM golang:1.26.5-alpine@sha256:0178a641fbb4858c5f1b48e34bdaabe0350a330a1b1149aabd498d0699ff5fb2 AS minio-build
 
 ARG TARGETOS
 ARG TARGETARCH
-ARG MINIO_RELEASE=RELEASE.2025-10-15T17-29-55Z
+ARG MINIO_COMMIT=9e49d5e7a648f00e26f2246f4dc28e6b07f8c84a
+ARG MINIO_SOURCE_SHA256=45521908307306e925c98d629e1c17d78c8b72b6ee242b1bfb1409f7d8ee5841
+ARG MINIO_VERSION=2025-10-15T17:29:55Z
+ARG MINIO_RELEASE_TAG=RELEASE.2025-10-15T17-29-55Z
 
-RUN apk add --no-cache git
 WORKDIR /src
-RUN git clone --depth 1 --branch "$MINIO_RELEASE" https://github.com/minio/minio.git .
+RUN wget -q -T 30 -t 3 -O /tmp/minio-source.tar.gz \
+      "https://codeload.github.com/minio/minio/tar.gz/${MINIO_COMMIT}" && \
+    printf '%s  %s\n' "$MINIO_SOURCE_SHA256" /tmp/minio-source.tar.gz | sha256sum -c - && \
+    tar -xzf /tmp/minio-source.tar.gz --strip-components=1 && \
+    test -f buildscripts/gen-ldflags.go
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
     go get \
@@ -23,19 +29,32 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
     mkdir -p /out && \
-    LDFLAGS="$(go run buildscripts/gen-ldflags.go)" && \
+    LDFLAGS="-s -w \
+      -X github.com/minio/minio/cmd.Version=$MINIO_VERSION \
+      -X github.com/minio/minio/cmd.CopyrightYear=2025 \
+      -X github.com/minio/minio/cmd.ReleaseTag=$MINIO_RELEASE_TAG \
+      -X github.com/minio/minio/cmd.CommitID=$MINIO_COMMIT \
+      -X github.com/minio/minio/cmd.ShortCommitID=${MINIO_COMMIT%${MINIO_COMMIT#????????????}} \
+      -X github.com/minio/minio/cmd.GOPATH=$(go env GOPATH) \
+      -X github.com/minio/minio/cmd.GOROOT=$(go env GOROOT)" && \
     CGO_ENABLED=0 GOOS="$TARGETOS" GOARCH="$TARGETARCH" \
       go build -mod=mod -tags kqueue -trimpath -ldflags "$LDFLAGS" -o /out/minio .
 
-FROM --platform=$BUILDPLATFORM golang:1.26.5-alpine AS mc-build
+FROM --platform=$BUILDPLATFORM golang:1.26.5-alpine@sha256:0178a641fbb4858c5f1b48e34bdaabe0350a330a1b1149aabd498d0699ff5fb2 AS mc-build
 
 ARG TARGETOS
 ARG TARGETARCH
-ARG MC_RELEASE=RELEASE.2025-08-13T08-35-41Z
+ARG MC_COMMIT=7394ce0dd2a80935aded936b09fa12cbb3cb8096
+ARG MC_SOURCE_SHA256=95cd293c7119f16921a6dc515a1fb74a2227f19fd994b9c8b770a154e802ac44
+ARG MC_VERSION=2025-08-13T08:35:41Z
+ARG MC_RELEASE_TAG=RELEASE.2025-08-13T08-35-41Z
 
-RUN apk add --no-cache git
 WORKDIR /src
-RUN git clone --depth 1 --branch "$MC_RELEASE" https://github.com/minio/mc.git .
+RUN wget -q -T 30 -t 3 -O /tmp/mc-source.tar.gz \
+      "https://codeload.github.com/minio/mc/tar.gz/${MC_COMMIT}" && \
+    printf '%s  %s\n' "$MC_SOURCE_SHA256" /tmp/mc-source.tar.gz | sha256sum -c - && \
+    tar -xzf /tmp/mc-source.tar.gz --strip-components=1 && \
+    test -f buildscripts/gen-ldflags.go
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
     go get \
@@ -46,11 +65,27 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
     mkdir -p /out && \
-    LDFLAGS="$(go run buildscripts/gen-ldflags.go)" && \
+    LDFLAGS="-s -w \
+      -X github.com/minio/mc/cmd.Version=$MC_VERSION \
+      -X github.com/minio/mc/cmd.CopyrightYear=2025 \
+      -X github.com/minio/mc/cmd.ReleaseTag=$MC_RELEASE_TAG \
+      -X github.com/minio/mc/cmd.CommitID=$MC_COMMIT \
+      -X github.com/minio/mc/cmd.ShortCommitID=${MC_COMMIT%${MC_COMMIT#????????????}}" && \
     CGO_ENABLED=0 GOOS="$TARGETOS" GOARCH="$TARGETARCH" \
       go build -mod=mod -tags kqueue -trimpath -ldflags "$LDFLAGS" -o /out/mc .
 
-FROM alpine:3.23
+FROM alpine:3.23@sha256:fd791d74b68913cbb027c6546007b3f0d3bc45125f797758156952bc2d6daf40
+
+ARG MINIO_COMMIT=9e49d5e7a648f00e26f2246f4dc28e6b07f8c84a
+ARG MINIO_SOURCE_SHA256=45521908307306e925c98d629e1c17d78c8b72b6ee242b1bfb1409f7d8ee5841
+ARG MC_COMMIT=7394ce0dd2a80935aded936b09fa12cbb3cb8096
+ARG MC_SOURCE_SHA256=95cd293c7119f16921a6dc515a1fb74a2227f19fd994b9c8b770a154e802ac44
+
+LABEL org.opencontainers.image.source="https://github.com/LiuXiu233/fiatlux-choice" \
+      moe.xiu.fiatlux.minio.commit="$MINIO_COMMIT" \
+      moe.xiu.fiatlux.minio.source-sha256="$MINIO_SOURCE_SHA256" \
+      moe.xiu.fiatlux.mc.commit="$MC_COMMIT" \
+      moe.xiu.fiatlux.mc.source-sha256="$MC_SOURCE_SHA256"
 
 RUN apk upgrade --no-cache && \
     apk add --no-cache ca-certificates && \

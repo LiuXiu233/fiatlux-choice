@@ -1,0 +1,201 @@
+{
+  "schemaVersion": 1,
+  "evidenceType": "target_intranet_verifier_acceptance",
+  "generatedAt": "2026-07-20T05:30:13Z",
+  "implementation": {
+    "commit": "25204d34d865b16941d099658d33fbb561424f09",
+    "parentCommit": "a6dabaae921dff70739c38482e06e56c8b303322",
+    "branch": "codex/v1-acceptance-hardening",
+    "remoteBranch": "origin/codex/v1-acceptance-hardening",
+    "implementationCommitPushed": true,
+    "workingTreeCleanDuringExactShaCheck": true,
+    "changedPathCount": 8,
+    "subject": "Fail-closed target-office intranet deployment evidence generator"
+  },
+  "scope": {
+    "targetEnvironmentExecutionPerformed": false,
+    "targetEnvironmentSuccessReportGenerated": false,
+    "v1TargetIntranetGateChangedToPassed": false,
+    "verifierLayers": [
+      "clean deployment source bound to the full Git SHA",
+      "seven release-manifest digests bound to the Git SHA and actual running service images",
+      "HTTPS service health and runtime least privilege using the approved CA"
+    ],
+    "reportProperties": {
+      "format": "JSON",
+      "schemaVersion": 1,
+      "successOnlyAfterAllVerifierLayersPass": true,
+      "atomicSameFilesystemRename": true,
+      "reportDirectoryMode": "0700",
+      "reportFileMode": "0600",
+      "existingReportOverwriteAllowed": false,
+      "partialFileRemovedOnFailureOrExit": true,
+      "rawVerifierOutputStoredInReport": false,
+      "normalizedOutputSha256Stored": true
+    },
+    "auditedIdentityFields": [
+      "version",
+      "full Git SHA",
+      "release-manifest filename and SHA-256",
+      "base URL",
+      "CA DER SHA-256 fingerprint",
+      "OS and architecture",
+      "Docker server and Compose versions",
+      "environment ID",
+      "operator identity",
+      "asserted approval reference"
+    ],
+    "approvalIndependentlyVerified": false
+  },
+  "validation": {
+    "exactShaStandardCheck": {
+      "command": "CI=true pnpm check",
+      "status": "passed",
+      "commit": "25204d34d865b16941d099658d33fbb561424f09",
+      "biomeFilesChecked": 229,
+      "shellcheck": "passed",
+      "actionlint": "passed",
+      "actionlintVersion": "1.7.12",
+      "typescriptProjectsPassed": 7,
+      "unitTestFilesPassed": 38,
+      "unitTestsPassed": 203,
+      "workspaceProductionBuild": "passed",
+      "standardIntegrationWithoutDependencies": {
+        "objectStorageTestsSkipped": 2,
+        "apiTestsSkipped": 93,
+        "workerTestsSkipped": 29,
+        "countedAsPassed": false,
+        "reason": "No PostgreSQL or MinIO integration credentials were configured for the exact-SHA standard entrypoint; unchanged runtime and browser layers remain bound to earlier immutable isolated evidence."
+      }
+    },
+    "targetIntranetWrapperMacOs": {
+      "command": "pnpm test:target-intranet-verification",
+      "status": "passed",
+      "os": "Darwin",
+      "architecture": "arm64",
+      "bashVersion": "3.2.57",
+      "fixtureSuccessReportSha256": "997542e24244882b25a5399122c5a0e6bf5e248ecc00d42d3a714613b9018458",
+      "reportFieldAndPermissionAssertions": "passed"
+    },
+    "targetIntranetWrapperLinux": {
+      "command": "Run scripts/test-target-intranet-verification.sh in an Ubuntu 24.04 arm64 container after installing jq, OpenSSL and core utilities",
+      "status": "passed",
+      "requestedImage": "ubuntu:24.04",
+      "resolvedImageDigest": "ubuntu@sha256:4fbb8e6a8395de5a7550b33509421a2bafbc0aab6c06ba2cef9ebffbc7092d90",
+      "os": "linux",
+      "architecture": "arm64",
+      "fixtureSuccessReportSha256": "0be59acf33075eec60ffe0ff5da047dcf4744f1d081966d1870c8c38ef6c19c5",
+      "gnuStatPathVerified": true
+    },
+    "negativeCoverage": [
+      "wrong release-manifest SHA-256",
+      "source verifier failure",
+      "release-image and running-container verifier failure",
+      "HTTPS and least-privilege verifier failure",
+      "JSON generator writes incomplete output and exits non-zero",
+      "existing same-name success report collision",
+      "non-production environment",
+      "HTTP URL, URL path, port 0 and port 65536",
+      "empty and invalid DNS labels",
+      "symbolic-link report directory"
+    ],
+    "positiveBoundaryCoverage": [
+      "HTTPS DNS host with port 8443",
+      "maximum valid port 65535",
+      "complete lowercase Git SHA and release-manifest SHA-256",
+      "CA DER fingerprint and Docker/Compose version capture"
+    ],
+    "failureArtifacts": {
+      "successJsonLeftBehind": false,
+      "partialFileLeftBehind": false,
+      "existingSuccessReportModified": false
+    },
+    "workflowIntegration": {
+      "pnpmCheck": true,
+      "pullRequestCiQualityJob": true,
+      "releaseCandidateSourceVerification": true
+    }
+  },
+  "sourceSecurity": {
+    "gitleaks": {
+      "runtime": "gitleaks 8.28.0",
+      "currentTreeIncludingNonIgnoredUntracked": "passed",
+      "completeGitHistory": "passed",
+      "defaultAndCustomCanaries": "passed",
+      "findings": 0
+    },
+    "productionDependencyAudit": {
+      "command": "pnpm audit --prod --audit-level high --registry=https://registry.npmjs.org",
+      "status": "passed",
+      "knownVulnerabilities": 0
+    },
+    "semgrep": {
+      "runtime": "Semgrep OSS 1.170.0",
+      "ruleCount": 10,
+      "canaryFindings": 10,
+      "productionTargetsScanned": 93,
+      "productionFindings": 0
+    }
+  },
+  "github": {
+    "pullRequest": {
+      "number": 12,
+      "url": "https://github.com/LiuXiu233/fiatlux-choice/pull/12",
+      "draft": true,
+      "head": "codex/v1-acceptance-hardening",
+      "base": "main"
+    },
+    "ciRun": {
+      "id": 29719190354,
+      "url": "https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29719190354",
+      "headSha": "25204d34d865b16941d099658d33fbb561424f09",
+      "status": "completed",
+      "conclusion": "failure",
+      "primaryFailedJobs": 2,
+      "primaryFailedJobsWithRunnerIdZero": 2,
+      "primaryFailedJobsWithNoSteps": 2,
+      "dependentSkippedJobs": 2
+    },
+    "securityRun": {
+      "id": 29719190355,
+      "url": "https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29719190355",
+      "headSha": "25204d34d865b16941d099658d33fbb561424f09",
+      "status": "completed",
+      "conclusion": "failure",
+      "primaryFailedJobs": 4,
+      "primaryFailedJobsWithRunnerIdZero": 4,
+      "primaryFailedJobsWithNoSteps": 4,
+      "dependentSkippedJobs": 2
+    },
+    "platformAnnotation": "The job was not started because recent account payments have failed or your spending limit needs to be increased.",
+    "codeStepsExecutedOnGitHub": 0,
+    "blindRerunPerformed": false,
+    "mergeState": "UNSTABLE"
+  },
+  "hashesSha256": {
+    "targetIntranetVerifier": "0126ed5016af059c84fa5c81927dea1bcb3a841885a6c0767c2fa1868640ec24",
+    "targetIntranetVerifierTests": "8c8e3234ffd209c2b487b5cc55fa504e6afee6655e2bafa1dff59f155b19f8c4",
+    "packageManifest": "da9c0c76752ec4c8e45b27764fec7806f9420908373cf91024cb8e649e12dc49",
+    "ciWorkflow": "bc96e68266e83233b26cf1698555853894bce26d5cfd30acf6bad11714e88b17",
+    "releaseWorkflow": "ea29cb6fb5f9038deed4c430c39a920b3ddca5809e7c732b0b9907a522d47d72",
+    "deploymentVerificationGuide": "00e12c68103f53542c9b337a1194854114dd7a074f3e73b6ea1da11bc33027ca",
+    "intranetDeploymentGuide": "0f56247a0f9ad54065d3ba078abe607a2e477bfb82f02b535564aaaa448c615c",
+    "v1ReadinessGuide": "7a52cf762b1895dd9a06e5617b7cfcd14bf9292b2490843cef348e391bb63a37"
+  },
+  "boundaries": [
+    "The successful JSON files created during validation used deterministic stub verifiers and synthetic identifiers inside disposable test directories. They are test fixtures, not target-office evidence.",
+    "The implementation was not run on a FIAT LUX Guangzhou office host and does not prove real DNS, firewall rules, CA distribution, managed devices, backup media, sustained runtime observation or target credentials.",
+    "The report records an operator-supplied approval reference and permanently sets approvalIndependentlyVerified to false. A real approval must be checked through an independent company channel.",
+    "The wrapper performs read-only checks. It does not deploy, restart, migrate, restore, publish content, configure networking, invoke real adapters or execute any high-risk business action.",
+    "The authoritative V1 readiness result remains 2 of 14 gates passed and 12 blocked. No target, GitHub, GHCR, device, restore, adapter, professional-review or business-approval result was fabricated."
+  ],
+  "cleanup": {
+    "disposableTestDirectoriesRemoved": true,
+    "linuxTestContainerRemoved": true,
+    "targetEnvironmentReportCommitted": false,
+    "rawLogsCommitted": false,
+    "credentialsCommitted": false,
+    "workingTreeCleanAfterExactShaValidationBeforeEvidenceAuthoring": true
+  },
+  "conclusion": "The exact pushed implementation commit passed the repository-wide static, type, unit and production-build gate, macOS and Linux wrapper acceptance, Gitleaks, official-registry production dependency audit and Semgrep. The repository now has a fail-closed path for collecting target-office machine evidence, but no target-office execution or independent human approval occurred, so the target-intranet and overall V1 gates remain blocked."
+}

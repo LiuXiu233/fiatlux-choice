@@ -1,0 +1,49 @@
+# 电竞教育内容资产维护说明
+
+本目录是 FIAT LUX CHOICE 首批电竞教育文章的版本化单一事实源。当前内容仅面向中国境内成年人开展内部试讲和人工复核，不是招生承诺、医疗意见、法律意见或已在 `fiatlux.gg` 发布的证明。
+
+## 文件
+
+- `foundation-articles.json`：4 篇训练目标、回放复盘、团队沟通和人体工学基础内容。
+- `expansion-articles.json`：8 篇教练、赛事、失败复盘、职业路径、数字安全、风险和试点复盘扩展内容。
+- 两个内容包都独立保存正文、模板、练习、适用范围、负责人、审阅角色、权利状态、来源、AI 辅助披露和外部发布边界；Web 加载层校验每包后再合并。
+- `education-content.schema.json`：由 TypeScript 结构 Schema 生成的 JSON Schema，供编辑器和内容工具检查。
+- 可执行结构与跨记录语义校验器：`apps/web/src/lib/education-content-schema.ts`。
+- `pnpm content:education:review-bundle`：从精确候选提交生成 12 个带禁止发布标记的 WordPress 块 HTML、12 个治理审阅表、README 和哈希 manifest；操作见[内部审阅包手册](../../docs/admin/education-wordpress-review-bundle.md)。
+- V1 逐篇专业/事实/权利/公开发布放行采用[失败关闭证据流程](../../docs/admin/education-content-clearance.md)；它从候选 Git 提交生成 12 篇快照并只读核验真实 `fiatlux.gg` 页面，不提供 WordPress 写入能力。
+
+## 当前内容包
+
+1. 如何设定 4 周竞技训练目标。
+2. 一次有效回放复盘怎么做。
+3. 团队语音沟通的最小协议。
+4. 人体工学与休息自查。
+5. 从玩家到教练：技能与责任边界。
+6. 赛事报名到归档的 10 个检查点。
+7. 输掉比赛后的结构化复盘。
+8. 电竞职业路径的概率、成本与备选方案。
+9. 游戏账号、设备与社群安全。
+10. 教练如何给出可执行反馈。
+11. 小型电竞赛事风险登记册。
+12. 成人团队赛训试点复盘。
+
+十二篇均为 `review.status=pending`、`rights.status=pending_clearance`、`publication.status=not_published`。系统页面展示的是这些真实状态，不得把内容任务、审批排队、模拟适配器、模型草稿、站内可读或自动化测试通过显示成 WordPress 发布成功。该状态也不证明官网现有 7 篇模板文章已经撤回或替换。
+
+## 修改流程
+
+1. 修改文章所属的 `foundation-articles.json` 或 `expansion-articles.json`，递增受影响文章的语义化版本，并更新对应数据集和文章复核日期；新主题按边界拆入新的独立内容包，不持续放大单个文件。
+2. 来源属于法律政策或官方健康材料时，先在 `content/compliance/official-sources.json` 保存官方 URL、机关、日期、适用范围、排除项、更新时间和人工复核状态；文章引用标识必须与合规知识库一致。
+3. 执行 `pnpm content:education:schema` 更新 JSON Schema。不要手工维护生成文件。
+4. 执行 `pnpm content:education:validate`。校验器会分别检查两个内容包，再验证合并后的 12 篇内容库；相同来源标识只有完整治理元数据一致时才会去重，来源冲突、文章标识或 slug 重复、结构版本不一致都会失败关闭。
+5. 执行 Web 类型、单元、端到端和桌面/移动浏览器验证。
+6. 为已提交候选生成新的[WordPress 内部审阅包](../../docs/admin/education-wordpress-review-bundle.md)。复核意见必须回写 JSON、递增文章版本并形成新提交；不得直接修改生成物后把它当作内容事实源。
+7. 由列明的业务、教练、法务合规、隐私、健康内容及素材权利复核人逐项审阅；不能由开发人员批量伪造 `reviewed` 或 `cleared`。发布候选应使用 `pnpm delivery:education-content:template` 生成绑定精确提交的逐篇会话。
+8. 只有人工复核和权利证据完成后，获授权人员才能在 WordPress 外部系统人工发布。审阅 HTML 固定带禁止发布标记，不能原样公开。发布后回填真实 URL、发布日期、逐篇批准和独立附件，再运行 `pnpm delivery:education-content:verify`；该验证只读公开页面且不替代专业判断或批准真实性复核。
+
+## 内容边界
+
+- 不承诺段位、胜率、比赛名次、职业签约、就业、收入、升学、证书或健康结果。
+- 健康篇不是医疗建议，不写对所有人统一适用的固定休息分钟数或训练处方。
+- 默认不收集或上传完整回放、语音、聊天、实名账号或健康资料；确需处理时先完成必要性、权利、访问、保存、删除和外部模型边界复核。
+- 内部课程授权不自动包含官网公开、营销、模型训练或讲师个人账号使用。
+- 官方来源仍为 `pending` 时只能作为待人工复核的信息来源，不能支持确定的公司适用性结论。

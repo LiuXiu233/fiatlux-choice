@@ -56,6 +56,7 @@ describe.skipIf(!databaseUrl)("API business-write and audit atomicity", () => {
       adminEmail: `atomic-${suffix}@example.test`,
       adminDisplayName: "Atomic Owner",
       adminPassword: "correct-horse-battery-staple-atomic",
+      adminMustChangePassword: false,
     });
     ownerUserId = seeded.user.id;
     orgId = seeded.organization.id;
@@ -159,6 +160,12 @@ describe.skipIf(!databaseUrl)("API business-write and audit atomicity", () => {
     expect(failedPut.statusCode).toBe(500);
     let [record] = await dbHandle.db.select().from(files).where(eq(files.id, fileId)).limit(1);
     expect(record).toMatchObject({ uploadStatus: "pending", version: 1 });
+    const cannotCompleteCrashResidue = await app.inject({
+      method: "POST",
+      url: `/api/v1/files/${fileId}/complete`,
+      headers: { cookie: ownerCookie },
+    });
+    expect(cannotCompleteCrashResidue.statusCode).toBe(409);
 
     const stored = await app.inject({
       method: "PUT",
@@ -181,12 +188,33 @@ describe.skipIf(!databaseUrl)("API business-write and audit atomicity", () => {
     [record] = await dbHandle.db.select().from(files).where(eq(files.id, fileId)).limit(1);
     expect(record).toMatchObject({ uploadStatus: "stored", version: 2 });
 
-    const completed = await app.inject({
+    const completionResponses = await Promise.all(
+      Array.from({ length: 2 }, () =>
+        app.inject({
+          method: "POST",
+          url: `/api/v1/files/${fileId}/complete`,
+          headers: { cookie: ownerCookie },
+        }),
+      ),
+    );
+    expect(completionResponses.map((response) => response.statusCode).sort()).toEqual([200, 409]);
+    const duplicateComplete = await app.inject({
       method: "POST",
       url: `/api/v1/files/${fileId}/complete`,
       headers: { cookie: ownerCookie },
     });
-    expect(completed.statusCode).toBe(200);
+    expect(duplicateComplete.statusCode).toBe(409);
+    const duplicatePut = await app.inject({
+      method: "PUT",
+      url: String(metadata.upload.uploadUrl),
+      headers: {
+        cookie: ownerCookie,
+        "content-type": "application/octet-stream",
+        "content-length": String(data.byteLength),
+      },
+      payload: data,
+    });
+    expect(duplicatePut.statusCode).toBe(409);
 
     const failedArchive = await app.inject({
       method: "DELETE",
@@ -246,6 +274,7 @@ describe.skipIf(!databaseUrl)("API business-write and audit atomicity", () => {
     });
     expect(updatedProfile.statusCode).toBe(200);
     expect(body(updatedProfile).data).toMatchObject({ version: membership.version + 1 });
+    expect(body(updatedProfile).data).not.toHaveProperty("passwordHash");
     const staleProfile = await app.inject({
       method: "PATCH",
       url: `/api/v1/users/${ownerUserId}`,
@@ -283,6 +312,8 @@ describe.skipIf(!databaseUrl)("API business-write and audit atomicity", () => {
         roleId: memberRole.id,
         mode: "assign",
         reason: "Atomic role assignment rollback test",
+        expectedVersion: Number((body(updatedProfile).data as Record<string, unknown>).version),
+        idempotencyKey: `atomic-role-${suffix}`,
       },
     });
     expect(failedRoleAssignment.statusCode).toBe(500);
@@ -318,7 +349,7 @@ describe.skipIf(!databaseUrl)("API business-write and audit atomicity", () => {
       method: "POST",
       url: "/api/v1/backups",
       headers: rejectedAuditHeaders("backup-create"),
-      payload: { name: `audit-rejected-${suffix}`, scope: "full" },
+      payload: { name: `audit-rejected-${suffix}`, scope: "database" },
     });
     expect(rejectedAuditBackup.statusCode).toBe(500);
     expect(sentJobs).toHaveLength(sentBeforeRejectedAudit);
@@ -336,7 +367,8 @@ describe.skipIf(!databaseUrl)("API business-write and audit atomicity", () => {
       payload: { name: `queue-failed-${suffix}`, scope: "database" },
     });
     failQueue = false;
-    expect(failedQueueResponse.statusCode).toBe(500);
+    expect(failedQueueResponse.statusCode).toBe(503);
+    expect(body(failedQueueResponse).error).toMatchObject({ code: "INTEGRATION_UNAVAILABLE" });
     const [failedBackup] = await dbHandle.db
       .select()
       .from(backups)

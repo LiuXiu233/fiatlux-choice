@@ -7,48 +7,69 @@ x-json-logging: &json-logging
     max-file: "5"
     compress: "true"
 
-x-app-environment: &app-environment
+x-runtime-database-environment: &runtime-database-environment
+  DATABASE_URL: postgresql://fiatlux_runtime:${POSTGRES_RUNTIME_PASSWORD:-fiatlux-dev-runtime-password}@postgres:5432/${POSTGRES_DB:-fiatlux_choice}
+
+x-migration-database-environment: &migration-database-environment
+  DATABASE_URL: postgresql://fiatlux_migrator:${POSTGRES_MIGRATION_PASSWORD:-fiatlux-dev-migration-password}@postgres:5432/${POSTGRES_DB:-fiatlux_choice}
+
+x-api-environment: &api-environment
   NODE_ENV: production
   API_HOST: 0.0.0.0
   API_PORT: "3000"
-  APP_ORIGIN: ${APP_ORIGIN:-http://localhost:8080}
-  PUBLIC_APP_URL: ${PUBLIC_APP_URL:-http://localhost:8080}
   WEB_ORIGIN: ${APP_ORIGIN:-http://localhost:8080}
-  DATABASE_URL: postgresql://${POSTGRES_USER:-fiatlux}:${POSTGRES_PASSWORD:-fiatlux-dev-db-password}@postgres:5432/${POSTGRES_DB:-fiatlux_choice}
-  SESSION_SECRET: ${SESSION_SECRET:-development-only-session-secret-change-me}
-  SESSION_TTL_HOURS: ${SESSION_TTL_HOURS:-12}
+  <<: *runtime-database-environment
+  DATABASE_POOL_SIZE: ${DATABASE_POOL_SIZE:-5}
+  DATABASE_CONNECT_TIMEOUT_SECONDS: ${DATABASE_CONNECT_TIMEOUT_SECONDS:-10}
+  READINESS_TIMEOUT_MS: ${READINESS_TIMEOUT_MS:-3000}
   JWT_SECRET: ${SESSION_SECRET:-development-only-session-secret-change-me}
   JWT_TTL_SECONDS: ${JWT_TTL_SECONDS:-43200}
   COOKIE_SECURE: ${COOKIE_SECURE:-false}
-  INITIAL_ADMIN_EMAIL: ${INITIAL_ADMIN_EMAIL:-admin@fiatlux.local}
-  INITIAL_ADMIN_PASSWORD: ${INITIAL_ADMIN_PASSWORD:-development-only-admin-password}
-  BOOTSTRAP_ORG_NAME: ${BOOTSTRAP_ORG_NAME:-FIAT LUX}
-  BOOTSTRAP_ORG_SLUG: ${BOOTSTRAP_ORG_SLUG:-fiat-lux}
-  BOOTSTRAP_ADMIN_EMAIL: ${INITIAL_ADMIN_EMAIL:-admin@fiatlux.local}
-  BOOTSTRAP_ADMIN_NAME: ${BOOTSTRAP_ADMIN_NAME:-Administrator}
-  BOOTSTRAP_ADMIN_PASSWORD: ${INITIAL_ADMIN_PASSWORD:-development-only-admin-password}
-  COMPLIANCE_SOURCES_REQUIRED: ${COMPLIANCE_SOURCES_REQUIRED:-true}
-  STORAGE_DRIVER: s3
+  MFA_ENCRYPTION_KEY: ${MFA_ENCRYPTION_KEY:-ZGV2ZWxvcG1lbnQtb25seS1tZmEtcGxhY2Vob2xkZXI}
+  MFA_ENCRYPTION_KEY_ID: ${MFA_ENCRYPTION_KEY_ID:-development-v1}
+  MFA_REQUIRED_ROLES: ${MFA_REQUIRED_ROLES:-}
+  MFA_CHALLENGE_TTL_SECONDS: ${MFA_CHALLENGE_TTL_SECONDS:-180}
+  MFA_SETUP_TTL_SECONDS: ${MFA_SETUP_TTL_SECONDS:-900}
   S3_ENDPOINT: http://minio:9000
   S3_REGION: ${S3_REGION:-cn-south-1}
   S3_BUCKET: ${S3_BUCKET:-fiatlux-choice}
-  S3_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-fiatlux}
-  S3_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-fiatlux-dev-minio-password}
-  S3_FORCE_PATH_STYLE: "true"
+  S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-fiatlux-app}
+  S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-fiatlux-dev-app-password}
+  LLM_DRIVER: ${LLM_DRIVER:-mock}
+  LLM_BASE_URL: ${LLM_BASE_URL:-}
+  LLM_PROVIDER_ID: ${LLM_PROVIDER_ID:-openai-compatible}
+  LLM_MODEL: ${LLM_MODEL:-}
+  LLM_MAX_OUTPUT_TOKENS: ${LLM_MAX_OUTPUT_TOKENS:-2048}
+  GITHUB_INTEGRATION_MODE: ${GITHUB_INTEGRATION_MODE:-manual}
+  TRUST_PROXY: "true"
+
+x-worker-environment: &worker-environment
+  NODE_ENV: production
+  <<: *runtime-database-environment
+  DATABASE_POOL_SIZE: ${DATABASE_POOL_SIZE:-5}
+  DATABASE_CONNECT_TIMEOUT_SECONDS: ${DATABASE_CONNECT_TIMEOUT_SECONDS:-10}
+  COMPLIANCE_MONITOR_SWEEP_BATCH_SIZE: ${COMPLIANCE_MONITOR_SWEEP_BATCH_SIZE:-12}
   LLM_DRIVER: ${LLM_DRIVER:-mock}
   LLM_BASE_URL: ${LLM_BASE_URL:-}
   LLM_API_KEY: ${LLM_API_KEY:-}
+  LLM_PROVIDER_ID: ${LLM_PROVIDER_ID:-openai-compatible}
   LLM_MODEL: ${LLM_MODEL:-}
+  LLM_MAX_OUTPUT_TOKENS: ${LLM_MAX_OUTPUT_TOKENS:-2048}
   GITHUB_INTEGRATION_MODE: ${GITHUB_INTEGRATION_MODE:-manual}
   GITHUB_TOKEN: ${GITHUB_TOKEN:-}
-  LOG_LEVEL: ${LOG_LEVEL:-info}
-  TRUST_PROXY: "true"
+  GITHUB_PROBE_REPOSITORY: ${GITHUB_PROBE_REPOSITORY:-}
 
 x-api-image: &api-image
   image: ${IMAGE_PREFIX:-ghcr.io/liuxiu233/fiatlux-choice}-api:${APP_IMAGE_TAG:-local}
   build:
     context: .
     dockerfile: Dockerfile.api
+
+x-postgres-image: &postgres-image
+  image: ${IMAGE_PREFIX:-ghcr.io/liuxiu233/fiatlux-choice}-postgres:${APP_IMAGE_TAG:-local}
+  build:
+    context: .
+    dockerfile: Dockerfile.postgres
 
 x-hardened-app: &hardened-app
   init: true
@@ -64,11 +85,11 @@ x-hardened-app: &hardened-app
 
 services:
   postgres:
-    image: postgres:17.5-alpine
+    <<: *postgres-image
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-fiatlux_choice}
-      POSTGRES_USER: ${POSTGRES_USER:-fiatlux}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fiatlux-dev-db-password}
+      POSTGRES_USER: ${POSTGRES_BOOTSTRAP_USER:-fiatlux_bootstrap}
+      POSTGRES_PASSWORD: ${POSTGRES_BOOTSTRAP_PASSWORD:-fiatlux-dev-bootstrap-password}
       POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256 --auth-local=scram-sha-256
     volumes:
       - postgres-data:/var/lib/postgresql/data
@@ -82,15 +103,10 @@ services:
       start_period: 20s
     restart: unless-stopped
     shm_size: 256mb
+    user: postgres
     read_only: true
     cap_drop:
       - ALL
-    cap_add:
-      - CHOWN
-      - DAC_OVERRIDE
-      - FOWNER
-      - SETGID
-      - SETUID
     security_opt:
       - no-new-privileges:true
     tmpfs:
@@ -130,17 +146,21 @@ services:
 
   minio-bootstrap:
     image: ${IMAGE_PREFIX:-ghcr.io/liuxiu233/fiatlux-choice}-minio:${APP_IMAGE_TAG:-local}
-    entrypoint: ["/bin/sh", "-ec"]
-    command:
-      - |
-        mc alias set local http://minio:9000 "$${MINIO_ROOT_USER}" "$${MINIO_ROOT_PASSWORD}" --api S3v4 >/dev/null
-        mc mb --ignore-existing "local/$${S3_BUCKET}"
-        mc anonymous set none "local/$${S3_BUCKET}"
+    entrypoint: ["/usr/local/bin/bootstrap-minio"]
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-fiatlux}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-fiatlux-dev-minio-password}
       S3_BUCKET: ${S3_BUCKET:-fiatlux-choice}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-fiatlux-app}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-fiatlux-dev-app-password}
+      S3_BACKUP_ACCESS_KEY_ID: ${S3_BACKUP_ACCESS_KEY_ID:-fiatlux-backup}
+      S3_BACKUP_SECRET_ACCESS_KEY: ${S3_BACKUP_SECRET_ACCESS_KEY:-fiatlux-dev-backup-password}
+      S3_RESTORE_ACCESS_KEY_ID: ${S3_RESTORE_ACCESS_KEY_ID:-fiatlux-restore}
+      S3_RESTORE_SECRET_ACCESS_KEY: ${S3_RESTORE_SECRET_ACCESS_KEY:-fiatlux-dev-restore-password}
       MC_CONFIG_DIR: /tmp/.mc
+    volumes:
+      - ./infra/minio/bootstrap.sh:/usr/local/bin/bootstrap-minio:ro
+      - ./infra/minio:/policies:ro
     depends_on:
       minio:
         condition: service_healthy
@@ -156,10 +176,44 @@ services:
       - /tmp:rw,noexec,nosuid,nodev,size=32m
     logging: *json-logging
 
+  db-bootstrap:
+    <<: *postgres-image
+    profiles:
+      - operations
+    entrypoint: ["/usr/local/bin/bootstrap-roles"]
+    environment:
+      PGHOST: postgres
+      PGPORT: "5432"
+      POSTGRES_DB: ${POSTGRES_DB:-fiatlux_choice}
+      POSTGRES_BOOTSTRAP_USER: ${POSTGRES_BOOTSTRAP_USER:-fiatlux_bootstrap}
+      POSTGRES_BOOTSTRAP_CURRENT_PASSWORD: ${POSTGRES_BOOTSTRAP_CURRENT_PASSWORD:-}
+      POSTGRES_BOOTSTRAP_PASSWORD: ${POSTGRES_BOOTSTRAP_PASSWORD:-fiatlux-dev-bootstrap-password}
+      POSTGRES_MIGRATION_PASSWORD: ${POSTGRES_MIGRATION_PASSWORD:-fiatlux-dev-migration-password}
+      POSTGRES_RUNTIME_PASSWORD: ${POSTGRES_RUNTIME_PASSWORD:-fiatlux-dev-runtime-password}
+      POSTGRES_BACKUP_PASSWORD: ${POSTGRES_BACKUP_PASSWORD:-fiatlux-dev-backup-password}
+      POSTGRES_RESTORE_PASSWORD: ${POSTGRES_RESTORE_PASSWORD:-fiatlux-dev-restore-password}
+    volumes:
+      - ./infra/postgres/bootstrap-roles.sh:/usr/local/bin/bootstrap-roles:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - backend
+    user: postgres
+    restart: "no"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=16m
+    logging: *json-logging
+
   migrate:
     <<: [*api-image, *hardened-app]
     command: ["node", "packages/db/dist/migrate.js"]
-    environment: *app-environment
+    environment: *migration-database-environment
     depends_on:
       postgres:
         condition: service_healthy
@@ -167,13 +221,73 @@ services:
       - backend
     restart: "no"
 
+  queue-migrate:
+    <<: [*api-image, *hardened-app]
+    command: ["node", "packages/integrations/dist/queue-migrate.js"]
+    environment: *migration-database-environment
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    networks:
+      - backend
+    restart: "no"
+
+  database-permissions:
+    <<: *postgres-image
+    entrypoint: ["/usr/local/bin/apply-runtime-grants"]
+    environment:
+      PGHOST: postgres
+      PGPORT: "5432"
+      PGDATABASE: ${POSTGRES_DB:-fiatlux_choice}
+      PGUSER: fiatlux_migrator
+      PGPASSWORD: ${POSTGRES_MIGRATION_PASSWORD:-fiatlux-dev-migration-password}
+    volumes:
+      - ./infra/postgres/apply-runtime-grants.sh:/usr/local/bin/apply-runtime-grants:ro
+    depends_on:
+      queue-migrate:
+        condition: service_completed_successfully
+    networks:
+      - backend
+    user: postgres
+    restart: "no"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=16m
+    logging: *json-logging
+
+  seed:
+    <<: [*api-image, *hardened-app]
+    profiles:
+      - operations
+    command: ["node", "packages/db/dist/seed-cli.js"]
+    environment:
+      DATABASE_URL: postgresql://fiatlux_runtime:${POSTGRES_RUNTIME_PASSWORD:-fiatlux-dev-runtime-password}@postgres:5432/${POSTGRES_DB:-fiatlux_choice}
+      SEED_MODE: ${SEED_MODE:-}
+      BOOTSTRAP_ORG_NAME: ${BOOTSTRAP_ORG_NAME:-}
+      BOOTSTRAP_ORG_SLUG: ${BOOTSTRAP_ORG_SLUG:-fiat-lux}
+      BOOTSTRAP_ADMIN_EMAIL: ${INITIAL_ADMIN_EMAIL:-}
+      BOOTSTRAP_ADMIN_NAME: ${BOOTSTRAP_ADMIN_NAME:-}
+      BOOTSTRAP_ADMIN_PASSWORD: ${INITIAL_ADMIN_PASSWORD:-}
+      COMPLIANCE_SOURCES_REQUIRED: ${COMPLIANCE_SOURCES_REQUIRED:-true}
+      COMPLIANCE_SOURCES_FILE: ${COMPLIANCE_SOURCES_FILE:-}
+    depends_on:
+      database-permissions:
+        condition: service_completed_successfully
+    networks:
+      - backend
+    restart: "no"
+
   api:
     <<: [*api-image, *hardened-app]
-    environment: *app-environment
+    environment: *api-environment
     expose:
       - "3000"
     depends_on:
-      migrate:
+      database-permissions:
         condition: service_completed_successfully
       minio-bootstrap:
         condition: service_completed_successfully
@@ -185,7 +299,7 @@ services:
         - CMD
         - node
         - -e
-        - fetch('http://127.0.0.1:3000/health/live').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))
+        - fetch('http://127.0.0.1:3000/health/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))
       interval: 10s
       timeout: 5s
       retries: 12
@@ -199,26 +313,37 @@ services:
       dockerfile: Dockerfile.worker
     <<: *hardened-app
     environment:
-      <<: *app-environment
+      <<: *worker-environment
       BACKUP_COMMAND: /usr/local/bin/worker-database-backup
       BACKUP_DIR: /backups
       PGHOST: postgres
       PGPORT: "5432"
       PGDATABASE: ${POSTGRES_DB:-fiatlux_choice}
-      PGUSER: ${POSTGRES_USER:-fiatlux}
-      PGPASSWORD: ${POSTGRES_PASSWORD:-fiatlux-dev-db-password}
+      PGUSER: fiatlux_runtime
+      PGPASSWORD: ${POSTGRES_RUNTIME_PASSWORD:-fiatlux-dev-runtime-password}
       BACKUP_AGE_RECIPIENT: ${BACKUP_AGE_RECIPIENT:-}
       BACKUP_REQUIRE_ENCRYPTION: ${BACKUP_REQUIRE_ENCRYPTION:-false}
     volumes:
       - ${BACKUP_DIR:-./backups}:/backups
     depends_on:
-      migrate:
+      database-permissions:
         condition: service_completed_successfully
       minio-bootstrap:
         condition: service_completed_successfully
     networks:
       - edge
       - backend
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - --input-type=module
+        - -e
+        - import { isWorkerHeartbeatFresh } from '/app/apps/worker/dist/health.js'; if (!isWorkerHeartbeatFresh()) process.exit(1)
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
     restart: unless-stopped
 
   web:
@@ -226,13 +351,18 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.web
+      args:
+        FIATLUX_RELEASE_VERSION: ${FIATLUX_RELEASE_VERSION:-local}
+        FIATLUX_RELEASE_GIT_SHA: ${FIATLUX_RELEASE_GIT_SHA:-development}
     <<: *hardened-app
     expose:
       - "8080"
     networks:
       - edge
     healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/health/live"]
+      test:
+        - CMD-SHELL
+        - wget -q -O /dev/null http://127.0.0.1:8080/health/live && wget -q -O /dev/null http://127.0.0.1:8080/login
       interval: 10s
       timeout: 5s
       retries: 12
@@ -277,16 +407,21 @@ services:
       PGHOST: postgres
       PGPORT: "5432"
       PGDATABASE: ${POSTGRES_DB:-fiatlux_choice}
-      PGUSER: ${POSTGRES_USER:-fiatlux}
-      PGPASSWORD: ${POSTGRES_PASSWORD:-fiatlux-dev-db-password}
+      PGUSER: fiatlux_backup
+      PGPASSWORD: ${POSTGRES_BACKUP_PASSWORD:-fiatlux-dev-backup-password}
       S3_ENDPOINT: http://minio:9000
       S3_BUCKET: ${S3_BUCKET:-fiatlux-choice}
-      S3_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-fiatlux}
-      S3_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-fiatlux-dev-minio-password}
+      S3_ACCESS_KEY_ID: ${S3_BACKUP_ACCESS_KEY_ID:-fiatlux-backup}
+      S3_SECRET_ACCESS_KEY: ${S3_BACKUP_SECRET_ACCESS_KEY:-fiatlux-dev-backup-password}
       BACKUP_AGE_RECIPIENT: ${BACKUP_AGE_RECIPIENT:-}
       BACKUP_REQUIRE_ENCRYPTION: ${BACKUP_REQUIRE_ENCRYPTION:-false}
+      BACKUP_WORK_ROOT: /backup-work
+      RESTORE_WORK_ROOT: /restore-work
     volumes:
       - ${BACKUP_DIR:-./backups}:/backups
+      - ${RESTORE_SOURCE_DIR:-./backups}:/restore-source:ro
+      - ${BACKUP_SCRATCH_DIR:-./tmp/backup-scratch}:/backup-work
+      - ${RESTORE_SCRATCH_DIR:-./tmp/restore-scratch}:/restore-work
     depends_on:
       postgres:
         condition: service_healthy

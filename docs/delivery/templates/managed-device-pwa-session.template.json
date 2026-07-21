@@ -1,0 +1,155 @@
+{
+  "schemaVersion": 1,
+  "evidenceType": "managed_device_pwa_session",
+  "sessionId": "REPLACE_WITH_STABLE_SESSION_ID",
+  "candidate": {
+    "version": "v1.0.0-rc.2",
+    "gitSha": "REPLACE_WITH_40_LOWERCASE_GIT_SHA",
+    "baseUrl": "https://choice.internal.example:8443",
+    "environmentId": "fiatlux-guangzhou-office-prod"
+  },
+  "device": {
+    "assetId": "managed-phone-01",
+    "assetIdIsPseudonymous": true,
+    "isPhysicalDevice": true,
+    "isSimulator": false,
+    "managementStatus": "company_managed",
+    "managementEvidenceReference": "REPLACE_WITH_CONTROLLED_MDM_REFERENCE",
+    "platform": "ios",
+    "osVersion": "REPLACE_WITH_OS_VERSION",
+    "browserName": "Safari",
+    "browserVersion": "REPLACE_WITH_BROWSER_VERSION",
+    "serialOrImeiRecorded": false
+  },
+  "installation": {
+    "installSource": "browser_ui",
+    "displayMode": "standalone",
+    "previousVersion": "v1.0.0-rc.1",
+    "previousGitSha": "REPLACE_WITH_PREVIOUS_40_LOWERCASE_GIT_SHA",
+    "candidateVersion": "v1.0.0-rc.2",
+    "candidateGitSha": "REPLACE_WITH_40_LOWERCASE_GIT_SHA",
+    "updateMethod": "service_worker_auto_update",
+    "serviceWorkerUpdateObserved": true,
+    "previousBuildIdentityObserved": "构建 v1.0.0-rc.1 · REPLACE",
+    "candidateBuildIdentityObserved": "构建 v1.0.0-rc.2 · REPLACE"
+  },
+  "execution": {
+    "startedAt": "2026-07-20T14:00:00+08:00",
+    "finishedAt": "2026-07-20T14:30:00+08:00",
+    "timezone": "Asia/Shanghai",
+    "operatorIdentity": "REPLACE_WITH_CONTROLLED_OPERATOR_ID",
+    "assertedApprovalReference": "REPLACE_WITH_CHANGE_APPROVAL_REFERENCE"
+  },
+  "privacy": {
+    "rawCredentialsCaptured": false,
+    "sessionCookiesCaptured": false,
+    "deviceSerialOrImeiCaptured": false,
+    "companyDataRedacted": true
+  },
+  "checks": [
+    {
+      "id": "managed_status_confirmed",
+      "result": "passed",
+      "observedAt": "2026-07-20T14:01:00+08:00",
+      "artifactIds": ["managed-status"],
+      "note": "REPLACE_WITH_REDACTED_MANAGEMENT_OBSERVATION"
+    },
+    {
+      "id": "trusted_https_install",
+      "result": "passed",
+      "observedAt": "2026-07-20T14:02:00+08:00",
+      "artifactIds": ["install-update"],
+      "note": "REPLACE_WITH_TRUSTED_HTTPS_BROWSER_INSTALL_OBSERVATION"
+    },
+    {
+      "id": "standalone_launch_before_update",
+      "result": "passed",
+      "observedAt": "2026-07-20T14:03:00+08:00",
+      "artifactIds": ["install-update"],
+      "note": "REPLACE_WITH_OLD_STANDALONE_BUILD_IDENTITY_OBSERVATION"
+    },
+    {
+      "id": "update_to_candidate",
+      "result": "passed",
+      "observedAt": "2026-07-20T14:04:00+08:00",
+      "artifactIds": ["install-update"],
+      "note": "REPLACE_WITH_SERVICE_WORKER_UPDATE_OBSERVATION"
+    },
+    {
+      "id": "standalone_launch_after_update",
+      "result": "passed",
+      "observedAt": "2026-07-20T14:05:00+08:00",
+      "artifactIds": ["install-update"],
+      "note": "REPLACE_WITH_CANDIDATE_STANDALONE_BUILD_IDENTITY_OBSERVATION"
+    },
+    {
+      "id": "authenticated_core_flow",
+      "result": "passed",
+      "observedAt": "2026-07-20T14:06:00+08:00",
+      "artifactIds": ["offline-online"],
+      "note": "REPLACE_WITH_REDACTED_AUTHENTICATED_CORE_FLOW_OBSERVATION"
+    },
+    {
+      "id": "offline_shell_no_company_data",
+      "result": "passed",
+      "observedAt": "2026-07-20T14:07:00+08:00",
+      "artifactIds": ["offline-online"],
+      "note": "REPLACE_WITH_OFFLINE_SHELL_AND_HIDDEN_DATA_OBSERVATION"
+    },
+    {
+      "id": "online_session_revalidated",
+      "result": "passed",
+      "observedAt": "2026-07-20T14:08:00+08:00",
+      "artifactIds": ["offline-online"],
+      "note": "REPLACE_WITH_NETWORK_RECOVERY_AND_SESSION_REVALIDATION_OBSERVATION"
+    },
+    {
+      "id": "logout_and_site_data_cleared",
+      "result": "passed",
+      "observedAt": "2026-07-20T14:09:00+08:00",
+      "artifactIds": ["clear-auth"],
+      "note": "REPLACE_WITH_LOGOUT_APP_REMOVAL_AND_SITE_DATA_CLEAR_OBSERVATION"
+    },
+    {
+      "id": "post_clear_auth_required",
+      "result": "passed",
+      "observedAt": "2026-07-20T14:10:00+08:00",
+      "artifactIds": ["clear-auth"],
+      "note": "REPLACE_WITH_POST_CLEAR_AUTHENTICATION_REQUIRED_OBSERVATION"
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "managed-status",
+      "file": "captures/managed-status.png",
+      "sha256": "REPLACE_WITH_64_LOWERCASE_SHA256",
+      "bytes": 1,
+      "mimeType": "image/png",
+      "capturedAt": "2026-07-20T14:02:00+08:00"
+    },
+    {
+      "id": "install-update",
+      "file": "captures/install-update.mp4",
+      "sha256": "REPLACE_WITH_64_LOWERCASE_SHA256",
+      "bytes": 1,
+      "mimeType": "video/mp4",
+      "capturedAt": "2026-07-20T14:05:00+08:00"
+    },
+    {
+      "id": "offline-online",
+      "file": "captures/offline-online.mp4",
+      "sha256": "REPLACE_WITH_64_LOWERCASE_SHA256",
+      "bytes": 1,
+      "mimeType": "video/mp4",
+      "capturedAt": "2026-07-20T14:08:00+08:00"
+    },
+    {
+      "id": "clear-auth",
+      "file": "captures/clear-auth.mp4",
+      "sha256": "REPLACE_WITH_64_LOWERCASE_SHA256",
+      "bytes": 1,
+      "mimeType": "video/mp4",
+      "capturedAt": "2026-07-20T14:10:00+08:00"
+    }
+  ]
+}

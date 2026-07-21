@@ -1,5 +1,5 @@
 import type { Database } from "@fiatlux/db";
-import type { JobQueue, LlmProvider, ObjectStorage } from "@fiatlux/integrations";
+import type { JobQueue, ObjectStorage } from "@fiatlux/integrations";
 
 import type { ApiConfig } from "./config.js";
 
@@ -8,6 +8,10 @@ export interface AuthContext {
   orgId: string;
   sessionId: string;
   permissions: string[];
+  roles: string[];
+  mfaEnabled: boolean;
+  mfaRequired: boolean;
+  mustSetupMfa: boolean;
 }
 
 export interface RequestAuditContext {
@@ -24,7 +28,6 @@ export interface AppDependencies {
   closeDatabase?: () => Promise<void>;
   storage: ObjectStorage;
   queue?: JobQueue;
-  llmProvider?: LlmProvider;
 }
 
 declare module "fastify" {

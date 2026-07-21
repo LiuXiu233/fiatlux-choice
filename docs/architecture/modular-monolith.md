@@ -50,13 +50,13 @@ flowchart LR
 | 身份与访问 | organizations、users、memberships、roles、sessions | 组织作用域、服务端 RBAC、角色变更审批 |
 | 审计与文件 | audit_events、files | 审计无更新/删除业务接口；文件校验和私有对象键 |
 | 执行 | objectives、projects、tasks、decisions | 乐观并发、状态与负责人 |
-| 治理合规 | compliance_items、compliance_events、obligations、risks、contracts | 来源人工复核、截止日、风险处置、签署审批 |
+| 治理合规 | compliance_items、compliance_events、obligations、risks、contracts、professional_review 审计 | 证据型来源复核、版本锁定、截止日、风险处置、签署审批 |
 | 财务 | financial_entries、invoices、cash_flow_entries | 金额以分存储；外部付款/申报/红冲分离 |
 | 产品增长 | products、opportunities、github_insights | 机会到交付映射；外部技术内容视为不可信 |
 | 协作自动化 | notifications、workflow_definitions、workflow_runs | 受限步骤类型、后台执行、明确失败 |
 | 审批与外部动作 | approvals、external_actions | 高风险默认审批、真实状态机、回执证据 |
 | AI 顾问 | prompt_versions、advisor_runs、model/tool calls、citations、edits | 双重权限过滤、上下文快照、证据白名单 |
-| 运维 | integration_checks、backups | 检查结果审计；生产完整备份走受控适配器 |
+| 运维 | integration_checks、backups、lease-expired 处置审计 | 检查结果审计；人工处置不重放失败运行；生产完整备份走受控适配器 |
 
 模块之间通过记录 ID、领域函数和同库事务协作，不通过内部 HTTP。
 
@@ -87,8 +87,10 @@ flowchart LR
 - 外部动作、必要审批和审计。
 - 顾问运行、上下文工具记录、引用和审计。
 - 顾问人工修改、编辑历史和审计。
+- 合规来源专业复核、当前 provenance、证据引用和追加审计。
+- `lease_expired` 人工处置通过事件 UUID 的事务级 advisory lock 保证一次关闭，只追加 `manual_review_completed`，不修改原运行或调用队列，也不要求审计表 UPDATE 权限。
 
-对 PostgreSQL 与 MinIO 的跨存储操作无法使用单个数据库事务，因此文件采用“声明元数据—上传内容—校验完成”的状态流程。备份默认暂停写入以减少数据库和对象存储时间点不一致。
+对 PostgreSQL 与 MinIO 的跨存储操作无法使用单个数据库事务，因此文件采用“声明元数据—上传内容—校验完成”的状态流程。专业复核只能引用已经完成该流程的 `uploaded` 文件；当前行和历史 `professional_review` 审计都会阻止证据软归档。备份默认暂停写入以减少数据库和对象存储时间点不一致。
 
 ### 并发
 
@@ -100,7 +102,7 @@ flowchart LR
 
 ## 7. 后台任务
 
-pg-boss 与业务共用 PostgreSQL，避免为小团队维护额外消息系统。当前队列：
+pg-boss 与业务共用 PostgreSQL，避免为小团队维护额外消息系统。业务迁移、pg-boss 迁移与常驻 DML 身份分离：一次性 migrator 安装/升级 schema 和声明队列，API/worker 使用无 DDL 的 runtime 且以 `migrate:false` 启动。当前队列：
 
 | 队列 | 作用 |
 | --- | --- |
@@ -108,10 +110,16 @@ pg-boss 与业务共用 PostgreSQL，避免为小团队维护额外消息系统�
 | workflow.run | 顺序执行通知、建任务、请求审批或发起顾问 |
 | notification.deliver | 投递站内通知；未配置渠道明确失败 |
 | github.refresh | 读取 GitHub 仓库快照并更新情报 |
+| integration.test | 仅由 worker 持有密钥并执行真实 LLM 结构化探测或 GitHub 仓库身份读取 |
+| compliance-source.monitor | 新目录分散到 7 个每日时间桶，每组织每次默认按最早到期顺序领取 12 条并审计剩余积压；人工复核到期、正文变化或连续第三次失败时，在来源状态事务内创建高优先级任务、确定协调责任人、原子送达站内通知并写关联审计 |
 | obligation.sweep | 每小时按 Asia/Shanghai 扫描逾期义务和合规事件 |
-| backup.create | 调用受控备份命令；内置降级只支持数据库 |
+| backup.create | 调用受控备份命令；内置降级只支持数据库。队列 active lease 为 2 小时 10 分钟，长于 worker 的 2 小时数据库 claim lease；超时重投只会把仍未完成的 running 记录标记为人工复核失败，不会自动重新执行可能产生部分结果的备份 |
 
-普通任务最多重试 5 次，带退避和有效期。处理器必须使用 orgId、幂等状态和审计，重复投递不能产生虚假外部动作。
+普通任务最多重试 5 次，带退避和有效期。处理器必须使用 orgId、幂等状态和审计，重复投递不能产生虚假外部动作。合规来源的每日领取上限只控制新 job 数，不吞掉到期状态、不修改失败次数，也不限制有权用户逐条人工触发；积压由 `monitor_dispatch.hasMoreDue` 明示。备份任务的队列有效期必须与数据库 claim lease 对齐；不要把通用 10 分钟 active expiry 复用于可能运行一小时的备份命令。
+
+合规监控运营状态采用 API 内的组织作用域只读查询模型，不新增物化表、缓存或微服务。PostgreSQL 条件聚合提供当前来源/租约/机器状态/人工复核工作量，另以同组织、同资源身份的最新 `monitor_dispatch` 追加审计补充最近派发事实。响应先通过共享契约校验；不完整 legacy metadata 降级为无批次记录。Web 只展示这些事实并单独说明机器状态、历史派发和专业结论的边界，刷新不产生业务写入。
+
+运行异常处置同样留在模块化单体内，不新增事件服务或可变 incident 表。API 以同组织 `lease_expired` 审计为不可变事件身份，连接当前 advisor/workflow/backup 记录，并只把带 schema version、证据和禁止重放确认的 `manual_review_completed` 视为有效关闭。处置事务按事件 UUID 获取 PostgreSQL advisory lock，因而并发请求只能追加一次；它不会对追加式审计表申请行更新锁或扩大 runtime 的 UPDATE/DELETE 权限。原运行状态、版本、错误和 partial output 不变。这个派生读取模型会自动覆盖功能上线前已经存在的租约事件，同时保留审计追加语义。
 
 ## 8. 集成适配器
 
@@ -121,7 +129,7 @@ ObjectStorage 提供 healthCheck、putVerified、head、get 和 delete。开发�
 
 ### LLM
 
-LlmProvider 有 compatible、mock 和 disabled 模式。业务层只接收结构化 AdvisorOutput；供应商响应必须经过 schema 和证据校验。配置失败时返回失败，不允许未标识地改用另一供应商。
+LlmProvider 有 compatible、mock 和 disabled 模式。业务层只接收结构化 AdvisorOutput；供应商响应必须经过 schema 和证据校验。compatible 模式的 `LLM_BASE_URL` 在 API、worker 和适配器边界都必须使用 HTTPS，HTTP（包括生产环回地址）会在启动前失败；模型请求禁止跟随重定向，避免凭据或上下文被转送到未批准端点。配置或传输失败时返回失败，不允许未标识地改用另一供应商。
 
 ### GitHub
 
@@ -133,7 +141,7 @@ GitHubReader 只读取公开或 token 允许的仓库信息。manual 模式与�
 
 ### 备份
 
-应用内 backup.create 只负责排队和审计。生产 full/files 备份必须调用受控 BACKUP_COMMAND，或由运维脚本和 systemd timer 完成。恢复始终是管理员维护操作，不由普通 Web 请求触发。
+应用内 backup.create 只负责排队和审计。内置 database-only 导出不接触主机签名私钥，也不构成完整灾备点；生产 full/files 备份必须调用受控 BACKUP_COMMAND，或由运维脚本和 systemd timer 通过一次性容器完成 age 加密与 Ed25519 来源签名。恢复始终是管理员维护操作，不由普通 Web 请求触发。
 
 ## 9. 身份、安全与审计
 
@@ -159,9 +167,11 @@ PWA 的目标是安装体验与弱网静态壳，不是离线数据库。敏感�
 
 ## 11. 部署与可观测性
 
-Compose 服务包括 postgres、minio、minio-bootstrap、migrate、api、worker、web、caddy 和 operations profile 的 backup-tools。
+Compose 服务包括 postgres、minio、minio-bootstrap、migrate、queue-migrate、database-permissions、api、worker、web、caddy，以及 operations profile 的 db-bootstrap、seed、backup-tools。
 
-- migrate 成功后 API 和 worker 才启动。
+- 全新卷先显式执行一次 `db-bootstrap --rm`；常规启动依次完成 migrate、queue-migrate、database-permissions，成功后 API 和 worker 才启动。
+- API/worker 只持有 `fiatlux_runtime`；迁移所有者、bootstrap 超级用户和 restore 身份不进入常驻应用环境。
+- API 暴露 live/ready。worker 封装 pg-boss 的 `work/offWork/stop`，以本进程注册表要求七个唯一订阅，并每 10 秒通过 pg-boss 自身连接只读核对全部声明队列；两者都通过才刷新私有心跳，30 秒陈旧即失去容器健康。pg-boss 没有公开的空闲订阅最近 fetch 枚举，因此该信号不冒充逐任务吞吐证明。Caddy 的健康检查同时覆盖 API 与 Web 登录壳，避免只因网关进程存在就误报可用。
 - live 检查进程存活；ready 检查数据库、队列和对象存储。
 - JSON 容器日志按 10 MiB、5 个文件轮转。
 - PostgreSQL、MinIO、API 和 Web 不直接发布宿主端口。

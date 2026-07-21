@@ -1,0 +1,620 @@
+{
+  "schemaVersion": 1,
+  "versionLabel": "V1 controlled candidate",
+  "overallStatus": "blocked",
+  "evaluatedAt": "2026-07-21T02:28:53+08:00",
+  "candidate": {
+    "repository": "https://github.com/LiuXiu233/fiatlux-choice",
+    "branch": "codex/v1-acceptance-hardening",
+    "implementationCommit": "4391837e0c2b91fa58b2269a26b2cbb3294347b6",
+    "evidenceCommit": "393f4edbd48dea617f48277a278f91da78558bd8"
+  },
+  "gates": [
+    {
+      "id": "local_core_acceptance",
+      "status": "passed",
+      "ownerRole": "研发与交付负责人",
+      "summary": "核心闭环、真实栈、浏览器、移动端、PWA、运行异常、教育内容、生产恢复防护、真实适配器、逐篇放行入口、WordPress 内部审阅包和受控审计导出已有分层本地机器证据；另有 9de2b56 远端 Ubuntu 验收部署、真实 HTTPS 和 6/6 E2E 增量。",
+      "evidence": [
+        {
+          "kind": "machine_evidence",
+          "result": "success",
+          "reference": "docs/delivery/evidence/production-like-acceptance-101d2f0-20260720.json",
+          "verifiedAt": "2026-07-20T12:07:56+08:00",
+          "subjectCommit": "101d2f0938adfa0caa8ed576f6587a5c78ae74a5",
+          "sha256": "40ba35bd6de0cb130aeca8a91faea53a60a82c54f8b6c7f1c0f1acba49855bdc",
+          "note": "完整 production-like、迁移、镜像、浏览器和恢复基线。"
+        },
+        {
+          "kind": "machine_evidence",
+          "result": "success",
+          "reference": "docs/delivery/evidence/operational-incident-final-acceptance-f86bff4-20260720.json",
+          "verifiedAt": "2026-07-20T12:07:56+08:00",
+          "subjectCommit": "f86bff4dcc7d2b61e05c8a6b44078d039aad1e38",
+          "sha256": "e3070a802c7a646345bae67dd09453f70938c0fed669a69429319d4f769981cb",
+          "note": "运行异常证据化调查、补偿和真实 HTTPS 处置增量。"
+        },
+        {
+          "kind": "machine_evidence",
+          "result": "success",
+          "reference": "docs/delivery/evidence/esports-education-expansion-acceptance-fccbaf9-20260720.json",
+          "verifiedAt": "2026-07-20T12:07:56+08:00",
+          "subjectCommit": "fccbaf9c5718c18c588f8ee1d21d3a3997053187",
+          "sha256": "7cd948a9e774c1d225a67151a8fdc306f992e2701de3dfa06394740938e118d5",
+          "note": "当前实现提交的完整源码、隔离集成、迁移、浏览器、移动端和 PWA 回归。"
+        },
+        {
+          "kind": "machine_evidence",
+          "result": "success",
+          "reference": "docs/delivery/evidence/v1-release-gate-acceptance-213d9b6-20260720.json",
+          "verifiedAt": "2026-07-20T12:31:57+08:00",
+          "subjectCommit": "213d9b65b927d679b1afc927cb077f7a1aedd3d1",
+          "sha256": "07b89fe475b43949e91db032f349db69569e3ee4cab6033941a92d2a638d831c",
+          "note": "当前发布治理提交的 exact-SHA 全仓、门禁正反向、构建和安全验收。"
+        },
+        {
+          "kind": "machine_evidence",
+          "result": "success",
+          "reference": "docs/delivery/evidence/v1-platform-attestation-acceptance-6e40b82-20260720.json",
+          "verifiedAt": "2026-07-20T13:00:43+08:00",
+          "subjectCommit": "6e40b82914e237b0941ad7a5d5496a73d7a65190",
+          "sha256": "2b854c0b4fadb26cd1944b06c828fc56a8ea56b47490ccbb2cde5a703f81a06d",
+          "note": "只读平台证明提交的 exact-SHA 全仓、workflow、平台适配器和构建验收。"
+        },
+        {
+          "kind": "machine_evidence",
+          "result": "success",
+          "reference": "docs/delivery/evidence/target-intranet-verifier-acceptance-25204d3-20260720.json",
+          "verifiedAt": "2026-07-20T13:30:13+08:00",
+          "subjectCommit": "25204d34d865b16941d099658d33fbb561424f09",
+          "sha256": "f1d984528a6d6e992c6ae38fb213fb571eb8acaeaad252bd898c832b699a1852",
+          "note": "当前目标证明入口提交的 exact-SHA 全仓、macOS/Linux 失败关闭包装器和构建验收；不是目标环境成功报告。"
+        },
+        {
+          "kind": "machine_evidence",
+          "result": "success",
+          "reference": "docs/delivery/evidence/managed-device-pwa-verifier-acceptance-ffe102e-20260720.json",
+          "verifiedAt": "2026-07-20T14:44:36+08:00",
+          "subjectCommit": "ffe102e75526c510a14c60ef90a29e174b40a00a",
+          "sha256": "da954f15fab4def65048db61502d8542cecf9f25c2e3ad59c0721b0d355b6f3d",
+          "note": "当前实现提交的 exact-SHA 全仓、构建身份、受管真机合同/文件校验器、桌面/移动/PWA 和本地 Web 镜像验收；不是物理真机证据。"
+        },
+        {
+          "kind": "machine_evidence",
+          "result": "success",
+          "reference": "docs/delivery/evidence/production-restore-guard-acceptance-231d8e8-20260720.json",
+          "verifiedAt": "2026-07-20T15:54:39+08:00",
+          "subjectCommit": "231d8e82164f8e31b1cc978975bf56e7ac6a26bb",
+          "sha256": "9d688ad7736d72b1ffb93d0035d6e595d30b8a4f507b028153f6b8943bdb8f72",
+          "note": "当前实现提交的 exact-SHA 全仓、生产恢复防护、七镜像构建和真实签名隔离恢复验收；明确未执行生产 restore.sh 或独立批准。"
+        },
+        {
+          "kind": "machine_evidence",
+          "result": "success",
+          "reference": "docs/delivery/evidence/real-adapter-guard-acceptance-d7cc156-20260720.json",
+          "verifiedAt": "2026-07-20T18:16:58+08:00",
+          "subjectCommit": "d7cc156ef2c44a531416c60ed88023681b113ecf",
+          "sha256": "fa8cb3357cbf32cc38a9ba491e312e8467dd2addcecf0614e7449cc6b1f82463",
+          "note": "真实适配器候选的全仓、API 94/94、worker 33/33、MinIO 2/2、七镜像、空卷 Compose、桌面/移动/PWA、重启和部署验证；真实适配器仍为 mock/manual。"
+        },
+        {
+          "kind": "machine_evidence",
+          "result": "success",
+          "reference": "docs/delivery/evidence/education-content-clearance-verifier-acceptance-f4c12b5-20260720.json",
+          "verifiedAt": "2026-07-20T20:16:13+08:00",
+          "subjectCommit": "f4c12b596afd90d5781a0d192f381315c39790bc",
+          "sha256": "1aa8974fec37cf0cfe6dc5c8a2313185ce2f958b79e9d8e7825621f3c027ae42",
+          "note": "当前候选 exact-SHA 的逐篇放行合同/模板/离线验证器、全仓、隔离依赖、空卷 Compose、桌面/移动/PWA 和七镜像验收；只证明工程入口，不代表真实内容放行。"
+        },
+        {
+          "kind": "machine_evidence",
+          "result": "success",
+          "reference": "docs/delivery/evidence/education-wordpress-review-bundle-acceptance-9c5633e-20260720.json",
+          "verifiedAt": "2026-07-20T21:46:01+08:00",
+          "subjectCommit": "9c5633e1c3e9650507231106fcd8a451bf32053f",
+          "sha256": "62aa22b352005ee7de459e24723ce595041e7775a9c014b85ab80947b3920dae",
+          "note": "12 篇 review-only HTML/审阅表/哈希 manifest、无网络与失败关闭 CLI、桌面/移动/PWA 及 API/worker/Web 三张受影响镜像验收；不代表专业复核或 WordPress 发布。"
+        },
+        {
+          "kind": "machine_evidence",
+          "result": "success",
+          "reference": "docs/delivery/evidence/governed-audit-export-acceptance-4391837-20260720.json",
+          "verifiedAt": "2026-07-20T23:51:49+08:00",
+          "subjectCommit": "4391837e0c2b91fa58b2269a26b2cbb3294347b6",
+          "sha256": "d7c0be8675e2076a0efcb173d1d37584a5e87b23669997946069a4ce790ccf35",
+          "note": "当前候选 exact-SHA 的双权限受控审计导出、PostgreSQL API 95/95、mock 51+7、全新真实栈 desktop/mobile 6/6、响应/浏览器 SHA-256、自身追加审计和三张受影响应用镜像验收；不证明下载后保留、转发或销毁。"
+        },
+        {
+          "kind": "target_environment",
+          "result": "success",
+          "reference": "docs/delivery/evidence/remote-server-acceptance-9de2b56-20260721.json",
+          "verifiedAt": "2026-07-21T01:25:52+08:00",
+          "subjectCommit": "9de2b56a2fe2943c9ddf038eefe5a5b11b53eb06",
+          "sha256": "18ebaf92188def38a4c42569cc0a07cecd0761e62baf54451a66255e6432ecc1",
+          "note": "远端 Ubuntu 24.04 x86_64 源码构建、可信 HTTPS、首登改密、部署验证、桌面/移动/PWA、真实栈 6/6、systemd 重启和签名隔离恢复通过；是远端验收部署，不是 GHCR、广州办公内网或 V1 生产批准。"
+        }
+      ],
+      "blockers": [],
+      "reviewedAt": "2026-07-21T01:25:52+08:00"
+    },
+    {
+      "id": "local_security_and_sensitive_data",
+      "status": "passed",
+      "ownerRole": "信息安全负责人",
+      "summary": "当前 4391837 实现提交已完成源码、完整历史、生产依赖和 Semgrep 复核；9de2b56 远端 Ubuntu 源码构建的七类 linux/amd64 镜像又以当前 Trivy 数据库完成 HIGH/CRITICAL 0 和 SPDX，未发现敏感数据或阻断漏洞。",
+      "evidence": [
+        {
+          "kind": "machine_evidence",
+          "result": "success",
+          "reference": "docs/delivery/evidence/esports-education-expansion-acceptance-fccbaf9-20260720.json#sourceSecurity",
+          "verifiedAt": "2026-07-20T12:07:56+08:00",
+          "subjectCommit": "fccbaf9c5718c18c588f8ee1d21d3a3997053187",
+          "sha256": "7cd948a9e774c1d225a67151a8fdc306f992e2701de3dfa06394740938e118d5",
+          "note": "Gitleaks 当前树与历史、生产依赖审计、Semgrep、Web 镜像 Trivy 和 SPDX 均记录在案。"
+        },
+        {
+          "kind": "machine_evidence",
+          "result": "success",
+          "reference": "docs/delivery/evidence/v1-release-gate-acceptance-213d9b6-20260720.json#sourceSecurity",
+          "verifiedAt": "2026-07-20T12:31:57+08:00",
+          "subjectCommit": "213d9b65b927d679b1afc927cb077f7a1aedd3d1",
+          "sha256": "07b89fe475b43949e91db032f349db69569e3ee4cab6033941a92d2a638d831c",
+          "note": "当前提交的 Gitleaks 当前树/完整历史和 npm 官方 registry 生产依赖审计通过。"
+        },
+        {
+          "kind": "machine_evidence",
+          "result": "success",
+          "reference": "docs/delivery/evidence/v1-platform-attestation-acceptance-6e40b82-20260720.json#sourceSecurity",
+          "verifiedAt": "2026-07-20T13:00:43+08:00",
+          "subjectCommit": "6e40b82914e237b0941ad7a5d5496a73d7a65190",
+          "sha256": "2b854c0b4fadb26cd1944b06c828fc56a8ea56b47490ccbb2cde5a703f81a06d",
+          "note": "平台证明提交的 Gitleaks、官方 registry 生产依赖审计和 Semgrep 93 个目标通过。"
+        },
+        {
+          "kind": "machine_evidence",
+          "result": "success",
+          "reference": "docs/delivery/evidence/target-intranet-verifier-acceptance-25204d3-20260720.json#sourceSecurity",
+          "verifiedAt": "2026-07-20T13:30:13+08:00",
+          "subjectCommit": "25204d34d865b16941d099658d33fbb561424f09",
+          "sha256": "f1d984528a6d6e992c6ae38fb213fb571eb8acaeaad252bd898c832b699a1852",
+          "note": "当前提交的 Gitleaks、官方 registry 生产依赖审计和 Semgrep 93 个生产目标通过。"
+        },
+        {
+          "kind": "machine_evidence",
+          "result": "success",
+          "reference": "docs/delivery/evidence/managed-device-pwa-verifier-acceptance-ffe102e-20260720.json#sourceSecurity",
+          "verifiedAt": "2026-07-20T14:44:36+08:00",
+          "subjectCommit": "ffe102e75526c510a14c60ef90a29e174b40a00a",
+          "sha256": "da954f15fab4def65048db61502d8542cecf9f25c2e3ad59c0721b0d355b6f3d",
+          "note": "当前提交的 Gitleaks、官方 registry 生产依赖审计、Semgrep 96 个生产目标及 Web 镜像 Trivy/SPDX 通过。"
+        },
+        {
+          "kind": "machine_evidence",
+          "result": "success",
+          "reference": "docs/delivery/evidence/production-restore-guard-acceptance-231d8e8-20260720.json#backupImageSecurity",
+          "verifiedAt": "2026-07-20T15:54:39+08:00",
+          "subjectCommit": "231d8e82164f8e31b1cc978975bf56e7ac6a26bb",
+          "sha256": "9d688ad7736d72b1ffb93d0035d6e595d30b8a4f507b028153f6b8943bdb8f72",
+          "note": "当前提交的 Gitleaks、生产依赖审计、ShellCheck、backup 镜像 Trivy HIGH/CRITICAL 0 和 SPDX 178 packages 通过；未把本地镜像冒充 GHCR。"
+        },
+        {
+          "kind": "machine_evidence",
+          "result": "success",
+          "reference": "docs/delivery/evidence/real-adapter-guard-acceptance-d7cc156-20260720.json#sourceSecurity",
+          "verifiedAt": "2026-07-20T18:16:58+08:00",
+          "subjectCommit": "d7cc156ef2c44a531416c60ed88023681b113ecf",
+          "sha256": "fa8cb3357cbf32cc38a9ba491e312e8467dd2addcecf0614e7449cc6b1f82463",
+          "note": "真实适配器候选 Gitleaks、官方生产依赖审计、Semgrep 100 个生产目标和七镜像 Trivy HIGH/CRITICAL 0、SPDX 均通过；本地镜像不冒充 GHCR。"
+        },
+        {
+          "kind": "machine_evidence",
+          "result": "success",
+          "reference": "docs/delivery/evidence/education-content-clearance-verifier-acceptance-f4c12b5-20260720.json#sourceSecurity",
+          "verifiedAt": "2026-07-20T20:16:13+08:00",
+          "subjectCommit": "f4c12b596afd90d5781a0d192f381315c39790bc",
+          "sha256": "1aa8974fec37cf0cfe6dc5c8a2313185ce2f958b79e9d8e7825621f3c027ae42",
+          "note": "当前候选精确 HEAD 与完整历史 Gitleaks 0、生产依赖 0、Semgrep 104 个生产目标 0 finding，以及七镜像 Trivy HIGH/CRITICAL 0 和 SPDX 包清单通过。"
+        },
+        {
+          "kind": "machine_evidence",
+          "result": "success",
+          "reference": "docs/delivery/evidence/education-wordpress-review-bundle-acceptance-9c5633e-20260720.json#sourceSecurity",
+          "verifiedAt": "2026-07-20T21:46:01+08:00",
+          "subjectCommit": "9c5633e1c3e9650507231106fcd8a451bf32053f",
+          "sha256": "62aa22b352005ee7de459e24723ce595041e7775a9c014b85ab80947b3920dae",
+          "note": "审阅包候选 Gitleaks 当前树/完整历史、生产依赖、Semgrep 及 API/worker/Web 三张受影响镜像的 Trivy HIGH/CRITICAL 0 和 SPDX 通过；没有冒充七镜像或 GHCR 全量发布。"
+        },
+        {
+          "kind": "machine_evidence",
+          "result": "success",
+          "reference": "docs/delivery/evidence/governed-audit-export-acceptance-4391837-20260720.json#sourceSecurity",
+          "verifiedAt": "2026-07-20T23:51:49+08:00",
+          "subjectCommit": "4391837e0c2b91fa58b2269a26b2cbb3294347b6",
+          "sha256": "d7c0be8675e2076a0efcb173d1d37584a5e87b23669997946069a4ce790ccf35",
+          "note": "当前候选 Gitleaks 当前树/完整历史、生产依赖 0、Semgrep 10/10 canary/109 目标 0 finding，以及 API/worker/Web Trivy HIGH/CRITICAL 0 和 SPDX 204/225/176 packages 通过；没有冒充七镜像或 GHCR。"
+        },
+        {
+          "kind": "target_environment",
+          "result": "success",
+          "reference": "docs/delivery/evidence/remote-server-acceptance-9de2b56-20260721.json#supplyChain",
+          "verifiedAt": "2026-07-21T01:25:52+08:00",
+          "subjectCommit": "9de2b56a2fe2943c9ddf038eefe5a5b11b53eb06",
+          "sha256": "18ebaf92188def38a4c42569cc0a07cecd0761e62baf54451a66255e6432ecc1",
+          "note": "目标服务器实际运行的 postgres/API/worker/Web/gateway/MinIO/backup 七类 amd64 镜像均以固定 Trivy 0.70.0 扫描 HIGH/CRITICAL 0，并生成 47/204/214/178/178/375/168 个包的 SPDX；本地 image ID 不冒充 GHCR digest。"
+        }
+      ],
+      "blockers": [],
+      "reviewedAt": "2026-07-21T01:25:52+08:00"
+    },
+    {
+      "id": "github_ci_security",
+      "status": "passed",
+      "ownerRole": "仓库管理员",
+      "summary": "证据提交 393f4ed 的独立 CI 与 Security workflow 已在真实 GitHub runner 上整体绿色；CI 完成静态、类型、单元、迁移、集成、E2E 和七类生产镜像构建，Security 完成 Gitleaks、依赖、Semgrep 与 Trivy，CodeQL 因 entitlement 不可用而明确跳过。",
+      "evidence": [
+        {
+          "kind": "github_run",
+          "result": "success",
+          "reference": "https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29767089892",
+          "verifiedAt": "2026-07-21T02:27:44+08:00",
+          "subjectCommit": "393f4edbd48dea617f48277a278f91da78558bd8",
+          "githubWorkflow": "ci",
+          "note": "CI 整体 success：静态/单元、迁移/集成、mock 与真实栈浏览器 E2E，以及 postgres/API/worker/Web/gateway/MinIO/backup 七类生产镜像构建共 10 个 job 全绿；这些 PR 构建没有发布 GHCR digest。"
+        },
+        {
+          "kind": "github_run",
+          "result": "success",
+          "reference": "https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29767090155",
+          "verifiedAt": "2026-07-21T02:17:33+08:00",
+          "subjectCommit": "393f4edbd48dea617f48277a278f91da78558bd8",
+          "githubWorkflow": "security",
+          "note": "Security 整体 success：完整历史/当前树 Gitleaks、生产依赖审计、固定 Semgrep+canary 和 Trivy HIGH/CRITICAL filesystem gate 均实际执行；CodeQL entitlement 探测返回不可用，CodeQL 分析明确跳过，未记作已执行。"
+        }
+      ],
+      "blockers": [],
+      "reviewedAt": "2026-07-21T02:28:53+08:00"
+    },
+    {
+      "id": "ghcr_release_artifacts",
+      "status": "blocked",
+      "ownerRole": "发布与供应链负责人",
+      "summary": "本地历史七镜像与当前 4391837 的 API/worker/Web 三张受影响应用镜像扫描和 SPDX 已有证据，但最终提交的七个 GHCR 双平台制品、摘要和来源证明尚未发布。",
+      "evidence": [
+        {
+          "kind": "registry",
+          "result": "not_run",
+          "reference": "ghcr.io/liuxiu233/fiatlux-choice final evidenceCommit artifact set",
+          "verifiedAt": "2026-07-20T12:07:56+08:00",
+          "note": "不得用本地 arm64 image ID 冒充 GHCR 双平台 root digest。"
+        }
+      ],
+      "blockers": [
+        "尚无绑定 evidenceCommit 的绿色 release run 和七类独立 GHCR 发布制品证据。",
+        "最终双平台 digest、SBOM、provenance、升级与回滚身份尚未统一。"
+      ],
+      "reviewedAt": "2026-07-20T12:07:56+08:00"
+    },
+    {
+      "id": "target_intranet_deployment",
+      "status": "blocked",
+      "ownerRole": "目标环境运维负责人",
+      "summary": "43.165.189.222 已完成真实 Ubuntu、choice.fiatlux.gg、可信 HTTPS、防火墙、systemd、备份和运行观察验收；该 2 GB/40 GB 公网远端验收环境仍不是已批准的耀光广州办公内网或最终 GHCR 发布。",
+      "evidence": [
+        {
+          "kind": "target_environment",
+          "result": "not_run",
+          "reference": "docs/delivery/v1-acceptance-matrix.md#6-部署运维与安全",
+          "verifiedAt": "2026-07-20T13:30:13+08:00",
+          "note": "scripts/verify-target-intranet.sh 的 stub/macOS/Linux 测试只证明采集入口；本地 production-like Compose 和测试 JSON 都不是耀光广州办公内网验收。"
+        },
+        {
+          "kind": "target_environment",
+          "result": "success",
+          "reference": "docs/delivery/evidence/remote-server-acceptance-9de2b56-20260721.json#deployment",
+          "verifiedAt": "2026-07-21T01:25:52+08:00",
+          "subjectCommit": "9de2b56a2fe2943c9ddf038eefe5a5b11b53eb06",
+          "sha256": "18ebaf92188def38a4c42569cc0a07cecd0761e62baf54451a66255e6432ecc1",
+          "note": "真实远端服务器已部署并通过可信 HTTPS、六服务健康、部署验证、最小权限、重启、systemd/UFW 和日志复查；环境明确标记 remote_acceptance，未运行最终 release manifest 绑定的 verify-target-intranet.sh。"
+        },
+        {
+          "kind": "approval",
+          "result": "not_run",
+          "reference": "approval:v1:target-intranet-deployment:pending",
+          "verifiedAt": "2026-07-20T12:07:56+08:00"
+        }
+      ],
+      "blockers": [
+        "当前远端主机只有 2 CPU、约 2 GB 内存和 40 GB 系统盘，低于文档生产建议，并通过公网 443 提供验收访问；尚未证明广州办公内网、VPN/访问源限制或生产容量。",
+        "尚无绑定最终绿色 GitHub/GHCR 七制品清单的目标机器证明，也缺少目标环境运维负责人的可识别验收批准。"
+      ],
+      "reviewedAt": "2026-07-21T01:25:52+08:00"
+    },
+    {
+      "id": "managed_device_pwa",
+      "status": "blocked",
+      "ownerRole": "终端与业务验收负责人",
+      "summary": "候选构建身份、受管真机会话合同和附件校验器已通过；远端可信 HTTPS 又验证 390×844 布局、active service worker、standalone manifest 和 Chromium 安装性 0 错误，但仍没有真实受管手机。",
+      "evidence": [
+        {
+          "kind": "target_environment",
+          "result": "not_run",
+          "reference": "docs/delivery/evidence/managed-device-pwa-verifier-acceptance-ffe102e-20260720.json#boundaries",
+          "verifiedAt": "2026-07-20T14:44:36+08:00",
+          "note": "精确 SHA 的自动化 viewport、生产 Web 镜像和 synthetic 会话只证明工程入口；不等于真实物理受管设备、MDM 记录或人工批准。"
+        },
+        {
+          "kind": "target_environment",
+          "result": "success",
+          "reference": "docs/delivery/evidence/remote-server-acceptance-9de2b56-20260721.json#browser",
+          "verifiedAt": "2026-07-21T01:25:52+08:00",
+          "subjectCommit": "9de2b56a2fe2943c9ddf038eefe5a5b11b53eb06",
+          "sha256": "18ebaf92188def38a4c42569cc0a07cecd0761e62baf54451a66255e6432ecc1",
+          "note": "choice.fiatlux.gg 上桌面与 iPhone 14 Chromium 仿真登录、移动导航、无溢出、service worker、manifest 和安装性通过；这仍是模拟 viewport，不是物理设备或 MDM 证据。"
+        },
+        {
+          "kind": "approval",
+          "result": "not_run",
+          "reference": "approval:v1:managed-device-pwa:pending",
+          "verifiedAt": "2026-07-20T12:07:56+08:00"
+        }
+      ],
+      "blockers": [
+        "缺少真实受管手机上的 PWA 安装、升级、离线边界和缓存清理证据。",
+        "缺少终端与业务验收负责人的可识别批准。"
+      ],
+      "reviewedAt": "2026-07-21T01:25:52+08:00"
+    },
+    {
+      "id": "production_backup_restore",
+      "status": "blocked",
+      "ownerRole": "备份恢复批准人与运维负责人",
+      "summary": "本地恢复防护之外，远端验收服务器已对最终认证状态生成 age 加密、Ed25519 签名恢复点并在随机全新卷完成第二次隔离恢复；破坏性生产入口、两份独立介质、目标 RPO/RTO 和独立批准仍未执行。",
+      "evidence": [
+        {
+          "kind": "machine_evidence",
+          "result": "success",
+          "reference": "docs/delivery/evidence/signed-backup-restore-drill-20260720.json",
+          "verifiedAt": "2026-07-20T12:07:56+08:00",
+          "subjectCommit": "101d2f0938adfa0caa8ed576f6587a5c78ae74a5",
+          "sha256": "d2f7fcad840380e9ce3cdc31c71ef1fa14668f4529035b38dd6a977bafc587c9",
+          "note": "本地随机全新卷恢复通过，但不属于生产范围。"
+        },
+        {
+          "kind": "machine_evidence",
+          "result": "success",
+          "reference": "docs/delivery/evidence/production-restore-guard-acceptance-231d8e8-20260720.json",
+          "verifiedAt": "2026-07-20T15:54:39+08:00",
+          "subjectCommit": "231d8e82164f8e31b1cc978975bf56e7ac6a26bb",
+          "sha256": "9d688ad7736d72b1ffb93d0035d6e595d30b8a4f507b028153f6b8943bdb8f72",
+          "note": "本地 exact-SHA 恢复防护、operation 证据契约和 38 表/11 migration/1 对象签名隔离恢复通过；productionRestoreEntrypointExecuted=false。"
+        },
+        {
+          "kind": "target_environment",
+          "result": "success",
+          "reference": "docs/delivery/evidence/remote-server-acceptance-9de2b56-20260721.json#restoreDrill",
+          "verifiedAt": "2026-07-21T01:25:52+08:00",
+          "subjectCommit": "9de2b56a2fe2943c9ddf038eefe5a5b11b53eb06",
+          "sha256": "18ebaf92188def38a4c42569cc0a07cecd0761e62baf54451a66255e6432ecc1",
+          "note": "远端最终恢复点 46303002…ff62 通过签名、批准摘要、错误 S3 凭据负向、38 表、11 migrations、pg-boss 24、3 对象逐字节恢复及清理；加密归档另有异主机校验副本，但未证明两份独立介质或独立生产批准。"
+        },
+        {
+          "kind": "approval",
+          "result": "not_run",
+          "reference": "approval:v1:production-backup-restore:pending",
+          "verifiedAt": "2026-07-20T12:07:56+08:00"
+        }
+      ],
+      "blockers": [
+        "经审批生产 restore.sh 破坏性入口尚未使用最终不可变制品在目标环境执行。",
+        "第二份独立加密离线介质、业务目标 RPO/RTO、原始 0600 生产操作报告和独立生产批准尚未取得。"
+      ],
+      "reviewedAt": "2026-07-21T01:25:52+08:00"
+    },
+    {
+      "id": "real_llm_github_adapters",
+      "status": "blocked",
+      "ownerRole": "信息安全与产品负责人",
+      "summary": "worker-only 真实探测、失败关闭证据契约和本地 mock/manual 边界已通过，但真实目标凭据、七顾问质量、最小权限和撤销回退尚未执行或批准。",
+      "evidence": [
+        {
+          "kind": "machine_evidence",
+          "result": "blocked",
+          "reference": "docs/admin/real-adapter-acceptance.md#1-目的与完成边界",
+          "verifiedAt": "2026-07-20T16:56:38+08:00",
+          "note": "工程入口和离线 verifier 不持有真实凭据，也不独立证明供应商、GitHub 权限、质量、撤销或批准事实。"
+        },
+        {
+          "kind": "machine_evidence",
+          "result": "blocked",
+          "reference": "docs/delivery/evidence/real-adapter-guard-acceptance-d7cc156-20260720.json#truthBoundary",
+          "verifiedAt": "2026-07-20T18:16:58+08:00",
+          "subjectCommit": "d7cc156ef2c44a531416c60ed88023681b113ecf",
+          "sha256": "fa8cb3357cbf32cc38a9ba491e312e8467dd2addcecf0614e7449cc6b1f82463",
+          "note": "exact-SHA 本地工程验收通过，但记录明确为真实凭据、真实调用、目标环境会话和独立批准均未发生，因此不能作为成功适配器证据。"
+        },
+        {
+          "kind": "approval",
+          "result": "not_run",
+          "reference": "approval:v1:real-llm-github-adapters:pending",
+          "verifiedAt": "2026-07-20T12:07:56+08:00"
+        }
+      ],
+      "blockers": [
+        "缺少目标环境真实 LLM 与 GitHub 最小权限凭据、七类顾问运行及指定仓库刷新会话。",
+        "缺少供应商数据处理、质量、账户硬预算、两类凭据撤销轮换、disabled/manual 回退和独立负责人批准。"
+      ],
+      "reviewedAt": "2026-07-20T18:16:58+08:00"
+    },
+    {
+      "id": "compliance_professional_review",
+      "status": "blocked",
+      "ownerRole": "法务合规与财税专业复核人",
+      "summary": "73 条官方来源已建立可维护目录和专业复核工作流，但真实适用性、时效性和结论尚未逐条由专业人员签署。",
+      "evidence": [
+        {
+          "kind": "professional_review",
+          "result": "blocked",
+          "reference": "content/compliance/official-sources.json:73-source-catalog",
+          "verifiedAt": "2026-07-20T12:07:56+08:00",
+          "note": "目录中的 pending 状态是诚实边界，不构成法律或财税意见。"
+        },
+        {
+          "kind": "approval",
+          "result": "not_run",
+          "reference": "approval:v1:compliance-professional-review:pending",
+          "verifiedAt": "2026-07-20T12:07:56+08:00"
+        }
+      ],
+      "blockers": [
+        "73 条来源尚未在适用范围内完成真实专业人工复核和可识别签署。",
+        "目标环境首次抓取、变化处置和负责人复演尚未完成。"
+      ],
+      "reviewedAt": "2026-07-20T12:07:56+08:00"
+    },
+    {
+      "id": "education_content_clearance",
+      "status": "blocked",
+      "ownerRole": "教育内容与法务发布负责人",
+      "summary": "十二篇成年人电竞教育内部草案、review-only WordPress 审阅包及逐篇失败关闭证据入口已完成结构化实现，但真实问卷、事实、专业、著作权、肖像隐私、公开发布和批准均保持待审。",
+      "evidence": [
+        {
+          "kind": "machine_evidence",
+          "result": "blocked",
+          "reference": "docs/delivery/evidence/education-content-clearance-verifier-acceptance-f4c12b5-20260720.json#truthBoundary",
+          "verifiedAt": "2026-07-20T20:16:13+08:00",
+          "subjectCommit": "f4c12b596afd90d5781a0d192f381315c39790bc",
+          "sha256": "1aa8974fec37cf0cfe6dc5c8a2313185ce2f958b79e9d8e7825621f3c027ae42",
+          "note": "exact-SHA 工程验收通过，但真实逐篇放行机器报告没有创建；问卷、复核、批准、12 个公开 URL 和 7 个旧模板处置均未发生。"
+        },
+        {
+          "kind": "machine_evidence",
+          "result": "blocked",
+          "reference": "docs/delivery/evidence/education-wordpress-review-bundle-acceptance-9c5633e-20260720.json#truthBoundary",
+          "verifiedAt": "2026-07-20T21:46:01+08:00",
+          "subjectCommit": "9c5633e1c3e9650507231106fcd8a451bf32053f",
+          "sha256": "62aa22b352005ee7de459e24723ce595041e7775a9c014b85ab80947b3920dae",
+          "note": "12 篇审阅 HTML、治理表和哈希 manifest 已由 exact-SHA 工程验收，但固定为 review_only、全部 12 篇仍 blocked，且没有凭据、外部调用、专业意见、权利许可或发布批准。"
+        },
+        {
+          "kind": "professional_review",
+          "result": "blocked",
+          "reference": "content/education/foundation-articles.json:review.status=pending",
+          "verifiedAt": "2026-07-20T12:07:56+08:00"
+        },
+        {
+          "kind": "professional_review",
+          "result": "blocked",
+          "reference": "content/education/expansion-articles.json:review.status=pending",
+          "verifiedAt": "2026-07-20T12:07:56+08:00"
+        },
+        {
+          "kind": "external_publication",
+          "result": "not_run",
+          "reference": "content/education/README.md#内容边界",
+          "verifiedAt": "2026-07-20T12:07:56+08:00",
+          "note": "WordPress 未发布；没有伪造 URL 或发布时间。"
+        },
+        {
+          "kind": "approval",
+          "result": "not_run",
+          "reference": "approval:v1:education-content-clearance:pending",
+          "verifiedAt": "2026-07-20T12:07:56+08:00"
+        }
+      ],
+      "blockers": [
+        "九项真实上线问卷及十二篇专业事实、来源、权利、隐私、健康、内容安全和内部试讲尚未完成。",
+        "尚未取得逐篇和最终可识别批准，没有 WordPress 真实发布回填，也未处置并验证七篇旧模板页面。"
+      ],
+      "reviewedAt": "2026-07-20T21:46:01+08:00"
+    },
+    {
+      "id": "operational_responsibility_drills",
+      "status": "blocked",
+      "ownerRole": "公司负责人和运维安全负责人",
+      "summary": "本地已验证高风险审批与运行异常人工处置路径，真实责任人仍未在目标环境完成两人和单人补偿控制演练。",
+      "evidence": [
+        {
+          "kind": "target_environment",
+          "result": "not_run",
+          "reference": "docs/delivery/v1-acceptance-matrix.md#7-核心场景状态",
+          "verifiedAt": "2026-07-20T12:07:56+08:00"
+        },
+        {
+          "kind": "approval",
+          "result": "not_run",
+          "reference": "approval:v1:operational-responsibility-drills:pending",
+          "verifiedAt": "2026-07-20T12:07:56+08:00"
+        }
+      ],
+      "blockers": [
+        "八类高风险动作、成员权限和运行异常尚未由真实责任人在目标环境复演。",
+        "一人团队补偿控制、升级规则和演练结果尚未获得批准。"
+      ],
+      "reviewedAt": "2026-07-20T12:07:56+08:00"
+    },
+    {
+      "id": "residual_risk_decisions",
+      "status": "blocked",
+      "ownerRole": "公司与信息安全风险负责人",
+      "summary": "单主机、无病毒查杀或 DLP、主机文件密钥、MinIO 支持边界等残余风险尚未形成可识别接受或整改决定。",
+      "evidence": [
+        {
+          "kind": "risk_decision",
+          "result": "not_run",
+          "reference": "docs/delivery/known-boundaries.md#12-风险接受格式",
+          "verifiedAt": "2026-07-20T12:07:56+08:00"
+        },
+        {
+          "kind": "approval",
+          "result": "not_run",
+          "reference": "approval:v1:residual-risk-decisions:pending",
+          "verifiedAt": "2026-07-20T12:07:56+08:00"
+        }
+      ],
+      "blockers": ["适用残余风险尚未逐项记录处置、期限、负责人和可识别接受决定。"],
+      "reviewedAt": "2026-07-20T12:07:56+08:00"
+    },
+    {
+      "id": "known_blocking_defects_closed",
+      "status": "blocked",
+      "ownerRole": "V1 缺陷与发布负责人",
+      "summary": "本地实现未发现阻断核心使用的代码缺陷，但发布依赖、目标环境、真机、真实适配器和专业复核仍是明确开放阻断项。",
+      "evidence": [
+        {
+          "kind": "risk_decision",
+          "result": "blocked",
+          "reference": "docs/delivery/v1-release-readiness.json:blocked-gates",
+          "verifiedAt": "2026-07-20T12:07:56+08:00",
+          "note": "外部和人工门禁未关闭时不得宣称所有阻断缺陷已关闭。"
+        },
+        {
+          "kind": "approval",
+          "result": "not_run",
+          "reference": "approval:v1:known-blocking-defects-closed:pending",
+          "verifiedAt": "2026-07-20T12:07:56+08:00"
+        }
+      ],
+      "blockers": [
+        "本清单中的十项上游发布、目标环境和人工门禁仍处于 blocked。",
+        "尚未取得缺陷清零或经批准不阻断的最终书面确认。"
+      ],
+      "reviewedAt": "2026-07-20T12:07:56+08:00"
+    },
+    {
+      "id": "business_release_approval",
+      "status": "blocked",
+      "ownerRole": "公司负责人",
+      "summary": "公司负责人尚未在全部技术、目标环境、专业和风险门禁关闭后签署 V1 最终发布批准。",
+      "evidence": [
+        {
+          "kind": "approval",
+          "result": "not_run",
+          "reference": "approval:v1:business-release:pending",
+          "verifiedAt": "2026-07-20T12:07:56+08:00"
+        }
+      ],
+      "blockers": ["全部上游门禁尚未关闭，当前不得请求或记录最终业务发布批准。"],
+      "reviewedAt": "2026-07-20T12:07:56+08:00"
+    }
+  ]
+}

@@ -43,6 +43,86 @@ describe("resource registry", () => {
     expect(statusLabels.pending_approval).toBe("待审批");
     expect(statusLabels.confirmed).toBe("已确认");
     expect(statusLabels.failed).toBe("失败");
+    expect(statusLabels.inactive).toBe("已停用");
+    expect(statusLabels.offboarded).toBe("已离职");
+  });
+
+  it("exposes distinct member lifecycle states and pending-approval context", () => {
+    const users = getResourceConfig("users");
+    expect(users?.statuses.map((status) => status.value)).toEqual([
+      "pending",
+      "active",
+      "inactive",
+      "offboarded",
+    ]);
+    const lifecycleColumn = users?.columns.find(
+      (column) => column.key === "pendingLifecycleAction",
+    );
+    expect(lifecycleColumn?.format?.("deactivate")).toBe("待审批：停用");
+    expect(lifecycleColumn?.format?.("offboard")).toBe("待审批：离职");
+    expect(lifecycleColumn?.format?.("reactivate")).toBe("待审批：重新启用");
+  });
+
+  it("offers typed selectors for the core business relations", () => {
+    const relationFields = (resource: string) =>
+      Object.fromEntries(
+        (getResourceConfig(resource)?.fields ?? [])
+          .filter((field) => field.kind === "reference")
+          .map((field) => [field.key, field]),
+      );
+
+    expect(relationFields("decisions")).toMatchObject({
+      objectiveId: {
+        label: expect.stringContaining("同链"),
+        referenceEndpoint: "/objectives",
+        referenceLabelKey: "title",
+      },
+      projectId: {
+        label: expect.stringContaining("同链"),
+        referenceEndpoint: "/projects",
+        referenceLabelKey: "name",
+      },
+      taskId: {
+        label: expect.stringContaining("同链"),
+        referenceEndpoint: "/tasks",
+        referenceLabelKey: "title",
+      },
+    });
+    expect(relationFields("products")).toMatchObject({
+      projectId: { referenceEndpoint: "/projects", referenceLabelKey: "name" },
+    });
+    expect(relationFields("opportunities")).toMatchObject({
+      productId: {
+        label: expect.stringContaining("项目"),
+        referenceEndpoint: "/products",
+        referenceLabelKey: "name",
+      },
+      projectId: {
+        label: expect.stringContaining("产品所属项目"),
+        referenceEndpoint: "/projects",
+        referenceLabelKey: "name",
+      },
+    });
+    expect(relationFields("obligations")).toMatchObject({
+      sourceId: { referenceEndpoint: "/compliance-items", referenceLabelKey: "title" },
+      evidenceFileId: {
+        referenceEndpoint: "/files?status=uploaded",
+        referenceLabelKey: "filename",
+      },
+    });
+    expect(relationFields("compliance-events")).toMatchObject({
+      sourceId: { referenceEndpoint: "/compliance-items", referenceLabelKey: "title" },
+      evidenceFileId: {
+        referenceEndpoint: "/files?status=uploaded",
+        referenceLabelKey: "filename",
+      },
+    });
+    expect(
+      getResourceConfig("obligations")?.fields.find((field) => field.key === "recurrenceRule"),
+    ).toMatchObject({
+      label: "重复规则（仅元数据）",
+      placeholder: expect.stringContaining("V1 不自动生成下一期"),
+    });
   });
 });
 

@@ -1,5 +1,5 @@
-# syntax=docker/dockerfile:1.7
-FROM --platform=$BUILDPLATFORM golang:1.26.5-alpine AS caddy-build
+# syntax=docker/dockerfile:1.25.0@sha256:0adf442eae370b6087e08edc7c50b552d80ddf261576f4ebd6421006b2461f12
+FROM --platform=$BUILDPLATFORM golang:1.26.5-alpine@sha256:0178a641fbb4858c5f1b48e34bdaabe0350a330a1b1149aabd498d0699ff5fb2 AS caddy-build
 
 ARG TARGETOS
 ARG TARGETARCH
@@ -20,7 +20,7 @@ RUN --mount=type=cache,id=caddy-go-mod,target=/go/pkg/mod,sharing=shared \
     cp "$src" /out/caddy; \
     test -s /out/caddy
 
-FROM --platform=$BUILDPLATFORM node:24.12.0-bookworm-slim AS build
+FROM --platform=$BUILDPLATFORM node:24.12.0-bookworm-slim@sha256:7326fb2dbdce998edd72140946851be64ef4a643e8715e138ca467e8e9d92c99 AS build
 
 ENV PNPM_HOME=/pnpm \
     PATH=/pnpm:$PATH
@@ -39,12 +39,25 @@ COPY packages/integrations/package.json ./packages/integrations/package.json
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
     pnpm install --frozen-lockfile
 
+ARG FIATLUX_RELEASE_VERSION=development
+ARG FIATLUX_RELEASE_GIT_SHA=development
 COPY apps ./apps
 COPY packages ./packages
+COPY content ./content
+RUN set -eux; \
+    printf '%s' "$FIATLUX_RELEASE_VERSION" | \
+      grep -Eq '^(development|local|ci|v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z]+([.-][0-9A-Za-z]+)*)?)$'; \
+    case "$FIATLUX_RELEASE_VERSION" in \
+      development|local) test "$FIATLUX_RELEASE_GIT_SHA" = development ;; \
+      ci|v*) printf '%s' "$FIATLUX_RELEASE_GIT_SHA" | grep -Eq '^[0-9a-f]{40}$' ;; \
+      *) exit 1 ;; \
+    esac
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
+    VITE_RELEASE_VERSION="$FIATLUX_RELEASE_VERSION" \
+    VITE_RELEASE_GIT_SHA="$FIATLUX_RELEASE_GIT_SHA" \
     pnpm --filter @fiatlux/web... build
 
-FROM alpine:3.23 AS runtime
+FROM alpine:3.23@sha256:fd791d74b68913cbb027c6546007b3f0d3bc45125f797758156952bc2d6daf40 AS runtime
 
 ENV XDG_DATA_HOME=/tmp/caddy-data \
     XDG_CONFIG_HOME=/tmp/caddy-config
@@ -57,6 +70,7 @@ RUN apk upgrade --no-cache && \
 COPY --from=caddy-build /out/caddy /usr/bin/caddy
 COPY --chown=10001:10001 infra/caddy/Caddyfile.web /etc/caddy/Caddyfile
 COPY --from=build --chown=10001:10001 /app/apps/web/dist /srv
+RUN chmod -R a-w /srv /etc/caddy/Caddyfile
 
 USER 10001:10001
 EXPOSE 8080

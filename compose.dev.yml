@@ -1,9 +1,15 @@
 services:
+  postgres:
+    pull_policy: build
+
+  seed:
+    environment:
+      BOOTSTRAP_ADMIN_EMAIL: ${INITIAL_ADMIN_EMAIL:-admin@fiatlux.local}
+      BOOTSTRAP_ADMIN_PASSWORD: ${INITIAL_ADMIN_PASSWORD:-development-only-admin-password}
+
   api:
     pull_policy: build
     environment:
-      APP_ORIGIN: http://localhost:${HTTP_PORT:-8080}
-      PUBLIC_APP_URL: http://localhost:${HTTP_PORT:-8080}
       WEB_ORIGIN: http://localhost:${HTTP_PORT:-8080}
       COOKIE_SECURE: "false"
 

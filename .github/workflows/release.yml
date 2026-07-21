@@ -1,4 +1,4 @@
-name: Release images and SBOM
+name: Build release-candidate images and SBOM
 
 on:
   push:
@@ -13,7 +13,6 @@ on:
 
 permissions:
   contents: read
-  packages: write
 
 # GHCR does not provide an atomic create-if-absent operation for tags. Serializing every release
 # run, checking all target tags before any promotion, and restricting package writes to this
@@ -22,11 +21,24 @@ concurrency:
   group: release-${{ github.repository }}
   cancel-in-progress: false
 
+env:
+  BUILDX_VERSION: v0.35.0
+  BUILDKIT_VERSION: v0.31.2
+  BUILDKIT_IMAGE: docker.io/moby/buildkit:v0.31.2@sha256:2f5adac4ecd194d9f8c10b7b5d7bceb5186853db1b26e5abd3a657af0b7e26ec
+  BINFMT_IMAGE: docker.io/tonistiigi/binfmt:qemu-v10.2.3@sha256:400a4873b838d1b89194d982c45e5fb3cda4593fbfd7e08a02e76b03b21166f0
+  TRIVY_VERSION: v0.70.0
+  SYFT_VERSION: "1.42.3"
+  SYFT_CHECKSUMS_SHA256: 3c4a66ddb6e0689fac2be19247064f6053e2a2746035dfbcef8609baa9088f92
+  SYFT_LINUX_AMD64_SHA256: 0d6be741479eddd2c8644a288990c04f3df0d609bbc1599a005532a9dff63509
+
 jobs:
   prepare:
     name: Validate release identity
     runs-on: ubuntu-24.04
     timeout-minutes: 10
+    permissions:
+      contents: read
+      packages: read
     outputs:
       release_sha: ${{ steps.source.outputs.release_sha }}
       version: ${{ steps.version.outputs.version }}
@@ -96,7 +108,7 @@ jobs:
           set -euo pipefail
           owner=${GITHUB_REPOSITORY_OWNER,,}
           accept='application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json, application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.v2+json'
-          for component in api worker web gateway minio backup; do
+          for component in api worker web gateway minio backup postgres; do
             package="fiatlux-choice-$component"
             registry_token=$(curl --fail --silent --show-error \
               --user "$GITHUB_ACTOR:$GHCR_TOKEN" \
@@ -126,27 +138,31 @@ jobs:
     name: Verify release source
     runs-on: ubuntu-24.04
     timeout-minutes: 50
+    permissions:
+      contents: read
     needs:
       - prepare
     services:
       postgres:
-        image: postgres:17.5-alpine
+        image: postgres:17.10-alpine3.23@sha256:8189a1f6e40904781fc9e2612687877791d21679866db58b1de996b31fc312e4
         env:
-          POSTGRES_DB: fiatlux_choice
+          POSTGRES_DB: fiatlux_choice_e2e
           POSTGRES_USER: fiatlux
           POSTGRES_PASSWORD: fiatlux_release_ci_password
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U fiatlux -d fiatlux_choice"
+          --health-cmd "pg_isready -U fiatlux -d fiatlux_choice_e2e"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 20
     env:
+      SEMGREP_IMAGE: semgrep/semgrep:1.170.0@sha256:c98f8829eea377274ee4b10656458b078b88232469b2ff913f091c2317347c9d
+      SEMGREP_VERSION: 1.170.0
       CI: "true"
       NODE_ENV: test
-      DATABASE_URL: postgresql://fiatlux:fiatlux_release_ci_password@127.0.0.1:5432/fiatlux_choice
-      TEST_DATABASE_URL: postgresql://fiatlux:fiatlux_release_ci_password@127.0.0.1:5432/fiatlux_choice
+      DATABASE_URL: postgresql://fiatlux:fiatlux_release_ci_password@127.0.0.1:5432/fiatlux_choice_e2e
+      TEST_DATABASE_URL: postgresql://fiatlux:fiatlux_release_ci_password@127.0.0.1:5432/fiatlux_choice_e2e
       WEB_ORIGIN: http://127.0.0.1:4173
       SESSION_SECRET: release-ci-session-secret-with-more-than-32-characters
       JWT_SECRET: release-ci-session-secret-with-more-than-32-characters
@@ -162,6 +178,17 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           ref: ${{ needs.prepare.outputs.release_sha }}
+          fetch-depth: 0
+      - name: Bind every release gate to the resolved source SHA
+        env:
+          RELEASE_SHA: ${{ needs.prepare.outputs.release_sha }}
+        run: test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
+      - name: Run reproducible redacted Gitleaks current-tree and history gate
+        run: ./scripts/test-secret-scan.sh
+      - name: Scan the release source and reachable history for secrets
+        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
         with:
           version: 11.13.0
@@ -171,7 +198,62 @@ jobs:
           node-version: 24.12.0
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Audit production dependencies against the official registry
+        run: pnpm audit --prod --audit-level high --registry=https://registry.npmjs.org
+      - name: Verify the pinned Semgrep runtime
+        run: |
+          set -euo pipefail
+          actual=$(docker run --rm "$SEMGREP_IMAGE" semgrep --version | head -n 1)
+          test "$actual" = "$SEMGREP_VERSION"
+      - name: Validate Semgrep rules and canary
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            --volume "$PWD:/src" \
+            --workdir /src \
+            "$SEMGREP_IMAGE" \
+            semgrep scan --validate --metrics=off --disable-version-check \
+              --strict \
+              --config security/semgrep/fiatlux-nodejs-v1.yml
+          docker run --rm \
+            --volume "$PWD:/src" \
+            --workdir /src \
+            "$SEMGREP_IMAGE" \
+            sh security/semgrep/verify-canary.sh
+      - name: Run release-source Semgrep SAST gate
+        run: |
+          docker run --rm \
+            --volume "$PWD:/src" \
+            --workdir /src \
+            "$SEMGREP_IMAGE" \
+            semgrep scan \
+              --config security/semgrep/fiatlux-nodejs-v1.yml \
+              --metrics=off \
+              --disable-version-check \
+              --strict \
+              --error \
+              --exclude 'security/semgrep/canary/**' \
+              --exclude 'apps/api/src/index.ts' \
+              --exclude '**/dist/**' \
+              --exclude '**/coverage/**' \
+              --exclude '**/node_modules/**' \
+              --exclude '**/test/**' \
+              --exclude '**/tests/**' \
+              --exclude '**/*.test.*' \
+              --exclude '**/*.spec.*' \
+              --exclude 'apps/web/e2e/**' \
+              .
       - uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+        with:
+          version: ${{ env.BUILDX_VERSION }}
+          driver-opts: image=${{ env.BUILDKIT_IMAGE }}
+      - name: Verify pinned Buildx and BuildKit
+        env:
+          EXPECTED_BUILDX_VERSION: ${{ env.BUILDX_VERSION }}
+          EXPECTED_BUILDKIT_VERSION: ${{ env.BUILDKIT_VERSION }}
+          EXPECTED_BUILDKIT_IMAGE: ${{ env.BUILDKIT_IMAGE }}
+          REQUIRED_BUILDKIT_PLATFORMS: linux/amd64
+        run: ./scripts/verify-build-toolchain.sh
       - name: Build the repository MinIO release-test image
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
@@ -181,6 +263,11 @@ jobs:
           tags: fiatlux-release-minio:local
           cache-from: type=gha,scope=release-minio-test
           cache-to: type=gha,mode=max,scope=release-minio-test
+      - name: Test explicit MinIO legacy access-key revocation
+        env:
+          MINIO_ROTATION_IMAGE_PREFIX: fiatlux-release
+          MINIO_ROTATION_IMAGE_TAG: local
+        run: ./scripts/test-minio-legacy-rotation.sh
       - name: Start MinIO
         run: |
           docker run --detach --name fiatlux-release-minio \
@@ -210,18 +297,76 @@ jobs:
               mc anonymous set none "release/$S3_BUCKET"
             '
       - run: pnpm lint
+      - name: ShellCheck operational and recovery scripts
+        run: pnpm lint:shell
+      - name: Validate every GitHub Actions workflow with pinned actionlint
+        run: pnpm lint:actions
       - run: pnpm typecheck
       - run: pnpm test:unit
+      - name: Test release-manifest and seven-image digest enforcement
+        run: ./scripts/test-release-image-verification.sh
+      - name: Test fail-closed target-intranet evidence generation
+        run: pnpm test:target-intranet-verification
+      - name: Test managed-device PWA evidence contracts and file verification
+        run: pnpm test:managed-device-pwa-evidence
+      - name: Test release transition ordering and N-1 backup image selection
+        run: ./scripts/test-release-transition-security.sh
+      - name: Test cross-operation maintenance lock and stale residue fail-closed behavior
+        run: ./scripts/test-maintenance-lock-security.sh
+      - name: Test restore approval metadata, isolated paths and immutable reports
+        run: ./scripts/test-restore-prebackup-dir-security.sh
+      - name: Test restored object path, byte and SHA-256 verification
+        run: ./scripts/test-restored-object-verification.sh
       - run: pnpm db:migrate
       - run: pnpm test:integration
-      - run: pnpm build
+      - name: Build production applications
+        env:
+          NODE_ENV: production
+        run: pnpm build
       - run: pnpm --filter @fiatlux/web exec playwright install --with-deps chromium
-      - run: pnpm test:e2e
+      - name: Run isolated mock UI E2E
+        run: pnpm test:e2e:mock
+      - name: Run release-source real-stack E2E with the pg-boss worker
+        if: ${{ !cancelled() }}
+        run: pnpm test:e2e:real
+      - name: Collect release real-stack infrastructure logs on failure
+        if: failure()
+        run: |
+          mkdir -p artifacts/real-stack/logs
+          docker logs fiatlux-release-minio >artifacts/real-stack/logs/minio.log 2>&1 || true
+          postgres_id=$(docker ps --filter ancestor=postgres:17.10-alpine3.23@sha256:8189a1f6e40904781fc9e2612687877791d21679866db58b1de996b31fc312e4 --quiet | head -n 1)
+          if [[ -n "$postgres_id" ]]; then
+            docker logs "$postgres_id" >artifacts/real-stack/logs/postgres.log 2>&1 || true
+          fi
+      - name: Upload release Playwright reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-playwright-reports-${{ github.run_id }}
+          path: |
+            apps/web/playwright-report
+            apps/web/test-results
+          if-no-files-found: ignore
+          retention-days: 14
+      - name: Upload failed release real-stack logs
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-real-stack-logs-${{ github.run_id }}
+          path: artifacts/real-stack/logs
+          if-no-files-found: ignore
+          retention-days: 14
+      - name: Stop release-test MinIO
+        if: always()
+        run: docker rm --force fiatlux-release-minio 2>/dev/null || true
 
   build-scan:
     name: Build and scan ${{ matrix.image }} by digest
     runs-on: ubuntu-24.04
     timeout-minutes: 55
+    permissions:
+      contents: read
+      packages: write
     needs:
       - prepare
       - verify
@@ -235,12 +380,17 @@ jobs:
             dockerfile: Dockerfile.worker
           - image: web
             dockerfile: Dockerfile.web
+            build_args: |
+              FIATLUX_RELEASE_VERSION=${{ needs.prepare.outputs.version }}
+              FIATLUX_RELEASE_GIT_SHA=${{ needs.prepare.outputs.release_sha }}
           - image: gateway
             dockerfile: Dockerfile.caddy
           - image: minio
             dockerfile: Dockerfile.minio
           - image: backup
             dockerfile: Dockerfile.backup
+          - image: postgres
+            dockerfile: Dockerfile.postgres
     env:
       REGISTRY_IMAGE: ghcr.io/liuxiu233/fiatlux-choice-${{ matrix.image }}
       RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
@@ -249,7 +399,23 @@ jobs:
         with:
           ref: ${{ needs.prepare.outputs.release_sha }}
       - uses: docker/setup-qemu-action@96fe6ef7f33517b61c61be40b68a1882f3264fb8 # v4.2.0
+        id: qemu
+        with:
+          image: ${{ env.BINFMT_IMAGE }}
+          platforms: arm64
       - uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+        with:
+          version: ${{ env.BUILDX_VERSION }}
+          driver-opts: image=${{ env.BUILDKIT_IMAGE }}
+      - name: Verify pinned Buildx, BuildKit and QEMU
+        env:
+          EXPECTED_BUILDX_VERSION: ${{ env.BUILDX_VERSION }}
+          EXPECTED_BUILDKIT_VERSION: ${{ env.BUILDKIT_VERSION }}
+          EXPECTED_BUILDKIT_IMAGE: ${{ env.BUILDKIT_IMAGE }}
+          REQUIRED_BUILDKIT_PLATFORMS: linux/amd64,linux/arm64
+          QEMU_REGISTERED_PLATFORMS: ${{ steps.qemu.outputs.platforms }}
+          REQUIRED_QEMU_PLATFORMS: arm64
+        run: ./scripts/verify-build-toolchain.sh
       - uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
         with:
           registry: ghcr.io
@@ -286,8 +452,9 @@ jobs:
           context: .
           file: ${{ matrix.dockerfile }}
           platforms: linux/amd64,linux/arm64
+          build-args: ${{ matrix.build_args }}
           outputs: type=image,name=${{ env.REGISTRY_IMAGE }},push-by-digest=true,name-canonical=true,push=true
-          provenance: mode=max
+          provenance: mode=max,version=v0.2
           cache-from: type=gha,scope=release-${{ matrix.image }}
           cache-to: type=gha,mode=max,scope=release-${{ matrix.image }}
       - name: Validate pushed digest
@@ -303,79 +470,15 @@ jobs:
       - name: Verify multi-platform BuildKit provenance
         env:
           IMAGE_DIGEST: ${{ steps.build.outputs.digest }}
+          OCI_REGISTRY_USERNAME: ${{ github.actor }}
+          OCI_REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_GIT_SHA: ${{ needs.prepare.outputs.release_sha }}
         run: |
           set -euo pipefail
-          index_json=$(mktemp)
-          trap 'rm -f "${index_json:-}" "${attestation_json:-}"' EXIT
-          docker buildx imagetools inspect --raw \
-            "$REGISTRY_IMAGE@$IMAGE_DIGEST" >"$index_json"
-
-          for architecture in amd64 arm64; do
-            platform_count=$(jq --arg architecture "$architecture" \
-              '[.manifests[]? | select(.platform.os == "linux" and .platform.architecture == $architecture)] | length' \
-              "$index_json")
-            if [[ "$platform_count" != 1 ]]; then
-              printf '期望恰好一个 linux/%s manifest，实际为 %s。\n' \
-                "$architecture" "$platform_count" >&2
-              exit 3
-            fi
-          done
-          total_platform_count=$(jq \
-            '[.manifests[]? | select((.annotations["vnd.docker.reference.type"] // "") != "attestation-manifest")] | length' \
-            "$index_json")
-          if [[ "$total_platform_count" != 2 ]]; then
-            printf '期望恰好两个可运行平台 manifest，实际为 %s。\n' \
-              "$total_platform_count" >&2
-            exit 3
-          fi
-
-          mapfile -t platform_digests < <(jq -r \
-            '.manifests[]? | select(.platform.os == "linux" and (.platform.architecture == "amd64" or .platform.architecture == "arm64")) | .digest' \
-            "$index_json")
-          for platform_digest in "${platform_digests[@]}"; do
-            if [[ ! "$platform_digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
-              printf '无效平台 digest：%s。\n' "$platform_digest" >&2
-              exit 3
-            fi
-            mapfile -t attestation_digests < <(jq -r --arg platform_digest "$platform_digest" \
-              '.manifests[]? | select(
-                .annotations["vnd.docker.reference.type"] == "attestation-manifest" and
-                .annotations["vnd.docker.reference.digest"] == $platform_digest
-              ) | .digest' "$index_json")
-            if ((${#attestation_digests[@]} < 1)); then
-              printf '平台 manifest %s 缺少 BuildKit attestation。\n' \
-                "$platform_digest" >&2
-              exit 3
-            fi
-            valid_provenance=0
-            for attestation_digest in "${attestation_digests[@]}"; do
-              if [[ ! "$attestation_digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
-                printf '无效 attestation digest：%s。\n' \
-                  "$attestation_digest" >&2
-                exit 3
-              fi
-              attestation_json=$(mktemp)
-              docker buildx imagetools inspect --raw \
-                "$REGISTRY_IMAGE@$attestation_digest" >"$attestation_json"
-              if jq -e --arg subject "$platform_digest" '
-                .mediaType == "application/vnd.oci.image.manifest.v1+json" and
-                .subject.digest == $subject and
-                any(.layers[]?;
-                  .mediaType == "application/vnd.in-toto+json" and
-                  ((.annotations["in-toto.io/predicate-type"] // "") |
-                    startswith("https://slsa.dev/provenance/"))
-                )' "$attestation_json" >/dev/null; then
-                valid_provenance=1
-              fi
-              rm -f "$attestation_json"
-            done
-            if ((valid_provenance != 1)); then
-              printf '平台 manifest %s 缺少 SLSA provenance predicate。\n' \
-                "$platform_digest" >&2
-              exit 3
-            fi
-          done
-          rm -f "$index_json"
+          ./scripts/verify-buildkit-provenance.sh \
+            --registry-image "$REGISTRY_IMAGE" \
+            --image-digest "$IMAGE_DIGEST" \
+            --expected-git-sha "$RELEASE_GIT_SHA"
       - name: Scan amd64 digest and preserve all high-severity findings
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         env:
@@ -387,6 +490,7 @@ jobs:
           severity: HIGH,CRITICAL
           ignore-unfixed: false
           exit-code: "0"
+          version: ${{ env.TRIVY_VERSION }}
       - name: Enforce zero fixable amd64 HIGH/CRITICAL findings
         run: |
           set -euo pipefail
@@ -408,6 +512,7 @@ jobs:
           severity: HIGH,CRITICAL
           ignore-unfixed: false
           exit-code: "0"
+          version: ${{ env.TRIVY_VERSION }}
       - name: Enforce zero fixable arm64 HIGH/CRITICAL findings
         run: |
           set -euo pipefail
@@ -428,21 +533,92 @@ jobs:
           if-no-files-found: error
           retention-days: 90
           overwrite: true
-      - name: Generate SPDX SBOM for the verified digest
-        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0
-        with:
-          image: ${{ env.REGISTRY_IMAGE }}@${{ steps.build.outputs.digest }}
-          registry-username: ${{ github.actor }}
-          registry-password: ${{ secrets.GITHUB_TOKEN }}
-          format: spdx-json
-          output-file: sbom-${{ matrix.image }}.spdx.json
-          upload-artifact: false
-          upload-release-assets: false
-      - name: Upload SPDX SBOM
+      - name: Install checksum-pinned Syft without a mutable installer
+        run: |
+          set -euo pipefail
+          umask 077
+          archive_name="syft_${SYFT_VERSION}_linux_amd64.tar.gz"
+          archive="$RUNNER_TEMP/$archive_name"
+          checksums="$RUNNER_TEMP/syft_${SYFT_VERSION}_checksums.txt"
+          bin_dir="$RUNNER_TEMP/syft-${SYFT_VERSION}-bin"
+          curl --fail --silent --show-error --location \
+            --proto '=https' --proto-redir '=https' --max-redirs 3 \
+            --connect-timeout 15 --max-time 180 --retry 2 --retry-all-errors \
+            --max-filesize 1048576 \
+            --output "$checksums" \
+            "https://github.com/anchore/syft/releases/download/v${SYFT_VERSION}/syft_${SYFT_VERSION}_checksums.txt"
+          printf '%s  %s\n' "$SYFT_CHECKSUMS_SHA256" "$checksums" | sha256sum -c -
+          checksum_count=$(awk -v archive="$archive_name" '$2 == archive {count += 1} END {print count + 0}' "$checksums")
+          checksum_value=$(awk -v archive="$archive_name" '$2 == archive {print $1}' "$checksums")
+          if [[ "$checksum_count" != 1 || "$checksum_value" != "$SYFT_LINUX_AMD64_SHA256" ]]; then
+            echo "Syft 官方 checksum 清单与受审 archive SHA-256 不一致。" >&2
+            exit 3
+          fi
+          curl --fail --silent --show-error --location \
+            --proto '=https' --proto-redir '=https' --max-redirs 3 \
+            --connect-timeout 15 --max-time 300 --retry 2 --retry-all-errors \
+            --max-filesize 67108864 \
+            --output "$archive" \
+            "https://github.com/anchore/syft/releases/download/v${SYFT_VERSION}/$archive_name"
+          printf '%s  %s\n' "$SYFT_LINUX_AMD64_SHA256" "$archive" | sha256sum -c -
+          mkdir -p "$bin_dir"
+          tar -xzf "$archive" -C "$bin_dir" syft
+          test -x "$bin_dir/syft"
+          actual_syft_version=$("$bin_dir/syft" version | awk '/^Version:/ {print $2}')
+          if [[ "$actual_syft_version" != "$SYFT_VERSION" ]]; then
+            printf 'Syft 版本不匹配：期望 %s，实际 %s。\n' \
+              "$SYFT_VERSION" "${actual_syft_version:-unknown}" >&2
+            exit 3
+          fi
+          printf '%s\n' "$bin_dir" >>"$GITHUB_PATH"
+      - name: Generate and bind amd64 and arm64 SPDX SBOMs
+        env:
+          IMAGE_DIGEST: ${{ steps.build.outputs.digest }}
+          MATRIX_IMAGE: ${{ matrix.image }}
+          RELEASE_GIT_SHA: ${{ needs.prepare.outputs.release_sha }}
+          SYFT_CHECK_FOR_APP_UPDATE: "false"
+          SYFT_REGISTRY_AUTH_USERNAME: ${{ github.actor }}
+          SYFT_REGISTRY_AUTH_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          mkdir -p sbom-output
+          manifest=sbom-output/sbom-manifest.tsv
+          printf 'component\tplatform\timage_digest\tgit_sha\tsbom_file\tsbom_sha256\tsyft_version\n' >"$manifest"
+          for architecture in amd64 arm64; do
+            platform="linux/$architecture"
+            sbom_file="sbom-$MATRIX_IMAGE-$architecture.spdx.json"
+            sbom_path="sbom-output/$sbom_file"
+            syft scan \
+              --platform "$platform" \
+              "registry:$REGISTRY_IMAGE@$IMAGE_DIGEST" \
+              --output "spdx-json=$sbom_path"
+            sbom_sha=$(./scripts/verify-spdx-sbom.sh \
+              --sbom "$sbom_path" --syft-version "$SYFT_VERSION")
+            printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+              "$MATRIX_IMAGE" "$platform" "$IMAGE_DIGEST" "$RELEASE_GIT_SHA" \
+              "$sbom_file" "$sbom_sha" "$SYFT_VERSION" >>"$manifest"
+          done
+          ./scripts/verify-release-sbom-manifest.sh \
+            --manifest "$manifest" \
+            --component "$MATRIX_IMAGE" \
+            --image-digest "$IMAGE_DIGEST" \
+            --git-sha "$RELEASE_GIT_SHA" \
+            --syft-version "$SYFT_VERSION" \
+            --sbom-directory sbom-output
+          (
+            cd sbom-output
+            sha256sum sbom-manifest.tsv >sbom-manifest.tsv.sha256
+          )
+      - name: Upload both SPDX SBOMs and their binding manifest
+        if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: sbom-${{ matrix.image }}-${{ needs.prepare.outputs.version }}
-          path: sbom-${{ matrix.image }}.spdx.json
+          path: |
+            sbom-output/sbom-${{ matrix.image }}-amd64.spdx.json
+            sbom-output/sbom-${{ matrix.image }}-arm64.spdx.json
+            sbom-output/sbom-manifest.tsv
+            sbom-output/sbom-manifest.tsv.sha256
           if-no-files-found: error
           retention-days: 90
           overwrite: true
@@ -465,13 +641,20 @@ jobs:
     name: Promote verified digests to ${{ needs.prepare.outputs.version }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
     needs:
       - prepare
       - verify
       - build-scan
     env:
       RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+      RELEASE_GIT_SHA: ${{ needs.prepare.outputs.release_sha }}
     steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ needs.prepare.outputs.release_sha }}
       - name: Download all verified digests
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
@@ -480,6 +663,16 @@ jobs:
           merge-multiple: true
           digest-mismatch: error
       - uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+        with:
+          version: ${{ env.BUILDX_VERSION }}
+          driver-opts: image=${{ env.BUILDKIT_IMAGE }}
+      - name: Verify pinned Buildx and BuildKit
+        env:
+          EXPECTED_BUILDX_VERSION: ${{ env.BUILDX_VERSION }}
+          EXPECTED_BUILDKIT_VERSION: ${{ env.BUILDKIT_VERSION }}
+          EXPECTED_BUILDKIT_IMAGE: ${{ env.BUILDKIT_IMAGE }}
+          REQUIRED_BUILDKIT_PLATFORMS: linux/amd64
+        run: ./scripts/verify-build-toolchain.sh
       - uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
         with:
           registry: ghcr.io
@@ -493,8 +686,12 @@ jobs:
           owner=${GITHUB_REPOSITORY_OWNER,,}
           accept='application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json, application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.v2+json'
           mkdir -p release-output
-          printf 'version\tcomponent\tdigest\n' >release-output/release-manifest.tsv
-          for component in api worker web gateway minio backup; do
+          if [[ ! "$RELEASE_GIT_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "无效发布 Git SHA：$RELEASE_GIT_SHA" >&2
+            exit 3
+          fi
+          printf 'version\tgit_sha\tcomponent\tdigest\n' >release-output/release-manifest.tsv
+          for component in api worker web gateway minio backup postgres; do
             digest_file="release-digests/$component.txt"
             if [[ ! -f "$digest_file" ]]; then
               echo "缺少已验证 digest：$component" >&2
@@ -524,14 +721,18 @@ jobs:
               echo "无法可靠确认目标镜像 tag 是否存在（$component，HTTP $http_status）。" >&2
               exit 5
             fi
-            printf '%s\t%s\t%s\n' "$RELEASE_VERSION" "$component" "$digest" \
+            printf '%s\t%s\t%s\t%s\n' "$RELEASE_VERSION" "$RELEASE_GIT_SHA" "$component" "$digest" \
               >>release-output/release-manifest.tsv
           done
-      - name: Create human-readable tags only after every scan passed
+          (
+            cd release-output
+            sha256sum release-manifest.tsv >release-manifest.tsv.sha256
+          )
+      - name: Create candidate tags only after every scan passed
         run: |
           set -euo pipefail
           owner=${GITHUB_REPOSITORY_OWNER,,}
-          for component in api worker web gateway minio backup; do
+          for component in api worker web gateway minio backup postgres; do
             digest=$(<"release-digests/$component.txt")
             image="ghcr.io/$owner/fiatlux-choice-$component"
             docker buildx imagetools create \
@@ -546,18 +747,28 @@ jobs:
             fi
           done
           {
-            echo '### 已发布镜像 digest'
+            echo '### 已生成不可变候选镜像 digest'
+            echo
+            echo '这些 semver/GHCR tag 是待独立审批的候选制品，不表示已获生产批准。'
             echo
             echo '```text'
             column -t -s $'\t' release-output/release-manifest.tsv
             echo '```'
+            echo
+            echo '清单 SHA-256（完整性值，非数字签名）：'
+            echo
+            echo '```text'
+            cat release-output/release-manifest.tsv.sha256
+            echo '```'
           } >>"$GITHUB_STEP_SUMMARY"
       - name: Upload release manifest
-        if: always()
+        if: ${{ success() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: release-manifest-${{ needs.prepare.outputs.version }}
-          path: release-output/release-manifest.tsv
-          if-no-files-found: warn
+          path: |
+            release-output/release-manifest.tsv
+            release-output/release-manifest.tsv.sha256
+          if-no-files-found: error
           retention-days: 90
           overwrite: true

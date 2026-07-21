@@ -1,0 +1,246 @@
+{
+  "schemaVersion": 1,
+  "evidenceType": "local-production-like-acceptance",
+  "status": "passed_with_external_gates",
+  "candidate": {
+    "repository": "LiuXiu233/fiatlux-choice",
+    "branch": "codex/v1-acceptance-hardening",
+    "gitSha": "101d2f0938adfa0caa8ed576f6587a5c78ae74a5",
+    "imageTag": "reviewqa-101d2f0",
+    "sourceWasClean": true
+  },
+  "execution": {
+    "evidenceWindowStartedAt": "2026-07-19T19:41:52Z",
+    "evidenceWindowCompletedAt": "2026-07-19T20:06:30Z",
+    "operatorTimezone": "Asia/Shanghai",
+    "host": {
+      "os": "macOS 26.5.2",
+      "dockerClient": "29.6.0",
+      "dockerServer": "29.5.2",
+      "dockerServerOs": "linux",
+      "dockerServerArchitecture": "arm64",
+      "dockerCompose": "5.3.1",
+      "dockerBuildx": "0.35.0"
+    }
+  },
+  "compose": {
+    "projectName": "fiatlux-choice-reviewqa",
+    "url": "https://choice-review.localhost:20443",
+    "productionOverlay": true,
+    "services": ["postgres", "minio", "api", "worker", "web", "caddy"],
+    "allSixServicesHealthy": true,
+    "deploymentVerifierPassedBeforeAndAfterBackup": true,
+    "restartPersistencePassed": true,
+    "onlyGatewayPublishedHostPort": true,
+    "runtimeDatabaseRole": "fiatlux_runtime",
+    "database": {
+      "publicTableCount": 38,
+      "migrationCount": 11,
+      "firstMigration": "0000_dusty_wither",
+      "lastMigration": "0010_aspiring_maverick",
+      "pgBossSchemaVersion": 24,
+      "freshFiveRolePosturePassed": true,
+      "auditAppendOnlyPosturePassed": true
+    },
+    "seed": {
+      "organizationCount": 1,
+      "officialComplianceSourcesImported": 73,
+      "skippedSources": 0,
+      "pendingSources": 73,
+      "draftSources": 73,
+      "pendingFetchSources": 73,
+      "professionallyReviewedSources": 0
+    },
+    "runtimeLogReview": {
+      "blockingErrors": 0,
+      "classifiedExpectedEvents": [
+        "PostgreSQL terminated active client connections during the intentional six-service restart",
+        "pg-boss runtime create_queue attempts were denied while pre-created queues remained healthy",
+        "the non-root Caddy container could not install its local CA into a host trust store; host curl separately validated the exported CA"
+      ]
+    }
+  },
+  "browser": {
+    "startedAt": "2026-07-19T19:59:35.502417Z",
+    "completedAt": "2026-07-19T19:59:48.066063Z",
+    "rawEvidenceSha256": "9f247ffe943f5be7d15f68c3ebd3c48e3bf0ae99c2ff21ecd70b4f86fbcb1488",
+    "desktopViewport": "1440x1000",
+    "mobileViewport": "390x844",
+    "desktopHorizontalOverflow": false,
+    "mobileHorizontalOverflow": false,
+    "desktopConsoleErrors": 0,
+    "mobileConsoleErrors": 0,
+    "pageErrors": 0,
+    "unexpectedFailedRequests": 0,
+    "initialPasswordChanged": true,
+    "oldTemporaryPasswordRejected": true,
+    "taskCreatedThroughUiAndReadOnMobile": true,
+    "taskId": "58a2a887-72ef-4fe6-8c79-2d88db7c2f7a",
+    "pwa": {
+      "activeServiceWorker": true,
+      "serviceWorkerPath": "/sw.js",
+      "cacheEntryCount": 10,
+      "cachedSensitiveRouteCount": 0,
+      "installabilityErrors": 0,
+      "manifestName": "FIAT LUX CHOICE",
+      "display": "standalone",
+      "iconSizes": ["192x192", "512x512"],
+      "offlineSensitiveContentHidden": true,
+      "sessionRevalidatedAfterReconnect": true
+    },
+    "qaRecoveryAudits": {
+      "count": 4,
+      "reason": "The isolated owner was reset between interrupted test-harness refinements; each reset used the audited one-shot recovery boundary.",
+      "productionIdentityOrData": false
+    }
+  },
+  "supplyChain": {
+    "platform": "linux/arm64",
+    "trivy": {
+      "version": "0.70.0",
+      "imageDigest": "sha256:be1190afcb28352bfddc4ddeb71470835d16462af68d310f9f4bca710961a41e",
+      "databaseUpdatedAt": "2026-07-19T18:43:16.060990559Z",
+      "databaseDownloadedAt": "2026-07-19T20:01:41.810983170Z",
+      "severities": ["HIGH", "CRITICAL"],
+      "ignoreUnfixed": false,
+      "totalFindings": 0
+    },
+    "syft": {
+      "version": "1.42.3",
+      "imageDigest": "sha256:5999d209a342e55e9edf70bf8930fb5b86d8f2a783fa401178372c50e21b1d36",
+      "allSpdxDocumentsValidated": true
+    },
+    "components": [
+      {
+        "component": "api",
+        "imageId": "sha256:df6ef7da0e206a34996d8baf9f9f24615ca37151f1e87f365fd7041163b78dd3",
+        "highCriticalFindings": 0,
+        "trivyReportSha256": "380a807b92e34c88ef7ce1fd2b7935b44cdb3bf54964f35df7a2a53eb960fd2b",
+        "spdxPackages": 204,
+        "spdxSha256": "16d0e81328892aa3ae8cf56f25be11b9147b11caf40bfecb557b6cc11672768a"
+      },
+      {
+        "component": "worker",
+        "imageId": "sha256:ac4b91bc2f87bf869fe51c5081e908caeccec92c0da2316d47890d9e114b6645",
+        "highCriticalFindings": 0,
+        "trivyReportSha256": "0948de4f0343a52cf332ef795965fd613559b7633c4a9e839a852ae7f798a4fe",
+        "spdxPackages": 225,
+        "spdxSha256": "786fe14ba182858762f145a92074c0e9c86d1f5b64f645c2727a67d1f66a439d"
+      },
+      {
+        "component": "web",
+        "imageId": "sha256:06502c0c15a7157db13f5ae7b9a8c3073d827b0fdf96bc1d9ce355b7013274f1",
+        "highCriticalFindings": 0,
+        "trivyReportSha256": "b46fb39b06a572050a9ba4179866344f64e33238dd65c3903227ef726530bfc6",
+        "spdxPackages": 176,
+        "spdxSha256": "a49564453ec4a0c7fe8d64ab919765cde1a9af4e412a80a7485d88c9e8cad079"
+      },
+      {
+        "component": "gateway",
+        "imageId": "sha256:fadb10cd0dd0819d95fb9efa910f2725b0fcbafa04282a90cc78377066bdc14e",
+        "highCriticalFindings": 0,
+        "trivyReportSha256": "86ecc10702e5a0a3b87767c2e9364a8ff20ea86cb63561574d25b5802714d3c8",
+        "spdxPackages": 176,
+        "spdxSha256": "a10b05ed21829cdd417d6566a4fbe847cf648333444e4fa53fc0ef9d1f8b0eb3"
+      },
+      {
+        "component": "minio",
+        "imageId": "sha256:eaa26fb6ea35f092b07ce26f1df0ccb4bb96e9c1b12acf220a811c023f2c6cac",
+        "highCriticalFindings": 0,
+        "trivyReportSha256": "adb4a5eed35be8c11fb1af2b463a1294a61726f101ebf24b015292d60a7cfe4e",
+        "spdxPackages": 372,
+        "spdxSha256": "dccc755c3467c8e75045aff0ddc06e13aede81c216356195375bff9410e32df5"
+      },
+      {
+        "component": "backup",
+        "imageId": "sha256:34f825a0a16f488651bb634230942560088bd038a8cb170ded793b4a36b8d238",
+        "highCriticalFindings": 0,
+        "trivyReportSha256": "da780b9297213328a303629dd5ecd411572dbbc86cbff0bc13be97450be0a493",
+        "spdxPackages": 178,
+        "spdxSha256": "634b37b2e618302cf2e380fe3e01b5f5a17db302bc27cb1c6fbd7fc7a40ab517"
+      },
+      {
+        "component": "postgres",
+        "imageId": "sha256:6ac8e44d9bd98214f9c60459b71d43420e487e1751719c5bb87d83136b895eec",
+        "highCriticalFindings": 0,
+        "trivyReportSha256": "788edba71ebf59433850b819f5df25bf4394821f793a4010b99d8373bf48cfcc",
+        "spdxPackages": 47,
+        "spdxSha256": "6a39f1df6bb1480e69a40312334448f307f9897dacf7a67adbdddea9915bfda6"
+      }
+    ]
+  },
+  "backup": {
+    "createdAt": "2026-07-19T20:05:33Z",
+    "sourceId": "fiatlux-reviewqa-101d2f0",
+    "sourceDatabase": "fiatlux_choice",
+    "sourceBucket": "fiatlux-choice",
+    "backupToolRelease": "reviewqa-101d2f0",
+    "archiveFile": "fiatlux-reviewqa-101d2f0-11migrations.tar.gz.age",
+    "archiveSizeBytes": 59093,
+    "archiveSha256": "0757095401915bf90ab61f09e8ec478482d2aabbc9482fe3b21d0737e0203f09",
+    "attestationSha256": "671f5a1d1c7758fa9af846c45ff40cd0f29374a2e33cb44f219bdb903743b0fd",
+    "signingKeyFingerprintSha256": "76b44bc56bbe365a01dabe1a290b898db8edbd81fd42e0874aa349dcddec5e24",
+    "ageEncrypted": true,
+    "ed25519Signed": true,
+    "configurationArchiveCreated": true,
+    "configurationArchiveSha256": "16479e935c4cf28f364d18f02696a8f8507c4d3aec7089567fbe8cf8c9dbe6a6",
+    "quiescedServices": ["caddy", "api", "worker"],
+    "sameContainersResumedHealthy": true,
+    "sentinelObject": {
+      "count": 1,
+      "bytes": 94,
+      "sha256": "c729556870a2f26ff4d4526c74e835deab5fd87df1b4243dc40ad81dc766d966"
+    }
+  },
+  "restoreDrill": {
+    "startedAt": "2026-07-19T20:06:07Z",
+    "dataRestoredAt": "2026-07-19T20:06:18Z",
+    "completedAt": "2026-07-19T20:06:30Z",
+    "fullDrillSeconds": 23,
+    "randomFreshComposeProject": true,
+    "wrongS3CredentialPreflightFailedWithoutMutation": true,
+    "archiveChecksumVerified": true,
+    "signatureVerified": true,
+    "metadataVerified": true,
+    "objectsVerified": true,
+    "publicTableCount": 38,
+    "migrationCount": 11,
+    "firstMigration": "0000_dusty_wither",
+    "lastMigration": "0010_aspiring_maverick",
+    "migrationSqlHashesMatched": true,
+    "pgBossSchemaVersion": 24,
+    "workerHealthy": true,
+    "apiDatabaseQueueAndObjectStorageReady": true,
+    "databaseFiveRolePosturePassed": true,
+    "minioFourIdentityPosturePassed": true,
+    "restoredObjectCount": 1,
+    "restoredObjectBytes": 94,
+    "objectManifestSha256": "f181878ee7cfc34cd9a74d253e24a4b3acd99beb0d2bf37e25ef811b2640f62a",
+    "restoreReportSha256": "4b0c32775fc9b2bb6ab187017a7035d60e76c87de5f09fe85e0da6b4759ad6e5",
+    "restoreLogSha256": "d18dd86cb8d4fb0b14b726a9e257425406da490f077ae06fa28f3bb264737c4d",
+    "isolatedContainersNetworksAndVolumesRemoved": true,
+    "sourceStackHealthyAndUnchangedAfterDrill": true
+  },
+  "cleanup": {
+    "ageIdentityRemoved": true,
+    "ed25519PrivateKeyRemoved": true,
+    "encryptedDataArchiveRemoved": true,
+    "encryptedConfigurationArchiveRemoved": true,
+    "sentinelObjectRemovedFromSourceStack": true,
+    "secretsOrPrivateKeysCommitted": false
+  },
+  "scopeBoundary": {
+    "localProductionLikeOnly": true,
+    "targetGuangzhouIntranetValidated": false,
+    "managedPhysicalMobileDeviceValidated": false,
+    "ghcrMultiArchitectureDigestValidated": false,
+    "githubCiGreen": false,
+    "realLlmValidated": false,
+    "realGithubAdapterValidated": false,
+    "productionRestoreEntrypointExecuted": false,
+    "independentProductionBackupApprovalObtained": false,
+    "rpoRtoApprovedByBusinessOwner": false,
+    "officialSourcesProfessionallyReviewed": 0,
+    "v1CompletionClaimed": false
+  }
+}

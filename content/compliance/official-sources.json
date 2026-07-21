@@ -2,7 +2,7 @@
   "schemaVersion": "1.0.0",
   "datasetId": "fiatlux-choice-cn-compliance-sources",
   "title": "FIAT LUX CHOICE 中国、广东及广州合规官方来源目录",
-  "lastVerifiedAt": "2026-07-18",
+  "lastVerifiedAt": "2026-07-19",
   "reviewStatus": "pending",
   "contentHashPolicy": "contentHash 为 null 且 contentHashStatus 为 pending_fetch 时，表示已核验官方页面与元数据，但尚未保存正文快照并计算 SHA-256。",
   "statusDefinitions": {
@@ -1415,6 +1415,29 @@
       "contentHash": null,
       "contentHashStatus": "pending_fetch",
       "normativeBasisType": "local_regulation"
+    },
+    {
+      "id": "cn-health-literacy-2024",
+      "title": "中国公民健康素养——基本知识与技能（2024年版）",
+      "category": "online_education_esports",
+      "jurisdiction": "CN",
+      "authority": "国家卫生健康委办公厅",
+      "documentNo": "国卫办宣传函〔2024〕191号",
+      "level": "official_guidance",
+      "sourceUrl": "https://www.gov.cn/zhengce/zhengceku/202405/content_6954649.htm",
+      "published": "2024-05-28",
+      "effective": "2024-05-28",
+      "expiry": null,
+      "status": "official_guidance",
+      "summary": "面向公众的基本健康知识、健康生活方式与健康信息辨别技能，包括劳逸结合、充足睡眠、心理问题主动求助和科学就医等一般原则。",
+      "applicability": "设计中国境内成年人电竞教育中的一般健康素养、休息自查和求助提示时作为官方原则来源。",
+      "exclusions": "不是医疗诊断、治疗、康复、职业病判断或电竞训练时长处方；不得据此生成固定休息分钟数、健康结果承诺或替代个体化专业意见。",
+      "reviewStatus": "pending",
+      "lastVerifiedAt": "2026-07-19",
+      "nextReviewAt": "2026-10-19",
+      "contentHash": null,
+      "contentHashStatus": "pending_fetch",
+      "normativeBasisType": "official_guidance"
     },
     {
       "id": "cn-private-education-law-2018",

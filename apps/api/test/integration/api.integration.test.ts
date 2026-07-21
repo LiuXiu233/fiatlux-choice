@@ -6,6 +6,7 @@ import {
   auditEvents,
   complianceItems,
   createDatabase,
+  files,
 } from "@fiatlux/db";
 import { seedDatabase } from "@fiatlux/db/seed";
 import { type JobQueue, MemoryObjectStorage } from "@fiatlux/integrations";
@@ -34,6 +35,27 @@ function cookie(response: { headers: Record<string, string | string[] | number |
   return cookieValue;
 }
 
+async function completeInitialPasswordChange(
+  app: FastifyInstance,
+  loginResponse: {
+    body: string;
+    headers: Record<string, string | string[] | number | undefined>;
+  },
+  currentPassword: string,
+  newPassword: string,
+) {
+  expect(body(loginResponse).data).toMatchObject({ mustChangePassword: true });
+  const sessionCookie = cookie(loginResponse);
+  const changed = await app.inject({
+    method: "POST",
+    url: "/api/v1/auth/change-password",
+    headers: { cookie: sessionCookie },
+    payload: { currentPassword, newPassword },
+  });
+  expect(changed.statusCode, changed.body).toBe(200);
+  return sessionCookie;
+}
+
 describe.skipIf(!databaseUrl)("API PostgreSQL vertical slice", () => {
   let app: FastifyInstance;
   let dbHandle: ReturnType<typeof createDatabase>;
@@ -45,6 +67,7 @@ describe.skipIf(!databaseUrl)("API PostgreSQL vertical slice", () => {
   let suffix: string;
   let config: ApiConfig;
   let queuedJobs: Array<{ name: string; data: unknown }>;
+  let storage: MemoryObjectStorage;
 
   beforeAll(async () => {
     dbHandle = createDatabase(testDatabaseUrl);
@@ -55,6 +78,7 @@ describe.skipIf(!databaseUrl)("API PostgreSQL vertical slice", () => {
       adminEmail: `first-${suffix}@example.test`,
       adminDisplayName: "First Owner",
       adminPassword: "correct-horse-battery-staple-1",
+      adminMustChangePassword: false,
     });
     firstOrgId = firstSeed.organization.id;
     firstUserId = firstSeed.user.id;
@@ -64,6 +88,7 @@ describe.skipIf(!databaseUrl)("API PostgreSQL vertical slice", () => {
       adminEmail: `second-${suffix}@example.test`,
       adminDisplayName: "Second Owner",
       adminPassword: "correct-horse-battery-staple-2",
+      adminMustChangePassword: false,
     });
     secondOrgId = secondSeed.organization.id;
     config = apiConfigSchema.parse({
@@ -80,10 +105,11 @@ describe.skipIf(!databaseUrl)("API PostgreSQL vertical slice", () => {
         return randomUUID();
       },
     } as unknown as JobQueue;
+    storage = new MemoryObjectStorage();
     app = await buildApp({
       config,
       db: dbHandle.db,
-      storage: new MemoryObjectStorage(),
+      storage,
       queue,
     });
 
@@ -133,6 +159,9 @@ describe.skipIf(!databaseUrl)("API PostgreSQL vertical slice", () => {
       url: "/api/v1/objectives",
       headers: { cookie: secondCookie },
     });
+    expect(firstList.headers["cache-control"]).toBe("no-store, max-age=0");
+    expect(firstList.headers.pragma).toBe("no-cache");
+    expect(firstList.headers.expires).toBe("0");
     expect(body(firstList).data as JsonObject[]).toHaveLength(1);
     expect(body(secondList).data as JsonObject[]).toHaveLength(0);
 
@@ -155,6 +184,93 @@ describe.skipIf(!databaseUrl)("API PostgreSQL vertical slice", () => {
       .where(eq(auditEvents.id, event.id))
       .limit(1);
     expect(unchangedEvent?.action).toBe("create");
+  });
+
+  it("exports a bounded organization audit snapshot and audits the export itself", async () => {
+    const requestId = `audit-export-${randomUUID()}`;
+    const resourceType = `audit-export-test-${suffix}`;
+    const firstEventId = randomUUID();
+    const secondEventId = randomUUID();
+    await dbHandle.db.insert(auditEvents).values([
+      {
+        id: firstEventId,
+        orgId: firstOrgId,
+        actorUserId: firstUserId,
+        action: '=HYPERLINK("https://example.invalid","open")',
+        resourceType,
+        resourceId: "first-org-visible",
+        requestId: `source-${requestId}`,
+        metadata: { purpose: "spreadsheet-injection-regression" },
+      },
+      {
+        id: secondEventId,
+        orgId: secondOrgId,
+        action: "create",
+        resourceType,
+        resourceId: "second-org-must-not-export",
+        requestId: `other-${requestId}`,
+        metadata: {},
+      },
+    ]);
+    const chinaToday = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Shanghai",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date());
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/audit-events/export",
+      headers: { cookie: firstCookie, "x-request-id": requestId },
+      payload: {
+        from: chinaToday,
+        to: chinaToday,
+        format: "csv",
+        resourceType,
+        acknowledgement: "INTERNAL_AUDIT_EXPORT_ACKNOWLEDGED",
+      },
+    });
+    expect(response.statusCode, response.body).toBe(200);
+    expect(response.headers["content-type"]).toContain("text/csv");
+    expect(response.headers["content-disposition"]).toBe(
+      `attachment; filename="fiatlux-audit-${chinaToday}_to_${chinaToday}.csv"`,
+    );
+    expect(response.headers["x-audit-event-count"]).toBe("1");
+    const exported = response.rawPayload.toString("utf8");
+    expect(exported.startsWith("\uFEFF")).toBe(true);
+    expect(exported).toContain(firstEventId);
+    expect(exported).toContain("'=HYPERLINK");
+    expect(exported).not.toContain(secondEventId);
+    expect(exported).not.toContain("second-org-must-not-export");
+    const contentSha256 = createHash("sha256").update(response.rawPayload).digest("hex");
+    expect(response.headers["x-content-sha256"]).toBe(contentSha256);
+
+    const [exportAudit] = await dbHandle.db
+      .select()
+      .from(auditEvents)
+      .where(
+        and(
+          eq(auditEvents.orgId, firstOrgId),
+          eq(auditEvents.requestId, requestId),
+          eq(auditEvents.action, "export_generated"),
+        ),
+      )
+      .limit(1);
+    expect(exportAudit).toMatchObject({
+      actorUserId: firstUserId,
+      resourceType: "audit-events",
+      resourceId: contentSha256,
+      metadata: {
+        schemaVersion: 1,
+        format: "csv",
+        from: chinaToday,
+        to: chinaToday,
+        rowCount: 1,
+        contentSha256,
+        containsPersonalData: true,
+      },
+    });
   });
 
   it("rejects cross-organization foreign-key references", async () => {
@@ -298,8 +414,125 @@ describe.skipIf(!databaseUrl)("API PostgreSQL vertical slice", () => {
       url: `/api/v1/files/${String(metadata.file.id)}/download`,
       headers: { cookie: firstCookie },
     });
+    expect(downloadResponse.headers["cache-control"]).toBe("no-store, max-age=0");
     expect(downloadResponse.statusCode).toBe(200);
     expect(downloadResponse.rawPayload).toEqual(fileData);
+
+    const [downloadAudit] = await dbHandle.db
+      .select()
+      .from(auditEvents)
+      .where(
+        and(
+          eq(auditEvents.orgId, firstOrgId),
+          eq(auditEvents.resourceType, "file"),
+          eq(auditEvents.resourceId, String(metadata.file.id)),
+          eq(auditEvents.action, "download_issued"),
+        ),
+      )
+      .limit(1);
+    expect(downloadAudit).toMatchObject({ actorUserId: firstUserId });
+    expect(downloadAudit?.metadata).toMatchObject({
+      classification: "confidential",
+      sizeBytes: fileData.byteLength,
+      semantics: "authorized object stream issued; client receipt is not asserted",
+    });
+
+    for (const filename of ["renamed.html", "invoice.exe.pdf", "evidence.pdf"]) {
+      const invalidRename = await app.inject({
+        method: "PATCH",
+        url: `/api/v1/files/${String(metadata.file.id)}`,
+        headers: { cookie: firstCookie },
+        payload: { filename, expectedVersion: 3 },
+      });
+      expect(invalidRename.statusCode, `${filename}: ${invalidRename.body}`).toBe(400);
+      expect(body(invalidRename).error).toMatchObject({ code: "VALIDATION_FAILED" });
+    }
+  });
+
+  it("rejects unsafe or mismatched declared file types before issuing upload storage", async () => {
+    const base = {
+      sizeBytes: 1,
+      checksumSha256: "0".repeat(64),
+      classification: "internal",
+    };
+    for (const payload of [
+      { ...base, filename: "payload.html", contentType: "text/html" },
+      { ...base, filename: "payload.svg", contentType: "image/svg+xml" },
+      { ...base, filename: "invoice.exe.pdf", contentType: "application/pdf" },
+      { ...base, filename: "invoice.pdf", contentType: "application/octet-stream" },
+      { ...base, filename: "invoice.pdf", contentType: "image/png" },
+    ]) {
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/v1/files",
+        headers: { cookie: firstCookie },
+        payload,
+      });
+      expect(response.statusCode, `${payload.filename}: ${response.body}`).toBe(400);
+      expect(body(response).error).toMatchObject({ code: "VALIDATION_FAILED" });
+    }
+  });
+
+  it("rejects disguised binary content before object storage and preserves pending state", async () => {
+    const disguised = Buffer.from("MZ renamed executable bytes with a fake %%EOF marker");
+    const metadataResponse = await app.inject({
+      method: "POST",
+      url: "/api/v1/files",
+      headers: { cookie: firstCookie },
+      payload: {
+        filename: "disguised.pdf",
+        contentType: "application/pdf",
+        sizeBytes: disguised.byteLength,
+        checksumSha256: createHash("sha256").update(disguised).digest("hex"),
+        classification: "confidential",
+      },
+    });
+    expect(metadataResponse.statusCode, metadataResponse.body).toBe(201);
+    const metadata = body(metadataResponse).data as { file: JsonObject; upload: JsonObject };
+    const fileId = String(metadata.file.id);
+    const storageKey = String(metadata.file.storageKey);
+
+    const upload = await app.inject({
+      method: "PUT",
+      url: String(metadata.upload.uploadUrl),
+      headers: {
+        cookie: firstCookie,
+        "content-type": "application/octet-stream",
+        "content-length": String(disguised.byteLength),
+      },
+      payload: disguised,
+    });
+    expect(upload.statusCode, upload.body).toBe(400);
+    expect(body(upload).error).toMatchObject({
+      code: "VALIDATION_FAILED",
+      message: "File content does not match PDF",
+    });
+    expect(await storage.head(storageKey)).toBeNull();
+    const [record] = await dbHandle.db
+      .select()
+      .from(files)
+      .where(and(eq(files.id, fileId), eq(files.orgId, firstOrgId)))
+      .limit(1);
+    expect(record).toMatchObject({ uploadStatus: "pending", version: 1 });
+
+    const requestId = String((body(upload).error as JsonObject).requestId);
+    const [rejectionAudit] = await dbHandle.db
+      .select()
+      .from(auditEvents)
+      .where(
+        and(
+          eq(auditEvents.orgId, firstOrgId),
+          eq(auditEvents.requestId, requestId),
+          eq(auditEvents.action, "request_rejected"),
+        ),
+      )
+      .limit(1);
+    expect(rejectionAudit?.metadata).toMatchObject({
+      code: "VALIDATION_FAILED",
+      status: 400,
+      method: "PUT",
+    });
+    expect(rejectionAudit?.metadata).not.toHaveProperty("body");
   });
 
   it("rejects unauthenticated uploads before parsing their content type", async () => {
@@ -312,6 +545,45 @@ describe.skipIf(!databaseUrl)("API PostgreSQL vertical slice", () => {
 
     expect(response.statusCode).toBe(401);
     expect(body(response).error).toMatchObject({ code: "AUTHENTICATION_REQUIRED" });
+  });
+
+  it("audits authenticated schema and media-type rejections without storing request bodies", async () => {
+    const invalidTask = await app.inject({
+      method: "POST",
+      url: "/api/v1/tasks",
+      headers: { cookie: firstCookie },
+      payload: { title: "" },
+    });
+    expect(invalidTask.statusCode, invalidTask.body).toBe(400);
+
+    const invalidUpload = await app.inject({
+      method: "PUT",
+      url: `/api/v1/files/${randomUUID()}/content`,
+      headers: { cookie: firstCookie, "content-type": "application/x-unsupported" },
+      payload: "must not be parsed",
+    });
+    expect(invalidUpload.statusCode, invalidUpload.body).toBe(415);
+
+    for (const [response, expected] of [
+      [invalidTask, { code: "VALIDATION_FAILED", status: 400, method: "POST" }],
+      [invalidUpload, { code: "UNSUPPORTED_MEDIA_TYPE", status: 415, method: "PUT" }],
+    ] as const) {
+      const requestId = String((body(response).error as JsonObject).requestId);
+      const [audit] = await dbHandle.db
+        .select()
+        .from(auditEvents)
+        .where(
+          and(
+            eq(auditEvents.orgId, firstOrgId),
+            eq(auditEvents.requestId, requestId),
+            eq(auditEvents.action, "request_rejected"),
+          ),
+        )
+        .limit(1);
+      expect(audit).toMatchObject({ actorUserId: firstUserId, metadata: expected });
+      expect(audit?.metadata).not.toHaveProperty("body");
+      expect(audit?.metadata).not.toHaveProperty("password");
+    }
   });
 
   it("lets members complete only their own file uploads without global update permission", async () => {
@@ -355,7 +627,32 @@ describe.skipIf(!databaseUrl)("API PostgreSQL vertical slice", () => {
       payload: { email: memberEmail, password: memberPassword },
     });
     expect(memberLogin.statusCode).toBe(200);
-    const memberCookie = cookie(memberLogin);
+    const memberCookie = await completeInitialPasswordChange(
+      app,
+      memberLogin,
+      memberPassword,
+      "member-replacement-password-long-enough",
+    );
+
+    const auditDate = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Shanghai",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date());
+    const forbiddenAuditExport = await app.inject({
+      method: "POST",
+      url: "/api/v1/audit-events/export",
+      headers: { cookie: memberCookie },
+      payload: {
+        from: auditDate,
+        to: auditDate,
+        format: "csv",
+        acknowledgement: "INTERNAL_AUDIT_EXPORT_ACKNOWLEDGED",
+      },
+    });
+    expect(forbiddenAuditExport.statusCode).toBe(403);
+    expect(body(forbiddenAuditExport).error).toMatchObject({ code: "FORBIDDEN" });
 
     const ownData = Buffer.from("member-owned upload");
     const ownMetadataResponse = await app.inject({
@@ -393,6 +690,22 @@ describe.skipIf(!databaseUrl)("API PostgreSQL vertical slice", () => {
     });
     expect(ownComplete.statusCode).toBe(200);
     expect(body(ownComplete).data).toMatchObject({ uploadStatus: "uploaded" });
+
+    const ownDownload = await app.inject({
+      method: "GET",
+      url: `/api/v1/files/${String(ownMetadata.file.id)}/download`,
+      headers: { cookie: memberCookie },
+    });
+    expect(ownDownload.statusCode, ownDownload.body).toBe(200);
+    expect(ownDownload.rawPayload).toEqual(ownData);
+
+    const forbiddenArchive = await app.inject({
+      method: "DELETE",
+      url: `/api/v1/files/${String(ownMetadata.file.id)}?expectedVersion=3`,
+      headers: { cookie: memberCookie },
+    });
+    expect(forbiddenArchive.statusCode).toBe(403);
+    expect(body(forbiddenArchive).error).toMatchObject({ code: "FORBIDDEN" });
 
     const metadataPatch = await app.inject({
       method: "PATCH",
@@ -471,6 +784,63 @@ describe.skipIf(!databaseUrl)("API PostgreSQL vertical slice", () => {
     }
   });
 
+  it("queues real LLM and GitHub probes for the credential-bearing worker only", async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockRejectedValue(new Error("API container must not make provider calls"));
+    const queueCount = queuedJobs.length;
+    config.LLM_DRIVER = "compatible";
+    config.LLM_BASE_URL = "https://llm.example.test/gateway";
+    config.GITHUB_INTEGRATION_MODE = "read_only";
+    try {
+      const [llmResponse, llmReplayResponse] = await Promise.all([
+        app.inject({
+          method: "POST",
+          url: "/api/v1/settings/integrations/llm/test",
+          headers: { cookie: firstCookie },
+        }),
+        app.inject({
+          method: "POST",
+          url: "/api/v1/settings/integrations/llm/test",
+          headers: { cookie: firstCookie },
+        }),
+      ]);
+      const githubResponse = await app.inject({
+        method: "POST",
+        url: "/api/v1/settings/integrations/github/test",
+        headers: { cookie: firstCookie },
+      });
+      expect(llmResponse.statusCode, llmResponse.body).toBe(202);
+      expect(llmReplayResponse.statusCode, llmReplayResponse.body).toBe(202);
+      expect(githubResponse.statusCode, githubResponse.body).toBe(202);
+      expect(body(llmResponse).data).toMatchObject({ status: "queued" });
+      expect((body(llmReplayResponse).data as JsonObject).id).toBe(
+        (body(llmResponse).data as JsonObject).id,
+      );
+      expect(body(githubResponse).data).toMatchObject({ status: "queued" });
+      const probeJobs = queuedJobs.slice(queueCount);
+      expect(probeJobs).toHaveLength(3);
+      expect(
+        probeJobs.filter(
+          (job) =>
+            job.name === "integration.test" &&
+            (job.data as JsonObject).integrationId === "llm" &&
+            (job.data as JsonObject).requestedBy === firstUserId,
+        ),
+      ).toHaveLength(2);
+      expect(probeJobs).toContainEqual({
+        name: "integration.test",
+        data: expect.objectContaining({ integrationId: "github", requestedBy: firstUserId }),
+      });
+      expect(fetchSpy).not.toHaveBeenCalled();
+    } finally {
+      config.LLM_DRIVER = "mock";
+      config.LLM_BASE_URL = undefined;
+      config.GITHUB_INTEGRATION_MODE = "manual";
+      fetchSpy.mockRestore();
+    }
+  });
+
   it("queues only organization-scoped GitHub refreshes in explicit read-only mode", async () => {
     const createInsight = (cookieValue: string, repository: string) =>
       app.inject({
@@ -520,11 +890,16 @@ describe.skipIf(!databaseUrl)("API PostgreSQL vertical slice", () => {
       expect(body(queuedResponse).data).toMatchObject({
         insightId: firstInsight.id,
         repository: "fiatlux/choice",
+        expectedVersion: firstInsight.version,
         status: "queued",
       });
       expect(queuedJobs.at(-1)).toEqual({
         name: "github.refresh",
-        data: { orgId: firstOrgId, insightId: firstInsight.id },
+        data: {
+          orgId: firstOrgId,
+          insightId: firstInsight.id,
+          expectedVersion: firstInsight.version,
+        },
       });
 
       const [audit] = await dbHandle.db
@@ -800,7 +1175,12 @@ describe.skipIf(!databaseUrl)("API PostgreSQL vertical slice", () => {
       payload: { email: viewerEmail, password: viewerPassword },
     });
     expect(viewerLogin.statusCode).toBe(200);
-    const viewerCookie = cookie(viewerLogin);
+    const viewerCookie = await completeInitialPasswordChange(
+      app,
+      viewerLogin,
+      viewerPassword,
+      "viewer-replacement-password-long-enough",
+    );
 
     const financeRecordResponse = await app.inject({
       method: "POST",
@@ -837,8 +1217,20 @@ describe.skipIf(!databaseUrl)("API PostgreSQL vertical slice", () => {
     });
     expect(financeRunResponse.statusCode).toBe(201);
     expect(managerRunResponse.statusCode).toBe(201);
+    const privateManagerRunResponse = await app.inject({
+      method: "POST",
+      url: "/api/v1/advisor-runs",
+      headers: { cookie: firstCookie },
+      payload: {
+        advisor: "general_manager",
+        question: "Private management notes without record context",
+        context: [],
+      },
+    });
+    expect(privateManagerRunResponse.statusCode).toBe(201);
     const financeRun = body(financeRunResponse).data as JsonObject;
     const managerRun = body(managerRunResponse).data as JsonObject;
+    const privateManagerRun = body(privateManagerRunResponse).data as JsonObject;
 
     const viewerList = await app.inject({
       method: "GET",
@@ -849,8 +1241,9 @@ describe.skipIf(!databaseUrl)("API PostgreSQL vertical slice", () => {
     const visibleIds = (body(viewerList).data as JsonObject[]).map((run) => run.id);
     expect(visibleIds).not.toContain(financeRun.id);
     expect(visibleIds).not.toContain(managerRun.id);
+    expect(visibleIds).not.toContain(privateManagerRun.id);
 
-    for (const run of [financeRun, managerRun]) {
+    for (const run of [financeRun, managerRun, privateManagerRun]) {
       const detail = await app.inject({
         method: "GET",
         url: `/api/v1/advisor-runs/${String(run.id)}`,
@@ -945,5 +1338,38 @@ describe.skipIf(!databaseUrl)("API PostgreSQL vertical slice", () => {
     const serializedAudit = JSON.stringify(audit);
     expect(serializedAudit).not.toContain(originalPassword);
     expect(serializedAudit).not.toContain(newPassword);
+  });
+
+  it("audits session row ids without retaining the raw JWT session id", async () => {
+    const login = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/login",
+      payload: {
+        email: `first-${suffix}@example.test`,
+        password: "rotated-owner-password-long-enough",
+      },
+    });
+    expect(login.statusCode, login.body).toBe(200);
+    const sessionCookie = cookie(login);
+    const token = sessionCookie.split("=", 2)[1];
+    const payloadSegment = token?.split(".", 3)[1];
+    if (!payloadSegment) throw new Error("Login cookie did not contain a JWT payload");
+    const jwtPayload = JSON.parse(Buffer.from(payloadSegment, "base64url").toString("utf8")) as {
+      sid: string;
+    };
+    const logout = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/logout",
+      headers: { cookie: sessionCookie },
+    });
+    expect(logout.statusCode, logout.body).toBe(200);
+    const sessionAudits = (
+      await dbHandle.db.select().from(auditEvents).where(eq(auditEvents.actorUserId, firstUserId))
+    ).filter(
+      (event) => event.resourceType === "session" && ["login", "logout"].includes(event.action),
+    );
+    expect(sessionAudits.some((event) => event.action === "login")).toBe(true);
+    expect(sessionAudits.some((event) => event.action === "logout")).toBe(true);
+    expect(JSON.stringify(sessionAudits)).not.toContain(jwtPayload.sid);
   });
 });

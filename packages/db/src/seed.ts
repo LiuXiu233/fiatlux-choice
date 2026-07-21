@@ -1,12 +1,13 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { complianceItemCreateSchema } from "@fiatlux/contracts";
 import argon2 from "argon2";
-import { and, eq } from "drizzle-orm";
-
+import { and, eq, isNull } from "drizzle-orm";
+import { ADVISOR_PROMPTS, renderAdvisorSystemPrompt } from "./advisor-prompts.js";
 import type { Database } from "./index.js";
 import {
+  auditEvents,
   complianceItems,
   membershipRoles,
   memberships,
@@ -38,14 +39,21 @@ export const SYSTEM_ROLE_PERMISSIONS = {
     "products:*",
     "opportunities:*",
     "github-insights:*",
-    "notifications:*",
+    "notifications:manage",
+    "notifications:create",
+    "notifications:read",
+    "notifications:delete",
     "workflow-definitions:*",
     "workflow-runs:*",
     "approvals:*",
     "external-actions:*",
     "advisors:*",
     "advisor-runs:*",
+    "advisor-runs:read-all",
     "audit-events:read",
+    "audit-events:export",
+    "operations-incidents:read",
+    "operations-incidents:update",
     "users:*",
     "roles:read",
     "role-assignments:create",
@@ -75,13 +83,15 @@ export const SYSTEM_ROLE_PERMISSIONS = {
     "products:*",
     "opportunities:*",
     "github-insights:read",
-    "notifications:*",
+    "notifications:read",
     "workflow-definitions:read",
     "workflow-runs:read",
     "approvals:read",
     "external-actions:read",
     "advisors:read",
-    "advisor-runs:*",
+    "advisor-runs:create",
+    "advisor-runs:read",
+    "advisor-runs:update",
   ],
   viewer: [
     "dashboard:read",
@@ -104,41 +114,73 @@ export const SYSTEM_ROLE_PERMISSIONS = {
   ],
 } as const;
 
-const advisorPrompts = {
-  general_manager: {
-    scopes: ["objectives", "projects", "tasks", "decisions", "risks", "financial-entries"],
-    title: "general manager",
-  },
-  finance: {
-    scopes: ["financial-entries", "invoices", "cash-flow", "contracts"],
-    title: "finance",
-  },
-  legal_compliance: {
-    scopes: ["compliance-items", "obligations", "risks", "contracts"],
-    title: "legal and compliance",
-  },
-  product_rnd: {
-    scopes: ["products", "projects", "tasks", "github-insights"],
-    title: "product and engineering",
-  },
-  market_opportunity: {
-    scopes: ["opportunities", "products", "contracts"],
-    title: "market opportunity",
-  },
-  hr_admin: { scopes: ["tasks", "objectives", "obligations"], title: "people and administration" },
-  information_security: {
-    scopes: ["risks", "compliance-items", "github-insights", "audit-events"],
-    title: "information security",
-  },
-} as const;
-
-export interface SeedOptions {
-  organizationName: string;
+interface SeedCommonOptions {
   organizationSlug: string;
+  complianceSourcesFile?: string;
+  complianceSourcesRequired?: boolean;
+}
+
+export interface BootstrapSeedOptions extends SeedCommonOptions {
+  mode?: "bootstrap";
+  organizationName: string;
   adminEmail: string;
   adminDisplayName: string;
   adminPassword: string;
-  complianceSourcesFile?: string;
+  /** Defaults to true for production bootstrap; test fixtures may explicitly opt out. */
+  adminMustChangePassword?: boolean;
+}
+
+export interface MetadataOnlySeedOptions extends SeedCommonOptions {
+  mode: "metadata-only";
+}
+
+export interface SystemRoleMaintenanceInput {
+  operatorEmail: string;
+  reason: string;
+  approvalReference: string;
+  requestId: string;
+}
+
+export interface SystemRoleMaintenanceSeedOptions extends SeedCommonOptions {
+  mode: "system-role-maintenance";
+  systemRoleMaintenance: SystemRoleMaintenanceInput;
+}
+
+export type SeedOptions =
+  | BootstrapSeedOptions
+  | MetadataOnlySeedOptions
+  | SystemRoleMaintenanceSeedOptions;
+
+interface NormalizedSystemRoleMaintenance {
+  operatorEmail: string;
+  reason: string;
+  approvalReference: string;
+  requestId: string;
+}
+
+function normalizeSystemRoleMaintenance(
+  input: SystemRoleMaintenanceInput | undefined,
+): NormalizedSystemRoleMaintenance | undefined {
+  if (!input) return undefined;
+  const normalized = {
+    operatorEmail: input.operatorEmail.trim().toLowerCase(),
+    reason: input.reason.trim(),
+    approvalReference: input.approvalReference.trim(),
+    requestId: input.requestId.trim(),
+  };
+  if (!normalized.operatorEmail?.includes("@")) {
+    throw new Error("System-role maintenance requires a valid operator email");
+  }
+  if (normalized.reason.length < 8) {
+    throw new Error("System-role maintenance requires a non-empty reason of at least 8 characters");
+  }
+  if (normalized.approvalReference.length < 3) {
+    throw new Error("System-role maintenance requires an approval or change reference");
+  }
+  if (normalized.requestId.length < 3 || normalized.requestId.length > 200) {
+    throw new Error("System-role maintenance requires a requestId between 3 and 200 characters");
+  }
+  return normalized;
 }
 
 function objectValue(value: unknown): Record<string, unknown> | null {
@@ -159,65 +201,154 @@ function optionalDate(value: string | null | undefined) {
   return value ? new Date(value) : null;
 }
 
-export async function importOfficialComplianceSources(
-  db: Database,
-  orgId: string,
-  sourceFile = fileURLToPath(
-    new URL("../../../content/compliance/official-sources.json", import.meta.url),
-  ),
+function monitoringCadenceDays(category: string) {
+  if (["tax_invoice", "ai_governance"].includes(category)) return 7;
+  if (
+    [
+      "consumer_ecommerce",
+      "data_security",
+      "labor_employment",
+      "network_product",
+      "online_education_esports",
+      "personal_information",
+    ].includes(category)
+  )
+    return 30;
+  if (category === "archives") return 180;
+  return 90;
+}
+
+const ONE_DAY_MS = 24 * 60 * 60 * 1_000;
+export const INITIAL_COMPLIANCE_MONITOR_SPREAD_DAYS = 7;
+
+export function scheduleInitialComplianceMonitorAt(
+  importStartedAt: Date,
+  recordIndex: number,
+  cadenceDays: number,
 ) {
+  if (Number.isNaN(importStartedAt.getTime())) {
+    throw new Error("Compliance source import start time must be a valid date");
+  }
+  if (!Number.isSafeInteger(recordIndex) || recordIndex < 0) {
+    throw new Error("Compliance source record index must be a non-negative safe integer");
+  }
+  if (!Number.isSafeInteger(cadenceDays) || cadenceDays < 1) {
+    throw new Error("Compliance monitoring cadence must be a positive safe integer");
+  }
+  const spreadDays = Math.min(INITIAL_COMPLIANCE_MONITOR_SPREAD_DAYS, cadenceDays);
+  const offsetDays = recordIndex % spreadDays;
+  return new Date(importStartedAt.getTime() + offsetDays * ONE_DAY_MS);
+}
+
+const defaultComplianceSourcesFile = () =>
+  fileURLToPath(new URL("../../../content/compliance/official-sources.json", import.meta.url));
+
+interface LoadedComplianceSourceDocument {
+  missing: boolean;
+  parsedDocument?: unknown;
+}
+
+async function loadComplianceSourceDocument(
+  sourceFile: string,
+): Promise<LoadedComplianceSourceDocument> {
   let raw: string;
   try {
     raw = await readFile(sourceFile, "utf8");
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT")
-      return { imported: 0, skipped: 0, missing: true };
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return { missing: true };
     throw error;
   }
+  return { missing: false, parsedDocument: JSON.parse(raw) as unknown };
+}
 
-  const parsedDocument = JSON.parse(raw) as unknown;
+function complianceSourceRecords(parsedDocument: unknown) {
   const root = objectValue(parsedDocument);
-  const records = Array.isArray(parsedDocument)
+  return Array.isArray(parsedDocument)
     ? parsedDocument
     : Array.isArray(root?.sources)
       ? root.sources
       : Array.isArray(root?.items)
         ? root.items
         : [];
+}
+
+function complianceSourceCandidate(record: Record<string, unknown>) {
+  return complianceItemCreateSchema.safeParse({
+    title: stringValue(record, "title", "name"),
+    category: stringValue(record, "category", "topic"),
+    issuingAuthority: stringValue(record, "issuingAuthority", "authority", "issuer"),
+    sourceUrl: stringValue(record, "sourceUrl", "officialUrl", "url"),
+    effectiveDate: stringValue(record, "effectiveDate", "effectiveAt"),
+    lastVerifiedAt: stringValue(record, "lastVerifiedAt", "verifiedAt", "updatedAt"),
+    reviewStatus: stringValue(record, "reviewStatus", "humanReviewStatus") ?? "pending",
+    applicability: stringValue(record, "applicability", "conditions"),
+    summary: stringValue(record, "summary", "description"),
+    jurisdiction: stringValue(record, "jurisdiction") ?? "中国/广东省/广州市",
+    sourceTitle: stringValue(record, "sourceTitle") ?? stringValue(record, "title", "name"),
+    sourcePublishedAt: stringValue(
+      record,
+      "sourcePublishedAt",
+      "publishedAt",
+      "published",
+      "issuedAt",
+    ),
+    sourceStatus: stringValue(record, "status"),
+    sourceMetadata: record,
+    status: "draft",
+    contentHash: stringValue(record, "contentHash"),
+    metadataHash: stringValue(record, "metadataHash"),
+    contentHashStatus: stringValue(record, "contentHashStatus") ?? "pending_fetch",
+    nextReviewAt: stringValue(record, "nextReviewAt"),
+    monitoringCadenceDays: monitoringCadenceDays(
+      stringValue(record, "category", "topic") ?? "other",
+    ),
+  });
+}
+
+function assertRequiredComplianceSourceDocument(loaded: LoadedComplianceSourceDocument) {
+  if (loaded.missing) {
+    throw new Error("Required official compliance source file is missing; seed made no changes");
+  }
+  const records = complianceSourceRecords(loaded.parsedDocument);
+  if (!records.length) {
+    throw new Error("Required official compliance source document has no source records");
+  }
+  for (const [index, rawRecord] of records.entries()) {
+    const record = objectValue(rawRecord);
+    if (!record) {
+      throw new Error(`Required official compliance source record ${index} is not an object`);
+    }
+    const candidate = complianceSourceCandidate(record);
+    if (!candidate.success) {
+      throw new Error(
+        `Required official compliance source record ${index} failed schema validation: ${candidate.error.issues
+          .map((issue) => `${issue.path.join(".") || "record"}: ${issue.message}`)
+          .join("; ")}`,
+      );
+    }
+  }
+}
+
+export async function importOfficialComplianceSources(
+  db: Database,
+  orgId: string,
+  sourceFile = defaultComplianceSourcesFile(),
+  preloadedDocument?: LoadedComplianceSourceDocument,
+) {
+  const loaded = preloadedDocument ?? (await loadComplianceSourceDocument(sourceFile));
+  if (loaded.missing) return { imported: 0, skipped: 0, missing: true };
+  const records = complianceSourceRecords(loaded.parsedDocument);
+  const importStartedAt = new Date();
   let imported = 0;
   let skipped = 0;
 
-  for (const rawRecord of records) {
+  for (const [recordIndex, rawRecord] of records.entries()) {
     const record = objectValue(rawRecord);
     if (!record) {
       skipped += 1;
       continue;
     }
-    const candidate = complianceItemCreateSchema.safeParse({
-      title: stringValue(record, "title", "name"),
-      category: stringValue(record, "category", "topic"),
-      issuingAuthority: stringValue(record, "issuingAuthority", "authority", "issuer"),
-      sourceUrl: stringValue(record, "sourceUrl", "officialUrl", "url"),
-      effectiveDate: stringValue(record, "effectiveDate", "effectiveAt"),
-      lastVerifiedAt: stringValue(record, "lastVerifiedAt", "verifiedAt", "updatedAt"),
-      reviewStatus: stringValue(record, "reviewStatus", "humanReviewStatus") ?? "pending",
-      applicability: stringValue(record, "applicability", "conditions"),
-      summary: stringValue(record, "summary", "description"),
-      jurisdiction: stringValue(record, "jurisdiction") ?? "中国/广东省/广州市",
-      sourceTitle: stringValue(record, "sourceTitle") ?? stringValue(record, "title", "name"),
-      sourcePublishedAt: stringValue(
-        record,
-        "sourcePublishedAt",
-        "publishedAt",
-        "published",
-        "issuedAt",
-      ),
-      sourceStatus: stringValue(record, "status"),
-      sourceMetadata: record,
-      status: "draft",
-      contentHash: stringValue(record, "contentHash"),
-      metadataHash: stringValue(record, "metadataHash"),
-    });
+    const candidate = complianceSourceCandidate(record);
     if (!candidate.success) {
       skipped += 1;
       continue;
@@ -240,11 +371,13 @@ export async function importOfficialComplianceSources(
     const contentChanged = Boolean(
       existing?.metadataHash && existing.metadataHash !== metadataHash,
     );
-    const importedCanBeActive = item.reviewStatus === "reviewed" && Boolean(item.lastVerifiedAt);
-    const reviewStatus = contentChanged ? "stale" : (existing?.reviewStatus ?? item.reviewStatus);
+    const importedReviewStatus = item.reviewStatus === "stale" ? "stale" : "pending";
+    const reviewStatus = contentChanged
+      ? "stale"
+      : (existing?.reviewStatus ?? importedReviewStatus);
     const status = contentChanged
       ? "uncertain"
-      : (existing?.status ?? (importedCanBeActive ? "active" : "draft"));
+      : (existing?.status ?? (importedReviewStatus === "stale" ? "uncertain" : "draft"));
     const values = {
       title: item.title,
       category: item.category,
@@ -263,9 +396,21 @@ export async function importOfficialComplianceSources(
       lastVerifiedAt: contentChanged
         ? (existing?.lastVerifiedAt ?? null)
         : (existing?.lastVerifiedAt ?? optionalDate(item.lastVerifiedAt)),
-      contentHash: item.contentHash,
+      contentHash: existing?.contentHash ?? item.contentHash,
       metadataHash,
-      updatedAt: new Date(),
+      contentHashStatus: contentChanged
+        ? ("changed" as const)
+        : (existing?.contentHashStatus ?? item.contentHashStatus),
+      nextReviewAt: existing?.nextReviewAt ?? optionalDate(item.nextReviewAt),
+      monitoringCadenceDays: existing?.monitoringCadenceDays ?? item.monitoringCadenceDays,
+      nextMonitorAt:
+        existing?.nextMonitorAt ??
+        scheduleInitialComplianceMonitorAt(
+          importStartedAt,
+          recordIndex,
+          item.monitoringCadenceDays,
+        ),
+      updatedAt: importStartedAt,
     };
     await db
       .insert(complianceItems)
@@ -280,124 +425,368 @@ export async function importOfficialComplianceSources(
   return { imported, skipped, missing: false };
 }
 
-export async function seedDatabase(db: Database, options: SeedOptions) {
-  const passwordHash = await argon2.hash(options.adminPassword, { type: argon2.argon2id });
+interface SystemRoleChanges {
+  mode: "bootstrap" | "maintenance" | "none";
+  rolesCreated: number;
+  permissionsAdded: number;
+  requestId: string | null;
+}
 
-  const [org] = await db
-    .insert(organizations)
-    .values({
-      name: options.organizationName,
-      slug: options.organizationSlug,
-    })
-    .onConflictDoUpdate({
-      target: organizations.slug,
-      set: { name: options.organizationName, updatedAt: new Date() },
-    })
-    .returning();
+type ComplianceImportResult = Awaited<ReturnType<typeof importOfficialComplianceSources>>;
 
-  const normalizedEmail = options.adminEmail.trim().toLowerCase();
-  const [user] = await db
-    .insert(users)
-    .values({
-      email: normalizedEmail,
-      displayName: options.adminDisplayName,
-      passwordHash,
-    })
-    .onConflictDoUpdate({
-      target: users.email,
-      set: { displayName: options.adminDisplayName, passwordHash, updatedAt: new Date() },
-    })
-    .returning();
-  if (!org || !user) throw new Error("Failed to seed organization or administrator");
+export interface BootstrapSeedResult {
+  organization: typeof organizations.$inferSelect;
+  user: typeof users.$inferSelect;
+  membership: typeof memberships.$inferSelect;
+  bootstrapCreated: true;
+  systemRoleChanges: SystemRoleChanges;
+  metadataRequestId: string;
+  complianceImport: ComplianceImportResult;
+}
 
-  const [membership] = await db
-    .insert(memberships)
-    .values({ orgId: org.id, userId: user.id })
-    .onConflictDoNothing()
-    .returning();
-  const activeMembership =
-    membership ??
-    (
-      await db
-        .select()
-        .from(memberships)
-        .where(and(eq(memberships.orgId, org.id), eq(memberships.userId, user.id)))
-        .limit(1)
-    )[0];
-  if (!activeMembership) throw new Error("Failed to seed administrator membership");
+export interface ExistingSeedResult {
+  organization: typeof organizations.$inferSelect;
+  user: null;
+  membership: null;
+  bootstrapCreated: false;
+  systemRoleChanges: SystemRoleChanges;
+  metadataRequestId: string;
+  complianceImport: ComplianceImportResult;
+}
 
-  for (const [systemKey, permissions] of Object.entries(SYSTEM_ROLE_PERMISSIONS)) {
-    const [insertedRole] = await db
-      .insert(roles)
-      .values({
-        orgId: org.id,
-        name: systemKey.charAt(0).toUpperCase() + systemKey.slice(1),
-        systemKey,
-        description: `Built-in ${systemKey} role`,
-      })
-      .onConflictDoNothing()
-      .returning();
-    const role =
-      insertedRole ??
-      (
-        await db
-          .select()
-          .from(roles)
-          .where(and(eq(roles.orgId, org.id), eq(roles.systemKey, systemKey)))
-          .limit(1)
-      )[0];
-    if (!role) throw new Error(`Failed to seed ${systemKey} role`);
+export function seedDatabase(
+  db: Database,
+  options: BootstrapSeedOptions,
+): Promise<BootstrapSeedResult>;
+export function seedDatabase(
+  db: Database,
+  options: MetadataOnlySeedOptions | SystemRoleMaintenanceSeedOptions,
+): Promise<ExistingSeedResult>;
+export async function seedDatabase(
+  db: Database,
+  options: SeedOptions,
+): Promise<BootstrapSeedResult | ExistingSeedResult> {
+  const mode = options.mode ?? "bootstrap";
+  const bootstrapOptions = mode === "bootstrap" ? (options as BootstrapSeedOptions) : undefined;
+  const roleMaintenanceOptions =
+    mode === "system-role-maintenance" ? (options as SystemRoleMaintenanceSeedOptions) : undefined;
+  const maintenance = normalizeSystemRoleMaintenance(roleMaintenanceOptions?.systemRoleMaintenance);
+  const metadataRequestId = maintenance?.requestId ?? `seed-${mode}-${randomUUID()}`;
+  const complianceSourcesFile = options.complianceSourcesFile ?? defaultComplianceSourcesFile();
+  const preloadedCompliance = options.complianceSourcesRequired
+    ? await loadComplianceSourceDocument(complianceSourcesFile)
+    : undefined;
+  if (options.complianceSourcesRequired && preloadedCompliance) {
+    assertRequiredComplianceSourceDocument(preloadedCompliance);
+  }
 
-    await db
-      .insert(rolePermissions)
-      .values(
-        permissions.map((permission) => ({
-          orgId: org.id,
-          roleId: role.id,
-          permission,
-        })),
-      )
-      .onConflictDoNothing();
-
-    if (systemKey === "owner") {
-      await db
-        .insert(membershipRoles)
+  const core = await db.transaction(async (tx) => {
+    let organization: typeof organizations.$inferSelect;
+    if (mode === "bootstrap") {
+      if (!bootstrapOptions) throw new Error("Bootstrap seed options are missing");
+      const [insertedOrganization] = await tx
+        .insert(organizations)
         .values({
-          orgId: org.id,
-          membershipId: activeMembership.id,
-          roleId: role.id,
+          name: bootstrapOptions.organizationName,
+          slug: options.organizationSlug,
         })
-        .onConflictDoNothing();
+        .onConflictDoNothing({ target: organizations.slug })
+        .returning();
+      if (!insertedOrganization) {
+        throw new Error(
+          "Organization slug already exists; bootstrap refuses existing organizations. Select metadata-only or approved system-role-maintenance explicitly",
+        );
+      }
+      organization = insertedOrganization;
+    } else {
+      const [existingOrganization] = await tx
+        .select()
+        .from(organizations)
+        .where(eq(organizations.slug, options.organizationSlug))
+        .limit(1)
+        .for("update");
+      if (!existingOrganization) {
+        throw new Error(`${mode} requires an existing organization with the exact slug`);
+      }
+      organization = existingOrganization;
     }
+
+    let user: typeof users.$inferSelect | null = null;
+    let membership: typeof memberships.$inferSelect | null = null;
+    if (mode === "bootstrap") {
+      if (!bootstrapOptions) throw new Error("Bootstrap seed options are missing");
+      const normalizedEmail = bootstrapOptions.adminEmail.trim().toLowerCase();
+      const passwordHash = await argon2.hash(bootstrapOptions.adminPassword, {
+        type: argon2.argon2id,
+      });
+      const [insertedUser] = await tx
+        .insert(users)
+        .values({
+          email: normalizedEmail,
+          displayName: bootstrapOptions.adminDisplayName,
+          passwordHash,
+          mustChangePassword: bootstrapOptions.adminMustChangePassword ?? true,
+        })
+        .onConflictDoNothing()
+        .returning();
+      if (!insertedUser) {
+        throw new Error(
+          "Bootstrap administrator email already exists; refusing to attach an existing identity",
+        );
+      }
+      user = insertedUser;
+      const [insertedMembership] = await tx
+        .insert(memberships)
+        .values({ orgId: organization.id, userId: user.id })
+        .returning();
+      if (!insertedMembership) throw new Error("Failed to seed administrator membership");
+      membership = insertedMembership;
+    }
+
+    let maintenanceActor: typeof users.$inferSelect | undefined;
+    if (maintenance) {
+      const [operator] = await tx
+        .select()
+        .from(users)
+        .where(eq(users.email, maintenance.operatorEmail))
+        .limit(1);
+      if (!operator) throw new Error("System-role maintenance operator was not found");
+      const [operatorMembership] = await tx
+        .select({ id: memberships.id })
+        .from(memberships)
+        .where(
+          and(
+            eq(memberships.orgId, organization.id),
+            eq(memberships.userId, operator.id),
+            eq(memberships.status, "active"),
+            isNull(memberships.archivedAt),
+          ),
+        )
+        .limit(1);
+      if (!operatorMembership) {
+        throw new Error("System-role maintenance operator must be an active organization owner");
+      }
+      const [ownerAssignment] = await tx
+        .select({ roleId: roles.id })
+        .from(membershipRoles)
+        .innerJoin(
+          roles,
+          and(
+            eq(roles.id, membershipRoles.roleId),
+            eq(roles.orgId, membershipRoles.orgId),
+            eq(roles.systemKey, "owner"),
+            isNull(roles.archivedAt),
+          ),
+        )
+        .where(
+          and(
+            eq(membershipRoles.orgId, organization.id),
+            eq(membershipRoles.membershipId, operatorMembership.id),
+          ),
+        )
+        .limit(1);
+      if (!ownerAssignment) {
+        throw new Error("System-role maintenance operator must be an active organization owner");
+      }
+      const [existingMaintenanceAudit] = await tx
+        .select({ id: auditEvents.id })
+        .from(auditEvents)
+        .where(
+          and(
+            eq(auditEvents.orgId, organization.id),
+            eq(auditEvents.requestId, maintenance.requestId),
+          ),
+        )
+        .limit(1);
+      if (existingMaintenanceAudit) {
+        throw new Error("System-role maintenance requestId was already used in this organization");
+      }
+      maintenanceActor = operator;
+    }
+
+    let rolesCreated = 0;
+    let permissionsAdded = 0;
+    if (mode === "bootstrap" || maintenance) {
+      for (const [systemKey, permissions] of Object.entries(SYSTEM_ROLE_PERMISSIONS)) {
+        const [insertedRole] = await tx
+          .insert(roles)
+          .values({
+            orgId: organization.id,
+            name: systemKey.charAt(0).toUpperCase() + systemKey.slice(1),
+            systemKey,
+            description: `Built-in ${systemKey} role`,
+          })
+          .onConflictDoNothing()
+          .returning();
+        const [existingRole] = insertedRole
+          ? [insertedRole]
+          : await tx
+              .select()
+              .from(roles)
+              .where(and(eq(roles.orgId, organization.id), eq(roles.systemKey, systemKey)))
+              .limit(1);
+        const role = insertedRole ?? existingRole;
+        if (!role) throw new Error(`Failed to seed ${systemKey} role`);
+        if (insertedRole) rolesCreated += 1;
+
+        const insertedPermissions = await tx
+          .insert(rolePermissions)
+          .values(
+            permissions.map((permission) => ({
+              orgId: organization.id,
+              roleId: role.id,
+              permission,
+            })),
+          )
+          .onConflictDoNothing()
+          .returning({ permission: rolePermissions.permission });
+        permissionsAdded += insertedPermissions.length;
+
+        if (maintenance && maintenanceActor) {
+          const auditMetadata = {
+            mode: "explicit_system_role_maintenance",
+            operatorEmail: maintenance.operatorEmail,
+            reason: maintenance.reason,
+            approvalReference: maintenance.approvalReference,
+          };
+          if (insertedRole) {
+            await tx.insert(auditEvents).values({
+              orgId: organization.id,
+              actorUserId: maintenanceActor.id,
+              action: "system_role_create",
+              resourceType: "role",
+              resourceId: role.id,
+              requestId: maintenance.requestId,
+              before: null,
+              after: {
+                id: role.id,
+                name: role.name,
+                systemKey: role.systemKey,
+                description: role.description,
+              },
+              metadata: auditMetadata,
+            });
+          }
+          for (const added of insertedPermissions) {
+            const permissionState = {
+              roleId: role.id,
+              systemKey,
+              permission: added.permission,
+            };
+            await tx.insert(auditEvents).values({
+              orgId: organization.id,
+              actorUserId: maintenanceActor.id,
+              action: "system_role_permission_add",
+              resourceType: "role-permission",
+              resourceId: `${role.id}:${added.permission}`,
+              requestId: maintenance.requestId,
+              before: { ...permissionState, present: false },
+              after: { ...permissionState, present: true },
+              metadata: auditMetadata,
+            });
+          }
+        }
+
+        if (mode === "bootstrap" && systemKey === "owner") {
+          if (!membership) throw new Error("Bootstrap owner membership is missing");
+          await tx.insert(membershipRoles).values({
+            orgId: organization.id,
+            membershipId: membership.id,
+            roleId: role.id,
+          });
+        }
+      }
+      if (maintenance && maintenanceActor) {
+        await tx.insert(auditEvents).values({
+          orgId: organization.id,
+          actorUserId: maintenanceActor.id,
+          action: "system_role_maintenance",
+          resourceType: "organization",
+          resourceId: organization.id,
+          requestId: maintenance.requestId,
+          before: { rolesCreated: 0, permissionsAdded: 0 },
+          after: { rolesCreated, permissionsAdded },
+          metadata: {
+            mode: "explicit_system_role_maintenance",
+            operatorEmail: maintenance.operatorEmail,
+            reason: maintenance.reason,
+            approvalReference: maintenance.approvalReference,
+          },
+        });
+      }
+    }
+
+    for (const [advisorKey, definition] of Object.entries(ADVISOR_PROMPTS)) {
+      const systemPrompt = renderAdvisorSystemPrompt(definition);
+      const [insertedPrompt] = await tx
+        .insert(promptVersions)
+        .values({
+          orgId: organization.id,
+          advisorKey,
+          versionNumber: 1,
+          active: true,
+          dataScopes: definition.scopes,
+          toolPolicy: { readOnly: true, humanApprovalForSideEffects: true },
+          createdBy: user?.id ?? maintenanceActor?.id ?? null,
+          systemPrompt,
+        })
+        .onConflictDoNothing()
+        .returning({
+          id: promptVersions.id,
+          advisorKey: promptVersions.advisorKey,
+          versionNumber: promptVersions.versionNumber,
+          active: promptVersions.active,
+        });
+      if (insertedPrompt) {
+        await tx.insert(auditEvents).values({
+          orgId: organization.id,
+          actorUserId: user?.id ?? maintenanceActor?.id ?? null,
+          action: "system_prompt_version_create",
+          resourceType: "prompt-version",
+          resourceId: insertedPrompt.id,
+          requestId: metadataRequestId,
+          before: null,
+          after: {
+            ...insertedPrompt,
+            systemPromptSha256: createHash("sha256").update(systemPrompt).digest("hex"),
+          },
+          metadata: { source: "seed", seedMode: mode, systemManagedBaseline: true },
+        });
+      }
+    }
+
+    const complianceImport = await importOfficialComplianceSources(
+      tx as unknown as Database,
+      organization.id,
+      complianceSourcesFile,
+      preloadedCompliance,
+    );
+
+    return {
+      organization,
+      user,
+      membership,
+      bootstrapCreated: mode === "bootstrap",
+      systemRoleChanges: {
+        mode:
+          mode === "bootstrap"
+            ? ("bootstrap" as const)
+            : maintenance
+              ? ("maintenance" as const)
+              : ("none" as const),
+        rolesCreated,
+        permissionsAdded,
+        requestId: maintenance?.requestId ?? null,
+      },
+      metadataRequestId,
+      complianceImport,
+    };
+  });
+
+  const result = core;
+  if (mode === "bootstrap") {
+    if (!result.user || !result.membership) throw new Error("Bootstrap identity result is missing");
+    return { ...result, user: result.user, membership: result.membership, bootstrapCreated: true };
   }
-
-  for (const [advisorKey, definition] of Object.entries(advisorPrompts)) {
-    await db
-      .insert(promptVersions)
-      .values({
-        orgId: org.id,
-        advisorKey,
-        versionNumber: 1,
-        active: true,
-        dataScopes: definition.scopes,
-        toolPolicy: { readOnly: true, humanApprovalForSideEffects: true },
-        createdBy: user.id,
-        systemPrompt: [
-          `You are the FIAT LUX CHOICE ${definition.title} advisor.`,
-          "Use only supplied, permission-filtered company context.",
-          "Separate facts, inferences, and recommendations. Every fact needs evidence.",
-          "State risks, missing information, suggested actions, confidence, and a decision-support disclaimer.",
-          "Never claim an external action succeeded and never bypass human approval.",
-        ].join(" "),
-      })
-      .onConflictDoNothing();
-  }
-
-  const complianceImport = await importOfficialComplianceSources(
-    db,
-    org.id,
-    options.complianceSourcesFile,
-  );
-
-  return { organization: org, user, membership: activeMembership, complianceImport };
+  return { ...result, user: null, membership: null, bootstrapCreated: false };
 }

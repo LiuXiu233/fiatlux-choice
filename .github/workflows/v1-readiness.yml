@@ -1,0 +1,124 @@
+name: Attest final V1 readiness
+
+on:
+  workflow_dispatch:
+    inputs:
+      manifest_commit:
+        description: Full lowercase commit SHA on main containing the ready V1 manifest
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+  packages: read
+
+concurrency:
+  group: v1-readiness-${{ github.repository }}-${{ inputs.manifest_commit }}
+  cancel-in-progress: false
+
+jobs:
+  attest:
+    name: Verify and attest fail-closed V1 readiness
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: v1-production-approval
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ inputs.manifest_commit }}
+          fetch-depth: 0
+      - name: Bind the manifest and candidate identities to immutable main history
+        env:
+          INPUT_MANIFEST_COMMIT: ${{ inputs.manifest_commit }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$INPUT_MANIFEST_COMMIT" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "manifest_commit 必须是完整 40 位小写 Git SHA。" >&2
+            exit 2
+          fi
+          actual_commit=$(git rev-parse HEAD)
+          if [[ "$actual_commit" != "$INPUT_MANIFEST_COMMIT" ]]; then
+            printf 'checkout SHA 不一致：期望 %s，实际 %s。\n' \
+              "$INPUT_MANIFEST_COMMIT" "$actual_commit" >&2
+            exit 3
+          fi
+          git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main"
+          if ! git merge-base --is-ancestor "$actual_commit" refs/remotes/origin/main; then
+            echo "包含 ready 清单的提交尚未进入 main。" >&2
+            exit 3
+          fi
+
+          manifest=docs/delivery/v1-release-readiness.json
+          repository_url=$(jq -er '.candidate.repository' "$manifest")
+          branch=$(jq -er '.candidate.branch' "$manifest")
+          implementation_commit=$(jq -er '.candidate.implementationCommit' "$manifest")
+          evidence_commit=$(jq -er '.candidate.evidenceCommit' "$manifest")
+          if [[ "$repository_url" != "https://github.com/$GITHUB_REPOSITORY" ]]; then
+            echo "清单 repository 与当前仓库不一致。" >&2
+            exit 3
+          fi
+          if [[ "$branch" != "main" ]]; then
+            echo "最终 V1 ready 清单必须绑定 main 分支。" >&2
+            exit 3
+          fi
+          for commit in "$implementation_commit" "$evidence_commit"; do
+            if [[ ! "$commit" =~ ^[0-9a-f]{40}$ ]] || ! git cat-file -e "$commit^{commit}"; then
+              echo "清单引用了无效或不可达的候选提交：$commit" >&2
+              exit 3
+            fi
+          done
+          if ! git merge-base --is-ancestor "$implementation_commit" "$evidence_commit"; then
+            echo "evidenceCommit 不包含 implementationCommit。" >&2
+            exit 3
+          fi
+          if ! git merge-base --is-ancestor "$evidence_commit" "$actual_commit"; then
+            echo "ready 清单提交不包含 evidenceCommit。" >&2
+            exit 3
+          fi
+          git config --local --unset-all http.https://github.com/.extraheader || true
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+        with:
+          version: 11.13.0
+          run_install: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24.12.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Require every local, external and human gate to be ready
+        run: pnpm delivery:v1:require-ready
+      - name: Verify live GitHub runs and immutable GHCR digests
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: pnpm delivery:v1:verify-platform >v1-platform-verification.json
+      - name: Create the read-only final attestation bundle
+        env:
+          MANIFEST_COMMIT: ${{ inputs.manifest_commit }}
+        run: |
+          set -euo pipefail
+          mkdir -p v1-readiness-attestation
+          cp docs/delivery/v1-release-readiness.json v1-readiness-attestation/manifest.json
+          cp v1-platform-verification.json v1-readiness-attestation/platform-verification.json
+          (
+            cd v1-readiness-attestation
+            sha256sum manifest.json platform-verification.json >SHA256SUMS
+          )
+          {
+            echo '### V1 最终就绪证明'
+            echo
+            echo "Manifest commit: $MANIFEST_COMMIT"
+            echo
+            jq -r '"Evidence commit: \(.evidenceCommit)\nGitHub runs verified: \(.githubRuns | length)\nGHCR digests verified: \(.registryArtifacts | length)"' \
+              v1-platform-verification.json
+            echo
+            echo '该 job 只读核验证据，不执行部署、付款、申报、签署、人事处分、权限变更或其他外部承诺。'
+          } >>"$GITHUB_STEP_SUMMARY"
+      - name: Upload the final readiness attestation
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: v1-readiness-attestation-${{ inputs.manifest_commit }}
+          path: v1-readiness-attestation
+          if-no-files-found: error
+          retention-days: 90
+          overwrite: false

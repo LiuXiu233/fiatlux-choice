@@ -11,18 +11,22 @@ on:
 
 permissions:
   contents: read
-  pull-requests: read
-  security-events: write
 
 concurrency:
   group: security-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
+
+env:
+  TRIVY_VERSION: v0.70.0
 
 jobs:
   code-security-capability:
     name: Detect code scanning entitlement
     runs-on: ubuntu-24.04
     timeout-minutes: 5
+    permissions:
+      contents: read
+      security-events: read
     outputs:
       available: ${{ steps.probe.outputs.available }}
     steps:
@@ -61,10 +65,15 @@ jobs:
   secrets:
     name: Secret scan
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
+      - name: Run reproducible redacted Gitleaks current-tree and history gate
+        run: ./scripts/test-secret-scan.sh
       - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -72,6 +81,8 @@ jobs:
   dependencies:
     name: Dependency audit
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
@@ -83,25 +94,110 @@ jobs:
           node-version: 24.12.0
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm audit --prod --audit-level high
+      - name: Audit production dependencies against the official registry
+        run: pnpm audit --prod --audit-level high --registry=https://registry.npmjs.org
+
+  semgrep:
+    name: Semgrep SAST (OSS)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    env:
+      SEMGREP_IMAGE: semgrep/semgrep:1.170.0@sha256:c98f8829eea377274ee4b10656458b078b88232469b2ff913f091c2317347c9d
+      SEMGREP_VERSION: 1.170.0
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - name: Verify the pinned Semgrep runtime
+        run: |
+          set -euo pipefail
+          actual=$(docker run --rm "$SEMGREP_IMAGE" semgrep --version | head -n 1)
+          test "$actual" = "$SEMGREP_VERSION"
+          {
+            echo '### Semgrep SAST (OSS)'
+            echo
+            echo "Runtime: Semgrep OSS $actual ($SEMGREP_IMAGE)"
+            echo 'This independent gate does not mean CodeQL ran or passed and is not an approved equivalent until the security owner signs off.'
+          } >>"$GITHUB_STEP_SUMMARY"
+      - name: Validate the local Semgrep rules
+        run: |
+          docker run --rm \
+            --volume "$PWD:/src" \
+            --workdir /src \
+            "$SEMGREP_IMAGE" \
+            semgrep scan --validate --metrics=off --disable-version-check \
+              --strict \
+              --config security/semgrep/fiatlux-nodejs-v1.yml
+      - name: Verify the intentionally vulnerable canary
+        run: |
+          docker run --rm \
+            --volume "$PWD:/src" \
+            --workdir /src \
+            "$SEMGREP_IMAGE" \
+            sh security/semgrep/verify-canary.sh
+      - name: Scan production TypeScript and Node.js code
+        run: |
+          mkdir -p semgrep-results
+          docker run --rm \
+            --user "$(id -u):$(id -g)" \
+            --env HOME=/tmp \
+            --volume "$PWD:/src" \
+            --workdir /src \
+            "$SEMGREP_IMAGE" \
+            semgrep scan \
+              --config security/semgrep/fiatlux-nodejs-v1.yml \
+              --metrics=off \
+              --disable-version-check \
+              --strict \
+              --error \
+              --exclude 'security/semgrep/canary/**' \
+              --exclude 'apps/api/src/index.ts' \
+              --exclude '**/dist/**' \
+              --exclude '**/coverage/**' \
+              --exclude '**/node_modules/**' \
+              --exclude '**/test/**' \
+              --exclude '**/tests/**' \
+              --exclude '**/*.test.*' \
+              --exclude '**/*.spec.*' \
+              --exclude 'apps/web/e2e/**' \
+              --json-output semgrep-results/semgrep-results.json \
+              --sarif-output semgrep-results/semgrep-results.sarif \
+              .
+      - name: Upload Semgrep JSON and SARIF as ordinary workflow artifacts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: semgrep-sast-${{ github.run_id }}
+          path: semgrep-results
+          if-no-files-found: error
+          retention-days: 30
+          overwrite: true
 
   filesystem:
     name: Filesystem vulnerabilities
     runs-on: ubuntu-24.04
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
     needs:
       - code-security-capability
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - name: Generate filesystem SARIF and enforce the vulnerability gate
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        env:
+          TRIVY_INCLUDE_DEV_DEPS: "true"
         with:
           scan-type: fs
           scan-ref: .
           format: sarif
           output: trivy-results.sarif
           severity: HIGH,CRITICAL
+          limit-severities-for-sarif: true
           ignore-unfixed: true
           exit-code: "1"
+          version: ${{ env.TRIVY_VERSION }}
       - name: Upload filesystem SARIF as an ordinary workflow artifact
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -120,6 +216,10 @@ jobs:
   codeql:
     name: CodeQL (entitlement-aware)
     runs-on: ubuntu-24.04
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
     needs:
       - code-security-capability
     steps:
@@ -140,6 +240,7 @@ jobs:
         with:
           languages: javascript-typescript
           build-mode: none
+          config-file: ./.github/codeql-config.yml
       - name: Analyze and upload CodeQL results
         id: codeql-analyze
         if: needs.code-security-capability.outputs.available == 'true'

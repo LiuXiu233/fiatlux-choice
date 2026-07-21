@@ -1,0 +1,371 @@
+{
+  "schemaVersion": 1,
+  "evidenceType": "education_wordpress_review_bundle_implementation_acceptance",
+  "executedAt": "2026-07-20T13:46:01Z",
+  "localDate": "2026-07-20",
+  "timezone": "Asia/Shanghai",
+  "scope": "pushed-exact-implementation-commit-local-increment-acceptance",
+  "repository": "https://github.com/LiuXiu233/fiatlux-choice",
+  "branch": "codex/v1-acceptance-hardening",
+  "implementationCommit": "9c5633e1c3e9650507231106fcd8a451bf32053f",
+  "implementationTree": "fe1fb7e192a6f77d5e8c64e4627d029b8ddcfa61",
+  "implementationCommitPushed": true,
+  "remoteImplementationRef": "refs/heads/codex/v1-acceptance-hardening",
+  "pullRequest": "https://github.com/LiuXiu233/fiatlux-choice/pull/12",
+  "pullRequestDraft": true,
+  "workingTreeCleanBeforeExactAcceptance": true,
+  "acceptanceSubject": {
+    "description": "从精确 Git 候选生成固定 review-only 的 WordPress 块 HTML、治理审阅表和 SHA-256 manifest，并阻止审阅稿被误认作公开发布",
+    "candidateContentFiles": [
+      {
+        "path": "content/education/foundation-articles.json",
+        "datasetId": "fiatlux-choice-esports-education-foundations",
+        "bytes": 57294,
+        "sha256": "bbb61ba75bde3dbd0c4023898f87b111c0d4f74885aee96d3cab3a17a1af210f"
+      },
+      {
+        "path": "content/education/expansion-articles.json",
+        "datasetId": "fiatlux-choice-esports-education-expansion",
+        "bytes": 74839,
+        "sha256": "05241c62e9cde5b4763b9975e8cfa6bd07d747d2482ea0f67781f82ff3f3e388"
+      }
+    ],
+    "implementationArtifacts": [
+      {
+        "path": "apps/web/src/lib/education-content-library.ts",
+        "bytes": 4036,
+        "sha256": "86a09d92d43caea5ab178788d9a8a8d66cef04a6d4113dea2d9e835817fa9a2e"
+      },
+      {
+        "path": "apps/web/src/lib/education-content.ts",
+        "bytes": 641,
+        "sha256": "7520719731a6270ac9b5a6b6127af160993d9c5e0ed0e9060cf9086a3d07d1b9"
+      },
+      {
+        "path": "packages/integrations/src/education-content-clearance-evidence.ts",
+        "bytes": 33713,
+        "sha256": "844977e40ed0c3882448f0063adc58fa937fb9c3e6beaf21167ece52cf15a716"
+      },
+      {
+        "path": "packages/integrations/src/education-wordpress-review-bundle.ts",
+        "bytes": 21383,
+        "sha256": "bbf8bc9e0a8cfa71bfc658a973fbaecd9a9bf5178cad93aeb9c40a1804f16930"
+      },
+      {
+        "path": "packages/integrations/src/index.ts",
+        "bytes": 476,
+        "sha256": "bb084a310413b0afcd6a67d8db28c5252a4b83d7f2136ad36b8af0857ee8a0ef"
+      },
+      {
+        "path": "packages/integrations/test/education-content-clearance-evidence.test.ts",
+        "bytes": 21569,
+        "sha256": "e063b9f9b944e7f429835fa30153aab8db248c2f3e6ac08815847a500e9c3a99"
+      },
+      {
+        "path": "packages/integrations/test/education-wordpress-review-bundle.test.ts",
+        "bytes": 11280,
+        "sha256": "d7a05bb6a04be05c6d6321b35fa83f3d04d0d1fdfc2fb62a80624d57c1f5cdc0"
+      },
+      {
+        "path": "scripts/create-education-wordpress-review-bundle.ts",
+        "bytes": 6337,
+        "sha256": "d884cb74d2851a7ced5eab6744f3dcee5edd15467a06f2c4e5826417ad9ba51d"
+      },
+      {
+        "path": "scripts/test-education-wordpress-review-bundle.sh",
+        "bytes": 11593,
+        "sha256": "d09702f96b198132c3fb089b944832706d437f4e6b8b440c449075a34350b1dc"
+      },
+      {
+        "path": "docs/admin/education-wordpress-review-bundle.md",
+        "bytes": 7558,
+        "sha256": "0374fc8013e51862e53091c8aa2d935960377dcfa9f8a5bcd147b520975be807"
+      },
+      {
+        "path": "package.json",
+        "bytes": 4282,
+        "sha256": "a538f8353f657801eda57b602e72ef4cef394811259c8eabb8a357c6adcc1fca"
+      }
+    ],
+    "requiredOutput": {
+      "articles": 12,
+      "reviewHtmlFiles": 12,
+      "governanceReviewSheets": 12,
+      "readmeFiles": 1,
+      "manifestFiles": 1,
+      "totalFiles": 26,
+      "artifactHashesInManifest": 25,
+      "outputDirectoryMode": "0700",
+      "outputFileMode": "0600",
+      "mode": "review_only",
+      "reviewOnlyMarker": "FIATLUX_REVIEW_ONLY_DO_NOT_PUBLISH"
+    }
+  },
+  "verification": {
+    "standardCheck": {
+      "command": "pnpm check",
+      "status": "passed",
+      "releaseManifestSchemaValid": true,
+      "biomeFiles": 257,
+      "shellcheck": "passed",
+      "actionlint": "passed",
+      "typescriptProjects": 7,
+      "unitTestFiles": 46,
+      "unitTests": 269,
+      "productionBuild": "passed",
+      "pwaBuild": {
+        "status": "passed",
+        "precacheEntries": 11,
+        "precacheKiB": 787.68
+      },
+      "standardIntegrationEntry": {
+        "status": "skipped_without_test_dependencies",
+        "s3TestsSkipped": 2,
+        "apiTestsSkipped": 94,
+        "workerTestsSkipped": 33,
+        "countedAsPassed": false,
+        "scopeBoundary": "The increment adds a local Git/file review-bundle tool and does not change database, API route or worker job behavior. Earlier immutable real PostgreSQL/MinIO evidence remains historical context, not a rerun for this commit."
+      }
+    },
+    "educationReviewBundle": {
+      "command": "pnpm test:education-content-evidence",
+      "status": "passed",
+      "contractTests": 13,
+      "clearanceVerifierTests": 13,
+      "reviewBundleUnitTests": 3,
+      "vitestTestsPassed": 29,
+      "vitestTestsFailed": 0,
+      "cliAcceptanceSuitePassed": true,
+      "candidateLoadedFromExactCommitInsteadOfWorkingTree": true,
+      "twoCandidateFilesAndTwelveArticleHashesBound": true,
+      "allCurrentDraftsBlocked": true,
+      "structurallyEligibleFixtureStillReviewOnly": true,
+      "htmlAndMarkdownEscapingVerified": true,
+      "missingSourceHashDriftAndUnsafeSlugRejected": true,
+      "publicClearanceVerifierRejectsReviewOnlyMarker": true,
+      "publicPnpmSeparatorInvocationVerified": true,
+      "networkGuard": {
+        "tcpHttpHttpsTlsDgramFetchAndWebSocketBlocked": true,
+        "localTsxUnixSocketOnlyAllowed": true,
+        "unexpectedNetworkCalls": 0
+      },
+      "negativePaths": {
+        "relativeOutputRejectedWithoutArtifacts": true,
+        "relativeRepositoryRejectedWithoutArtifacts": true,
+        "mode0755ParentRejectedWithoutArtifacts": true,
+        "existingOutputRejectedWithoutMutation": true
+      }
+    },
+    "exactCandidateSample": {
+      "generatedAt": "2026-07-20T13:34:25.724Z",
+      "candidateGitSha": "9c5633e1c3e9650507231106fcd8a451bf32053f",
+      "manifestSha256": "ca70e9878f249607be244897b0bb5befdd977a0645084804cdca7189ddec853f",
+      "manifestBytes": 24568,
+      "artifactIndexSha256": "ac76006d79bdfbfaab84e0691545e2d3e89c93ac6f9547f1b6309859708a9d8e",
+      "fileCount": 26,
+      "allFileModes": ["0600"],
+      "allDirectoryModes": ["0700"],
+      "articleCount": 12,
+      "publicationEligibleCount": 0,
+      "blockedArticleCount": 12,
+      "blockingReasonsPerArticle": [7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7],
+      "htmlFilesWithReviewOnlyMarker": 12,
+      "firstArticle": {
+        "articleId": "four-week-competitive-training-goal",
+        "contentSha256": "ec195135de0753e47b13aec7c84ca09545420cf0a4a85fde3ff0ce9bd4f808b9"
+      },
+      "sampleDirectoryRetained": false,
+      "sampleContainsCredentialsOrPersonalInformation": false
+    },
+    "mockBrowser": {
+      "command": "pnpm test:e2e:mock",
+      "status": "passed",
+      "testsPassed": 48,
+      "projectConditionalSkips": 6,
+      "testsFailed": 0,
+      "desktopAndMobileEducationWorkspaceCovered": true,
+      "pwaAndOfflineBoundaryCovered": true
+    },
+    "independentWebArtifactRecheck": {
+      "runtime": "Python Playwright headless Chromium",
+      "server": "exact-commit production Vite preview with synthetic unauthenticated-session 401 only",
+      "status": "passed",
+      "profiles": [
+        {
+          "name": "desktop-1440x1000",
+          "scrollWidth": 1440,
+          "clientWidth": 1440
+        },
+        {
+          "name": "mobile-390x844",
+          "scrollWidth": 390,
+          "clientWidth": 390
+        }
+      ],
+      "manifestName": "FIAT LUX CHOICE",
+      "manifestDisplay": "standalone",
+      "manifestStartUrl": "/",
+      "serviceWorkerActiveAndControlling": true,
+      "offlineLoginFormHidden": true,
+      "onlineRecoveryRequiresSessionRevalidation": true,
+      "expectedSynthetic401ResponsesPerProfile": 4,
+      "unexpectedConsoleErrors": 0,
+      "pageErrors": 0,
+      "screenshotsRetained": false
+    }
+  },
+  "sourceSecurity": {
+    "gitleaks": {
+      "runtime": "gitleaks 8.28.0",
+      "scannerImageDigest": "sha256:cdbb7c955abce02001a9f6c9f602fb195b7fadc1e812065883f695d1eeaba854",
+      "currentTrackedAndNonIgnoredTreeFindings": 0,
+      "completeGitHistoryFindings": 0,
+      "defaultAndRepositoryCanariesPassed": true,
+      "reportsRedacted": true
+    },
+    "productionDependencyAudit": {
+      "command": "pnpm audit --prod --audit-level high --registry=https://registry.npmjs.org",
+      "status": "passed",
+      "knownVulnerabilities": 0
+    },
+    "semgrep": {
+      "runtime": "Semgrep OSS 1.170.0",
+      "scannerImageDigest": "sha256:c98f8829eea377274ee4b10656458b078b88232469b2ff913f091c2317347c9d",
+      "configurationRules": 10,
+      "configurationValid": true,
+      "canaryFindingsExpectedAndObserved": 10,
+      "standardProductionTargets": 107,
+      "changedProductionTypeScriptTargetsExplicitlyScanned": 3,
+      "productionFindings": 0,
+      "engineErrors": 0
+    }
+  },
+  "localAffectedImages": {
+    "platform": "linux/arm64",
+    "registryPublished": false,
+    "releaseVersion": "v1.0.0-review.9c5633e",
+    "releaseGitSha": "9c5633e1c3e9650507231106fcd8a451bf32053f",
+    "fullSevenImageRebuildClaimed": false,
+    "affectedComponentsOnly": ["api", "worker", "web"],
+    "trivy": {
+      "runtime": "aquasec/trivy 0.72.0",
+      "scannerImageDigest": "sha256:cffe3f5161a47a6823fbd23d985795b3ed72a4c806da4c4df16266c02accdd6f",
+      "databaseUpdatedAt": "2026-07-19T18:43:16.060990559Z",
+      "databaseNextUpdate": "2026-07-20T18:43:16.060990238Z",
+      "skipDatabaseUpdate": true,
+      "severity": ["HIGH", "CRITICAL"]
+    },
+    "syft": {
+      "runtime": "anchore/syft 1.42.3",
+      "scannerImageDigest": "sha256:5999d209a342e55e9edf70bf8930fb5b86d8f2a783fa401178372c50e21b1d36",
+      "format": "SPDX-2.3"
+    },
+    "components": {
+      "api": {
+        "localImageId": "sha256:5cbed19706bf70e0260ae3d1e916cf1d17465346f4b95a4a0c47c79b45993230",
+        "sizeBytes": 77596346,
+        "configuredUser": "node",
+        "observedUid": 1000,
+        "reviewBundleModulePresent": true,
+        "highCritical": 0,
+        "spdxPackages": 204
+      },
+      "worker": {
+        "localImageId": "sha256:18a336e28470f03de3245997df00135cdbb7b2afa76fe7ec829829f9a8c0a5f9",
+        "sizeBytes": 82565670,
+        "configuredUser": "node",
+        "observedUid": 1000,
+        "reviewBundleModulePresent": true,
+        "highCritical": 0,
+        "spdxPackages": 225
+      },
+      "web": {
+        "localImageId": "sha256:4778acf2fcc86c33f6d6b47ebef091bac9e2a47014e08b22f67c975af491c847",
+        "sizeBytes": 38149344,
+        "configuredUser": "10001:10001",
+        "observedUid": 10001,
+        "fullGitShaEmbedded": true,
+        "healthAndLoginRoutesPassed": true,
+        "manifestStandalonePassed": true,
+        "readOnlyRootVerified": true,
+        "capDropAllVerified": true,
+        "noNewPrivilegesVerified": true,
+        "highCritical": 0,
+        "spdxPackages": 176,
+        "pwaPrecacheEntries": 11,
+        "pwaPrecacheKiB": 787.74
+      }
+    },
+    "fullComposeRerun": false,
+    "scopeBoundary": "The prior immutable full-stack and restore evidence was not re-labelled as a 9c5633e full Compose run. This increment rebuilt and scanned only the three application images whose source context changed, and ran the Web image independently with production hardening."
+  },
+  "githubRunsForImplementationCommit": {
+    "ci": {
+      "runId": 29746697346,
+      "url": "https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29746697346",
+      "result": "blocked_before_runner_steps",
+      "failedTopLevelJobs": 2,
+      "failedJobsRunnerIdZero": true,
+      "failedJobsStepsEmpty": true
+    },
+    "security": {
+      "runId": 29746697661,
+      "url": "https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29746697661",
+      "result": "blocked_before_runner_steps",
+      "failedTopLevelJobs": 4,
+      "failedJobsRunnerIdZero": true,
+      "failedJobsStepsEmpty": true
+    },
+    "sharedAnnotation": "The job was not started because recent account payments have failed or your spending limit needs to be increased. Please check the 'Billing & plans' section in your settings",
+    "greenRunsAvailable": false,
+    "countedAsPassed": false
+  },
+  "releaseReadinessAtEvidenceTime": {
+    "manifestImplementationCommit": "f4c12b596afd90d5781a0d192f381315c39790bc",
+    "manifestEvidenceCommit": "39801ebcf84257fe639e4a0be35bd60b8bcf75e3",
+    "candidateManifestUpdatePending": true,
+    "totalGateCount": 14,
+    "passedGateCount": 2,
+    "blockedGateCount": 12,
+    "ready": false,
+    "overallStatus": "blocked"
+  },
+  "cleanup": {
+    "temporaryReviewBundleRemoved": true,
+    "temporaryBrowserScriptsAndScreenshotsRemoved": true,
+    "temporarySemgrepTrivyAndSpdxReportsRemoved": true,
+    "temporaryReviewBundleNetworkGuardRemoved": true,
+    "testCredentialsOrWordPressCredentialsCreated": false,
+    "existingFiatluxChoiceComposeStacksStoppedOrChanged": false,
+    "affectedImagesRetainedUntilEvidenceFreeze": true
+  },
+  "truthBoundary": {
+    "reviewBundleImplementationAccepted": true,
+    "reviewBundleMode": "review_only",
+    "professionalReviewSubstituted": false,
+    "rightsReviewSubstituted": false,
+    "humanApprovalSubstituted": false,
+    "wordpressCredentialsAccepted": false,
+    "wordpressApiCalled": false,
+    "wordpressAuthenticatedOperationPerformed": false,
+    "publicWebsiteModified": false,
+    "publicWebsiteStateVerifiedByBundle": false,
+    "realLaunchQuestionnaireCompleted": false,
+    "articleProfessionalAndFactReviewCompleted": false,
+    "sourceApplicabilityReviewCompleted": false,
+    "copyrightPortraitPrivacyAndAssetRightsReviewCompleted": false,
+    "healthAndContentSafetyReviewCompleted": false,
+    "internalTeachingTrialCompleted": false,
+    "perArticleHumanApprovalObtained": false,
+    "finalHumanApprovalObtained": false,
+    "twelveArticlesPubliclyPublishedAndVerified": false,
+    "sevenLegacyTemplatePagesDisposedAndVerified": false,
+    "educationContentClearanceGateClosed": false,
+    "githubCiAndSecurityPassed": false,
+    "ghcrMultiPlatformArtifactsPublished": false,
+    "targetOfficeIntranetExecuted": false,
+    "physicalManagedDeviceExecuted": false,
+    "v1DeclaredComplete": false,
+    "note": "This record accepts only the exact-commit local implementation, fail-closed review-only generation and affected-image build/security behavior. It is not a publication package, professional opinion, rights clearance, WordPress action, education_content_clearance report, target deployment or V1 completion evidence."
+  }
+}

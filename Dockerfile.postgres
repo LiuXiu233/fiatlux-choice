@@ -1,0 +1,11 @@
+# syntax=docker/dockerfile:1.25.0@sha256:0adf442eae370b6087e08edc7c50b552d80ddf261576f4ebd6421006b2461f12
+FROM postgres:17.10-alpine3.23@sha256:8189a1f6e40904781fc9e2612687877791d21679866db58b1de996b31fc312e4
+
+# The container always runs as the image's postgres user, so the root-only gosu
+# branch in the upstream entrypoint is unreachable. Removing the stale helper
+# also removes its bundled, independently vulnerable Go standard library.
+RUN apk upgrade --no-cache && \
+    rm -f /usr/local/bin/gosu && \
+    test ! -e /usr/local/bin/gosu
+
+USER postgres

@@ -28,6 +28,14 @@ export function assertExternalActionTransition(input: {
   to: ExternalActionStatus;
   evidence?: Record<string, unknown>;
 }) {
+  if (input.adapter === "real") {
+    throw new DomainError(
+      "INTEGRATION_UNAVAILABLE",
+      "No registered real external-action adapter is enabled; use the manual evidence workflow",
+      503,
+    );
+  }
+
   if (!transitions[input.from].includes(input.to)) {
     throw new DomainError(
       "INVALID_TRANSITION",

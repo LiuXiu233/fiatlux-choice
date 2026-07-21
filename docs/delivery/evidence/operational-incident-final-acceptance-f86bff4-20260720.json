@@ -1,0 +1,294 @@
+{
+  "schemaVersion": 1,
+  "evidenceType": "operational-incident-exact-implementation-production-like-acceptance",
+  "status": "passed_with_external_gates",
+  "candidate": {
+    "repository": "LiuXiu233/fiatlux-choice",
+    "branch": "codex/v1-acceptance-hardening",
+    "implementationGitSha": "f86bff4dcc7d2b61e05c8a6b44078d039aad1e38",
+    "implementationTreeSha": "7c53513ed3fbce95db14acda34188acf3650bf17",
+    "parentGitSha": "532265b8d384e84c2d7020215cd90731c92cc3f9",
+    "remoteBranchMatchedImplementationShaBeforeEvidenceCommit": true,
+    "databaseMigrationAdded": false,
+    "publicTableCount": 38,
+    "businessMigrationCount": 11
+  },
+  "execution": {
+    "evidenceCompiledAt": "2026-07-20T02:00:17Z",
+    "operatorTimezone": "Asia/Shanghai",
+    "singleAgentExecution": true,
+    "host": {
+      "os": "macOS 26.5.2",
+      "dockerClient": "29.6.0",
+      "dockerServer": "29.5.2",
+      "dockerServerArchitecture": "arm64",
+      "dockerCompose": "5.3.1",
+      "dockerBuildx": "0.35.0"
+    }
+  },
+  "qualityGates": {
+    "exactImplementationCommit": {
+      "biomeFiles": 218,
+      "typescriptProjects": 7,
+      "unitTestsPassed": 191,
+      "targetOperationsComponentTestsPassed": 4,
+      "targetOperationsMockPlaywrightTestsPassed": 2,
+      "workspaceProductionBuildPassed": true,
+      "gitleaksCurrentTreeHistoryCanaryAndAllowlistPassed": true
+    },
+    "postgresIntegration": {
+      "apiIntegrationFilesPassed": 19,
+      "apiIntegrationTestsPassed": 93,
+      "workerIntegrationFilesPassed": 5,
+      "workerIntegrationTestsPassed": 29,
+      "targetOperationalIncidentTestsPassed": 3,
+      "realMinioTestsPassed": 2,
+      "unconfiguredS3TestsDesignedSkip": 2
+    },
+    "openApi": {
+      "version": "3.1.0",
+      "paths": 78,
+      "operations": 143,
+      "operationIds": ["listOperationalIncidents", "resolveOperationalIncident"]
+    },
+    "productionBuild": {
+      "nodeEnv": "production",
+      "mainChunkKiB": 428.4,
+      "operationsChunkKiB": 11.46,
+      "educationChunkKiB": 128.18,
+      "pwaPrecacheEntries": 11,
+      "pwaPrecacheKiB": 724.75
+    }
+  },
+  "exactImages": {
+    "sourceRelationship": "API, worker and Web were rebuilt from the tracked-clean f86bff4 checkout, then scanned and used without another rebuild for this acceptance. PostgreSQL, MinIO and gateway were unchanged infrastructure images retagged for the same isolated deployment.",
+    "imagePrefix": "fiatlux-opsexact",
+    "imageTag": "f86bff4",
+    "images": [
+      {
+        "component": "api",
+        "imageId": "sha256:ccccbe00666474fac0494630076e78ab5c2d092cc11f42833e3e8de3d226fbec"
+      },
+      {
+        "component": "worker",
+        "imageId": "sha256:576ee68fede067e402d74314ee026bc7d669490c7391be39992c7adafe0a6a16"
+      },
+      {
+        "component": "web",
+        "imageId": "sha256:e68fdab8a881dd1fb69c0084d074744fd30c777dd2d2f0877e159879259e5566"
+      },
+      {
+        "component": "postgres",
+        "imageId": "sha256:21f55d61458ac149cce46ed6e9cb753810aa2331244aaba3a495ea938dc97c72"
+      },
+      {
+        "component": "minio",
+        "imageId": "sha256:74bd0fc3fa45b7eec2647b1f483847373c6a35dac8ec0f26782977c2a5569ef8"
+      },
+      {
+        "component": "gateway",
+        "imageId": "sha256:a245c2d28d0a078da7313101077a2fefd81544061dd8b796dead50eded935e86"
+      }
+    ]
+  },
+  "imageSecurity": {
+    "trivyVersion": "0.70.0",
+    "syftVersion": "1.42.3",
+    "severityGate": ["HIGH", "CRITICAL"],
+    "scans": [
+      {
+        "component": "api",
+        "highCriticalFindings": 0,
+        "fixableHighCriticalFindings": 0,
+        "spdxPackages": 204,
+        "trivyReportSha256": "f37f828ea88ef1db492edaf4648b176034f74092baa0917afe674e76549a440e",
+        "spdxSha256": "747d82923a5b9df596f390cfa84bb2d2b4e8abefb8075cc859f220814d1107f3"
+      },
+      {
+        "component": "worker",
+        "highCriticalFindings": 0,
+        "fixableHighCriticalFindings": 0,
+        "spdxPackages": 225,
+        "trivyReportSha256": "c02f4ffe0b1d79ea9746f94a15354577affe47b4bf1d253938d77310e70259cf",
+        "spdxSha256": "b9af7a594e6ee8f36dad60be51f0e1c214a0b2c6dc7eec427a816636c064e2b1"
+      },
+      {
+        "component": "web",
+        "highCriticalFindings": 0,
+        "fixableHighCriticalFindings": 0,
+        "spdxPackages": 176,
+        "trivyReportSha256": "7d3e76956c3d06d98fa9e6f77f9405c3acb019d5e7281eb78b6c2ebe57cda25d",
+        "spdxSha256": "fa24c356ef0b80b2c47ae59da152c463f8104398859e9ba0476848e1a9873ce2"
+      }
+    ],
+    "rawReportsRemovedAfterHashing": true,
+    "unchangedInfrastructureImageEvidence": "docs/delivery/evidence/production-like-acceptance-101d2f0-20260720.json"
+  },
+  "productionLikeCompose": {
+    "projectName": "fiatlux-choice-opsfinal",
+    "domain": "choice-opsfinal.localhost",
+    "hostPort": 24543,
+    "productionOverlay": true,
+    "services": ["postgres", "minio", "api", "worker", "web", "caddy"],
+    "allSixServicesHealthyBeforeAndAfterRestart": true,
+    "restartCountAfterIntentionalRestart": 0,
+    "fivePostgresResponsibilitiesBootstrapped": true,
+    "publicTableCount": 38,
+    "businessMigrationCount": 11,
+    "officialSourcesSeeded": 73,
+    "deploymentVerifierPassedBeforeAndAfterRestart": true,
+    "minioLeastPrivilegeVerifierPassedBeforeAndAfterRestart": true,
+    "caddyRootCaSha256": "a854fbd7c2f5102f8a4e6e15a2c6f65132b15cef04fdcc38ec4ec5505872ba7c",
+    "runtimeDatabaseClients": [
+      "fiatlux-api",
+      "fiatlux-api-queue",
+      "fiatlux-worker",
+      "fiatlux-worker-queue"
+    ],
+    "runtimeAuditEventPrivileges": {
+      "select": true,
+      "insert": true,
+      "update": false,
+      "delete": false
+    }
+  },
+  "operatorScenario": {
+    "firstLogin": {
+      "forcedPasswordChange": true,
+      "bootstrapPasswordRejectedAfterChangeHttpStatus": 401,
+      "rotatedPasswordAcceptedHttpStatus": 200
+    },
+    "incidents": [
+      {
+        "sourceType": "advisor-run",
+        "sourceId": "f994aaf5-e2de-42a7-b9a5-3ce40c5606e9",
+        "incidentId": "52b4f0e7-a0fb-41f6-b507-0c3e874436e8",
+        "initialStatus": "failed",
+        "initialVersion": 7,
+        "recordedPartialEffects": true,
+        "recordedPartialCount": 0,
+        "selectedResolution": "manual_compensation_completed",
+        "compensationReference": "task:opsfinal-advisor-compensation-f86bff4",
+        "manualReviewAuditCount": 1,
+        "originalSourceRecordChanged": false
+      },
+      {
+        "sourceType": "workflow-run",
+        "sourceId": "6a823a4f-3114-4f97-aefc-e38669557eee",
+        "incidentId": "1b75f74e-590a-4494-8db0-e2b3bc99ec88",
+        "initialStatus": "failed",
+        "initialVersion": 5,
+        "recordedPartialEffects": true,
+        "recordedPartialCount": 1,
+        "selectedResolution": "manual_compensation_completed",
+        "compensationReference": "task:opsfinal-workflow-compensation-f86bff4",
+        "manualReviewAuditCount": 1,
+        "originalSourceRecordChanged": false
+      },
+      {
+        "sourceType": "backup",
+        "sourceId": "38fa99d0-43d3-458e-843c-f825e41bbd7e",
+        "incidentId": "ff277074-1a9c-409a-a62d-ef4acfa84eeb",
+        "initialStatus": "failed",
+        "initialVersion": 4,
+        "recordedPartialEffects": false,
+        "recordedPartialCount": 0,
+        "selectedResolution": "no_partial_effects_found",
+        "compensationReference": null,
+        "manualReviewAuditCount": 1,
+        "originalSourceRecordChanged": false
+      }
+    ],
+    "duplicateResolutionHttpStatus": 409,
+    "exactlyOneResolutionPerIncident": true,
+    "resolutionMetadataValid": true,
+    "automaticReplayObserved": false,
+    "modelCallObserved": false,
+    "workflowExecutionObserved": false,
+    "queueDispatchObserved": false,
+    "backupCommandObserved": false,
+    "resolutionPersistedAfterSixServiceRestart": true
+  },
+  "browser": {
+    "nativePythonPlaywright": true,
+    "desktopViewport": "1440x1000",
+    "mobileViewport": "390x844",
+    "desktopHorizontalOverflow": false,
+    "mobileHorizontalOverflow": false,
+    "desktopAndMobileResolvedIncidentCount": 3,
+    "desktopAndMobileCompensationReferenceCount": 2,
+    "mobileNavigationUsable": true,
+    "unexpectedConsoleOrPageErrors": 0,
+    "expectedAnonymousAuthProbe401ConsoleEntries": 2,
+    "postRestartHttpsLoginAndReadPassed": true,
+    "pwa": {
+      "manifestName": "FIAT LUX CHOICE",
+      "activeServiceWorker": "/sw.js",
+      "cacheCount": 1,
+      "staticPrecacheEntries": 11,
+      "cachedApiOrHealthEntries": 0,
+      "manifestErrors": 0,
+      "installabilityErrors": 0,
+      "offlineShellHidStaleIncidentData": true,
+      "onlineSessionRevalidationPassed": true
+    },
+    "physicalManagedMobileDeviceTested": false
+  },
+  "runtimeLogReview": {
+    "blockingProductErrors": 0,
+    "classifiedExpectedEvents": [
+      {
+        "event": "runtime pg-boss create_queue calls were denied while pre-created queues remained healthy",
+        "count": 4
+      },
+      {
+        "event": "the non-root Caddy container could not install its local CA into a host trust store; host verification used the exported CA",
+        "count": 2
+      },
+      {
+        "event": "PostgreSQL terminated active queue connections during the intentional six-service restart",
+        "count": 18
+      }
+    ],
+    "correctedOperatorVerificationErrors": [
+      "One shell-quoting error made an initial read-only PostgreSQL table-count query syntactically invalid; the corrected query returned 38 tables, 11 migrations and 73 sources.",
+      "The first post-restart browser evidence classifier omitted the console message URL and treated the expected anonymous auth probe 401 as unexpected; the corrected classifier passed with zero unexpected errors."
+    ]
+  },
+  "recoveryEvidenceBoundary": {
+    "currentIncrementTouchesMigrationStorageOrRecoveryFiles": false,
+    "priorAuthoritativeProductionLikeEvidence": "docs/delivery/evidence/production-like-acceptance-101d2f0-20260720.json",
+    "priorAuthoritativeSignedRestoreEvidence": "docs/delivery/evidence/signed-backup-restore-drill-20260720.json",
+    "signedRestoreRerunClaimedForThisIncrement": false,
+    "productionRestoreEntrypointExecutedForThisIncrement": false
+  },
+  "cleanup": {
+    "qaContainersRemoved": true,
+    "qaNetworksRemoved": true,
+    "qaVolumesRemoved": true,
+    "trivyCacheVolumeRemoved": true,
+    "qaImageTagsRemoved": true,
+    "screenshotsReportsScriptsCertificatesTestCredentialsAndAgeIdentityRemoved": true,
+    "preExistingComposeProjectsLeftRunning": true,
+    "sensitiveDataCommitted": false
+  },
+  "externalGates": {
+    "implementationCommitPushed": true,
+    "githubCiForImplementation": "not accepted as green; prior PR runs were blocked before runner start by account billing or Actions spending limits",
+    "githubCodeQl": "not run for this implementation",
+    "ghcrMultiArchitectureRelease": "not published",
+    "targetGuangzhouIntranet": "not deployed",
+    "managedPhysicalMobileDevice": "not tested",
+    "approvedProductionRestoreEntry": "not run for this increment",
+    "realLlmAndGitHubAdapters": "not tested",
+    "professionalReviewOf73Sources": "not completed",
+    "businessSecurityOperationsLegalTaxAndEducationApprovals": "not obtained"
+  },
+  "claimsNotMade": [
+    "A recorded incident resolution does not convert the original failed run to success or prove that external side effects were absent or correctly compensated.",
+    "Local arm64 image IDs are not GHCR multi-architecture digests, signatures or provenance attestations.",
+    "The local Docker Desktop environment is not the Guangzhou office intranet or a managed physical device.",
+    "Unchanged prior backup and restore evidence is not represented as a new restore drill for this increment.",
+    "Passing this increment acceptance does not upgrade the repository from controlled candidate to completed V1."
+  ]
+}

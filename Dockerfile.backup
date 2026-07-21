@@ -1,13 +1,19 @@
-# syntax=docker/dockerfile:1.7
-FROM --platform=$BUILDPLATFORM golang:1.26.5-alpine AS mc-build
+# syntax=docker/dockerfile:1.25.0@sha256:0adf442eae370b6087e08edc7c50b552d80ddf261576f4ebd6421006b2461f12
+FROM --platform=$BUILDPLATFORM golang:1.26.5-alpine@sha256:0178a641fbb4858c5f1b48e34bdaabe0350a330a1b1149aabd498d0699ff5fb2 AS mc-build
 
 ARG TARGETOS
 ARG TARGETARCH
-ARG MC_RELEASE=RELEASE.2025-08-13T08-35-41Z
+ARG MC_COMMIT=7394ce0dd2a80935aded936b09fa12cbb3cb8096
+ARG MC_SOURCE_SHA256=95cd293c7119f16921a6dc515a1fb74a2227f19fd994b9c8b770a154e802ac44
+ARG MC_VERSION=2025-08-13T08:35:41Z
+ARG MC_RELEASE_TAG=RELEASE.2025-08-13T08-35-41Z
 
-RUN apk add --no-cache git
 WORKDIR /src
-RUN git clone --depth 1 --branch "$MC_RELEASE" https://github.com/minio/mc.git .
+RUN wget -q -T 30 -t 3 -O /tmp/mc-source.tar.gz \
+      "https://codeload.github.com/minio/mc/tar.gz/${MC_COMMIT}" && \
+    printf '%s  %s\n' "$MC_SOURCE_SHA256" /tmp/mc-source.tar.gz | sha256sum -c - && \
+    tar -xzf /tmp/mc-source.tar.gz --strip-components=1 && \
+    test -f buildscripts/gen-ldflags.go
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
     go get \
@@ -18,19 +24,41 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
     mkdir -p /out && \
-    LDFLAGS="$(go run buildscripts/gen-ldflags.go)" && \
+    LDFLAGS="-s -w \
+      -X github.com/minio/mc/cmd.Version=$MC_VERSION \
+      -X github.com/minio/mc/cmd.CopyrightYear=2025 \
+      -X github.com/minio/mc/cmd.ReleaseTag=$MC_RELEASE_TAG \
+      -X github.com/minio/mc/cmd.CommitID=$MC_COMMIT \
+      -X github.com/minio/mc/cmd.ShortCommitID=${MC_COMMIT%${MC_COMMIT#????????????}}" && \
     CGO_ENABLED=0 GOOS="$TARGETOS" GOARCH="$TARGETARCH" \
       go build -mod=mod -tags kqueue -trimpath -ldflags "$LDFLAGS" -o /out/mc .
 
-FROM postgres:17.5-alpine
+COPY infra/backup/archive-guard.go infra/backup/archive-guard_test.go /archive-guard/
+WORKDIR /archive-guard
+RUN GO111MODULE=off go test -v
+RUN GO111MODULE=off CGO_ENABLED=0 GOOS="$TARGETOS" GOARCH="$TARGETARCH" \
+      go build -trimpath -ldflags "-s -w" -o /out/archive-guard .
+
+FROM postgres:17.10-alpine3.23@sha256:8189a1f6e40904781fc9e2612687877791d21679866db58b1de996b31fc312e4
+
+ARG MC_COMMIT=7394ce0dd2a80935aded936b09fa12cbb3cb8096
+ARG MC_SOURCE_SHA256=95cd293c7119f16921a6dc515a1fb74a2227f19fd994b9c8b770a154e802ac44
+
+LABEL org.opencontainers.image.source="https://github.com/LiuXiu233/fiatlux-choice" \
+      moe.xiu.fiatlux.mc.commit="$MC_COMMIT" \
+      moe.xiu.fiatlux.mc.source-sha256="$MC_SOURCE_SHA256"
 
 RUN apk upgrade --no-cache && \
     apk add --no-cache age bash coreutils findutils gzip jq openssl tar && \
     rm -f /usr/local/bin/gosu
 
 COPY --from=mc-build /out/mc /usr/local/bin/mc
+COPY --from=mc-build /out/archive-guard /usr/local/bin/archive-guard
 COPY --chmod=0555 infra/backup/backup-container.sh /usr/local/bin/backup-container
+COPY --chmod=0555 infra/backup/config-backup-container.sh /usr/local/bin/config-backup-container
+COPY --chmod=0555 infra/backup/create-backup-attestation.sh /usr/local/bin/create-backup-attestation
 COPY --chmod=0555 infra/backup/restore-container.sh /usr/local/bin/restore-container
+COPY --chmod=0555 infra/backup/verify-restored-objects.sh /usr/local/bin/verify-restored-objects
 
 ENV HOME=/tmp \
     MC_CONFIG_DIR=/tmp/.mc

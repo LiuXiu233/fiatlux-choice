@@ -1,0 +1,365 @@
+{
+  "schemaVersion": 1,
+  "evidenceType": "education_content_clearance_verifier_implementation_acceptance",
+  "executedAt": "2026-07-20T12:16:13Z",
+  "localDate": "2026-07-20",
+  "timezone": "Asia/Shanghai",
+  "scope": "pushed-exact-implementation-commit-local-verifier-acceptance",
+  "repository": "https://github.com/LiuXiu233/fiatlux-choice",
+  "branch": "codex/v1-acceptance-hardening",
+  "implementationCommit": "f4c12b596afd90d5781a0d192f381315c39790bc",
+  "implementationTree": "062b14c53b7d8292cc775427e3524653ee6c20e1",
+  "implementationCommitPushed": true,
+  "remoteImplementationRef": "refs/heads/codex/v1-acceptance-hardening",
+  "workingTreeCleanBeforeEvidence": true,
+  "acceptanceSubject": {
+    "description": "电竞教育逐篇放行合同、失败关闭模板、离线证据验证器、公开页面只读核验边界及发布门禁绑定",
+    "candidateContentFiles": [
+      {
+        "path": "content/education/foundation-articles.json",
+        "sha256": "bbb61ba75bde3dbd0c4023898f87b111c0d4f74885aee96d3cab3a17a1af210f"
+      },
+      {
+        "path": "content/education/expansion-articles.json",
+        "sha256": "05241c62e9cde5b4763b9975e8cfa6bd07d747d2482ea0f67781f82ff3f3e388"
+      }
+    ],
+    "implementationArtifacts": [
+      {
+        "path": "packages/contracts/src/education-content-clearance.ts",
+        "sha256": "8b35e43f228892fbb92b0eea168284916734589da71ab7c76cc8f1a0e2948a5a"
+      },
+      {
+        "path": "packages/integrations/src/education-content-clearance-evidence.ts",
+        "sha256": "12d5fd86dc970a542e43f94e32d525c1d1a7248d692f0e58861abf0d5b9b11be"
+      },
+      {
+        "path": "scripts/create-education-content-clearance-template.ts",
+        "sha256": "fe4c99032bce577efd0aa9b272256348b2a656197abb99a8e428c0da0eb30386"
+      },
+      {
+        "path": "scripts/verify-education-content-clearance-evidence.ts",
+        "sha256": "acbc41d4ed6d65cd95d8dad2ab9e40f2d59877c01ced3959dcfbba39a0a7a795"
+      },
+      {
+        "path": "docs/admin/education-content-clearance.md",
+        "sha256": "1e4db3e9e4cfd2ec2f413f56384ff7b2acfd7db87d16528f09a9067c542b1054"
+      }
+    ],
+    "requiredStructure": {
+      "contentFiles": 2,
+      "articles": 12,
+      "launchQuestionnaireItems": 9,
+      "reviewCategoriesPerArticle": 8,
+      "legacyTemplatePages": 7,
+      "evidenceArtifactSlots": 68,
+      "perArticleHumanApprovalRequired": true,
+      "wordpressPostIdAndPublicUrlRequired": true,
+      "samePersonMultipleRolesDisclosureRequired": true,
+      "finalHumanApprovalRequired": true
+    }
+  },
+  "verification": {
+    "standardCheck": {
+      "command": "CI=true pnpm check",
+      "status": "passed",
+      "releaseManifestSchemaValid": true,
+      "biomeFiles": 253,
+      "shellcheck": "passed",
+      "actionlint": "passed",
+      "typescriptProjects": 7,
+      "unitTestFiles": 45,
+      "unitTests": 264,
+      "productionBuild": "passed",
+      "pwaBuild": {
+        "status": "passed",
+        "precacheEntries": 11,
+        "precacheKiB": 787.68
+      },
+      "standardIntegrationEntry": {
+        "status": "skipped_without_test_dependencies",
+        "s3TestsSkipped": 2,
+        "apiTestsSkipped": 94,
+        "workerTestsSkipped": 33,
+        "countedAsPassed": false
+      }
+    },
+    "educationClearanceContract": {
+      "contractTests": 13,
+      "verifierTests": 11,
+      "testsPassed": 24,
+      "testsFailed": 0,
+      "candidateGitFileAndPerArticleHashBinding": true,
+      "protectedArtifactPathModeAndHashChecks": true,
+      "publicHttpNoCookieNoRedirectReadOnlyChecks": true,
+      "canonicalCorrectionVersionAndReviewMetadataChecks": true,
+      "sensitivePatternChecks": true,
+      "atomicNonOverwriteReportChecks": true,
+      "negativeCasesFailClosed": true
+    },
+    "failClosedTemplateExercise": {
+      "status": "passed",
+      "templateDirectoryMode": "0700",
+      "templateFileMode": "0600",
+      "contentFiles": 2,
+      "articles": 12,
+      "launchQuestionnaireItems": 9,
+      "reviewCategoriesPerArticle": [8],
+      "legacyTemplatePages": 7,
+      "evidenceArtifactSlots": 68,
+      "unfilledTemplateVerifierExitCode": 1,
+      "reportedAdditionalValidationErrors": 1207,
+      "successReportsCreated": 0,
+      "realPublicationAttempted": false
+    },
+    "isolatedDependencies": {
+      "status": "passed_before_evidence_freeze",
+      "sameImplementationCommit": true,
+      "postgres": {
+        "version": "17.10",
+        "apiTestFiles": 19,
+        "apiTests": 94,
+        "workerTestFiles": 6,
+        "workerTests": 33,
+        "upgradeMigrationFrom10To11": "passed",
+        "freshMigration": "passed",
+        "businessTables": 38,
+        "databasePrivilegeFreshPositiveAndNegative": "passed",
+        "legacySingleSuperuserConvergence": "passed"
+      },
+      "minio": {
+        "realStorageTests": 2,
+        "testsPassed": 2,
+        "minimumPrivilegeVerification": "passed"
+      }
+    },
+    "mockBrowser": {
+      "command": "Playwright mock projects",
+      "status": "passed",
+      "testsPassed": 48,
+      "projectConditionalSkips": 6,
+      "testsFailed": 0
+    },
+    "isolatedRealStack": {
+      "status": "passed_before_evidence_freeze",
+      "freshVolumes": true,
+      "businessTables": 38,
+      "migrations": 11,
+      "applicationQueues": 8,
+      "officialSources": 73,
+      "healthyRuntimeServices": 6,
+      "desktopTestsPassed": 3,
+      "mobileTestsPassed": 3,
+      "firstLoginPasswordRotation": "passed",
+      "oldBootstrapPasswordInvalidated": true,
+      "fullStackRestart": "passed",
+      "newPasswordPersistedAfterRestart": true,
+      "temporaryComposeProjectRemoved": true
+    },
+    "independentCandidateWebArtifactRecheck": {
+      "runtime": "Python Playwright headless Chromium",
+      "scope": "candidate web image with an explicit synthetic unauthenticated-session 401 fixture; not a full-stack business workflow",
+      "status": "passed",
+      "profiles": [
+        {
+          "name": "desktop-1440x1000",
+          "buildIdentity": "v1.0.0-education-rc1@f4c12b5",
+          "scrollWidth": 1440,
+          "clientWidth": 1440,
+          "screenshotSha256": "2a9741b2bd9a47bdf448f4def896b38e967a46fa5a2b7bff3fe2c33e76cf52b8",
+          "screenshotBytes": 41280
+        },
+        {
+          "name": "mobile-390x844",
+          "buildIdentity": "v1.0.0-education-rc1@f4c12b5",
+          "scrollWidth": 390,
+          "clientWidth": 390,
+          "screenshotSha256": "e94d7a587abcb4490a5fff38e5b02392602aa6e337b405485839648b2ac80f62",
+          "screenshotBytes": 25803
+        }
+      ],
+      "manifestDisplay": "standalone",
+      "manifestIconSizes": ["192x192", "512x512"],
+      "serviceWorkerActiveAndControlling": true,
+      "cachedRequests": 11,
+      "cachedApiRequests": 0,
+      "installabilityErrors": 0,
+      "expectedSynthetic401ConsoleErrorsPerProfile": 1,
+      "unexpectedConsoleErrors": 0,
+      "pageErrors": 0,
+      "visualInspectionCompleted": true,
+      "screenshotsCommitted": false
+    },
+    "backupRestoreRegression": {
+      "releaseTransitionSecurity": "passed",
+      "restorePrebackupDirectorySecurity": "passed",
+      "restoredObjectVerification": "passed",
+      "backupContainerSecurity": "passed",
+      "maintenanceLockSecurity": "passed",
+      "latestFullSignedIsolatedRestoreEvidence": "docs/delivery/evidence/production-restore-guard-acceptance-231d8e8-20260720.json",
+      "latestFullSignedIsolatedRestoreCommit": "231d8e82164f8e31b1cc978975bf56e7ac6a26bb",
+      "latestFullSignedIsolatedRestoreTables": 38,
+      "latestFullSignedIsolatedRestoreMigrations": 11,
+      "candidateFullSignedRestoreRerun": false,
+      "candidateDifferenceFromLatestFullDrill": "compose real-adapter runtime variables and restore-drill removal of live LLM/GitHub environment variables; backup format, signature, archive and migration inputs are unchanged",
+      "conclusionBoundary": "Targeted regression passing does not constitute a new full signed restore drill for f4c12b5 and does not close the production backup/restore gate."
+    }
+  },
+  "sourceSecurity": {
+    "gitleaks": {
+      "runtime": "gitleaks 8.28.0",
+      "scannerImageDigest": "sha256:cdbb7c955abce02001a9f6c9f602fb195b7fadc1e812065883f695d1eeaba854",
+      "exactHeadArchiveBytesScanned": 5256512,
+      "exactHeadArchiveFindings": 0,
+      "completeGitHistoryCommitsScanned": 59,
+      "completeGitHistoryBytesScanned": 10323047,
+      "completeGitHistoryFindings": 0,
+      "nonIgnoredUntrackedFiles": 0,
+      "diagnosticIteration": {
+        "invalidExpandedScopeBytes": 1247447168,
+        "invalidExpandedScopeFindings": 52,
+        "cause": "The first directory command scanned Git-ignored local dependencies and runtime data rather than the repository acceptance scope.",
+        "usedAsRepositoryConclusion": false,
+        "correctedByExactHeadArchiveAndCompleteHistory": true
+      }
+    },
+    "productionDependencyAudit": {
+      "command": "pnpm audit --prod --audit-level high --registry=https://registry.npmjs.org",
+      "status": "passed",
+      "knownVulnerabilities": 0
+    },
+    "semgrep": {
+      "runtime": "Semgrep OSS 1.170.0",
+      "scannerImageDigest": "sha256:c98f8829eea377274ee4b10656458b078b88232469b2ff913f091c2317347c9d",
+      "configurationRules": 10,
+      "configurationValid": true,
+      "canaryFindingsExpectedAndObserved": 10,
+      "productionTargets": 104,
+      "productionFindings": 0,
+      "engineErrors": 0
+    }
+  },
+  "localCandidateImages": {
+    "platform": "linux/arm64",
+    "registryPublished": false,
+    "trivy": {
+      "runtime": "aquasec/trivy 0.72.0",
+      "scannerImageDigest": "sha256:cffe3f5161a47a6823fbd23d985795b3ed72a4c806da4c4df16266c02accdd6f",
+      "databaseUpdatedAt": "2026-07-19T18:43:16.060990559Z",
+      "databaseNextUpdate": "2026-07-20T18:43:16.060990238Z",
+      "skipDatabaseUpdate": true,
+      "initialOnlineUpdateFailure": "mirror.gcr.io connection refused before any scan conclusion",
+      "validCachedDatabaseUsedAfterFailure": true,
+      "severity": ["HIGH", "CRITICAL"]
+    },
+    "syft": {
+      "runtime": "anchore/syft 1.42.3",
+      "scannerImageDigest": "sha256:5999d209a342e55e9edf70bf8930fb5b86d8f2a783fa401178372c50e21b1d36",
+      "format": "SPDX-2.3"
+    },
+    "components": {
+      "api": {
+        "imageId": "sha256:be2712b7d0c58733fe27a9e84f16e54722395f99a0f5a656d338f8381d235347",
+        "sizeBytes": 77576393,
+        "runtimeUser": "node",
+        "highCritical": 0,
+        "spdxPackages": 204
+      },
+      "postgres": {
+        "imageId": "sha256:4b71d58ac64c82e410aa12d417cf0ce5cfa919df59294d19d9e4ab82aeefb0de",
+        "sizeBytes": 114660916,
+        "runtimeUser": "postgres",
+        "highCritical": 0,
+        "spdxPackages": 47
+      },
+      "minio": {
+        "imageId": "sha256:24f4c970036405989c51a257d0689d47fcb33ba079f2f325418bbe674c2d3c52",
+        "sizeBytes": 51951454,
+        "runtimeUser": "1000:1000",
+        "highCritical": 0,
+        "spdxPackages": 372
+      },
+      "worker": {
+        "imageId": "sha256:db6d04f4f1d39c4ddb86fc14e2065e4f50b6f4cc03ead6372a150fe9b7b6dcac",
+        "sizeBytes": 82545553,
+        "runtimeUser": "node",
+        "highCritical": 0,
+        "spdxPackages": 225
+      },
+      "web": {
+        "imageId": "sha256:451ad4ec232adcdebe50078c25e83727d7c1737729eb93eb31f8efd23315baa3",
+        "sizeBytes": 38149354,
+        "runtimeUser": "10001:10001",
+        "highCritical": 0,
+        "spdxPackages": 176
+      },
+      "gateway": {
+        "imageId": "sha256:7bbca9ada2a9dfa328e32ee1bf89cefe9f0434e97d2e5fe43896a97aa227058b",
+        "sizeBytes": 37563228,
+        "runtimeUser": "10001:10001",
+        "highCritical": 0,
+        "spdxPackages": 176
+      },
+      "backup": {
+        "imageId": "sha256:27143f85f5991496931e224202a16128481331435ec3710f05dd3742a2b5f4ee",
+        "sizeBytes": 130674697,
+        "runtimeUser": "65532:65532",
+        "highCritical": 0,
+        "spdxPackages": 178
+      }
+    }
+  },
+  "githubRunsForImplementationCommit": {
+    "ci": {
+      "runId": 29740348950,
+      "url": "https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29740348950",
+      "result": "blocked_before_runner_steps",
+      "failedTopLevelJobs": 2,
+      "failedJobsRunnerIdZero": true,
+      "failedJobsStepsEmpty": true
+    },
+    "security": {
+      "runId": 29740348915,
+      "url": "https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29740348915",
+      "result": "blocked_before_runner_steps",
+      "failedTopLevelJobs": 4,
+      "failedJobsRunnerIdZero": true,
+      "failedJobsStepsEmpty": true
+    },
+    "greenEvidenceCommitRunsAvailable": false,
+    "countedAsPassed": false
+  },
+  "cleanup": {
+    "isolatedComposeProjectRemoved": true,
+    "temporaryPostgresAndMinioFixturesRemoved": true,
+    "temporaryWebRecheckContainerRemoved": true,
+    "temporaryEvidenceTemplateRemoved": true,
+    "temporaryScreenshotsAndBrowserScriptRemoved": true,
+    "temporaryReportsAndTestCredentialsRetained": false,
+    "originalFiatluxChoiceStacksStoppedOrChanged": false,
+    "candidateImagesRetainedUntilEvidenceAndManifestFreeze": true
+  },
+  "truthBoundary": {
+    "verifierImplementationAccepted": true,
+    "realLaunchQuestionnaireCompleted": false,
+    "articleProfessionalAndFactReviewCompleted": false,
+    "sourceApplicabilityReviewCompleted": false,
+    "copyrightPortraitPrivacyAndAssetRightsReviewCompleted": false,
+    "healthAndContentSafetyReviewCompleted": false,
+    "internalTeachingTrialCompleted": false,
+    "perArticleHumanApprovalObtained": false,
+    "finalHumanApprovalObtained": false,
+    "wordpressAuthenticatedOperationPerformed": false,
+    "twelveArticlesPubliclyPublishedAndVerified": false,
+    "sevenLegacyTemplatePagesDisposedAndVerified": false,
+    "educationContentClearanceMachineReportCreated": false,
+    "educationContentClearanceGateClosed": false,
+    "targetOfficeIntranetExecuted": false,
+    "physicalManagedDeviceExecuted": false,
+    "realLlmOrGitHubAdapterAcceptanceExecuted": false,
+    "githubCiAndSecurityPassed": false,
+    "ghcrMultiPlatformArtifactsPublished": false,
+    "v1DeclaredComplete": false,
+    "note": "This record accepts only the implementation and local failure-closed behavior of the education clearance evidence chain. It is not the education_content_clearance report required for publication and cannot be used as professional, rights, WordPress, target-environment or business approval evidence."
+  }
+}

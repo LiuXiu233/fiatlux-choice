@@ -1,0 +1,339 @@
+{
+  "schemaVersion": 1,
+  "evidenceType": "governed_audit_export_implementation_acceptance",
+  "executedAt": "2026-07-20T15:51:49Z",
+  "localDate": "2026-07-20",
+  "timezone": "Asia/Shanghai",
+  "scope": "pushed-exact-implementation-commit-local-increment-acceptance",
+  "repository": "https://github.com/LiuXiu233/fiatlux-choice",
+  "branch": "codex/v1-acceptance-hardening",
+  "implementationCommit": "4391837e0c2b91fa58b2269a26b2cbb3294347b6",
+  "implementationTree": "07a04888549e4f4c15a20cf126b43c9bd4c1ab33",
+  "implementationParent": "1ba26d419b4afeccbaa377be7b706d7bbd4d75ad",
+  "implementationCommitPushed": true,
+  "remoteImplementationRef": "refs/heads/codex/v1-acceptance-hardening",
+  "pullRequest": "https://github.com/LiuXiu233/fiatlux-choice/pull/12",
+  "pullRequestDraft": true,
+  "workingTreeCleanBeforeExactAcceptance": true,
+  "implementationDiff": {
+    "filesChanged": 28,
+    "insertions": 1197,
+    "deletions": 22,
+    "areas": [
+      "API audit export serialization, authorization and OpenAPI",
+      "browser download integrity verification and responsive export form",
+      "owner/admin system-role permission baseline and approved maintenance boundary",
+      "unit, PostgreSQL integration, mock browser and real-stack browser coverage",
+      "Chinese user, administrator, API, security and delivery documentation"
+    ]
+  },
+  "acceptanceSubject": {
+    "description": "为组织内审计事件提供受权限控制、受范围限制、完整性可校验且自身追加留痕的 CSV/NDJSON 导出，不把浏览器保存、转发或销毁宣称为系统已完成动作",
+    "endpoint": "POST /api/v1/audit-events/export",
+    "openApiOperationId": "exportAuditEvents",
+    "requiredPermissions": ["audit-events:read", "audit-events:export"],
+    "ownerHasPermission": true,
+    "adminFreshSeedHasPermission": true,
+    "existingOrganizationPermissionMaintenanceRequiresExplicitApprovedSystemRoleMaintenance": true,
+    "acknowledgement": "INTERNAL_AUDIT_EXPORT_ACKNOWLEDGED",
+    "timeSemantics": "Asia/Shanghai inclusive natural-day range",
+    "maximumRangeDays": 31,
+    "maximumEventCount": 10000,
+    "maximumBytes": 26214400,
+    "overflowBehavior": "fail_whole_request_with_413_without_silent_truncation",
+    "formats": ["csv", "ndjson"],
+    "ordering": ["createdAt ascending", "id ascending"],
+    "organizationIsolation": true,
+    "csvAllFieldsQuoted": true,
+    "csvSpreadsheetFormulaPrefixesNeutralized": ["=", "+", "-", "@"],
+    "responseIntegrity": ["X-Audit-Event-Count", "X-Content-SHA256"],
+    "browserRecomputesBlobSha256BeforeSaving": true,
+    "successAuditAction": "export_generated",
+    "successAuditWrittenBeforeResponse": true,
+    "custodyBoundary": "The application proves generation and browser-side byte verification only; it does not claim that later storage, forwarding, retention or destruction occurred."
+  },
+  "verification": {
+    "standardCheck": {
+      "command": "pnpm check",
+      "status": "passed",
+      "releaseManifestSchemaValid": true,
+      "biomeFiles": 263,
+      "shellcheck": "passed",
+      "actionlint": "passed",
+      "typescriptProjects": 7,
+      "unitTestFiles": 49,
+      "unitTests": 278,
+      "unitBreakdown": {
+        "web": 47,
+        "contracts": 61,
+        "domain": 21,
+        "integrations": 74,
+        "database": 27,
+        "worker": 15,
+        "api": 33
+      },
+      "productionBuild": "passed",
+      "pwaBuild": {
+        "status": "passed",
+        "precacheEntries": 11,
+        "precacheKiB": 793.05
+      },
+      "standardIntegrationEntry": {
+        "status": "skipped_without_test_dependencies",
+        "s3TestsSkipped": 2,
+        "apiTestsSkipped": 95,
+        "workerTestsSkipped": 33,
+        "countedAsPassed": false
+      }
+    },
+    "postgresApiIntegration": {
+      "database": "PostgreSQL 17.10 Alpine",
+      "databaseWasFresh": true,
+      "businessMigrationsApplied": true,
+      "pgBossMigrationApplied": true,
+      "command": "TEST_DATABASE_URL=<isolated-loopback-url> pnpm --filter @fiatlux/api test:integration",
+      "status": "passed",
+      "testFiles": 19,
+      "testsPassed": 95,
+      "testsFailed": 0,
+      "testsSkipped": 0,
+      "auditExportPostgreSqlPathCovered": true,
+      "setupCorrection": {
+        "invalidPreMigrationInvocationOccurred": true,
+        "failure": "relation organizations does not exist",
+        "productAssertionsCountedFromInvalidInvocation": false,
+        "correction": "Applied the repository business migration and pg-boss migration, then reran all 19 files and 95 tests successfully against the same disposable PostgreSQL service."
+      }
+    },
+    "mockBrowser": {
+      "command": "pnpm test:e2e:mock",
+      "status": "passed",
+      "projects": ["desktop-chromium", "mobile-chromium"],
+      "testsDiscovered": 58,
+      "testsPassed": 51,
+      "projectConditionalSkips": 7,
+      "testsFailed": 0,
+      "ownerExportDownloadCoveredOnDesktopAndMobile": true,
+      "readWithoutExportPermissionHidesControl": true,
+      "mobileNoHorizontalOverflowCovered": true,
+      "pwaAndOfflineBoundaryCovered": true
+    },
+    "freshRealStackBrowser": {
+      "command": "REAL_E2E_DATABASE_URL=<isolated-loopback-url> REAL_E2E_S3_ENDPOINT=<isolated-loopback-url> ./scripts/e2e-real-stack.sh",
+      "status": "passed",
+      "dependencies": [
+        "fresh PostgreSQL 17.10",
+        "fresh MinIO bucket",
+        "real Fastify API",
+        "real pg-boss worker",
+        "real Vite web"
+      ],
+      "projects": ["real-desktop-chromium", "real-mobile-chromium"],
+      "testsPassed": 6,
+      "testsFailed": 0,
+      "desktopTestsPassed": 3,
+      "mobileTestsPassed": 3,
+      "realApiAuditExportDownloadedOnDesktopAndMobile": true,
+      "downloadedBlobSha256MatchedResponseHeader": true,
+      "downloadedLineCountMatchedResponseHeader": true,
+      "exportGeneratedAuditVisible": true,
+      "desktopAndMobileNoHorizontalOverflow": true,
+      "externalBankTaxSignatureOrLegalActionPerformed": false
+    },
+    "openApiAndImageRuntime": {
+      "api": {
+        "status": "passed",
+        "healthLive": "passed",
+        "healthReady": "passed_with_disposable_postgresql_and_memory_object_storage",
+        "openApiVersion": "3.1.0",
+        "openApiPaths": 79,
+        "openApiOperations": 144,
+        "auditExportOperationPresent": true,
+        "observedUid": 1000,
+        "readOnlyRoot": true,
+        "capDropAll": true,
+        "noNewPrivileges": true
+      },
+      "worker": {
+        "status": "passed",
+        "realPgBossStartup": true,
+        "realDatabaseProbe": true,
+        "heartbeatPresent": true,
+        "heartbeatMode": "0600",
+        "observedUid": 1000,
+        "readOnlyRoot": true,
+        "capDropAll": true,
+        "noNewPrivileges": true
+      },
+      "web": {
+        "status": "passed",
+        "httpRoute": "passed",
+        "manifestName": "FIAT LUX CHOICE",
+        "manifestDisplay": "standalone",
+        "manifestStartUrl": "/",
+        "serviceWorkerPresent": true,
+        "precacheEntries": 11,
+        "fullImplementationGitShaEmbedded": true,
+        "observedUid": 10001,
+        "readOnlyRoot": true,
+        "capDropAll": true,
+        "noNewPrivileges": true
+      }
+    }
+  },
+  "sourceSecurity": {
+    "gitleaks": {
+      "runtime": "gitleaks 8.28.0",
+      "scannerImageDigest": "sha256:cdbb7c955abce02001a9f6c9f602fb195b7fadc1e812065883f695d1eeaba854",
+      "currentTrackedAndNonIgnoredTreeFindings": 0,
+      "completeGitHistoryFindings": 0,
+      "defaultAndRepositoryCanariesPassed": true,
+      "reportsRedacted": true
+    },
+    "productionDependencyAudit": {
+      "command": "pnpm audit --prod --audit-level high --registry=https://registry.npmjs.org",
+      "status": "passed",
+      "knownVulnerabilities": 0
+    },
+    "semgrep": {
+      "runtime": "Semgrep OSS 1.170.0",
+      "scannerImageDigest": "sha256:c98f8829eea377274ee4b10656458b078b88232469b2ff913f091c2317347c9d",
+      "configurationRules": 10,
+      "configurationValid": true,
+      "canaryFindingsExpectedAndObserved": 10,
+      "productionTargets": 109,
+      "productionFindings": 0,
+      "engineErrors": 0,
+      "jsonReportSha256": "376b1ffbb2936c95e09b9cd3fa0df2898fc5ef148d07e500d44473e72113054c"
+    }
+  },
+  "localAffectedImages": {
+    "platform": "linux/arm64",
+    "registryPublished": false,
+    "releaseVersion": "v1.0.0-audit.4391837",
+    "releaseGitSha": "4391837e0c2b91fa58b2269a26b2cbb3294347b6",
+    "fullSevenImageRebuildClaimed": false,
+    "affectedComponentsOnly": ["api", "worker", "web"],
+    "trivy": {
+      "runtime": "aquasec/trivy 0.70.0",
+      "scannerImageDigest": "sha256:be1190afcb28352bfddc4ddeb71470835d16462af68d310f9f4bca710961a41e",
+      "databaseUpdatedAt": "2026-07-19T18:43:16.060990559Z",
+      "databaseNextUpdate": "2026-07-20T18:43:16.060990238Z",
+      "severity": ["HIGH", "CRITICAL"]
+    },
+    "syft": {
+      "runtime": "anchore/syft 1.42.3",
+      "scannerImageDigest": "sha256:5999d209a342e55e9edf70bf8930fb5b86d8f2a783fa401178372c50e21b1d36",
+      "format": "SPDX-2.3",
+      "repositoryVerifier": "scripts/verify-spdx-sbom.sh"
+    },
+    "components": {
+      "api": {
+        "localImageId": "sha256:b72f89f4e4d430ed212ffe954de228402fa607cb59d5c8644d57e7b9a6cb3801",
+        "sizeBytes": 77607433,
+        "configuredUser": "node",
+        "observedUid": 1000,
+        "highCritical": 0,
+        "spdxPackages": 204,
+        "trivyReportBytes": 164758,
+        "trivyReportSha256": "bc7029c55706fa55b4c0e23831744b7b9097532487a35b6e6e1fe973aa615647",
+        "spdxBytes": 617044,
+        "spdxSha256": "04c7e4ab1b0c0763c6a39195c34fccaa6eae62453b4d21a34217839a9c372307"
+      },
+      "worker": {
+        "localImageId": "sha256:c169930918cb6490046a73c51e71e5530e55d7e5f134b5b10b2821c79618ad4f",
+        "sizeBytes": 82564827,
+        "configuredUser": "node",
+        "observedUid": 1000,
+        "highCritical": 0,
+        "spdxPackages": 225,
+        "trivyReportBytes": 187845,
+        "trivyReportSha256": "26702693875232e1d435892df5e6c64894d3b53909254ef3ea8daaf2009660f3",
+        "spdxBytes": 806928,
+        "spdxSha256": "a8cd2148b892c400c9fe0ecb15ea982f759da18acdd094fb4e577f0c1bae1f20"
+      },
+      "web": {
+        "localImageId": "sha256:79d1bd5160277a5f7cd8eb5a14a30ac960c2c56beeb8b0aa316acba32d4ccebc",
+        "sizeBytes": 38152057,
+        "configuredUser": "10001:10001",
+        "observedUid": 10001,
+        "highCritical": 0,
+        "spdxPackages": 176,
+        "trivyReportBytes": 140082,
+        "trivyReportSha256": "324cc8b3f49449ab58bc04a80b2be17ea074e2f601f108be4d583963cc31ed46",
+        "spdxBytes": 437863,
+        "spdxSha256": "bffdb65f77a18b6e79708aaf411e17fecdcb93c5da6ec0920976f7cd075c8f10"
+      }
+    },
+    "fullComposeImageRerun": false,
+    "scopeBoundary": "The implementation changed API/Web behavior and a database seed artifact copied into the Worker image, so API, Worker and Web were rebuilt and scanned. PostgreSQL, MinIO, gateway and backup images were not rebuilt, and the latest complete seven-image baseline remains historical evidence rather than a rerun for 4391837."
+  },
+  "githubRunsForImplementationCommit": {
+    "ci": {
+      "runId": 29755574250,
+      "url": "https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29755574250",
+      "result": "blocked_before_runner_steps",
+      "failedTopLevelJobs": 2,
+      "failedJobsRunnerIdZero": true,
+      "failedJobsStepsEmpty": true,
+      "downstreamJobsSkipped": 2
+    },
+    "security": {
+      "runId": 29755574365,
+      "url": "https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29755574365",
+      "result": "blocked_before_runner_steps",
+      "failedTopLevelJobs": 4,
+      "failedJobsRunnerIdZero": true,
+      "failedJobsStepsEmpty": true,
+      "downstreamJobsSkipped": 2
+    },
+    "sharedAnnotation": "The job was not started because recent account payments have failed or your spending limit needs to be increased. Please check the 'Billing & plans' section in your settings",
+    "repositoryCodeExecuted": false,
+    "countedAsCodeFailure": false,
+    "greenRunsAvailable": false,
+    "countedAsPassed": false
+  },
+  "releaseReadinessAtEvidenceTime": {
+    "manifestImplementationCommit": "9c5633e1c3e9650507231106fcd8a451bf32053f",
+    "manifestEvidenceCommit": "c41ef1018358b0e42063082330561a53aa8dc0a4",
+    "candidateManifestUpdatePending": true,
+    "totalGateCount": 14,
+    "passedGateCount": 2,
+    "blockedGateCount": 12,
+    "ready": false,
+    "overallStatus": "blocked"
+  },
+  "cleanup": {
+    "temporaryApiWorkerWebContainersRemoved": true,
+    "temporaryPostgreSqlAndMinioContainersRemoved": true,
+    "temporaryNetworksRemoved": true,
+    "temporaryRealStackLogsRemoved": true,
+    "temporarySemgrepTrivyAndSpdxReportsRemovedAfterEvidenceFreeze": true,
+    "existingFiatluxChoiceComposeStacksStoppedOrChanged": false,
+    "affectedImagesRetainedUntilEvidenceFreeze": true,
+    "affectedImagesRemovedAfterEvidenceFreeze": true
+  },
+  "truthBoundary": {
+    "governedAuditExportImplementationAccepted": true,
+    "organizationIsolationAccepted": true,
+    "permissionBoundaryAccepted": true,
+    "responseAndBrowserIntegrityAccepted": true,
+    "desktopAndMobileDownloadAccepted": true,
+    "exportSelfAuditAccepted": true,
+    "realCompanyAuditExportRetained": false,
+    "postDownloadStorageVerified": false,
+    "postDownloadForwardingVerified": false,
+    "postDownloadRetentionOrDestructionVerified": false,
+    "existingOrganizationRoleMaintenanceExecuted": false,
+    "humanCustodyPolicyApproved": false,
+    "fullSevenImageRebuildCompletedForThisCommit": false,
+    "githubCiAndSecurityPassed": false,
+    "ghcrMultiPlatformArtifactsPublished": false,
+    "targetOfficeIntranetExecuted": false,
+    "physicalManagedDeviceExecuted": false,
+    "professionalComplianceReviewCompleted": false,
+    "businessReleaseApprovalObtained": false,
+    "v1DeclaredComplete": false,
+    "note": "This record accepts only the pushed exact implementation, local source/browser/real-stack behavior and three affected local arm64 images. It does not prove human custody after download, GHCR publication, target deployment, physical-device acceptance, professional review, business approval or V1 completion."
+  }
+}

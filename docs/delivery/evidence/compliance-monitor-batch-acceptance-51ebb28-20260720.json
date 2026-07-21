@@ -1,0 +1,228 @@
+{
+  "schemaVersion": 1,
+  "evidenceType": "compliance-monitor-batch-local-production-like-acceptance",
+  "status": "passed_with_external_gates",
+  "candidate": {
+    "repository": "LiuXiu233/fiatlux-choice",
+    "branch": "codex/v1-acceptance-hardening",
+    "implementationGitSha": "51ebb28999319eaa220ac204f2a6a23bee0b4caa",
+    "imageTag": "batchqa-51ebb28",
+    "sourceWasClean": true,
+    "databaseMigrationAdded": false
+  },
+  "execution": {
+    "evidenceWindowStartedAt": "2026-07-19T22:17:00Z",
+    "evidenceWindowCompletedAt": "2026-07-19T22:37:17Z",
+    "operatorTimezone": "Asia/Shanghai",
+    "host": {
+      "os": "macOS 26.5.2",
+      "dockerClient": "29.6.0",
+      "dockerServer": "29.5.2",
+      "dockerServerArchitecture": "arm64",
+      "dockerCompose": "5.3.1",
+      "dockerBuildx": "0.35.0"
+    }
+  },
+  "change": {
+    "observedProblem": "A fresh 73-source catalog previously set every nextMonitorAt to the import time, so the first organization sweep could dispatch all sources and turn a shared upstream outage into a same-day task and notification surge.",
+    "implementedBehavior": [
+      "Fresh catalog records are distributed by stable JSON index over seven daily buckets, capped by any shorter monitoring cadence.",
+      "Existing records preserve nextMonitorAt during metadata-only reconciliation.",
+      "Each scheduled organization sweep selects the oldest due records by nextMonitorAt then id and defaults to 12 dispatches.",
+      "The sweep reads one extra candidate only to audit hasMoreDue; it does not claim that record.",
+      "Manual per-source monitoring, pg-boss retry behavior and the exact third consecutive failure escalation remain unchanged."
+    ]
+  },
+  "qualityGates": {
+    "targetComplianceMonitorPostgreSQL": {
+      "files": 1,
+      "tests": 11,
+      "passed": 11
+    },
+    "immutableSourceFullCheck": {
+      "biomeFiles": 209,
+      "shellcheckPassed": true,
+      "typescriptProjects": 7,
+      "unitTests": 182,
+      "apiIntegrationFiles": 18,
+      "apiIntegrationTests": 89,
+      "workerIntegrationFiles": 5,
+      "workerIntegrationTests": 29,
+      "realMinioTests": 2,
+      "workspaceBuildPassed": true
+    },
+    "productionBuild": {
+      "nodeEnv": "production",
+      "educationChunkKiB": 128.19,
+      "mainChunkKiB": 423.59,
+      "pwaPrecacheEntries": 10,
+      "pwaPrecacheKiB": 700.3
+    },
+    "security": {
+      "actionlintVersion": "1.7.12",
+      "actionlintPassed": true,
+      "gitleaksCurrentTreeHistoryCanaryAndAllowlistPassed": true,
+      "productionDependencyAuditFindings": 0,
+      "semgrepVersion": "1.170.0",
+      "semgrepCanaryRules": 10,
+      "semgrepCanaryFindings": 10,
+      "semgrepProductionTargets": 87,
+      "semgrepProductionFindings": 0,
+      "workerImageTrivyVersion": "0.70.0",
+      "workerImageHighCriticalFindings": 0,
+      "workerImageFixableHighCriticalFindings": 0,
+      "workerImageSyftVersion": "1.42.3",
+      "workerImageSpdxPackages": 225,
+      "workerImageSpdxCreator": "Tool: syft-1.42.3"
+    }
+  },
+  "compose": {
+    "projectName": "fiatlux-choice-batchqa",
+    "url": "https://choice-batch.localhost:22443",
+    "productionOverlay": true,
+    "services": ["postgres", "minio", "api", "worker", "web", "caddy"],
+    "allSixServicesHealthyBeforeRuntimeFixture": true,
+    "workerIntentionallyStoppedForBacklogFixture": true,
+    "deploymentVerifierPassed": true,
+    "minioLeastPrivilegeVerifierPassed": true,
+    "onlyGatewayPublishedHostPort": true,
+    "runtimeDatabaseRole": "fiatlux_runtime",
+    "database": {
+      "publicTableCount": 38,
+      "migrationCount": 11,
+      "pgBossSchemaVersion": 24,
+      "organizationCount": 1,
+      "seededOfficialSources": 73
+    },
+    "images": [
+      {
+        "component": "api",
+        "builtFromCandidateSource": true,
+        "imageId": "sha256:1359817860c886c6308a0e41b6c12b5d918edff8523fe42d0ec95356fd653a43"
+      },
+      {
+        "component": "worker",
+        "builtFromCandidateSource": true,
+        "imageId": "sha256:a1fa54908269c3350f8c9ee6a3c947b3d1b35a64e2d6e556858328fd9a46b9b1"
+      },
+      {
+        "component": "web",
+        "reusedUnchangedPriorAcceptanceImage": true,
+        "imageId": "sha256:e8926c92f89129afb5d9bfa83f7ebf24a3d070304acc33cfdf3e5c99be30caf5"
+      },
+      {
+        "component": "gateway",
+        "reusedUnchangedPriorAcceptanceImage": true,
+        "imageId": "sha256:a245c2d28d0a078da7313101077a2fefd81544061dd8b796dead50eded935e86"
+      },
+      {
+        "component": "minio",
+        "reusedUnchangedPriorAcceptanceImage": true,
+        "imageId": "sha256:74bd0fc3fa45b7eec2647b1f483847373c6a35dac8ec0f26782977c2a5569ef8"
+      },
+      {
+        "component": "postgres",
+        "reusedUnchangedPriorAcceptanceImage": true,
+        "imageId": "sha256:21f55d61458ac149cce46ed6e9cb753810aa2331244aaba3a495ea938dc97c72"
+      }
+    ]
+  },
+  "runtimeScenario": {
+    "freshCatalogSchedule": {
+      "sourceCount": 73,
+      "distinctNextMonitorAtCount": 7,
+      "minimumCadenceDays": 7,
+      "bucketCounts": [11, 11, 11, 10, 10, 10, 10],
+      "largestBucket": 11,
+      "defaultBatchLimit": 12
+    },
+    "backlogFixture": {
+      "isolatedQaOnly": true,
+      "professionalOpinion": false,
+      "externalActionClaim": false,
+      "setup": "After the fresh schedule assertion, the isolated QA database administrator set all 73 nextMonitorAt values to a past timestamp and cleared monitor leases; this direct fixture mutation was not represented as a user action or production audit event.",
+      "mainWorkerStoppedBeforeFixture": true,
+      "execution": "The candidate worker image ran handleComplianceSourceMonitor once for the QA organization with the production database config and a real pg-boss JobQueue.",
+      "monitorDispatchAudit": {
+        "batchLimit": 12,
+        "dueCount": 12,
+        "queuedCount": 12,
+        "hasMoreDue": true
+      },
+      "claimedSources": 12,
+      "dueUnclaimedSources": 61,
+      "totalSources": 73,
+      "pgBossChildJobsByState": {
+        "created": 12
+      },
+      "tasksCreatedBeforeChildExecution": 0,
+      "notificationsCreatedBeforeChildExecution": 0,
+      "officialSourcesFetchedDuringAssertion": 0
+    }
+  },
+  "browser": {
+    "certificateTrustMode": "verified leaf certificate SPKI allowlist for the isolated internal-CA host",
+    "desktop": {
+      "viewport": "1440x1000",
+      "route": "/resources/compliance-items",
+      "recordCountLabel": "73 条记录",
+      "horizontalOverflow": false
+    },
+    "mobile": {
+      "viewport": "390x844",
+      "route": "/resources/compliance-items",
+      "recordCountLabel": "73 条记录",
+      "horizontalOverflow": false
+    },
+    "activeServiceWorker": "/sw.js",
+    "unexpectedConsolePageRequestOrServerErrors": 0,
+    "expectedUnauthenticatedSession401ConsoleMessages": 2,
+    "expectedDashboardRequestAbortsOnDeliberateRouteChange": 2,
+    "screenshotsVisuallyReviewed": true,
+    "screenshotsRetained": false
+  },
+  "runtimeLogReview": {
+    "apiErrors": 0,
+    "apiUnexpectedWarnings": 0,
+    "expectedRejectedQaLoginWarnings": 1,
+    "workerUnexpectedErrorPatterns": 0,
+    "caddyUnexpectedErrors": 0,
+    "expectedNonRootInternalCaInstallErrors": 1
+  },
+  "cleanup": {
+    "composeContainersRemoved": true,
+    "composeNetworksRemoved": true,
+    "composeVolumesRemoved": true,
+    "qaImageTagsRemoved": true,
+    "browserScreenshotsRemoved": true,
+    "browserScriptRemoved": true,
+    "caCopyRemoved": true,
+    "ageIdentityRemoved": true,
+    "sbomScratchRemoved": true,
+    "qaCredentialsStoredInRepository": false,
+    "postCleanupWorktreeCleanAtImplementationSha": true
+  },
+  "scopeBoundary": {
+    "proves": [
+      "Fresh imports no longer make the complete 73-source catalog immediately due.",
+      "The current catalog fits below the default dispatch limit in each of its seven initial buckets.",
+      "A production-configured organization sweep with 73 due records creates exactly 12 real pg-boss child jobs and explicitly reports remaining backlog.",
+      "The batch guard does not fabricate a compliance task, notification, fetch result or professional review before child execution.",
+      "The candidate API and worker images operate inside the existing least-privilege production Compose boundary."
+    ],
+    "doesNotProve": [
+      "Successful fetching or professional review of all 73 official sources.",
+      "A complete backup/restore rerun; the immutable 101d2f0 baseline evidence remains authoritative for that layer.",
+      "GHCR multi-platform publication, provenance, signature or final digest.",
+      "GitHub-hosted CI, Security or CodeQL execution.",
+      "The Guangzhou office network, managed physical phones, real LLM/GitHub credentials, MinIO support acceptance or production approvals."
+    ],
+    "remainingReleaseGates": [
+      "Green GitHub CI and Security after the repository owner resolves the account billing or Actions spending-limit block.",
+      "Final GHCR amd64/arm64 digests, SBOMs and provenance bound to one approved Git SHA.",
+      "Approved Guangzhou intranet, managed-device, production restore and N-1 exercises.",
+      "Real provider least-privilege and vendor/data-processing acceptance.",
+      "Professional review of the 73 sources and company, legal, tax, security, operations and education-content approvals."
+    ]
+  }
+}

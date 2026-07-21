@@ -8,9 +8,9 @@
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/worker.js",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
+    "test": "pnpm test:unit && pnpm test:integration",
     "test:unit": "vitest run test/unit",
-    "test:integration": "vitest run test/integration"
+    "test:integration": "vitest run test/integration --no-file-parallelism --maxWorkers=1"
   },
   "dependencies": {
     "@fiatlux/contracts": "workspace:*",

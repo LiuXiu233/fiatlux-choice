@@ -1,0 +1,7 @@
+name: FIAT LUX CHOICE CodeQL configuration
+
+# This fixture is intentionally vulnerable and is scanned only by the isolated
+# Semgrep canary gate. It must not be interpreted as production source by
+# CodeQL when code-scanning entitlement becomes available.
+paths-ignore:
+  - "security/semgrep/canary/**"

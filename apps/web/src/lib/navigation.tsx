@@ -30,6 +30,7 @@ import {
   Target,
   Users,
   Workflow,
+  Wrench,
 } from "lucide-react";
 
 export interface NavItem {
@@ -163,6 +164,12 @@ export const navGroups: NavGroup[] = [
   {
     label: "系统",
     items: [
+      {
+        label: "运行异常处置",
+        path: "/operations",
+        icon: Wrench,
+        permission: "operations-incidents:read",
+      },
       { label: "成员与权限", path: "/resources/users", icon: Users, permission: "users:read" },
       {
         label: "审计日志",
@@ -177,9 +184,14 @@ export const navGroups: NavGroup[] = [
 
 export const mobileNav: NavItem[] = [
   { label: "总览", path: "/", icon: CircleGauge },
-  { label: "执行", path: "/resources/tasks", icon: BriefcaseBusiness },
-  { label: "审批", path: "/approvals", icon: ShieldCheck },
-  { label: "顾问", path: "/advisors", icon: Sparkles },
+  {
+    label: "执行",
+    path: "/resources/tasks",
+    icon: BriefcaseBusiness,
+    permission: "tasks:read",
+  },
+  { label: "审批", path: "/approvals", icon: ShieldCheck, permission: "approvals:read" },
+  { label: "顾问", path: "/advisors", icon: Sparkles, permission: "advisors:read" },
   { label: "更多", path: "/menu", icon: Building2 },
 ];
 

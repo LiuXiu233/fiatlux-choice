@@ -24,27 +24,58 @@
 
 把已经完成本机 production-like 验证的候选版本，变成有不可变 Git/GitHub 证据、能在目标办公内网恢复、可审计并可由两人或单人补偿控制运行的内部系统。
 
-### 2026-07-18 基线
+### 2026-07-20 工程基线
 
-- 本地候选已通过 Biome 118 个纳入检查的源码与配置文件、7 工作区类型检查、46 单元、31 真实集成零 skip（API 25、worker 4、MinIO 2）、77 聚合和 Playwright 19 passed/1 条件 skip；gitignored 的运行数据与证据目录不属于源码检查范围，最终 Git SHA 仍须由 GitHub CI 复现。
-- 本机 `https://choice.localhost:18443` 已验证 production-like HTTPS、PostgreSQL、MinIO、pg-boss、桌面 Chromium、iPhone 14 Chromium 仿真及 PWA 离线恢复；这不是耀光广州办公内网或真机验证。
-- 六个本地候选镜像达到 Trivy 0 个可修复 HIGH/CRITICAL；最终 age 全量备份与隔离恢复核对 37 张表、4 个对象和 readiness，实际升级/回滚通过。API/worker/MinIO 的无公开修复版本项必须保留完整报告和风险决策。
-- 真实 LLM、真实 GitHub、72 条合规来源的专业人工复核、GitHub CI、目标内网、真实设备和 MinIO OSS 剩余风险处置仍未完成。
+- 当前 schema 有 41 张业务表和 12 个业务迁移 `0000`–`0011`。首次强制改密、TOTP MFA/一次性恢复码、成员 pending/active/inactive/offboarded 生命周期、最后 owner 保护、归档角色即时失权、同组织 typed refs、decision/opportunity 跨字段一致性与八类高风险人工批准已经实现。
+- seed 已拆为显式 `bootstrap`、`metadata-only`、`system-role-maintenance` 三种模式；常规 metadata seed 不会修改身份、membership、role assignment 或权限。离线 owner 恢复要求 exact org/email、active owner、生产确认、原因、批准引用和 requestId，密码只从 stdin 读取，成功后撤销全部会话、强制下次改密并审计。
+- 通知创建为 queued-only；GitHub 刷新保存 `expectedVersion` 并以 CAS 防止陈旧写回；workflow 保存不可变定义版本/步骤快照和 partial checkpoint；advisor/workflow/backup 使用原子 claim、CAS 与 `lease_expired` 人工复核边界。运行异常页已按组织派生这三类事件，要求 owner/admin 提交证据化调查/补偿且不重放原失败运行。
+- 银行付款取消或审批驳回会原子解除草稿支出关联；顾问运行默认 requester-only，管理员的 `advisor-runs:read-all` 仍受顾问入口和上下文读权限限制；角色分配审批保存 membership 版本快照并在批准时重验。
+- 义务/合规日历已分开 `sourceId` 与 `evidenceFileId`；专业复核专用入口要求实名、机构、胜任依据、缺失信息、已上传证据，锁定来源版本/哈希/站内登记人并追加历史。通用提升、legacy 部分状态和不适用来源会在顾问侧失败关闭。
+- 合规来源人工复核到期、正文哈希变化和连续第三次失败已在状态事务内自动建立高优先级任务；执行时仍有效且仍有来源更新权限的人工触发者优先协调，否则确定性选择最早加入的有效 owner，并原子送达站内通知。同一事件去重、错误脱敏、组织隔离、触发者停用/失权回退和陈旧并发丢弃由真实 PostgreSQL 集成覆盖；协调不等于专业复核，邮件/企业协作通知仍待批准适配器。
+- 不可变协调实现 `5eec8cc3f4cbd0b9a12372240bca9f56d65ae5f9` 已把上述路径绑定 10/10 定向、worker 28/28、真实 pg-boss 组织 sweep、七镜像 production-like Compose、desktop/mobile/PWA 和 worker Trivy/SPDX 证据；CI/release 构建也显式覆盖为 production 语义。实验室首次组织 sweep 会同时领取 seed 后已到期的来源，因此目标部署仍应把首次抓取、失败分流和人工容量纳入上线窗口，而不是把自动任务数量当作专业结论数量。
+- 2026-07-20 不可变实现提交 `101d2f0938adfa0caa8ed576f6587a5c78ae74a5` 已通过 Biome 206 files、ShellCheck/Actionlint、7 项类型检查、177/177 单元、API 18 files/89 tests、worker 5 files/25 tests、真实 MinIO 2/2、mock 46+6、隔离 real 4/4、fresh/legacy 迁移、fresh/legacy 最小权限和生产构建；同一提交的全新 production-like Compose 又通过 38 表/11 migration、六服务、重启持久性、桌面/390×844 mobile、PWA/offline 和 73 条来源保守状态验证。
+- `101d2f0…` 七个本地 arm64 镜像由固定 Trivy 0.70.0 digest 扫描，HIGH/CRITICAL/fixable/unfixed 均为 0；七份 Syft 1.42.3 SPDX 通过，真实 BuildKit 0.31.2 双平台 provenance fixture 及 API/worker amd64 补偿证据仍有效；GHCR 双平台 root digest 仍待 release workflow。
+- 不可变运行异常最终候选 `f86bff4dcc7d2b61e05c8a6b44078d039aad1e38` 已推送，并完成 218 文件、191/191 单元、API 93/93、worker 29/29、OpenAPI 78 paths/143 operations、生产构建及秘密扫描 exact-SHA 回归。同一 SHA 重建/扫描 API、worker、Web，并在全新 production Compose 分别完成 advisor 部分输出、workflow checkpoint 和无产物 backup 的真实 HTTPS 处置、desktop/mobile/PWA、首登改密、最小权限和整体重启；本地 exact-SHA 缺口已关闭。目标环境真实责任人复演和长期未处置升级仍在 0–3 个月闸门内。
+- 旧底层 formatVersion 2 演练归档 SHA-256 `bcfd6c59d…b6ba`，核对 38 表、10 migrations、pg-boss 24 和 1 个 56-byte 对象，实测 RPO 2 秒、drill RTO 75 秒；它早于 Ed25519 来源签名门禁，只保留为历史恢复证据。
+- `101d2f0…` 已暂停写入完成真实 age+Ed25519 一致性备份；错误 S3 凭据负向路径未改变目标，随机全新卷精确恢复 38 表、11 migrations（到 `0010`）、pg-boss 24、五职责权限、worker/readiness 和 1 对象/94 bytes，完整 drill 23 秒。测试密钥/归档/源 sentinel 已删除；独立生产批准、业务 RPO/RTO、破坏性生产 `restore.sh`、异介质和目标内网仍未执行。旧 `6545c18…` 的 10 migration 结果只保留为历史证据。
+- `231d8e82164f8e31b1cc978975bf56e7ac6a26bb` 把生产恢复操作身份、批准引用/理由、跳过备份二次确认、每 operation 独占技术挂载、技术报告 SHA 和最终健康主机报告接入 `restore.sh`。同一 SHA 在全新七镜像栈完成 38 表/11 migration/pg-boss 24/1 对象 41 bytes 的签名隔离恢复、错误凭据负向、backup Trivy 0 和 SPDX 178 packages；旧 10-migration 栈先被正确拒绝。两次均未执行真实生产入口或验证独立批准，门禁保持 blocked。
+- `d7cc156ef2c44a531416c60ed88023681b113ecf` 已把真实 LLM/GitHub 的七顾问质量、审计、供应商处理、成本、单仓库最小权限、撤销轮换和回退转成 worker-only 失败关闭验收，并完成 246 文件、239 单元、API 94/94、worker 33/33、MinIO 2/2、七镜像、空卷 Compose、desktop/mobile/PWA、重启、部署和安全验证。下一步只能在授权目标环境使用短期真实凭据并取得独立批准；当前 mock/manual 结果不得算真实适配器成功。
+- `f4c12b596afd90d5781a0d192f381315c39790bc` 已把两份候选内容/逐篇哈希、九项上线问卷、每篇八类复核、来源/权利、同人多角色披露、内部试讲、逐篇批准、12 个公开页、七篇旧模板处置和最终批准转成失败关闭放行证据链，并完成 253 文件、264 单元、API 94/94、worker 33/33、MinIO 2/2、七镜像、空卷 Compose、desktop/mobile/PWA、恢复回归和安全验证。下一步只能由真实责任人完成问卷/复核/试讲/批准并人工操作 WordPress；验证器通过不能替代这些事实。
+- `9c5633e1c3e9650507231106fcd8a451bf32053f` 又增加 WordPress 内部审阅包：从精确 Git SHA 一次生成 12 个带永久禁止发布标记的块 HTML、12 个治理审阅表和哈希 manifest，并对网络调用、不安全目录和覆盖失败关闭。精确 SHA 已通过全仓、mock/独立桌面移动 PWA、源码安全及 API/worker/Web 三张受影响镜像验证；完整边界见[脱敏证据](./evidence/education-wordpress-review-bundle-acceptance-9c5633e-20260720.json)。它降低逐篇排版与问题汇总成本，但不会登录官网、接收凭据、形成专业意见或改变任何发布门禁。
+- `4391837e0c2b91fa58b2269a26b2cbb3294347b6` 增加受控审计导出，以双权限、组织隔离、北京时间范围/容量上限、CSV/NDJSON、公式注入保护、浏览器 Blob SHA-256 和 `export_generated` 支持低人力内审交付。精确 SHA 已通过全仓、PostgreSQL API 95/95、mock 51+7、全新真实栈 6/6、源码安全和 API/worker/Web 三张受影响镜像验收；完整边界见[脱敏证据](./evidence/governed-audit-export-acceptance-4391837-20260720.json)。下一步不是自动扩展外发，而是由真实责任人批准保留/销毁周期、月报范围和既有组织权限维护。
+- 2026-07-18 的旧测试总数、镜像 digest、v1 归档、37 表/4 对象/16 秒恢复和同内容标签升级回滚均为历史证据，不能作为当前通过或发布门禁。
+- 首轮本地相邻演练在回滚后 idle 登录暴露 `CONNECT_TIMEOUT` 并正确阻断；修复后以 N 10 migrations、synthetic bridge 9 migrations 和七个全异镜像完成真实 registry push/pull、46 秒升级、43 秒应用回滚、双 formatVersion 2 恢复点和回滚后 308 秒 HTTPS CRUD，数据、审计、索引和对象均保留。该结果不是历史生产 N−1、GHCR 或目标内网证据。
+- 发布治理 `213d9b6…` 已将完成条件固化为 14 项失败关闭门禁，平台证明 `6e40b82…` 已加入只读 GitHub/GHCR 实证；目标证明入口 `25204d34d865b16941d099658d33fbb561424f09` 把 clean source、七类发布 digest/运行镜像和目标 HTTPS/最小权限组合为只在全部成功后生成 `0600` JSON 的入口；受管真机入口 `ffe102e75526c510a14c60ef90a29e174b40a00a` 又加入成对可见构建身份、固定十步物理设备会话、独立候选/环境期望、实际附件 SHA-256 和不可覆盖 `0600` 报告。两者均已完成失败关闭工程验收，但前者未在广州目标主机运行，后者只使用 synthetic 会话和 headless viewport，均未验证物理设备、MDM 或批准。
+- `393f4ed…` 已取得绿色 GitHub CI/Security；CodeQL 因 entitlement 不可用而明确跳过。经审批生产恢复入口、CodeQL/经批准等效 SAST 风险决定、最终 GHCR 镜像、历史生产 N−1 和目标发布复演、广州办公内网或访问源受限环境、真实受管手机、真实 LLM/GitHub、73 条合规来源的专业人工复核、MinIO 长期支持风险处置和业务批准仍未完成。
+
+### 2026-07-19 官网与教育内容基线
+
+- [fiatlux.gg 公开业务与内容盘点](../research/fiatlux-gg-public-business-audit.md)确认官网可见 Marvel Rivals 项目队伍、选手/教练角色、2025 年两项赛事、Player Development、Tournament Management 和 Community Engagement 等业务信号；这些仍需真实性、权利和有效期证据，不能直接当作已交付案例。
+- 公开 9 篇博文只有 2 篇具有成型正文，另 7 篇仍是模板占位文；页面还存在美国地域表述、过期赛事未来时态、未核验见证和 Contact 隐私/投诉说明不足。
+- 电竞教育首期继续限定为中国境内成年人、小班、人工交付、一个游戏项目和 4–6 周验证，不在 V1 内建设公开招生、支付、直播、考试、证书或未成年人平台。
+- 首批 12 篇内容已按 4 篇基础包和 8 篇扩展包成为版本化 JSON 资产并接入内部页面，包含 Schema、来源、适用范围、负责人/审阅角色、权利与发布状态、AI 披露、模板、练习和复核问题；当前全部为待人工复核、权利待确认和 WordPress 未发布。
+- V1 放行准备增加逐篇失败关闭证据流程：从精确 Git 提交绑定 12 篇内容，要求九项上线问卷、八类逐篇复核、素材权利、人工批准、12 个真实公开页面和七篇旧模板处置；该工具不会写入 WordPress，真实执行仍是阶段 A 的人工门禁。
+- 每个候选可先生成[WordPress 内部审阅包](../admin/education-wordpress-review-bundle.md)，让少量复核人围绕同一 SHA、逐篇哈希和阻断清单工作；所有产物保持 `review_only`，不能原样公开或用来替代后续放行会话。
 
 ### 交付
 
-- 冻结完整 Git SHA；在同一 SHA 重跑 lint、类型、单元、集成、E2E、生产构建和六镜像安全扫描。
-- 在耀光目标办公内网从空环境完成迁移、单次 seed、owner 首登改密、登录、MinIO、pg-boss、ready、CA 分发和重启持久性。
-- 在目标内网和异介质上复演 age 加密备份、独立恢复和真实 schema 变更的升级/回滚；本机相同内容标签的机制演练已完成。
-- 迁移到有安全维护承诺的 S3 兼容存储、取得 MinIO AIStor 修复版，或在 internal-network 补偿控制下形成有期限的负责人风险接受与退出计划。
-- 修复或明确单人审批例外的 Web 流程，补完整权限拒绝测试。
-- 补成员停用、会话撤销、密码轮换/恢复的最小管理员流程。
-- 补 OpenAPI 请求响应 schema 的高频端点，发布兼容性规则。
-- 为 decisions 增加 objective/project/task 类型化关联，并为 products、opportunities 与 projects 设计最小类型化关联；迁移前先确认交叉组织约束和删除语义。
-- 运行 GitHub CI、安全扫描、SBOM 和 secret history scan。
-- 对 72 条合规来源按风险优先人工复核，获取关键正文哈希。
+- 以当前候选实现 `4391837e0c2b91fa58b2269a26b2cbb3294347b6`、远端部署源码 `9de2b56a2fe2943c9ddf038eefe5a5b11b53eb06`、GitHub 证据提交 `393f4edbd48dea617f48277a278f91da78558bd8`、最近完整空卷/七镜像基线 `f4c12b5…`、生产恢复防护 `231d8e8…`、受管真机入口 `ffe102e…`、真实适配器防护 `d7cc156…`、完整恢复基线 `101d2f0…` 和各自分层运行证据为起点；任何功能、迁移、运行时依赖或镜像输入变化后重新冻结完整 Git SHA，并在同一 SHA 重跑 lint、类型、单元、集成、E2E、生产构建和受影响镜像安全扫描。
+- 在耀光目标办公内网从空环境完成 11 个业务迁移 `0000`–`0010`、pg-boss 迁移和权限收敛；显式运行一次 `SEED_MODE=bootstrap`，验证 owner 首登改密、登录、MinIO、ready、CA 分发和重启持久性。随后用 `verify-target-intranet.sh` 绑定最终 Git SHA、七镜像发布清单及清单哈希生成机器报告，并从独立渠道核对防火墙、设备、恢复与运维批准，不能用 fixture JSON 代替。
+- 在同一目标 HTTPS 候选和公司 MDM 物理手机上按受管设备手册完成旧版浏览器安装、standalone 启动、Service Worker 升级、新版身份、核心登录、离线隐藏、联网重验、退出/卸载/站点数据清理及清理后重认证；使用独立批准的版本、完整 Git SHA、URL 和环境 ID 校验附件，再由终端与业务负责人交叉核对 MDM、原始附件和批准链。自动化 Chromium、viewport 或 verifier 的 `success` 均不能替代该步骤。
+- 在 legacy 副本验证 `metadata-only` 不改变组织、用户、membership、assignment 或权限；通过人工批准的 `system-role-maintenance` 演练角色基线升级，并完成一次受控离线 owner 恢复/回滚演练。
+- 对归档角色即时失权、成员停用、最后 owner、两人审批和单人补偿控制完成最终 Web/API E2E 与运维手册演练。
+- 在最终 SHA 复现已实现的 decision objective/project/task 同链校验、opportunity product/project 一致性、父关系/归档保护、API/worker 共用 advisory lock 和 runtime 数据库权限探测；保留特权管理员直接写表的批准与修复边界。
+- 在已有分层测试之上，用目标内网最终发布制品和真实责任人复演 notification queued-only、GitHub refresh expectedVersion/CAS、workflow 不可变快照与 partial checkpoint、付款取消/驳回解链、advisor requester-only/read-all、合规 source/evidence、角色版本审批，以及 advisor/workflow/backup 三类 lease-expired 调查/补偿；禁止把旧运行静默重放或把本地 exact-SHA Compose 冒充目标制品。
+- 在最终 SHA 发布并校验 OpenAPI，冻结高频端点请求/响应 schema 和兼容性规则。
+- 在目标内网和物理异介质上生成新的 formatVersion 2 age 归档并独立恢复；使用最终 GHCR 制品与经批准 N−1 复演真实 schema/镜像变化。真实执行 `restore.sh` 时必须使用唯一 operation ID、可识别操作者、外部批准引用和独立 `0700` 报告根，归档原始 `0600` 主机报告及 SHA；不能用本地 guard fixture、隔离 `restore-drill.sh`、synthetic bridge、旧 v1 或同内容标签证据替代。
+- 保持 MinIO root/bootstrap、app、backup、restore 四身份最小权限。若改变 access-key ID，使用 root-only 运维显式删除旧用户，并以旧凭据负向验证；bootstrap 不会枚举未知旧 ID。
+- 迁移到有安全维护承诺的 S3 兼容存储、取得受支持的修复版，或在 internal-network 补偿控制下形成有期限的负责人风险接受与退出计划。
+- 继续保持 GitHub CI/Security 绿色并保存 run 证据；当前已实跑 Gitleaks、生产依赖、Semgrep、Trivy、完整测试和七类镜像构建，后续还需补齐 CodeQL/经批准等效 SAST 风险决定、GHCR 双平台 SBOM/provenance 和绿色 release。
+- 对 73 条合规来源按风险优先上传真实意见并通过专用入口逐条复核；核对历史证据可下载、不可归档和变更后自动降级，不把自动化测试身份写入真实组织。
 - 统一官网中国境内主体、地域和业务表述。
-- 为成人电竞教育试点完成合同、隐私、退款、版权和事件响应材料。
+- 撤回或重写 7 篇模板占位文，修复重复标题、过期赛事时态和未核验见证；补主体、隐私、投诉和纠错入口。
+- 对已形成的 12 篇内容按候选 SHA 生成受保护内部审阅包，逐篇完成内部试讲、实名专业复核、权利证据、纠错入口和人工发布演练；前 4 篇基础内容优先，并按 12 周台账维护版本与来源。
+- 为成人电竞教育试点完成合同、隐私、退款、版权、健康提示、内容安全和事件响应材料。
 
 ### 建议投入
 
@@ -63,10 +94,18 @@
 
 - [ ] 验收矩阵所有阻断项关闭。
 - [ ] 耀光目标办公内网的生产式 Compose 连续运行 14 天，无 P0/P1 未关闭事件。
-- [ ] 独立恢复达到批准的 RPO/RTO，数据库和对象抽查一致。
+- [ ] 最终 SHA 的 formatVersion 2 归档在独立环境达到批准的 RPO/RTO，41 张业务表和对象抽查一致。
 - [ ] 两人审批和单人补偿流程均有 E2E 证据。
 - [ ] 最终 Git SHA 已推送到私有目标仓库，主分支和安全工作流全部绿色。
+- [ ] fresh/legacy seed、首次改密、归档角色即时失权和离线 owner 恢复演练全部通过；没有身份或权限被 seed 静默恢复。
+- [ ] advisor/workflow/backup 并发投递只执行一次；本地 `f86bff4…` 已完成三类 lease-expired、partial output、显式补偿和重复 409，仍须在目标内网由真实责任人复演并验收超时升级。
+- [ ] MinIO/S3 四身份最小权限通过；所有已更换 access-key ID 的旧用户均有 root 删除与旧凭据失败证据。
+- [ ] 最终 GHCR 制品、经批准 N−1 和目标环境的升级与应用回滚均通过；本地 synthetic bridge 只作为前置工程证据。
 - [ ] 电竞教育九项事实问卷和首期上线闸门完成人工批准。
+- [ ] 7 篇模板占位文不再公开可索引，团队、赛事、见证和素材权利均有负责人核验结果。
+- [ ] 首批 12 篇内容逐篇完成作者、专业复核、权利证据、版本、来源、最近复核日和纠错入口；任何一篇不得因同包其他文章通过而自动放行。
+- [ ] 审阅包中的禁止发布标记没有出现在任何公开页面；公开版本与候选 SHA、逐篇哈希及批准记录可追溯。
+- [ ] 公司、运维安全、残余风险、法务合规和财税责任人完成适用范围内的真实批准。
 
 ## 3. 3–6 个月：低人力运营与成人教育试点
 
@@ -78,10 +117,11 @@
 
 - 每日/每周经营摘要、逾期分级和 13 周现金预警。
 - 经批准的邮件或企业协作通知适配器，保留站内为事实源。
-- 合规来源变更监控、哈希差异、复核任务和负责人通知。
-- 审计导出、管理层月报和风险接受到期提醒。
+- 为现有合规来源变更监控和复核任务接入经批准的邮件/企业协作通知；保留当前确定性协调责任人、站内通知、任务与审计作为事实源，不让外部渠道回执改写专业复核状态。
+- 基于已实现的受控审计导出，增加批准的保留/销毁复核、管理层月报、风险接受到期提醒，以及现有 `lease_expired` 处置队列的超时 SLA、负责人升级、月度趋势和补偿复核报表。
 - 第一个成人团队赛训或竞技基础小班，从机会、合同、交付到退款/复盘闭环。
 - 课程内容版本、讲师授权、学员告知和删除期限台账。
+- 公开内容到成人试点的最小漏斗：无跟踪的课程说明、年龄/适用性筛选、完整告知、人工合同、交付、退款/投诉与删除；留言不自动视为报名或营销同意。
 - 真实 LLM 小范围启用：供应商审查、脱敏、预算、质量样本和停用开关。
 - GitHub 只读同步：最小权限 token、速率和失败可见性。
 - 会计系统 CSV/标准格式人工导入适配器，不做自动报税。
@@ -103,6 +143,7 @@
 - [ ] 成人试点按合同完成，投诉、退款和隐私请求全部闭环。
 - [ ] 至少 20 个顾问样本完成人工质量评分，越权引用为零。
 - [ ] 课程贡献毛利、完成率和复购信号达到预先记录阈值。
+- [ ] 公开内容没有未注明来源的结果承诺；版本到期、游戏规则变化和纠错请求均能产生复核动作。
 - [ ] 月度恢复演练和权限复核按计划完成。
 
 ## 4. 6–12 个月：标准化集成与可重复增长
@@ -113,15 +154,16 @@
 
 ### 交付
 
-- OIDC 或企业身份接入、MFA、管理员恢复和设备会话管理。
+- OIDC 或企业身份接入、WebAuthn/passkey、MFA 加密密钥在线重加密、管理员双人恢复和设备会话管理。
 - 自定义角色模板、临时访问、到期回收和季度权限证明。
 - 合同模板、版本比较、义务提取建议和续期工作流；签署仍保持人工边界。
 - 财务导入对账、发票查重和现金情景分析；不越过合法接口边界。
 - 顾问评测集、提示词发布审批、成本/延迟看板和供应商切换演练。
-- 工作流条件、人工暂停、重试/补偿和版本发布治理。
+- 工作流条件、人工暂停、显式新运行、重试/补偿和版本发布治理；任何可能已有副作用的失败都不得静默重放。
 - 第二期/第三期成人课程或首个机构客户，建立讲师准入和观察机制。
 - 评估是否需要独立学员门户；只有真实需求才建立最小报名、内容和反馈界面。
 - 归档保留、法定销毁批准和可验证删除。
+- 在备份量、合规或主机威胁达到触发阈值时，把主机文件 Ed25519 私钥迁移到经批准的 HSM/KMS/远程签名适配器；保留标准 attestation schema、密钥版本、撤销/轮换记录和离线验签能力，不把供应商成功响应直接等同于备份成功。
 
 ### 建议投入
 
@@ -185,6 +227,7 @@
 - 13 周最低现金余额与预测偏差。
 - 开放高风险数量和平均关闭时长。
 - 备份成功率、最近恢复时间、实测 RPO/RTO。
+- `lease_expired` 数量、partial run 未复核时长和人工补偿完成率。
 - 权限异常、失败登录和离职撤权时长。
 - 顾问事实引用通过率、人工改写率、单位有效建议成本。
 - 教育产品完成、投诉、退款、贡献毛利和风险事件。

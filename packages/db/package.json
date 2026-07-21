@@ -28,12 +28,14 @@
     "typecheck": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/migrate.ts",
-    "db:seed": "tsx src/seed-cli.ts",
+    "db:seed": "tsx --conditions=development src/seed-cli.ts",
+    "test:migrations": "tsx test/migration-upgrade.ts",
     "test": "vitest run",
     "test:unit": "vitest run test"
   },
   "dependencies": {
     "@fiatlux/contracts": "workspace:*",
+    "@fiatlux/domain": "workspace:*",
     "argon2": "^0.41.1",
     "drizzle-orm": "0.45.2",
     "postgres": "^3.4.5",

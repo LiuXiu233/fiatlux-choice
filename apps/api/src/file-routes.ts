@@ -2,27 +2,40 @@ import { randomUUID } from "node:crypto";
 import { Readable } from "node:stream";
 import {
   fileCreateSchema,
+  fileMetadataPolicyIssue,
   idSchema,
   listQuerySchema,
   MAX_FILE_SIZE_BYTES,
 } from "@fiatlux/contracts";
-import { auditEvents, files } from "@fiatlux/db";
+import {
+  auditEvents,
+  complianceEvents,
+  complianceItems,
+  contracts,
+  files,
+  invoices,
+  obligations,
+} from "@fiatlux/db";
 import { DomainError, hasPermission } from "@fiatlux/domain";
-import { and, count, desc, eq, ilike, isNull } from "drizzle-orm";
+import { sanitizeIntegrationError } from "@fiatlux/integrations";
+import { and, count, desc, eq, ilike, isNull, sql } from "drizzle-orm";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 
 import { type AuthenticateHook, requirePermission } from "./auth.js";
+import { fileContentPolicyIssue } from "./file-content-policy.js";
 import { requestAuditContext } from "./resource-repository.js";
 import type { AppDependencies, RequestAuditContext } from "./types.js";
 
 const idParamsSchema = z.object({ id: idSchema });
-const fileUpdateSchema = z.object({
-  filename: z.string().trim().min(1).max(500).optional(),
+export const fileUpdateSchema = z.object({
+  filename: z.string().min(1).max(255).optional(),
   classification: z.enum(["internal", "confidential", "personal", "public"]).optional(),
   expectedVersion: z.number().int().min(1),
 });
-const archiveQuerySchema = z.object({ expectedVersion: z.coerce.number().int().min(1) });
+export const fileArchiveQuerySchema = z.object({
+  expectedVersion: z.coerce.number().int().min(1),
+});
 
 async function requireFileContentPermission(request: FastifyRequest) {
   if (
@@ -51,6 +64,7 @@ function auditValue(
     resourceId: string;
     before?: unknown;
     after?: unknown;
+    metadata?: Record<string, unknown>;
   },
 ) {
   return {
@@ -62,7 +76,7 @@ function auditValue(
     requestId: context.requestId,
     before: event.before,
     after: event.after,
-    metadata: {},
+    metadata: event.metadata ?? {},
     ipAddress: context.ipAddress,
     userAgent: context.userAgent,
   };
@@ -81,13 +95,12 @@ export function registerFileRoutes(
     },
     async (request) => {
       const query = listQuerySchema.parse(request.query);
-      const where = query.search
-        ? and(
-            eq(files.orgId, request.auth.orgId),
-            isNull(files.archivedAt),
-            ilike(files.filename, `%${query.search}%`),
-          )
-        : and(eq(files.orgId, request.auth.orgId), isNull(files.archivedAt));
+      const where = and(
+        eq(files.orgId, request.auth.orgId),
+        isNull(files.archivedAt),
+        query.search ? ilike(files.filename, `%${query.search}%`) : undefined,
+        query.status ? eq(files.uploadStatus, query.status) : undefined,
+      );
       const [items, totals] = await Promise.all([
         dependencies.db
           .select()
@@ -160,53 +173,68 @@ export function registerFileRoutes(
     },
     async (request, reply) => {
       const { id } = idParamsSchema.parse(request.params);
-      const [current] = await dependencies.db
-        .select()
-        .from(files)
-        .where(and(eq(files.id, id), eq(files.orgId, request.auth.orgId), isNull(files.archivedAt)))
-        .limit(1);
-      if (!current) throw new DomainError("NOT_FOUND", "File not found", 404);
-      assertCanWriteFileContent(request, current);
-      if (!Buffer.isBuffer(request.body)) {
+      const content = request.body;
+      if (!Buffer.isBuffer(content)) {
         throw new DomainError("VALIDATION_FAILED", "A binary request body is required", 400);
       }
       const contentLength = Number(request.headers["content-length"] ?? -1);
-      if (contentLength !== current.sizeBytes) {
-        throw new DomainError(
-          "VALIDATION_FAILED",
-          "Content-Length does not match declared file size",
-          400,
-        );
-      }
-      try {
-        await dependencies.storage.putVerified({
-          storageKey: current.storageKey,
-          body: Readable.from([request.body]),
-          contentType: current.contentType,
-          expectedSizeBytes: current.sizeBytes,
-          expectedChecksumSha256: current.checksumSha256,
-        });
-      } catch (error) {
-        throw new DomainError(
-          "VALIDATION_FAILED",
-          error instanceof Error ? error.message : "Upload verification failed",
-          400,
-        );
-      }
       const context = requestAuditContext(request);
       const [updated] = await dependencies.db.transaction(async (tx) => {
+        // Keep the row lock across object storage verification. This row is the cross-process
+        // upload claim: no second API process may touch the same storage key until this attempt
+        // either commits `stored` or rolls back to `pending`.
+        const [current] = await tx
+          .select()
+          .from(files)
+          .where(
+            and(eq(files.id, id), eq(files.orgId, request.auth.orgId), isNull(files.archivedAt)),
+          )
+          .limit(1)
+          .for("update");
+        if (!current) throw new DomainError("NOT_FOUND", "File not found", 404);
+        assertCanWriteFileContent(request, current);
+        if (current.uploadStatus !== "pending") {
+          throw new DomainError("CONFLICT", "Only a pending file can receive content", 409);
+        }
+        if (contentLength !== current.sizeBytes) {
+          throw new DomainError(
+            "VALIDATION_FAILED",
+            "Content-Length does not match declared file size",
+            400,
+          );
+        }
+        const contentIssue = fileContentPolicyIssue(current.filename, current.contentType, content);
+        if (contentIssue) {
+          throw new DomainError("VALIDATION_FAILED", contentIssue, 400);
+        }
+        try {
+          await dependencies.storage.putVerified({
+            storageKey: current.storageKey,
+            body: Readable.from([content]),
+            contentType: current.contentType,
+            expectedSizeBytes: current.sizeBytes,
+            expectedChecksumSha256: current.checksumSha256,
+          });
+        } catch (error) {
+          throw new DomainError(
+            "VALIDATION_FAILED",
+            sanitizeIntegrationError(error, "Upload verification failed", { maxLength: 500 }),
+            400,
+          );
+        }
         const [changed] = await tx
           .update(files)
           .set({
             uploadStatus: "stored",
             updatedAt: new Date(),
-            version: current.version + 1,
+            version: sql`${files.version} + 1`,
           })
           .where(
             and(
               eq(files.id, id),
               eq(files.orgId, request.auth.orgId),
               eq(files.version, current.version),
+              eq(files.uploadStatus, "pending"),
             ),
           )
           .returning();
@@ -258,6 +286,18 @@ export function registerFileRoutes(
         .where(and(eq(files.id, id), eq(files.orgId, request.auth.orgId), isNull(files.archivedAt)))
         .limit(1);
       if (!current) throw new DomainError("NOT_FOUND", "File not found", 404);
+      if (expectedVersion !== current.version) {
+        throw new DomainError("CONFLICT", "File metadata changed concurrently", 409, {
+          expectedVersion,
+          actualVersion: current.version,
+        });
+      }
+      if (patch.filename) {
+        const policyIssue = fileMetadataPolicyIssue(patch.filename, current.contentType);
+        if (policyIssue) {
+          throw new DomainError("VALIDATION_FAILED", policyIssue, 400);
+        }
+      }
       const context = requestAuditContext(request);
       const [updated] = await dependencies.db.transaction(async (tx) => {
         const [changed] = await tx
@@ -265,7 +305,7 @@ export function registerFileRoutes(
           .set({
             ...patch,
             updatedAt: new Date(),
-            version: current.version + 1,
+            version: sql`${files.version} + 1`,
           })
           .where(
             and(
@@ -305,7 +345,21 @@ export function registerFileRoutes(
         .limit(1);
       if (!current) throw new DomainError("NOT_FOUND", "File not found", 404);
       assertCanWriteFileContent(request, current);
-      const object = await dependencies.storage.head(current.storageKey);
+      if (current.uploadStatus !== "stored") {
+        throw new DomainError("CONFLICT", "Only verified stored content can be completed", 409);
+      }
+      let object: Awaited<ReturnType<AppDependencies["storage"]["head"]>>;
+      try {
+        object = await dependencies.storage.head(current.storageKey);
+      } catch (error) {
+        throw new DomainError(
+          "INTEGRATION_UNAVAILABLE",
+          sanitizeIntegrationError(error, "Object storage verification failed", {
+            maxLength: 500,
+          }),
+          503,
+        );
+      }
       if (!object) throw new DomainError("NOT_FOUND", "Uploaded object was not found", 404);
       if (
         object.sizeBytes !== current.sizeBytes ||
@@ -328,13 +382,14 @@ export function registerFileRoutes(
           .set({
             uploadStatus: "uploaded",
             updatedAt: new Date(),
-            version: current.version + 1,
+            version: sql`${files.version} + 1`,
           })
           .where(
             and(
               eq(files.id, id),
               eq(files.orgId, request.auth.orgId),
               eq(files.version, current.version),
+              eq(files.uploadStatus, "stored"),
             ),
           )
           .returning();
@@ -374,8 +429,30 @@ export function registerFileRoutes(
         )
         .limit(1);
       if (!record) throw new DomainError("NOT_FOUND", "Uploaded file not found", 404);
-      const download = await dependencies.storage.get(record.storageKey);
+      let download: Awaited<ReturnType<AppDependencies["storage"]["get"]>>;
+      try {
+        download = await dependencies.storage.get(record.storageKey);
+      } catch (error) {
+        throw new DomainError(
+          "INTEGRATION_UNAVAILABLE",
+          sanitizeIntegrationError(error, "Object storage download failed", { maxLength: 500 }),
+          503,
+        );
+      }
       if (!download) throw new DomainError("NOT_FOUND", "Stored object not found", 404);
+      const context = requestAuditContext(request);
+      await dependencies.db.insert(auditEvents).values(
+        auditValue(context, {
+          action: "download_issued",
+          resourceId: id,
+          metadata: {
+            classification: record.classification,
+            sizeBytes: download.metadata.sizeBytes,
+            checksumSha256: record.checksumSha256,
+            semantics: "authorized object stream issued; client receipt is not asserted",
+          },
+        }),
+      );
       reply.header("content-type", record.contentType);
       reply.header("content-length", String(download.metadata.sizeBytes));
       reply.header(
@@ -394,21 +471,116 @@ export function registerFileRoutes(
     },
     async (request) => {
       const { id } = idParamsSchema.parse(request.params);
-      const { expectedVersion } = archiveQuerySchema.parse(request.query);
-      const [current] = await dependencies.db
-        .select()
-        .from(files)
-        .where(and(eq(files.id, id), eq(files.orgId, request.auth.orgId), isNull(files.archivedAt)))
-        .limit(1);
-      if (!current) throw new DomainError("NOT_FOUND", "File not found", 404);
+      const { expectedVersion } = fileArchiveQuerySchema.parse(request.query);
       const context = requestAuditContext(request);
       const [updated] = await dependencies.db.transaction(async (tx) => {
+        const [current] = await tx
+          .select()
+          .from(files)
+          .where(
+            and(eq(files.id, id), eq(files.orgId, request.auth.orgId), isNull(files.archivedAt)),
+          )
+          .limit(1)
+          .for("update");
+        if (!current) throw new DomainError("NOT_FOUND", "File not found", 404);
+        if (expectedVersion !== current.version) {
+          throw new DomainError("CONFLICT", "File metadata changed concurrently", 409, {
+            expectedVersion,
+            actualVersion: current.version,
+          });
+        }
+        const [
+          contractReferences,
+          invoiceReferences,
+          obligationReferences,
+          eventReferences,
+          sourceReviewReferences,
+          historicalSourceReviewReferences,
+        ] = await Promise.all([
+          tx
+            .select({ id: contracts.id })
+            .from(contracts)
+            .where(
+              and(
+                eq(contracts.orgId, request.auth.orgId),
+                eq(contracts.fileId, current.id),
+                isNull(contracts.archivedAt),
+              ),
+            )
+            .limit(1),
+          tx
+            .select({ id: invoices.id })
+            .from(invoices)
+            .where(
+              and(
+                eq(invoices.orgId, request.auth.orgId),
+                eq(invoices.fileId, current.id),
+                isNull(invoices.archivedAt),
+              ),
+            )
+            .limit(1),
+          tx
+            .select({ id: obligations.id })
+            .from(obligations)
+            .where(
+              and(
+                eq(obligations.orgId, request.auth.orgId),
+                eq(obligations.evidenceFileId, current.id),
+                isNull(obligations.archivedAt),
+              ),
+            )
+            .limit(1),
+          tx
+            .select({ id: complianceEvents.id })
+            .from(complianceEvents)
+            .where(
+              and(
+                eq(complianceEvents.orgId, request.auth.orgId),
+                eq(complianceEvents.evidenceFileId, current.id),
+                isNull(complianceEvents.archivedAt),
+              ),
+            )
+            .limit(1),
+          tx
+            .select({ id: complianceItems.id })
+            .from(complianceItems)
+            .where(
+              and(
+                eq(complianceItems.orgId, request.auth.orgId),
+                eq(complianceItems.reviewEvidenceFileId, current.id),
+                isNull(complianceItems.archivedAt),
+              ),
+            )
+            .limit(1),
+          tx
+            .select({ id: auditEvents.id })
+            .from(auditEvents)
+            .where(
+              and(
+                eq(auditEvents.orgId, request.auth.orgId),
+                eq(auditEvents.resourceType, "compliance-items"),
+                eq(auditEvents.action, "professional_review"),
+                sql`${auditEvents.metadata} ->> 'evidenceFileId' = ${current.id}`,
+              ),
+            )
+            .limit(1),
+        ]);
+        if (
+          contractReferences[0] ||
+          invoiceReferences[0] ||
+          obligationReferences[0] ||
+          eventReferences[0] ||
+          sourceReviewReferences[0] ||
+          historicalSourceReviewReferences[0]
+        ) {
+          throw new DomainError("CONFLICT", "Referenced business evidence cannot be archived", 409);
+        }
         const [changed] = await tx
           .update(files)
           .set({
             archivedAt: new Date(),
             updatedAt: new Date(),
-            version: current.version + 1,
+            version: sql`${files.version} + 1`,
           })
           .where(
             and(

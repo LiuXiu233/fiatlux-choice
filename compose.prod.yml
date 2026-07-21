@@ -1,7 +1,9 @@
 services:
   postgres:
+    pull_policy: always
     environment:
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set for production}
+      POSTGRES_USER: ${POSTGRES_BOOTSTRAP_USER:?POSTGRES_BOOTSTRAP_USER must be set for production}
+      POSTGRES_PASSWORD: ${POSTGRES_BOOTSTRAP_PASSWORD:?POSTGRES_BOOTSTRAP_PASSWORD must be set for production}
     deploy:
       resources:
         limits:
@@ -28,26 +30,60 @@ services:
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:?MINIO_ROOT_USER must be set for production}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD must be set for production}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?S3_ACCESS_KEY_ID must be set for production}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?S3_SECRET_ACCESS_KEY must be set for production}
+      S3_BACKUP_ACCESS_KEY_ID: ${S3_BACKUP_ACCESS_KEY_ID:?S3_BACKUP_ACCESS_KEY_ID must be set for production}
+      S3_BACKUP_SECRET_ACCESS_KEY: ${S3_BACKUP_SECRET_ACCESS_KEY:?S3_BACKUP_SECRET_ACCESS_KEY must be set for production}
+      S3_RESTORE_ACCESS_KEY_ID: ${S3_RESTORE_ACCESS_KEY_ID:?S3_RESTORE_ACCESS_KEY_ID must be set for production}
+      S3_RESTORE_SECRET_ACCESS_KEY: ${S3_RESTORE_SECRET_ACCESS_KEY:?S3_RESTORE_SECRET_ACCESS_KEY must be set for production}
+
+  db-bootstrap:
+    pull_policy: always
+    environment:
+      POSTGRES_BOOTSTRAP_USER: ${POSTGRES_BOOTSTRAP_USER:?POSTGRES_BOOTSTRAP_USER must be set for production}
+      POSTGRES_BOOTSTRAP_PASSWORD: ${POSTGRES_BOOTSTRAP_PASSWORD:?POSTGRES_BOOTSTRAP_PASSWORD must be set for production}
+      POSTGRES_MIGRATION_PASSWORD: ${POSTGRES_MIGRATION_PASSWORD:?POSTGRES_MIGRATION_PASSWORD must be set for production}
+      POSTGRES_RUNTIME_PASSWORD: ${POSTGRES_RUNTIME_PASSWORD:?POSTGRES_RUNTIME_PASSWORD must be set for production}
+      POSTGRES_BACKUP_PASSWORD: ${POSTGRES_BACKUP_PASSWORD:?POSTGRES_BACKUP_PASSWORD must be set for production}
+      POSTGRES_RESTORE_PASSWORD: ${POSTGRES_RESTORE_PASSWORD:?POSTGRES_RESTORE_PASSWORD must be set for production}
 
   migrate:
     pull_policy: always
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-fiatlux}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@postgres:5432/${POSTGRES_DB:-fiatlux_choice}
+      DATABASE_URL: postgresql://fiatlux_migrator:${POSTGRES_MIGRATION_PASSWORD:?POSTGRES_MIGRATION_PASSWORD must be set}@postgres:5432/${POSTGRES_DB:-fiatlux_choice}
+
+  queue-migrate:
+    pull_policy: always
+    environment:
+      DATABASE_URL: postgresql://fiatlux_migrator:${POSTGRES_MIGRATION_PASSWORD:?POSTGRES_MIGRATION_PASSWORD must be set}@postgres:5432/${POSTGRES_DB:-fiatlux_choice}
+
+  database-permissions:
+    pull_policy: always
+    environment:
+      PGPASSWORD: ${POSTGRES_MIGRATION_PASSWORD:?POSTGRES_MIGRATION_PASSWORD must be set for production}
+
+  seed:
+    pull_policy: always
+    environment:
+      DATABASE_URL: postgresql://fiatlux_runtime:${POSTGRES_RUNTIME_PASSWORD:?POSTGRES_RUNTIME_PASSWORD must be set}@postgres:5432/${POSTGRES_DB:-fiatlux_choice}
+      BOOTSTRAP_ADMIN_EMAIL: ${INITIAL_ADMIN_EMAIL:-}
+      BOOTSTRAP_ADMIN_PASSWORD: ${INITIAL_ADMIN_PASSWORD:-}
 
   api:
     pull_policy: always
     environment:
-      APP_ORIGIN: https://${APP_DOMAIN:?APP_DOMAIN must be set}:${HTTPS_PORT:-8443}
-      PUBLIC_APP_URL: https://${APP_DOMAIN:?APP_DOMAIN must be set}:${HTTPS_PORT:-8443}
       WEB_ORIGIN: https://${APP_DOMAIN:?APP_DOMAIN must be set}:${HTTPS_PORT:-8443}
-      DATABASE_URL: postgresql://${POSTGRES_USER:-fiatlux}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@postgres:5432/${POSTGRES_DB:-fiatlux_choice}
-      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET must be set for production}
+      DATABASE_URL: postgresql://fiatlux_runtime:${POSTGRES_RUNTIME_PASSWORD:?POSTGRES_RUNTIME_PASSWORD must be set}@postgres:5432/${POSTGRES_DB:-fiatlux_choice}
       JWT_SECRET: ${SESSION_SECRET:?SESSION_SECRET must be set for production}
       JWT_TTL_SECONDS: ${JWT_TTL_SECONDS:-43200}
       COOKIE_SECURE: "true"
-      INITIAL_ADMIN_PASSWORD: ${INITIAL_ADMIN_PASSWORD:?INITIAL_ADMIN_PASSWORD must be set for production}
-      S3_ACCESS_KEY_ID: ${MINIO_ROOT_USER:?MINIO_ROOT_USER must be set for production}
-      S3_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD must be set for production}
+      MFA_ENCRYPTION_KEY: ${MFA_ENCRYPTION_KEY:?MFA_ENCRYPTION_KEY must be set for production}
+      MFA_ENCRYPTION_KEY_ID: ${MFA_ENCRYPTION_KEY_ID:-production-v1}
+      MFA_REQUIRED_ROLES: ${MFA_REQUIRED_ROLES:-owner,admin}
+      MFA_CHALLENGE_TTL_SECONDS: ${MFA_CHALLENGE_TTL_SECONDS:-180}
+      MFA_SETUP_TTL_SECONDS: ${MFA_SETUP_TTL_SECONDS:-900}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?S3_ACCESS_KEY_ID must be set for production}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?S3_SECRET_ACCESS_KEY must be set for production}
     deploy:
       resources:
         limits:
@@ -59,18 +95,8 @@ services:
   worker:
     pull_policy: always
     environment:
-      APP_ORIGIN: https://${APP_DOMAIN:?APP_DOMAIN must be set}:${HTTPS_PORT:-8443}
-      PUBLIC_APP_URL: https://${APP_DOMAIN:?APP_DOMAIN must be set}:${HTTPS_PORT:-8443}
-      WEB_ORIGIN: https://${APP_DOMAIN:?APP_DOMAIN must be set}:${HTTPS_PORT:-8443}
-      DATABASE_URL: postgresql://${POSTGRES_USER:-fiatlux}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@postgres:5432/${POSTGRES_DB:-fiatlux_choice}
-      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET must be set for production}
-      JWT_SECRET: ${SESSION_SECRET:?SESSION_SECRET must be set for production}
-      JWT_TTL_SECONDS: ${JWT_TTL_SECONDS:-43200}
-      COOKIE_SECURE: "true"
-      INITIAL_ADMIN_PASSWORD: ${INITIAL_ADMIN_PASSWORD:?INITIAL_ADMIN_PASSWORD must be set for production}
-      S3_ACCESS_KEY_ID: ${MINIO_ROOT_USER:?MINIO_ROOT_USER must be set for production}
-      S3_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD must be set for production}
-      PGPASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set for production}
+      DATABASE_URL: postgresql://fiatlux_runtime:${POSTGRES_RUNTIME_PASSWORD:?POSTGRES_RUNTIME_PASSWORD must be set}@postgres:5432/${POSTGRES_DB:-fiatlux_choice}
+      PGPASSWORD: ${POSTGRES_RUNTIME_PASSWORD:?POSTGRES_RUNTIME_PASSWORD must be set for production}
       BACKUP_AGE_RECIPIENT: ${BACKUP_AGE_RECIPIENT:?BACKUP_AGE_RECIPIENT must be set for production}
       BACKUP_REQUIRE_ENCRYPTION: "true"
     volumes:
@@ -103,7 +129,9 @@ services:
     ports:
       - ${BIND_ADDRESS:-0.0.0.0}:${HTTPS_PORT:-8443}:8443
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-check-certificate -q -O /dev/null https://$${APP_DOMAIN}:8443/health/live"]
+      test:
+        - CMD-SHELL
+        - wget --no-check-certificate -q -O /dev/null https://$${APP_DOMAIN}:8443/health/live && wget --no-check-certificate -q -O /dev/null https://$${APP_DOMAIN}:8443/login
     deploy:
       resources:
         limits:
@@ -115,9 +143,12 @@ services:
   backup-tools:
     pull_policy: always
     environment:
-      PGPASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set for production}
-      S3_ACCESS_KEY_ID: ${MINIO_ROOT_USER:?MINIO_ROOT_USER must be set for production}
-      S3_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD must be set for production}
+      PGPASSWORD: ${POSTGRES_BACKUP_PASSWORD:?POSTGRES_BACKUP_PASSWORD must be set for production}
+      S3_ACCESS_KEY_ID: ${S3_BACKUP_ACCESS_KEY_ID:?S3_BACKUP_ACCESS_KEY_ID must be set for production}
+      S3_SECRET_ACCESS_KEY: ${S3_BACKUP_SECRET_ACCESS_KEY:?S3_BACKUP_SECRET_ACCESS_KEY must be set for production}
       BACKUP_REQUIRE_ENCRYPTION: "true"
     volumes:
       - ${BACKUP_DIR:?BACKUP_DIR must be set for production}:/backups
+      - ${RESTORE_SOURCE_DIR:-${BACKUP_DIR:?BACKUP_DIR must be set for production}}:/restore-source:ro
+      - ${BACKUP_SCRATCH_DIR:?BACKUP_SCRATCH_DIR must be set for production}:/backup-work
+      - ${RESTORE_SCRATCH_DIR:?RESTORE_SCRATCH_DIR must be set for production}:/restore-work

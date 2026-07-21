@@ -21,8 +21,20 @@ export interface UserSession {
   displayName: string;
   role: string;
   permissions: string[];
-  mustChangePassword?: boolean;
+  mustChangePassword: boolean;
+  mfaEnabled: boolean;
+  mfaRequired: boolean;
+  mustSetupMfa: boolean;
 }
+
+export interface MfaLoginChallenge {
+  mfaRequired: true;
+  challengeExpiresAt: string;
+}
+
+export type LoginResult =
+  | { kind: "session"; session: UserSession }
+  | { kind: "mfa_challenge"; challenge: MfaLoginChallenge };
 
 export interface BusinessRecord {
   id: string;
