@@ -364,6 +364,11 @@ jobs:
           BACKUP_DIR: /tmp/fiatlux-backups
           BACKUP_SCRATCH_DIR: /tmp/fiatlux-backup-scratch
           INITIAL_ADMIN_PASSWORD: ci-compose-admin-password
+          MFA_ENCRYPTION_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+          MFA_ENCRYPTION_KEY_ID: ci-compose-v1
+          MFA_REQUIRED_ROLES: owner,admin
+          MFA_CHALLENGE_TTL_SECONDS: "180"
+          MFA_SETUP_TTL_SECONDS: "900"
           MINIO_ROOT_PASSWORD: ci_compose_minio_password
           MINIO_ROOT_USER: fiatlux
           S3_ACCESS_KEY_ID: fiatlux-app
