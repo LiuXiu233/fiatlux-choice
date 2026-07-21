@@ -16,7 +16,7 @@
 
 ## 2. 认证
 
-API 使用名为 fiatlux_session 的 HttpOnly Cookie。Cookie path 为 /api/v1，SameSite=Strict；生产必须开启 Secure。浏览器请求需要 credentials。
+API 使用名为 `fiatlux_session` 的 HttpOnly Cookie。Cookie path 为 `/api/v1`，SameSite=Strict；生产必须开启 Secure。浏览器请求需要 credentials。已启用 MFA 的账户通过密码后返回 HTTP 202，只设置路径限定到 `/api/v1/auth/mfa/verify` 的短时 `fiatlux_mfa_challenge`，不会创建 `sessions` 记录或正式会话 Cookie。
 
 登录：
 
@@ -27,6 +27,18 @@ curl --request POST \
   --cookie-jar /tmp/fiatlux.cookies \
   --data '{"email":"admin@example.com","password":"REPLACE_WITH_REAL_PASSWORD"}' \
   https://choice.internal.example:8443/api/v1/auth/login
+~~~
+
+若响应为 202，使用验证器代码或一枚未使用恢复码完成挑战；不要把真实代码写入 shell 历史：
+
+~~~sh
+curl --request POST \
+  --header 'Content-Type: application/json' \
+  --header 'Origin: https://choice.internal.example:8443' \
+  --cookie /tmp/fiatlux.cookies \
+  --cookie-jar /tmp/fiatlux.cookies \
+  --data '{"code":"REPLACE_WITH_CURRENT_TOTP_OR_RECOVERY_CODE"}' \
+  https://choice.internal.example:8443/api/v1/auth/mfa/verify
 ~~~
 
 读取当前会话：
@@ -58,14 +70,27 @@ curl --request POST \
 
 首次 seed 新建的 owner 和 `POST /users` 新建的成员都设置 `mustChangePassword=true`；重复 seed 只补齐系统数据，不覆盖既有 owner 的密码。新成员须先通过角色审批成为 active 才能登录。带 `mustChangePassword` 的会话在改密前只允许 `GET /auth/me`、`POST /auth/change-password` 和 `POST /auth/logout`，其他受保护路由返回 403。
 
-新密码至少 14 位且必须不同于当前密码。成功会把 `mustChangePassword` 清为 false，保留发起改密的当前会话，并撤销该用户的其他未撤销会话；当前没有自助忘记密码或恢复码 API。
+新密码至少 14 位且必须不同于当前密码。成功会把 `mustChangePassword` 清为 false，保留发起改密的当前会话，撤销该用户的其他未撤销会话并使旧 MFA 登录挑战失效。生产默认要求 owner/admin 随后完成 MFA；未登记时 `mustSetupMfa=true`，除 `me`、改密、退出和 MFA 管理端点外均返回 `MFA_SETUP_REQUIRED`。
+
+MFA 端点：
+
+| 方法与路径 | 认证 | 说明 |
+| --- | --- | --- |
+| `POST /auth/mfa/verify` | 短时挑战 Cookie | 验证 TOTP/恢复码，通过后才创建正式会话 |
+| `GET /auth/mfa/status` | 正式会话 | 返回 required/enabled/setupPending、恢复码余量和可否停用 |
+| `POST /auth/mfa/setup` | 正式会话 | body 必须确认 `START_MFA_ENROLLMENT`；返回一次性登记密钥和 otpauth URI |
+| `POST /auth/mfa/confirm` | 正式会话 | 仅接受 6 位 TOTP；启用后一次性返回 10 枚恢复码 |
+| `POST /auth/mfa/recovery-codes` | 正式会话 | 二次验证并确认 `REPLACE_MFA_RECOVERY_CODES`；旧码全部失效 |
+| `POST /auth/mfa/disable` | 正式会话 | 非强制角色用当前密码、第二因素和 `DISABLE_MFA` 停用；强制角色返回 403 |
+
+当前没有自助忘记密码 API。恢复码只能替代第二因素，不能重置密码。完整用户流程见[多因素认证指南](../user/mfa.md)。
 
 不要把 Cookie、密码或响应中的敏感数据写入仓库、工单和 shell 历史。生产集成应使用受控秘密注入和短期会话。
 
 ## 3. 请求安全
 
 - POST、PUT、PATCH 和 DELETE 如果带 Origin，必须与 WEB_ORIGIN 完全一致。
-- 全局限流默认每分钟 300 次；登录每分钟 8 次。
+- 全局限流默认每分钟 300 次；密码登录每分钟 8 次，MFA 登录挑战每 5 分钟 8 次且单挑战最多 5 次。
 - 客户端可以发送 X-Request-Id；服务端错误也返回 requestId，便于审计和日志关联。
 - 不要在请求体传 orgId 来改变作用域，服务端只信任会话。
 - CORS 只允许配置的 Web origin 并携带凭据。

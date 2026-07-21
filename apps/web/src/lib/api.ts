@@ -1,4 +1,4 @@
-import type { ApiEnvelope, PageMeta, UserSession } from "./types";
+import type { ApiEnvelope, LoginResult, MfaLoginChallenge, PageMeta, UserSession } from "./types";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "/api/v1";
 
@@ -164,8 +164,19 @@ export function saveDownload(result: Pick<DownloadResult, "blob" | "filename">) 
   URL.revokeObjectURL(href);
 }
 
-export async function login(email: string, password: string): Promise<UserSession> {
-  const response = await api.post<AuthPayload>("/auth/login", { email, password });
+export async function login(email: string, password: string): Promise<LoginResult> {
+  const response = await api.post<AuthPayload | MfaLoginChallenge>("/auth/login", {
+    email,
+    password,
+  });
+  if (!("user" in response.data)) {
+    return { kind: "mfa_challenge", challenge: response.data };
+  }
+  return { kind: "session", session: normalizeSession(response.data) };
+}
+
+export async function verifyMfaLogin(code: string): Promise<UserSession> {
+  const response = await api.post<AuthPayload>("/auth/mfa/verify", { code });
   return normalizeSession(response.data);
 }
 
@@ -184,6 +195,9 @@ interface AuthPayload {
   permissions: string[];
   role?: string;
   mustChangePassword: boolean;
+  mfaEnabled?: boolean;
+  mfaRequired?: boolean;
+  mustSetupMfa?: boolean;
 }
 
 function normalizeSession(payload: AuthPayload): UserSession {
@@ -196,6 +210,9 @@ function normalizeSession(payload: AuthPayload): UserSession {
     role,
     permissions: payload.permissions,
     mustChangePassword: payload.mustChangePassword,
+    mfaEnabled: payload.mfaEnabled ?? false,
+    mfaRequired: payload.mfaRequired ?? false,
+    mustSetupMfa: payload.mustSetupMfa ?? false,
   };
 }
 

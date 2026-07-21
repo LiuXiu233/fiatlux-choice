@@ -11,6 +11,9 @@ const session = {
   role: "owner",
   permissions: ["*"],
   mustChangePassword: false,
+  mfaEnabled: false,
+  mfaRequired: false,
+  mustSetupMfa: false,
 };
 
 const dashboard = {
@@ -251,6 +254,10 @@ export async function installMockApi(
     role?: string;
     permissions?: string[];
     displayName?: string;
+    mfaEnabled?: boolean;
+    mfaRequired?: boolean;
+    mustSetupMfa?: boolean;
+    mfaChallengeOnLogin?: boolean;
   } = {},
 ) {
   let loggedIn = false;
@@ -263,7 +270,13 @@ export async function installMockApi(
     role: options.role ?? session.role,
     permissions: options.permissions ?? session.permissions,
     mustChangePassword: options.mustChangePassword ?? session.mustChangePassword,
+    mfaEnabled: options.mfaEnabled ?? session.mfaEnabled,
+    mfaRequired: options.mfaRequired ?? session.mfaRequired,
+    mustSetupMfa: options.mustSetupMfa ?? session.mustSetupMfa,
   };
+  let mfaSetupPending = false;
+  let mfaChallengeOutstanding = false;
+  let recoveryCodesRemaining = sessionState.mfaEnabled ? 10 : 0;
   const membershipStatus = options.membershipStatus ?? "active";
   let pendingLifecycleAction: "deactivate" | "offboard" | "reactivate" | null = null;
   const operationalIncidents: Array<Record<string, unknown>> = [
@@ -294,7 +307,44 @@ export async function installMockApi(
         ? json(route, { data: sessionState })
         : json(route, { error: { message: "未登录", code: "UNAUTHORIZED" } }, 401);
     if (path === "/auth/login" && request.method() === "POST") {
+      if (options.mfaChallengeOnLogin) {
+        mfaChallengeOutstanding = true;
+        return json(
+          route,
+          {
+            data: {
+              mfaRequired: true,
+              challengeExpiresAt: new Date(Date.now() + 180_000).toISOString(),
+            },
+          },
+          202,
+        );
+      }
       loggedIn = true;
+      return json(route, { data: sessionState });
+    }
+    if (path === "/auth/mfa/verify" && request.method() === "POST") {
+      const input = request.postDataJSON() as Record<string, unknown>;
+      if (
+        !mfaChallengeOutstanding ||
+        !["123456", "FLX-AAAA-BBBB-CCCC-DDDD"].includes(String(input.code))
+      ) {
+        return json(
+          route,
+          {
+            error: {
+              message: "MFA verification code is invalid",
+              code: "MFA_CODE_INVALID",
+              details: { attemptsRemaining: 4 },
+            },
+          },
+          401,
+        );
+      }
+      mfaChallengeOutstanding = false;
+      loggedIn = true;
+      sessionState.mfaEnabled = true;
+      sessionState.mustSetupMfa = false;
       return json(route, { data: sessionState });
     }
     if (path === "/auth/logout") {
@@ -312,6 +362,71 @@ export async function installMockApi(
       }
       sessionState.mustChangePassword = false;
       return json(route, { data: { changed: true, revokedOtherSessions: 0 } });
+    }
+    if (path === "/auth/mfa/status" && request.method() === "GET") {
+      return json(route, {
+        data: {
+          enabled: sessionState.mfaEnabled,
+          required: sessionState.mfaRequired,
+          mustSetup: sessionState.mustSetupMfa,
+          setupPending: mfaSetupPending,
+          setupExpiresAt: mfaSetupPending ? new Date(Date.now() + 900_000).toISOString() : null,
+          recoveryCodesRemaining,
+          canDisable: sessionState.mfaEnabled && !sessionState.mfaRequired,
+        },
+      });
+    }
+    if (path === "/auth/mfa/setup" && request.method() === "POST") {
+      mfaSetupPending = true;
+      const setupExpiresAt = new Date(Date.now() + 900_000).toISOString();
+      return json(route, {
+        data: {
+          secret: "JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP",
+          otpAuthUri:
+            "otpauth://totp/FIAT%20LUX%20CHOICE%3Aowner%40fiatlux.local?secret=JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP&issuer=FIAT+LUX+CHOICE&algorithm=SHA256&digits=6&period=30",
+          algorithm: "SHA256",
+          digits: 6,
+          periodSeconds: 30,
+          setupExpiresAt,
+        },
+      });
+    }
+    if (path === "/auth/mfa/confirm" && request.method() === "POST") {
+      const input = request.postDataJSON() as Record<string, unknown>;
+      if (!mfaSetupPending || input.code !== "123456") {
+        return json(route, { error: { message: "TOTP verification code is invalid" } }, 401);
+      }
+      mfaSetupPending = false;
+      sessionState.mfaEnabled = true;
+      sessionState.mustSetupMfa = false;
+      recoveryCodesRemaining = 10;
+      return json(route, {
+        data: {
+          enabled: true,
+          recoveryCodes: Array.from(
+            { length: 10 },
+            (_, index) => `FLX-AAAA-BBBB-CCCC-${String.fromCharCode(65 + index).repeat(4)}`,
+          ),
+          revokedOtherSessions: 0,
+        },
+      });
+    }
+    if (path === "/auth/mfa/recovery-codes" && request.method() === "POST") {
+      recoveryCodesRemaining = 10;
+      return json(route, {
+        data: {
+          recoveryCodes: Array.from(
+            { length: 10 },
+            (_, index) => `FLX-DDDD-EEEE-FFFF-${String.fromCharCode(75 + index).repeat(4)}`,
+          ),
+          revokedOtherSessions: 0,
+        },
+      });
+    }
+    if (path === "/auth/mfa/disable" && request.method() === "POST") {
+      sessionState.mfaEnabled = false;
+      recoveryCodesRemaining = 0;
+      return json(route, { data: { disabled: true, revokedOtherSessions: 0 } });
     }
     if (path === "/dashboard") return json(route, { data: dashboard });
     if (path === "/audit-events" && request.method() === "GET") {

@@ -6,20 +6,25 @@ import {
   auditEvents,
   membershipRoles,
   memberships,
+  mfaLoginChallenges,
   organizations,
   roles,
   sessions,
+  userMfaCredentials,
+  userMfaRecoveryCodes,
   users,
 } from "./schema.js";
 
 export const OWNER_RECOVERY_PRODUCTION_CONFIRMATION =
   "RESET_ACTIVE_OWNER_PASSWORD_AND_REVOKE_ALL_SESSIONS";
+export const OWNER_RECOVERY_MFA_RESET_CONFIRMATION = "RESET_ACTIVE_OWNER_MFA_AND_RECOVERY_CODES";
 
 export interface OwnerRecoveryInput {
   organizationSlug: string;
   ownerEmail: string;
   newTemporaryPassword: string;
   productionConfirmation: string;
+  mfaResetConfirmation: string;
   reason: string;
   approvalReference: string;
   requestId: string;
@@ -35,6 +40,9 @@ function validateOwnerRecoveryInput(input: OwnerRecoveryInput) {
   }
   if (input.productionConfirmation !== OWNER_RECOVERY_PRODUCTION_CONFIRMATION) {
     throw new Error("Owner recovery production confirmation is invalid");
+  }
+  if (input.mfaResetConfirmation !== OWNER_RECOVERY_MFA_RESET_CONFIRMATION) {
+    throw new Error("Owner recovery MFA reset confirmation is invalid");
   }
   if (input.reason.trim().length < 8) {
     throw new Error("Owner recovery requires a non-empty reason of at least 8 characters");
@@ -117,6 +125,23 @@ export async function recoverOwnerPassword(db: Database, input: OwnerRecoveryInp
       .for("share");
     if (!ownerAssignment) throw new Error("Eligible active owner was not found for recovery");
 
+    const mfaCredential = await tx
+      .select({ enabledAt: userMfaCredentials.enabledAt })
+      .from(userMfaCredentials)
+      .where(eq(userMfaCredentials.userId, owner.id))
+      .limit(1)
+      .for("update");
+    const recoveryCodes = await tx
+      .select({ id: userMfaRecoveryCodes.id })
+      .from(userMfaRecoveryCodes)
+      .where(eq(userMfaRecoveryCodes.userId, owner.id))
+      .for("update");
+    const activeMfaChallenges = await tx
+      .select({ id: mfaLoginChallenges.id })
+      .from(mfaLoginChallenges)
+      .where(and(eq(mfaLoginChallenges.userId, owner.id), isNull(mfaLoginChallenges.consumedAt)))
+      .for("update");
+
     const [existingAudit] = await tx
       .select({ id: auditEvents.id })
       .from(auditEvents)
@@ -152,6 +177,12 @@ export async function recoverOwnerPassword(db: Database, input: OwnerRecoveryInp
       .set({ revokedAt: now, updatedAt: now })
       .where(and(eq(sessions.userId, owner.id), isNull(sessions.revokedAt)))
       .returning({ id: sessions.id });
+    await tx.delete(userMfaRecoveryCodes).where(eq(userMfaRecoveryCodes.userId, owner.id));
+    await tx.delete(userMfaCredentials).where(eq(userMfaCredentials.userId, owner.id));
+    await tx
+      .update(mfaLoginChallenges)
+      .set({ consumedAt: now, updatedAt: now })
+      .where(and(eq(mfaLoginChallenges.userId, owner.id), isNull(mfaLoginChallenges.consumedAt)));
 
     await tx.insert(auditEvents).values({
       orgId: organization.id,
@@ -164,12 +195,20 @@ export async function recoverOwnerPassword(db: Database, input: OwnerRecoveryInp
         mustChangePassword: owner.mustChangePassword,
         passwordChanged: false,
         nonRevokedSessionCount: revokedSessions.length,
+        mfaConfigured: Boolean(mfaCredential[0]),
+        mfaEnabled: Boolean(mfaCredential[0]?.enabledAt),
+        recoveryCodeCount: recoveryCodes.length,
+        activeMfaChallengeCount: activeMfaChallenges.length,
       },
       after: {
         mustChangePassword: true,
         passwordChanged: true,
         nonRevokedSessionCount: 0,
         revokedSessionCount: revokedSessions.length,
+        mfaConfigured: false,
+        mfaEnabled: false,
+        recoveryCodeCount: 0,
+        activeMfaChallengeCount: 0,
       },
       metadata: {
         source: "offline-owner-recovery-cli",
@@ -177,6 +216,7 @@ export async function recoverOwnerPassword(db: Database, input: OwnerRecoveryInp
         ownerEmail: owner.email,
         reason: input.reason,
         approvalReference: input.approvalReference,
+        mfaResetApproved: true,
       },
     });
 
@@ -186,6 +226,9 @@ export async function recoverOwnerPassword(db: Database, input: OwnerRecoveryInp
       requestId: input.requestId,
       revokedSessionCount: revokedSessions.length,
       mustChangePassword: true as const,
+      mfaReset: true as const,
+      deletedRecoveryCodeCount: recoveryCodes.length,
+      consumedMfaChallengeCount: activeMfaChallenges.length,
     };
   });
 }

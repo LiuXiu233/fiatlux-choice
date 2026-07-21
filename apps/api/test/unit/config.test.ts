@@ -28,6 +28,9 @@ describe("API config", () => {
     expect(config.DATABASE_POOL_SIZE).toBe(5);
     expect(config.DATABASE_CONNECT_TIMEOUT_SECONDS).toBe(10);
     expect(config.READINESS_TIMEOUT_MS).toBe(3_000);
+    expect(config.MFA_REQUIRED_ROLES).toEqual([]);
+    expect(config.MFA_CHALLENGE_TTL_SECONDS).toBe(180);
+    expect(config.MFA_SETUP_TTL_SECONDS).toBe(900);
   });
 
   it("rejects short JWT secrets", () => {
@@ -37,6 +40,25 @@ describe("API config", () => {
         JWT_SECRET: "short",
       }),
     ).toThrow();
+  });
+
+  it("requires a distinct canonical encryption key whenever MFA roles are enforced", () => {
+    const base = {
+      NODE_ENV: "production",
+      DATABASE_URL: "postgresql://user:password@localhost:5432/database",
+      JWT_SECRET: "a-secure-test-secret-that-is-long-enough",
+      MFA_REQUIRED_ROLES: "owner,admin,owner",
+    };
+    expect(() => apiConfigSchema.parse(base)).toThrow(/MFA_ENCRYPTION_KEY/);
+    expect(() =>
+      apiConfigSchema.parse({ ...base, MFA_ENCRYPTION_KEY: "not-a-32-byte-key" }),
+    ).toThrow(/32-byte Base64url/);
+    expect(
+      apiConfigSchema.parse({
+        ...base,
+        MFA_ENCRYPTION_KEY: Buffer.alloc(32, 0xa5).toString("base64url"),
+      }),
+    ).toMatchObject({ MFA_REQUIRED_ROLES: ["owner", "admin"] });
   });
 
   it("validates bounded database and readiness settings", () => {

@@ -9,6 +9,25 @@ const optionalSecret = z.preprocess(
   (value) => (value === "" ? undefined : value),
   z.string().min(1).optional(),
 );
+const optionalMfaEncryptionKey = z.preprocess(
+  (value) => (value === "" ? undefined : value),
+  z
+    .string()
+    .regex(/^[A-Za-z0-9_-]{43}$/u, "MFA_ENCRYPTION_KEY must be an unpadded 32-byte Base64url key")
+    .optional(),
+);
+const mfaRequiredRoles = z
+  .string()
+  .default("")
+  .transform((value) => [
+    ...new Set(
+      value
+        .split(",")
+        .map((role) => role.trim())
+        .filter(Boolean),
+    ),
+  ])
+  .pipe(z.array(z.string().regex(/^[a-z0-9][a-z0-9_-]{0,63}$/u)).max(16));
 const originUrl = z
   .string()
   .url()
@@ -28,6 +47,14 @@ export const apiConfigSchema = z
     JWT_TTL_SECONDS: z.coerce.number().int().min(300).max(604_800).default(28_800),
     COOKIE_SECURE: booleanString.default("false"),
     TRUST_PROXY: booleanString.default("false"),
+    MFA_ENCRYPTION_KEY: optionalMfaEncryptionKey,
+    MFA_ENCRYPTION_KEY_ID: z
+      .string()
+      .regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/u)
+      .default("v1"),
+    MFA_REQUIRED_ROLES: mfaRequiredRoles,
+    MFA_CHALLENGE_TTL_SECONDS: z.coerce.number().int().min(60).max(600).default(180),
+    MFA_SETUP_TTL_SECONDS: z.coerce.number().int().min(300).max(3_600).default(900),
     LLM_DRIVER: z.enum(["mock", "compatible", "disabled"]).default("disabled"),
     S3_ENDPOINT: optionalUrl,
     S3_REGION: z.string().default("us-east-1"),
@@ -54,6 +81,13 @@ export const apiConfigSchema = z
     GITHUB_INTEGRATION_MODE: z.enum(["manual", "read_only"]).default("manual"),
   })
   .superRefine((config, context) => {
+    if (config.MFA_REQUIRED_ROLES.length > 0 && !config.MFA_ENCRYPTION_KEY) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "MFA_REQUIRED_ROLES requires MFA_ENCRYPTION_KEY",
+        path: ["MFA_ENCRYPTION_KEY"],
+      });
+    }
     if (config.LLM_DRIVER === "compatible" && !config.LLM_BASE_URL) {
       context.addIssue({
         code: z.ZodIssueCode.custom,

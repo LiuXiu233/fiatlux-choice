@@ -2105,6 +2105,23 @@ select:focus-visible {
   margin-top: 3px;
 }
 
+.mfa-login-guidance {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.mfa-challenge-expiry {
+  margin-top: -8px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.mfa-login-back {
+  min-height: 40px;
+}
+
 .form-error {
   margin: -4px 0 0;
   padding: 9px 10px;
@@ -3552,6 +3569,206 @@ select:focus-visible {
   font-size: 10px;
 }
 
+.mfa-status-enabled,
+.mfa-status-disabled {
+  padding: 4px 7px;
+  border-radius: 999px;
+  font-weight: 700;
+}
+
+.settings-section > header > .mfa-status-enabled {
+  color: var(--teal-strong);
+  background: var(--teal-soft);
+}
+
+.settings-section > header > .mfa-status-disabled {
+  color: var(--amber);
+  background: var(--amber-soft);
+}
+
+.mfa-introduction,
+.mfa-enabled-controls {
+  display: grid;
+  gap: 12px;
+}
+
+.mfa-introduction p,
+.mfa-enabled-controls > p,
+.mfa-disable-details p {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.mfa-introduction .button {
+  width: fit-content;
+}
+
+.mfa-setup-grid {
+  display: grid;
+  grid-template-columns: minmax(210px, 250px) minmax(0, 1fr);
+  gap: 24px;
+  padding: 18px;
+  background: #f8f9fb;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.mfa-qr-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.mfa-qr-card img {
+  width: min(240px, 100%);
+  aspect-ratio: 1;
+  padding: 8px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.mfa-qr-card small,
+.mfa-setup-instructions .field-hint {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.mfa-setup-instructions {
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+}
+
+.mfa-setup-instructions h3,
+.mfa-recovery-sheet h3 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.mfa-secret-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mfa-secret-row code {
+  min-width: 0;
+  padding: 9px 10px;
+  overflow-wrap: anywhere;
+  color: var(--ink);
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+}
+
+.mfa-setup-instructions form,
+.mfa-step-up-form {
+  display: flex;
+  align-items: end;
+  gap: 10px;
+}
+
+.mfa-setup-instructions form {
+  align-items: stretch;
+  flex-direction: column;
+}
+
+.mfa-setup-instructions form label,
+.mfa-step-up-form label {
+  color: var(--ink-soft);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.mfa-setup-instructions input,
+.mfa-step-up-form input {
+  min-height: 40px;
+  padding: 8px 10px;
+}
+
+.mfa-step-up-form .form-field {
+  min-width: min(100%, 340px);
+}
+
+.mfa-recovery-sheet {
+  padding: 18px;
+  color: #5d4608;
+  background: #fff8df;
+  border: 1px solid #e6c962;
+  border-radius: 6px;
+}
+
+.mfa-recovery-sheet > p {
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.mfa-recovery-sheet ol {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 26px;
+  margin: 14px 0;
+  padding-left: 28px;
+}
+
+.mfa-recovery-sheet code {
+  color: #322500;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.mfa-recovery-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.mfa-saved-confirmation {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 14px 0;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.mfa-saved-confirmation input {
+  margin-top: 2px;
+}
+
+.mfa-disable-details {
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.mfa-disable-details summary {
+  width: fit-content;
+  color: var(--red);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.mfa-disable-details form {
+  margin-top: 10px;
+}
+
+.mfa-section > .mfa-introduction,
+.mfa-section > .mfa-enabled-controls,
+.mfa-section > .mfa-recovery-sheet,
+.mfa-section > .mfa-setup-grid,
+.mfa-section > .form-error,
+.mfa-section > .button {
+  margin: 14px;
+}
+
 .integration-list article {
   min-height: 82px;
   display: grid;
@@ -4539,6 +4756,26 @@ select:focus-visible {
   .login-heading h1 {
     margin-top: 14px;
     font-size: 22px;
+  }
+  .mfa-section .mfa-setup-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    margin: 10px;
+    padding: 14px;
+  }
+  .mfa-section .mfa-recovery-sheet {
+    margin: 10px;
+    padding: 14px;
+  }
+  .mfa-recovery-sheet ol {
+    grid-template-columns: 1fr;
+  }
+  .mfa-step-up-form {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .mfa-step-up-form .button {
+    width: 100%;
   }
   .toast-region {
     top: 66px;

@@ -8,6 +8,10 @@ export interface AuthContext {
   orgId: string;
   sessionId: string;
   permissions: string[];
+  roles: string[];
+  mfaEnabled: boolean;
+  mfaRequired: boolean;
+  mustSetupMfa: boolean;
 }
 
 export interface RequestAuditContext {

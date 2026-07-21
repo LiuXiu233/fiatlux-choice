@@ -1,4 +1,4 @@
-import { Eye, EyeOff, LockKeyhole } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, LockKeyhole, ShieldCheck } from "lucide-react";
 import { type FormEvent, useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { ApiError } from "../lib/api";
@@ -12,6 +12,7 @@ export function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [verificationCode, setVerificationCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -35,7 +36,15 @@ export function LoginPage() {
     setBusy(true);
     setError("");
     try {
-      await auth.login(email.trim(), password);
+      if (auth.mfaChallenge) {
+        await auth.verifyMfa(verificationCode.trim());
+      } else {
+        const result = await auth.login(email.trim(), password);
+        if (result.kind === "mfa_challenge") {
+          setPassword("");
+          return;
+        }
+      }
       const state = location.state as { from?: string } | null;
       navigate(state?.from ?? "/", { replace: true });
     } catch (caught) {
@@ -58,52 +67,102 @@ export function LoginPage() {
       <section className="login-panel">
         <div className="login-heading">
           <span className="login-lock">
-            <LockKeyhole aria-hidden="true" />
+            {auth.mfaChallenge ? (
+              <ShieldCheck aria-hidden="true" />
+            ) : (
+              <LockKeyhole aria-hidden="true" />
+            )}
           </span>
-          <h1>登录</h1>
-          <p>仅限获授权成员</p>
+          <h1>{auth.mfaChallenge ? "安全验证" : "登录"}</h1>
+          <p>{auth.mfaChallenge ? "完成第二重身份验证" : "仅限获授权成员"}</p>
         </div>
         <form onSubmit={submit} className="login-form">
-          <div className="login-field">
-            <label htmlFor="login-email">邮箱</label>
-            <input
-              id="login-email"
-              type="email"
-              autoComplete="username"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              required
-            />
-          </div>
-          <div className="login-field">
-            <label htmlFor="login-password">密码</label>
-            <span className="password-input">
-              <input
-                id="login-password"
-                type={showPassword ? "text" : "password"}
-                autoComplete="current-password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                required
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword((shown) => !shown)}
-                aria-label={showPassword ? "隐藏密码" : "显示密码"}
-                title={showPassword ? "隐藏密码" : "显示密码"}
-              >
-                {showPassword ? <EyeOff aria-hidden="true" /> : <Eye aria-hidden="true" />}
-              </button>
-            </span>
-          </div>
+          {auth.mfaChallenge ? (
+            <>
+              <p className="mfa-login-guidance">
+                输入验证器生成的 6 位代码；无法使用验证器时，可输入一枚未使用的恢复码。
+              </p>
+              <div className="login-field">
+                <label htmlFor="login-mfa-code">验证器代码或恢复码</label>
+                <input
+                  id="login-mfa-code"
+                  type="text"
+                  autoComplete="one-time-code"
+                  autoCapitalize="characters"
+                  spellCheck={false}
+                  value={verificationCode}
+                  onChange={(event) => setVerificationCode(event.target.value.toUpperCase())}
+                  required
+                />
+              </div>
+              <small className="mfa-challenge-expiry">
+                本次验证窗口截至
+                {new Date(auth.mfaChallenge.challengeExpiresAt).toLocaleTimeString("zh-CN", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  second: "2-digit",
+                })}
+              </small>
+            </>
+          ) : (
+            <>
+              <div className="login-field">
+                <label htmlFor="login-email">邮箱</label>
+                <input
+                  id="login-email"
+                  type="email"
+                  autoComplete="username"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  required
+                />
+              </div>
+              <div className="login-field">
+                <label htmlFor="login-password">密码</label>
+                <span className="password-input">
+                  <input
+                    id="login-password"
+                    type={showPassword ? "text" : "password"}
+                    autoComplete="current-password"
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((shown) => !shown)}
+                    aria-label={showPassword ? "隐藏密码" : "显示密码"}
+                    title={showPassword ? "隐藏密码" : "显示密码"}
+                  >
+                    {showPassword ? <EyeOff aria-hidden="true" /> : <Eye aria-hidden="true" />}
+                  </button>
+                </span>
+              </div>
+            </>
+          )}
           {error ? (
             <p className="form-error" role="alert">
               {error}
             </p>
           ) : null}
           <button type="submit" className="button primary login-submit" disabled={busy}>
-            {busy ? "正在验证…" : "进入工作区"}
+            {busy ? "正在验证…" : auth.mfaChallenge ? "验证并进入工作区" : "进入工作区"}
           </button>
+          {auth.mfaChallenge ? (
+            <button
+              type="button"
+              className="button secondary mfa-login-back"
+              onClick={() => {
+                auth.cancelMfaChallenge();
+                setVerificationCode("");
+                setError("");
+              }}
+              disabled={busy}
+            >
+              <ArrowLeft aria-hidden="true" />
+              重新输入邮箱和密码
+            </button>
+          ) : null}
         </form>
         <footer>
           <span>耀光（广州）电子竞技有限公司</span>

@@ -212,6 +212,34 @@ export const loginSchema = z.object({
   orgId: idSchema.optional(),
 });
 
+export const mfaTotpCodeSchema = z
+  .string()
+  .trim()
+  .regex(/^\d{6}$/u, "TOTP code must contain 6 digits");
+export const mfaRecoveryCodeSchema = z
+  .string()
+  .trim()
+  .toUpperCase()
+  .regex(
+    /^FLX(?:[-\s]?[A-Z2-7]{4}){4}$/u,
+    "Recovery code must use the FIAT LUX recovery-code format",
+  );
+export const mfaVerificationCodeSchema = z.union([mfaTotpCodeSchema, mfaRecoveryCodeSchema]);
+export const mfaSetupSchema = z.object({
+  confirmation: z.literal("START_MFA_ENROLLMENT"),
+});
+export const mfaConfirmSchema = z.object({ code: mfaTotpCodeSchema });
+export const mfaVerifySchema = z.object({ code: mfaVerificationCodeSchema });
+export const mfaRegenerateRecoveryCodesSchema = z.object({
+  code: mfaVerificationCodeSchema,
+  confirmation: z.literal("REPLACE_MFA_RECOVERY_CODES"),
+});
+export const mfaDisableSchema = z.object({
+  currentPassword: z.string().min(1).max(256),
+  code: mfaVerificationCodeSchema,
+  confirmation: z.literal("DISABLE_MFA"),
+});
+
 export const changePasswordSchema = z
   .object({
     currentPassword: z.string().min(1).max(256),

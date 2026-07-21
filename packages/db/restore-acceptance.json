@@ -23,6 +23,7 @@
     "invoices",
     "membership_roles",
     "memberships",
+    "mfa_login_challenges",
     "notifications",
     "objectives",
     "obligations",
@@ -36,6 +37,8 @@
     "roles",
     "sessions",
     "tasks",
+    "user_mfa_credentials",
+    "user_mfa_recovery_codes",
     "users",
     "workflow_definitions",
     "workflow_runs"

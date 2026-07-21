@@ -84,9 +84,10 @@ member 的默认写权限集中在项目、任务、决策、风险、产品、�
 4. 批准后 membership 才变为 active 并取得角色；驳回时不得交付凭据。
 5. 通过安全渠道交付临时凭据，新成员登录并确认组织、角色和菜单范围。
 6. 新成员首次登录即带 `mustChangePassword`；改密前 API 只允许 `GET /auth/me`、`POST /auth/change-password` 和 `POST /auth/logout`。在“设置 → 登录密码”设置至少 14 位且不同于临时值的新密码，成功后保留当前会话并撤销其他会话。
-7. 用一个应允许和一个应拒绝的动作验证权限，保存审计证据。
+7. owner/admin 在改密后必须继续完成 TOTP MFA 登记并离线保存 10 枚一次性恢复码；完成前服务端只允许安全设置、会话查看和退出。其他角色可自愿启用。详见[多因素认证指南](./mfa.md)。
+8. 用一个应允许和一个应拒绝的动作验证权限，保存不含密码、TOTP 密钥和恢复码的审计证据。
 
-当前版本已强制首次改密，但仍没有自助密码找回、恢复码、管理员密码重置和 MFA。管理员必须在上线前建立线下身份核验与密码恢复流程。
+当前版本没有公开、自助密码找回或管理员 Web 重置端点；恢复码只用于第二因素登录，不能重置密码。管理员仍须建立线下身份核验和离线 owner 恢复流程。
 
 首次 seed 是仅用于空组织引导的**非日常运维命令**。显式 `SEED_MODE=bootstrap` 新建 bootstrap user、active membership、owner assignment、四个内置角色及完整权限基线；遇到既有组织 slug 会失败，不会偷偷转为维护。只有该模式接受 admin name/password。首次 owner 同样设置 `mustChangePassword`，必须按[内网部署手册](../admin/intranet-deployment.md#5-首次启动与初始化)完成首次登录和改密。不得把 seed 放入普通启动、重启、升级或定时任务。
 
@@ -94,7 +95,7 @@ member 的默认写权限集中在项目、任务、决策、风险、产品、�
 
 内置角色/权限升级属于关键权限变更，只能在人工批准后显式选择 `SEED_MODE=system-role-maintenance`，并同时提供本组织 active owner 的 `SEED_MAINTENANCE_OPERATOR_EMAIL`、非空 `SEED_MAINTENANCE_REASON`、`SEED_MAINTENANCE_APPROVAL_REFERENCE` 和唯一 `SEED_MAINTENANCE_REQUEST_ID`。该模式拒绝任何 bootstrap/admin 身份字段，只增加代码基线中缺失的内置角色/权限，不删除额外权限，也不触碰 membership/assignment；每项新增都以该 owner 为 actor，在同一事务写 before/after、原因、批准/变更编号和 requestId 的追加审计。缺少参数、operator 不是 active owner、组织不匹配或仍注入引导密码时必须失败关闭。
 
-唯一 owner 忘记密码不应通过 seed、改库或新增 API 绕过。受支持的最小恢复仅为生产主机上的离线 one-off CLI：精确匹配组织 slug 和小写 email，确认目标 membership 与 owner role 均为 active/未归档，要求固定生产确认、reason、人工批准/变更编号和唯一 requestId，并只从 stdin/secret 接收 14–256 字符且不同于旧值的临时密码。成功事务会使用 Argon2id 更新、设置 `mustChangePassword=true`、撤销该用户全部会话并追加不含密码的审计；首次临时登录仍受三端点限制，必须立即改密。完整 Compose 命令见 [README 的唯一 owner 离线恢复](../../README.md#唯一-owner-离线恢复)。
+唯一 owner 忘记密码或同时失去第二因素不应通过 seed、改库或新增公开 API 绕过。受支持的最小恢复仅为生产主机上的离线 one-off CLI：精确匹配组织 slug 和小写 email，确认目标 membership 与 owner role 均为 active/未归档，分别要求密码重置与 MFA 清除的固定生产确认、reason、人工批准/变更编号和唯一 requestId，并只从 stdin/secret 接收 14–256 字符且不同于旧值的临时密码。成功事务会使用 Argon2id 更新、设置 `mustChangePassword=true`、撤销全部会话、删除 TOTP 密钥/恢复码、消费未完成挑战并追加不含秘密的审计；首次临时登录仍受三端点限制，必须先改密再登记 MFA。完整 Compose 命令见 [README 的唯一 owner 离线恢复](../../README.md#唯一-owner-离线恢复)。
 
 ## 6. 角色变更、停用与离职
 

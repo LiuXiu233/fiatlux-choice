@@ -1,6 +1,9 @@
 import { Readable } from "node:stream";
 import { describe, expect, it } from "vitest";
-import { OWNER_RECOVERY_PRODUCTION_CONFIRMATION } from "../src/owner-recovery.js";
+import {
+  OWNER_RECOVERY_MFA_RESET_CONFIRMATION,
+  OWNER_RECOVERY_PRODUCTION_CONFIRMATION,
+} from "../src/owner-recovery.js";
 import { readOwnerRecoveryConfig } from "../src/owner-recovery-config.js";
 import { readSingleLineSecret } from "../src/stdin-secret.js";
 
@@ -8,6 +11,7 @@ const validEnvironment = {
   OWNER_RECOVERY_ORG_SLUG: "fiat-lux",
   OWNER_RECOVERY_EMAIL: "owner@example.test",
   OWNER_RECOVERY_PRODUCTION_CONFIRMATION,
+  OWNER_RECOVERY_MFA_RESET_CONFIRMATION,
   OWNER_RECOVERY_REASON: "Recover the sole owner after documented identity verification",
   OWNER_RECOVERY_APPROVAL_REFERENCE: "CHANGE-2026-0043",
   OWNER_RECOVERY_REQUEST_ID: "owner-recovery-2026-0043",
@@ -20,6 +24,12 @@ describe("offline owner recovery input boundaries", () => {
       readOwnerRecoveryConfig({
         ...validEnvironment,
         OWNER_RECOVERY_PRODUCTION_CONFIRMATION: "yes",
+      }),
+    ).toThrow();
+    expect(() =>
+      readOwnerRecoveryConfig({
+        ...validEnvironment,
+        OWNER_RECOVERY_MFA_RESET_CONFIRMATION: "yes",
       }),
     ).toThrow();
     expect(() =>

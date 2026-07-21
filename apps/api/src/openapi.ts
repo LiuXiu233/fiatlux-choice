@@ -19,6 +19,11 @@ import {
   loginSchema,
   MAX_FILE_SIZE_BYTES,
   membershipLifecycleRequestSchema,
+  mfaConfirmSchema,
+  mfaDisableSchema,
+  mfaRegenerateRecoveryCodesSchema,
+  mfaSetupSchema,
+  mfaVerifySchema,
   notificationMarkReadSchema,
   operationalIncidentListQuerySchema,
   operationalIncidentResolutionSchema,
@@ -415,12 +420,33 @@ const authSessionSchema = objectSchema({
   roles: arraySchema({ type: "string" }),
   role: nullable({ type: "string" }),
   mustChangePassword: { type: "boolean" },
+  mfaEnabled: { type: "boolean" },
+  mfaRequired: { type: "boolean" },
+  mustSetupMfa: { type: "boolean" },
   expiresAt: dateTimeJsonSchema,
+});
+const recoveryCodesSchema = arraySchema({
+  type: "string",
+  pattern: "^FLX(?:-[A-Z2-7]{4}){4}$",
 });
 addOperation("POST", "/api/v1/auth/login", {
   operationId: "login",
   anonymous: true,
   body: zodSchema(loginSchema),
+  success: {
+    200: dataEnvelope(authSessionSchema),
+    202: dataEnvelope(
+      objectSchema({
+        mfaRequired: { type: "boolean", const: true },
+        challengeExpiresAt: dateTimeJsonSchema,
+      }),
+    ),
+  },
+});
+addOperation("POST", "/api/v1/auth/mfa/verify", {
+  operationId: "verifyMfaLogin",
+  anonymous: true,
+  body: zodSchema(mfaVerifySchema),
   success: { 200: dataEnvelope(authSessionSchema) },
 });
 addOperation("POST", "/api/v1/auth/logout", {
@@ -436,6 +462,75 @@ addOperation("POST", "/api/v1/auth/change-password", {
     200: dataEnvelope(
       objectSchema({
         changed: { type: "boolean", const: true },
+        revokedOtherSessions: nonNegativeIntegerSchema,
+      }),
+    ),
+  },
+});
+addOperation("GET", "/api/v1/auth/mfa/status", {
+  operationId: "getMfaStatus",
+  success: {
+    200: dataEnvelope(
+      objectSchema({
+        enabled: { type: "boolean" },
+        required: { type: "boolean" },
+        mustSetup: { type: "boolean" },
+        setupPending: { type: "boolean" },
+        setupExpiresAt: nullable(dateTimeJsonSchema),
+        recoveryCodesRemaining: nonNegativeIntegerSchema,
+        canDisable: { type: "boolean" },
+      }),
+    ),
+  },
+});
+addOperation("POST", "/api/v1/auth/mfa/setup", {
+  operationId: "startMfaSetup",
+  body: zodSchema(mfaSetupSchema),
+  success: {
+    200: dataEnvelope(
+      objectSchema({
+        secret: { type: "string", pattern: "^[A-Z2-7]+$" },
+        otpAuthUri: { type: "string" },
+        algorithm: { type: "string", const: "SHA256" },
+        digits: { type: "integer", const: 6 },
+        periodSeconds: { type: "integer", const: 30 },
+        setupExpiresAt: dateTimeJsonSchema,
+      }),
+    ),
+  },
+});
+addOperation("POST", "/api/v1/auth/mfa/confirm", {
+  operationId: "confirmMfaSetup",
+  body: zodSchema(mfaConfirmSchema),
+  success: {
+    200: dataEnvelope(
+      objectSchema({
+        enabled: { type: "boolean", const: true },
+        recoveryCodes: recoveryCodesSchema,
+        revokedOtherSessions: nonNegativeIntegerSchema,
+      }),
+    ),
+  },
+});
+addOperation("POST", "/api/v1/auth/mfa/recovery-codes", {
+  operationId: "regenerateMfaRecoveryCodes",
+  body: zodSchema(mfaRegenerateRecoveryCodesSchema),
+  success: {
+    200: dataEnvelope(
+      objectSchema({
+        recoveryCodes: recoveryCodesSchema,
+        revokedOtherSessions: nonNegativeIntegerSchema,
+      }),
+    ),
+  },
+});
+addOperation("POST", "/api/v1/auth/mfa/disable", {
+  operationId: "disableMfa",
+  body: zodSchema(mfaDisableSchema),
+  success: {
+    200: dataEnvelope(
+      objectSchema({
+        disabled: { type: "boolean", const: true },
         revokedOtherSessions: nonNegativeIntegerSchema,
       }),
     ),
@@ -457,6 +552,9 @@ addOperation("GET", "/api/v1/auth/me", {
         roles: arraySchema({ type: "string" }),
         role: nullable({ type: "string" }),
         mustChangePassword: { type: "boolean" },
+        mfaEnabled: { type: "boolean" },
+        mfaRequired: { type: "boolean" },
+        mustSetupMfa: { type: "boolean" },
       }),
     ),
   },

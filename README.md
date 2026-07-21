@@ -2,7 +2,7 @@
 
 耀光（广州）电子竞技有限公司及类似中国境内 1–2 人团队的内部公司治理与运营 Web App。
 
-当前状态：**受控候选，14 项门禁中 3 项通过、11 项阻断，尚未宣布或批准 V1 完成**。仓库已经包含实质业务实现、PWA、API、worker、38 张业务表与 11 个迁移（`0000`–`0010`）、内网部署和恢复资产。部署源码 `9de2b56a2fe2943c9ddf038eefe5a5b11b53eb06` 已在 Ubuntu 24.04/amd64 以 [choice.fiatlux.gg](https://choice.fiatlux.gg) 完成可信 HTTPS、六服务、桌面/移动/PWA、真实栈 6/6、七类运行镜像 Trivy/SPDX、重启以及 age+Ed25519 隔离恢复；这是低规格公网验收环境，不是耀光广州办公内网、VPN/访问源受限生产环境或物理真机证明。证据提交 `393f4edbd48dea617f48277a278f91da78558bd8` 的 [CI run 29767089892](https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29767089892) 与 [Security run 29767090155](https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29767090155) 已在真实 GitHub runner 上整体绿色；Security 实跑 Gitleaks、生产依赖、Semgrep 和 Trivy，CodeQL 因 entitlement 不可用而明确跳过，PR 镜像构建也不是 GHCR 发布。其余阻断包括七类 GHCR 双平台不可变制品、CodeQL/经批准等效 SAST 风险决定、历史生产 N−1 和最终目标发布、经审批生产恢复入口、广州办公内网或访问源限制、真实受管设备、真实 LLM/GitHub 适配器、73 条专业复核、十二篇教育内容权利/发布复核、MinIO 长期支持风险处置及责任人批准。详情见[V1 验收矩阵](docs/delivery/v1-acceptance-matrix.md)和[受控候选交付报告](docs/delivery/final-delivery-report.md)。
+当前状态：**受控候选，14 项门禁中 3 项通过、11 项阻断，尚未宣布或批准 V1 完成**。当前仓库候选已经包含实质业务实现、PWA、API、worker、41 张业务表与 12 个迁移（`0000`–`0011`）、owner/admin 强制 TOTP MFA、内网部署和恢复资产。上一远端部署源码 `9de2b56a2fe2943c9ddf038eefe5a5b11b53eb06` 已在 Ubuntu 24.04/amd64 以 [choice.fiatlux.gg](https://choice.fiatlux.gg) 完成可信 HTTPS、六服务、桌面/移动/PWA、真实栈 6/6、七类运行镜像 Trivy/SPDX、重启以及 age+Ed25519 隔离恢复，但它仍是 38 表/11 migration 且无 MFA 的历史部署；当前候选必须重新部署、迁移、登记并复验后才能承载敏感数据。该主机仍是低规格公网验收环境，不是耀光广州办公内网、VPN/访问源受限生产环境或物理真机证明。证据提交 `393f4edbd48dea617f48277a278f91da78558bd8` 的 [CI run 29767089892](https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29767089892) 与 [Security run 29767090155](https://github.com/LiuXiu233/fiatlux-choice/actions/runs/29767090155) 已在真实 GitHub runner 上整体绿色；Security 实跑 Gitleaks、生产依赖、Semgrep 和 Trivy，CodeQL 因 entitlement 不可用而明确跳过，PR 镜像构建也不是 GHCR 发布。其余阻断包括七类 GHCR 双平台不可变制品、CodeQL/经批准等效 SAST 风险决定、历史生产 N−1 和最终目标发布、经审批生产恢复入口、广州办公内网或访问源限制、真实受管设备、真实 LLM/GitHub 适配器、73 条专业复核、十二篇教育内容权利/发布复核、MinIO 长期支持风险处置及责任人批准。详情见[V1 验收矩阵](docs/delivery/v1-acceptance-matrix.md)和[受控候选交付报告](docs/delivery/final-delivery-report.md)。
 
 2026-07-20 不可变基线实现 `101d2f0938adfa0caa8ed576f6587a5c78ae74a5` 已通过 Biome 206 文件、ShellCheck/Actionlint、7 项类型检查、177/177 单元、API 89/89、worker 25/25、真实 MinIO 2/2、mock 46+6、隔离真实栈 desktop/mobile 4/4、fresh/上一版本迁移、fresh/legacy 最小权限和生产构建；同一提交又重建七个 arm64 镜像和独立 production-like Compose，验证六服务健康、重启持久性、桌面/390×844 移动端、PWA 10 条缓存/0 安装性错误、73 条来源保持未复核、Trivy 0.70.0 HIGH/CRITICAL 0、7 份 Syft 1.42.3 SPDX，以及 age+Ed25519 一致性备份在随机全新卷精确恢复 38 表、11 migration、pg-boss 24 和逐对象 SHA。脱敏记录见[基线候选验收证据](docs/delivery/evidence/production-like-acceptance-101d2f0-20260720.json)。该基线事实不替代后续 GitHub、GHCR、目标环境和人工门禁。
 
@@ -121,6 +121,7 @@ printf '%s\n' "$OWNER_RECOVERY_TEMPORARY_PASSWORD" | \
     -e OWNER_RECOVERY_ORG_SLUG=fiat-lux \
     -e OWNER_RECOVERY_EMAIL=owner@example.com \
     -e OWNER_RECOVERY_PRODUCTION_CONFIRMATION=RESET_ACTIVE_OWNER_PASSWORD_AND_REVOKE_ALL_SESSIONS \
+    -e OWNER_RECOVERY_MFA_RESET_CONFIRMATION=RESET_ACTIVE_OWNER_MFA_AND_RECOVERY_CODES \
     -e OWNER_RECOVERY_REASON='Approved offline identity recovery' \
     -e OWNER_RECOVERY_APPROVAL_REFERENCE=CHANGE-2026-0043 \
     -e OWNER_RECOVERY_REQUEST_ID=owner-recovery-2026-0043 \
@@ -130,7 +131,7 @@ unset OWNER_RECOVERY_TEMPORARY_PASSWORD
 test "$recovery_status" -eq 0
 ~~~
 
-成功时同一数据库事务写入 Argon2id 临时密码、设置 `mustChangePassword=true`、撤销该用户在所有组织的全部未撤销会话并追加不含密码的审计。owner 用临时密码登录后仍只能访问 `me`、`change-password`、`logout`，必须立即设置新的独立密码。slug/email 不匹配、非 owner、inactive/archived membership 或 owner role、缺少批准控制、重复 requestId及同旧密码都会整体失败，不产生部分恢复。
+成功时同一数据库事务写入 Argon2id 临时密码、设置 `mustChangePassword=true`、撤销该用户在所有组织的全部未撤销会话、清除加密 TOTP 密钥与恢复码、使未完成 MFA 挑战失效，并追加不含密码/密钥/恢复码的审计。owner 用临时密码登录后仍只能访问 `me`、`change-password`、`logout`，必须先设置新的独立密码，再重新登记 MFA。slug/email 不匹配、非 owner、inactive/archived membership 或 owner role、缺少任一固定确认/批准控制、重复 requestId及同旧密码都会整体失败，不产生部分恢复。
 
 停止服务：
 

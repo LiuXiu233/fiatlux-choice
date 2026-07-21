@@ -88,9 +88,10 @@ openssl rand -hex 32
 openssl rand -hex 32
 openssl rand -hex 32
 openssl rand -hex 48
+openssl rand -base64 32 | tr '+/' '-_' | tr -d '='
 ```
 
-前五个数据库值分别用于 `POSTGRES_BOOTSTRAP_PASSWORD`、`POSTGRES_MIGRATION_PASSWORD`、`POSTGRES_RUNTIME_PASSWORD`、`POSTGRES_BACKUP_PASSWORD`、`POSTGRES_RESTORE_PASSWORD`，随后用于 `MINIO_ROOT_PASSWORD` 和 `SESSION_SECRET`。另为 `INITIAL_ADMIN_PASSWORD` 生成独立、至少 14 位的随机引导密码；它只用于显式 seed。LLM 与 GitHub 凭据按最小权限配置；不启用时保持 mock/manual，不伪造外部调用成功。角色能力和旧卷升级步骤见[PostgreSQL 最小权限角色手册](./database-roles.md)。
+前五个十六进制值分别用于 `POSTGRES_BOOTSTRAP_PASSWORD`、`POSTGRES_MIGRATION_PASSWORD`、`POSTGRES_RUNTIME_PASSWORD`、`POSTGRES_BACKUP_PASSWORD`、`POSTGRES_RESTORE_PASSWORD`，随后用于 `MINIO_ROOT_PASSWORD` 和 `SESSION_SECRET`；最后一条 Base64url 输出专用于 `MFA_ENCRYPTION_KEY`，不得与会话、数据库或备份密钥复用。设置稳定的 `MFA_ENCRYPTION_KEY_ID=production-v1`，生产保持 `MFA_REQUIRED_ROLES=owner,admin`。另为 `INITIAL_ADMIN_PASSWORD` 生成独立、至少 14 位的随机引导密码；它只用于显式 seed。LLM 与 GitHub 凭据按最小权限配置；不启用时保持 mock/manual，不伪造外部调用成功。角色能力和旧卷升级步骤见[PostgreSQL 最小权限角色手册](./database-roles.md)。
 
 默认 `DATABASE_POOL_SIZE=5` 按单个数据库客户端计：API 与 worker 各有一个常驻 Drizzle/postgres.js 池和一个 pg-boss/node-postgres 池，分别使用 `fiatlux-api`、`fiatlux-api-queue`、`fiatlux-worker`、`fiatlux-worker-queue` 作为 PostgreSQL `application_name`，默认总上限为 20 条按需连接。Drizzle 池保持已打开的空闲连接，不再每 20 秒为低频人工请求重新建立 DNS/TCP/SCRAM 会话；pg-boss 池也使用同一连接数和建连 deadline。`DATABASE_CONNECT_TIMEOUT_SECONDS=10` 约束真实建连；`READINESS_TIMEOUT_MS=3000` 是 API ready 的应用层协作式 deadline，事件循环严重受压时 JavaScript timer 也可能延后，因此部署验收的 `curl --max-time 10` 仍是外部硬中止。API 容器自身 5 秒 health timeout 请求 bounded ready，依赖故障会使其显示 `unhealthy`，但 Docker 不会仅凭此状态自动重启；不要通过盲目重启或增大连接池、超时来掩盖宿主过载、DNS、凭据或数据库故障。调整前后都要记录 `pg_stat_activity`、ready 延迟和业务请求证据。
 
@@ -166,9 +167,10 @@ seed 是**非日常运维命令**，且必须显式选择模式。`bootstrap` �
 
 1. 用 `INITIAL_ADMIN_EMAIL` 和引导密码首次登录，确认角色为 owner。
 2. 打开“设置 → 登录密码”，输入当前引导密码并设置新的独立密码（至少 14 位）。成功后系统撤销该用户的其他会话。
-3. 退出并用新密码重新登录，确认引导密码不再可用；保存登录、改密和审计结果，但不得保存明文密码或 Cookie。
-4. 从生产环境文件清空 `INITIAL_ADMIN_PASSWORD`，再用 `./scripts/compose.sh config --quiet` 验证配置。API 和 worker 从不接收该变量；不得用重新 bootstrap 作为密码恢复手段。
-5. 在密码管理系统中记录 owner 恢复责任人；当前没有自助忘记密码、恢复码或 MFA。唯一 active owner 无法登录时，按 README 的离线 one-off recovery 流程从 stdin 提供临时密码，并记录固定确认、理由、批准编号和唯一 requestId。
+3. 改密后系统继续强制 owner 登记 TOTP MFA。使用支持 SHA-256 的验证器扫描二维码、输入 6 位代码，并把一次性显示的 10 枚恢复码保存到独立离线介质；确认保存前不要刷新或关闭页面。完整操作见[多因素认证指南](../user/mfa.md)。
+4. 退出并用新密码重新登录，确认先出现 MFA 验证且引导密码不再可用；抽查 TOTP、单枚恢复码一次性使用、登录/登记审计，但不得保存明文密码、TOTP 密钥、恢复码或 Cookie 到验收材料。
+5. 从生产环境文件清空 `INITIAL_ADMIN_PASSWORD`，再用 `./scripts/compose.sh config --quiet` 验证配置。API 和 worker 从不接收该变量；不得用重新 bootstrap 作为密码恢复手段。
+6. 在密码管理系统中记录 owner 恢复责任人。唯一 active owner 同时失去密码或第二因素时，按 README 的离线 one-off recovery 流程从 stdin 提供临时密码，并分别记录密码重置与 MFA 清除的固定确认、理由、批准编号和唯一 requestId。
 
 如果 seed 输出的 organization/email、模式或 metadata requestId 与批准配置不一致，或者既有组织 bootstrap 没有按设计失败，立即停止上线并按事件/变更流程处理，不要直接修改数据库。
 

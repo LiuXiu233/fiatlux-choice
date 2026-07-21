@@ -17,12 +17,13 @@ try {
     ownerEmail: config.OWNER_RECOVERY_EMAIL,
     newTemporaryPassword,
     productionConfirmation: config.OWNER_RECOVERY_PRODUCTION_CONFIRMATION,
+    mfaResetConfirmation: config.OWNER_RECOVERY_MFA_RESET_CONFIRMATION,
     reason: config.OWNER_RECOVERY_REASON,
     approvalReference: config.OWNER_RECOVERY_APPROVAL_REFERENCE,
     requestId: config.OWNER_RECOVERY_REQUEST_ID,
   });
   console.log(
-    `Offline owner recovery ${result.requestId} completed; revoked ${result.revokedSessionCount} sessions and forced first-login password change`,
+    `Offline owner recovery ${result.requestId} completed; revoked ${result.revokedSessionCount} sessions, reset MFA, and forced first-login password change`,
   );
 } finally {
   await client.end();

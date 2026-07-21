@@ -13,6 +13,9 @@ import {
   listQuerySchema,
   membershipLifecycleApprovalPayloadSchema,
   membershipLifecycleRequestSchema,
+  mfaDisableSchema,
+  mfaRegenerateRecoveryCodesSchema,
+  mfaVerificationCodeSchema,
   moneyCentsSchema,
   notificationCreateSchema,
   operationalIncidentListQuerySchema,
@@ -171,6 +174,28 @@ describe("HTTP contracts", () => {
         newPassword: "same-password-long-enough",
       }),
     ).toThrow(/differ/);
+  });
+
+  it("accepts only bounded MFA codes and explicit destructive confirmations", () => {
+    expect(mfaVerificationCodeSchema.parse("123456")).toBe("123456");
+    expect(mfaVerificationCodeSchema.parse("flx-aaaa-bbbb-cccc-dddd")).toBe(
+      "FLX-AAAA-BBBB-CCCC-DDDD",
+    );
+    expect(mfaVerificationCodeSchema.safeParse("12345").success).toBe(false);
+    expect(mfaVerificationCodeSchema.safeParse("FLX-0000-0000-0000-0000").success).toBe(false);
+    expect(
+      mfaRegenerateRecoveryCodesSchema.safeParse({
+        code: "123456",
+        confirmation: "REPLACE_MFA_RECOVERY_CODES",
+      }).success,
+    ).toBe(true);
+    expect(
+      mfaDisableSchema.safeParse({
+        currentPassword: "current-password",
+        code: "123456",
+        confirmation: "yes",
+      }).success,
+    ).toBe(false);
   });
 
   it("types membership lifecycle requests and their approval payloads", () => {

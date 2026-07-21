@@ -37,12 +37,13 @@
 
 不可变受控审计导出候选 `4391837e0c2b91fa58b2269a26b2cbb3294347b6` 增加双权限、明确确认、北京时间 31 天窗口、10,000 条/25 MiB 整体失败上限、CSV 公式注入保护、响应/浏览器双重 SHA-256 和成功前 `export_generated`。精确 SHA 已完成 263 文件静态门禁、49 files/278 单元、PostgreSQL API 95/95、mock 51+7、全新 PostgreSQL+MinIO desktop/mobile 6/6、源码安全及 API/worker/Web 三张受影响镜像的只读运行、Trivy/SPDX；完整记录见[受控审计导出证据](./evidence/governed-audit-export-acceptance-4391837-20260720.json)。现有组织补充 admin 导出权限仍必须经真实批准运行 `system-role-maintenance`；本地下载成功不替代公司保留/销毁制度、目标内网、真机、GitHub/GHCR 或责任人批准。
 
-当前 schema 为 38 张业务表和 11 个迁移（`0000`–`0010`）。专用迁移测试已证明 `0000`–`0009` 数据原样保留、不会为 legacy reviewed 记录发明专业 provenance；当前签名恢复又逐项匹配 11 个 migration SQL hash，但这仍不是生产副本或目标办公内网升级证明。本地 synthetic bridge 只覆盖旧 10 迁移基线，历史生产 N−1、目标发布复演和经审批的破坏性 `restore.sh` 生产入口没有实跑。`393f4ed…` 的 GitHub CI/Security 已绿色，但 CodeQL 明确跳过；最终 GHCR 镜像、CodeQL/等效 SAST 风险决定、目标办公内网、真实设备、真实教育内容放行、MinIO 长期维护/支持风险处置和责任人批准仍是发布闸门，以[验收矩阵](./v1-acceptance-matrix.md)为准。
+当前 schema 为 41 张业务表和 12 个迁移（`0000`–`0011`）。专用迁移测试已证明上一候选 11 个迁移的数据原样保留、不会为 legacy reviewed 记录发明专业 provenance，并在 fresh 库生成 41 表；此前签名恢复仍只证明 38 表/11 migration 的不可变历史基线，不是当前 0011、生产副本或目标办公内网恢复证明。本地 synthetic bridge 只覆盖更旧基线，历史生产 N−1、当前候选目标发布复演和经审批的破坏性 `restore.sh` 生产入口没有实跑。`393f4ed…` 的 GitHub CI/Security 已绿色，但 CodeQL 明确跳过；最终 GHCR 镜像、CodeQL/等效 SAST 风险决定、目标办公内网、真实设备、真实教育内容放行、MinIO 长期维护/支持风险处置和责任人批准仍是发布闸门，以[验收矩阵](./v1-acceptance-matrix.md)为准。
 
 ## 3. 身份与权限
 
-- 当前为本地邮箱密码认证，无 SSO、MFA、通行密钥和企业身份目录。
-- 首次引导登录被限制在查看本人、改密和退出三个端点；改为至少 14 位独立密码后撤销其他会话。系统仍没有 SSO、MFA、自助忘记密码或恢复码。
+- 当前为本地邮箱密码 + TOTP MFA 认证，无 SSO、WebAuthn/passkey 和企业身份目录。生产默认强制 owner/admin 登记；其他角色可自愿启用。
+- 首次引导登录被限制在查看本人、改密和退出三个端点；改为至少 14 位独立密码后撤销其他会话，再强制 owner/admin 登记 MFA。恢复码只能替代第二因素，系统仍没有自助忘记密码或管理员 Web 密码重置。
+- MFA 加密密钥当前只支持单活动 key ID，没有在线重加密；已有登记用户时不能直接替换生产 key。必须先实现受控重加密或批准逐用户重新登记。
 - 成员创建、激活、停用、离职、再激活和本组织会话撤销已有审批式 API/UI 与并发测试；它不自动完成业务交接，任务、合同、文件和外部账号仍要人工核对。
 - API 要求单人自批显式发送 SELF_APPROVAL_ACKNOWLEDGED；Web 已只在当前用户就是申请人时展示自批责任确认并发送该值。该例外降低职责分离，仍需事后独立复核。
 - owner 拥有全局权限；Docker 主机和数据库超级管理员仍能绕过应用审计。

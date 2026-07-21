@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { type FormEvent, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { MfaPanel } from "../components/mfa-panel";
 import { PageHeader } from "../components/page-header";
 import { EmptyState, ErrorState, Spinner, StatusBadge, useToast } from "../components/ui";
 import { ApiError, api } from "../lib/api";
@@ -41,6 +42,8 @@ export function SettingsPage() {
   const toast = useToast();
   const queryClient = useQueryClient();
   const mustChangePassword = auth.user?.mustChangePassword === true;
+  const mustSetupMfa = auth.user?.mustSetupMfa === true;
+  const securitySetupRequired = mustChangePassword || mustSetupMfa;
   const integrations = useQuery({
     queryKey: ["integrations"],
     queryFn: async () => (await api.get<IntegrationStatus[]>("/settings/integrations")).data,
@@ -48,7 +51,7 @@ export function SettingsPage() {
       query.state.data?.some((integration) => ["queued", "running"].includes(integration.status))
         ? 2500
         : false,
-    enabled: !mustChangePassword,
+    enabled: !securitySetupRequired,
   });
   const backups = useQuery({
     queryKey: ["backups"],
@@ -57,7 +60,7 @@ export function SettingsPage() {
       query.state.data?.some((backup) => ["queued", "running"].includes(backup.status))
         ? 2500
         : false,
-    enabled: !mustChangePassword,
+    enabled: !securitySetupRequired,
   });
   const backupMutation = useMutation({
     mutationFn: () => api.post<BackupRecord>("/backups", { scope: "database" }),
@@ -101,6 +104,23 @@ export function SettingsPage() {
           当前账号使用临时凭据。除改密、查看会话和退出登录外，服务端已暂停其他操作。
         </p>
         <PasswordChangePanel />
+      </>
+    );
+  }
+
+  if (mustSetupMfa) {
+    return (
+      <>
+        <PageHeader
+          title="多因素认证安全设置"
+          description="完成验证器登记并离线保存恢复码后才能进入公司工作区"
+          icon={LockKeyhole}
+        />
+        <p className="restore-boundary" role="status">
+          <LockKeyhole aria-hidden="true" />
+          当前角色要求多因素认证。除安全设置、查看会话和退出登录外，服务端已暂停其他操作。
+        </p>
+        <MfaPanel />
       </>
     );
   }
@@ -169,6 +189,8 @@ export function SettingsPage() {
       </section>
 
       <PasswordChangePanel />
+
+      <MfaPanel />
 
       <section className="settings-section backup-section">
         <header>

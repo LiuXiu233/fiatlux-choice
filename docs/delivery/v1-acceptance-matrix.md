@@ -33,7 +33,7 @@
 | --- | --- | --- | --- |
 | 响应式 Web 与导航 | `fccbaf9…` 的隔离真实栈 desktop/mobile 6/6 继续有效；`ffe102e…` 又在精确 SHA 完成 mock 48 passed/6 项目条件 skip；`9de2b56…` 在真实公网 HTTPS 以 1440×1000 和 390×844 Chromium 验证 12 篇教育文章、移动导航、登录后 0 console/page/network error 和无横向溢出 | 不可变受管真机入口本地通过 / 远端验收环境通过 | GitHub CI 复现；至少一台真实受管手机 |
 | PWA 与离线边界 | `ffe102e…` 将正式版本与完整 Git SHA 成对注入登录页、离线壳、桌面侧栏和移动个人菜单；`9de2b56…` 的可信 HTTPS 又确认 manifest standalone、active service worker 和 Chromium installability error 0；物理安装/升级未执行 | 不可变受管真机入口本地通过 / 远端工程边界通过 | 目标受管设备按固定十步完成安装、升级、离线、退出和站点数据清理，并独立批准 |
-| 身份、首次改密与会话 | Argon2id、数据库会话、安全 Cookie、限流、`mustChangePassword` 路由门禁、改密后撤销其他会话；`9de2b56…` 远端真实 HTTPS 已完成 bootstrap 登录、强制改密、重新登录、最终再轮换及撤销 12 个自动化会话，有效会话为 0 | 不可变实现提交本地通过 / 远端 owner 流程通过 | 最终目标用真实 owner/member 身份复跑并批准；公网验收环境当前无 MFA |
+| 身份、首次改密、MFA 与会话 | Argon2id、数据库会话、安全 Cookie、限流、`mustChangePassword` 路由门禁；TOTP SHA-256、AES-GCM seed、counter 防重放、一次性恢复码、密码后短时挑战、owner/admin 强制登记和离线双确认恢复已通过本地 PostgreSQL 与桌面/移动 E2E | 当前候选本地通过；旧 `9de2b56…` 远端只证明首登改密 | 部署当前候选后由真实 owner 在目标 HTTPS 完成登记/恢复码保管与登录复跑；保存脱敏审计和责任人批准，不记录任何 MFA 秘密 |
 | 成员生命周期 | pending 登录拒绝、批准/停用/角色变更、乐观并发、最后 owner 保护和审计 | 不可变实现提交本地通过 | 两人审批和单人补偿控制由真实责任人演练 |
 | 四级 RBAC 与归档角色 | owner/admin/member/viewer、组织作用域；已有 Cookie 即时 403、新登录不建 session、恢复后重新授权 | 不可变实现提交本地通过 | 目标内网抽查跨组织拒绝和会话撤销 |
 | 追加审计 | 请求 ID、人工/系统 actor、before/after、拒绝、模型、工具、worker 和恢复事件；`4391837…` 增加双权限受控导出、北京时间/容量边界、CSV 公式保护、响应/浏览器 SHA-256 及 `export_generated`，desktop/mobile 真实下载通过 | 不可变受控审计导出增量本地通过 / 下载后保管待批准 | 目标环境验证数据库与主机运维分权，并批准导出文件保留、转发与销毁制度 |

@@ -179,7 +179,7 @@ try {
     FROM information_schema.tables
     WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
   `;
-  if ((await migrationCount()) !== migrations.length || Number(tableCount?.value ?? -1) !== 38) {
+  if ((await migrationCount()) !== migrations.length || Number(tableCount?.value ?? -1) !== 41) {
     throw new Error("Fresh migration verification did not produce the expected schema");
   }
 
@@ -187,7 +187,7 @@ try {
     `${JSON.stringify({
       previousReleaseMigrationCount,
       currentMigrationCount: migrations.length,
-      publicTableCount: 38,
+      publicTableCount: 41,
       legacyDataPreserved: true,
       inventedProfessionalProvenance: false,
       freshMigrationVerified: true,

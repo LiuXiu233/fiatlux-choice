@@ -40,13 +40,13 @@ describe("database schema invariants", () => {
       restoreAcceptance.publicTables.length,
     );
     expect(restoreAcceptance.publicTables).toEqual(actualTables);
-    expect(restoreAcceptance.publicTables).toHaveLength(38);
+    expect(restoreAcceptance.publicTables).toHaveLength(41);
   });
 
-  it("keeps the restore journal contiguous and backed by every 0000-0010 SQL file", () => {
-    expect(migrationJournal.entries).toHaveLength(11);
+  it("keeps the restore journal contiguous and backed by every 0000-0011 SQL file", () => {
+    expect(migrationJournal.entries).toHaveLength(12);
     expect(migrationJournal.entries.map((entry) => entry.idx)).toEqual(
-      Array.from({ length: 11 }, (_, index) => index),
+      Array.from({ length: 12 }, (_, index) => index),
     );
     for (const entry of migrationJournal.entries) {
       const prefix = entry.idx.toString().padStart(4, "0");

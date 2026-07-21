@@ -4,9 +4,13 @@ import {
   createDatabase,
   membershipRoles,
   memberships,
+  mfaLoginChallenges,
+  OWNER_RECOVERY_MFA_RESET_CONFIRMATION,
   OWNER_RECOVERY_PRODUCTION_CONFIRMATION,
   recoverOwnerPassword,
   roles,
+  userMfaCredentials,
+  userMfaRecoveryCodes,
   users,
 } from "@fiatlux/db";
 import { seedDatabase } from "@fiatlux/db/seed";
@@ -143,11 +147,32 @@ describe.skipIf(!databaseUrl)("offline active-owner password recovery", () => {
       const secondCookie = cookie(secondLogin);
       const crossOrganizationCookie = cookie(crossOrganizationLogin);
 
+      await dbHandle.db.insert(userMfaCredentials).values({
+        userId: seeded.user.id,
+        secretCiphertext: "offline-recovery-fixture-ciphertext",
+        secretIv: "offline-recovery-fixture-iv",
+        secretAuthTag: "offline-recovery-fixture-auth-tag",
+        encryptionKeyId: "offline-recovery-fixture-v1",
+        enabledAt: new Date(),
+        setupExpiresAt: null,
+      });
+      await dbHandle.db.insert(userMfaRecoveryCodes).values({
+        userId: seeded.user.id,
+        codeHash: "a".repeat(64),
+      });
+      await dbHandle.db.insert(mfaLoginChallenges).values({
+        orgId: seeded.organization.id,
+        userId: seeded.user.id,
+        tokenHash: "b".repeat(64),
+        expiresAt: new Date(Date.now() + 60_000),
+      });
+
       const recovered = await recoverOwnerPassword(dbHandle.db, {
         organizationSlug: seeded.organization.slug,
         ownerEmail: email,
         newTemporaryPassword: temporaryPassword,
         productionConfirmation: OWNER_RECOVERY_PRODUCTION_CONFIRMATION,
+        mfaResetConfirmation: OWNER_RECOVERY_MFA_RESET_CONFIRMATION,
         reason: "Sole owner completed offline identity verification",
         approvalReference: `CHANGE-RECOVERY-${suffix}`,
         requestId,
@@ -158,6 +183,9 @@ describe.skipIf(!databaseUrl)("offline active-owner password recovery", () => {
         requestId,
         revokedSessionCount: 3,
         mustChangePassword: true,
+        mfaReset: true,
+        deletedRecoveryCodeCount: 1,
+        consumedMfaChallengeCount: 1,
       });
       await expect(
         recoverOwnerPassword(dbHandle.db, {
@@ -165,6 +193,7 @@ describe.skipIf(!databaseUrl)("offline active-owner password recovery", () => {
           ownerEmail: email,
           newTemporaryPassword: "owner-recovery-unused-second-temporary-password",
           productionConfirmation: OWNER_RECOVERY_PRODUCTION_CONFIRMATION,
+          mfaResetConfirmation: OWNER_RECOVERY_MFA_RESET_CONFIRMATION,
           reason: "Duplicate recovery request must not execute twice",
           approvalReference: `CHANGE-RECOVERY-${suffix}`,
           requestId,
@@ -178,6 +207,24 @@ describe.skipIf(!databaseUrl)("offline active-owner password recovery", () => {
         .limit(1);
       expect(ownerAfterRecovery).toMatchObject({ mustChangePassword: true });
       expect(ownerAfterRecovery?.passwordHash.startsWith("$argon2id$")).toBe(true);
+      const [mfaAfterRecovery, recoveryCodesAfterRecovery, challengesAfterRecovery] =
+        await Promise.all([
+          dbHandle.db
+            .select()
+            .from(userMfaCredentials)
+            .where(eq(userMfaCredentials.userId, seeded.user.id)),
+          dbHandle.db
+            .select()
+            .from(userMfaRecoveryCodes)
+            .where(eq(userMfaRecoveryCodes.userId, seeded.user.id)),
+          dbHandle.db
+            .select()
+            .from(mfaLoginChallenges)
+            .where(eq(mfaLoginChallenges.userId, seeded.user.id)),
+        ]);
+      expect(mfaAfterRecovery).toHaveLength(0);
+      expect(recoveryCodesAfterRecovery).toHaveLength(0);
+      expect(challengesAfterRecovery[0]?.consumedAt).toBeInstanceOf(Date);
 
       const [oldPasswordLogin, firstOldSession, secondOldSession, crossOrganizationOldSession] =
         await Promise.all([
@@ -366,6 +413,7 @@ describe.skipIf(!databaseUrl)("offline active-owner password recovery", () => {
         ownerEmail: owner.user.email,
         newTemporaryPassword: "owner-recovery-boundary-new-password",
         productionConfirmation: OWNER_RECOVERY_PRODUCTION_CONFIRMATION,
+        mfaResetConfirmation: OWNER_RECOVERY_MFA_RESET_CONFIRMATION,
         reason: "Boundary recovery must fail without exact authorization",
         approvalReference: `CHANGE-BOUNDARY-${suffix}`,
       };
@@ -404,6 +452,13 @@ describe.skipIf(!databaseUrl)("offline active-owner password recovery", () => {
           requestId: `owner-recovery-no-confirmation-${suffix}`,
         }),
       ).rejects.toThrow(/confirmation is invalid/);
+      await expect(
+        recoverOwnerPassword(dbHandle.db, {
+          ...base,
+          mfaResetConfirmation: "yes",
+          requestId: `owner-recovery-no-mfa-confirmation-${suffix}`,
+        }),
+      ).rejects.toThrow(/MFA reset confirmation is invalid/);
       await expect(
         recoverOwnerPassword(dbHandle.db, {
           ...base,

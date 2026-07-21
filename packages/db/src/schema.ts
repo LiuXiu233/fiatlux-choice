@@ -1,6 +1,8 @@
+import { sql } from "drizzle-orm";
 import {
   bigint,
   boolean,
+  check,
   index,
   integer,
   jsonb,
@@ -162,6 +164,76 @@ export const sessions = pgTable(
   (table) => [
     uniqueIndex("sessions_token_hash_uq").on(table.tokenHash),
     index("sessions_user_org_idx").on(table.userId, table.orgId),
+  ],
+);
+
+export const userMfaCredentials = pgTable(
+  "user_mfa_credentials",
+  {
+    userId: uuid("user_id")
+      .primaryKey()
+      .references(() => users.id, { onDelete: "cascade" }),
+    secretCiphertext: text("secret_ciphertext").notNull(),
+    secretIv: text("secret_iv").notNull(),
+    secretAuthTag: text("secret_auth_tag").notNull(),
+    encryptionKeyId: text("encryption_key_id").notNull(),
+    enabledAt: timestamp("enabled_at", { withTimezone: true }),
+    setupExpiresAt: timestamp("setup_expires_at", { withTimezone: true }),
+    lastUsedCounter: integer("last_used_counter"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    check(
+      "user_mfa_credentials_state_ck",
+      sql`(${table.enabledAt} is null and ${table.setupExpiresAt} is not null) or (${table.enabledAt} is not null and ${table.setupExpiresAt} is null)`,
+    ),
+  ],
+);
+
+export const userMfaRecoveryCodes = pgTable(
+  "user_mfa_recovery_codes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    codeHash: text("code_hash").notNull(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("user_mfa_recovery_codes_hash_uq").on(table.codeHash),
+    index("user_mfa_recovery_codes_user_idx").on(table.userId, table.usedAt),
+  ],
+);
+
+export const mfaLoginChallenges = pgTable(
+  "mfa_login_challenges",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    tokenHash: text("token_hash").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    attemptsRemaining: integer("attempts_remaining").notNull().default(5),
+    consumedAt: timestamp("consumed_at", { withTimezone: true }),
+    ipAddress: text("ip_address"),
+    userAgent: text("user_agent"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("mfa_login_challenges_token_hash_uq").on(table.tokenHash),
+    index("mfa_login_challenges_user_org_idx").on(table.userId, table.orgId, table.expiresAt),
+    check(
+      "mfa_login_challenges_attempts_ck",
+      sql`${table.attemptsRemaining} >= 0 and ${table.attemptsRemaining} <= 5`,
+    ),
   ],
 );
 

@@ -26,7 +26,7 @@
 
 ### 2026-07-20 工程基线
 
-- 当前 schema 有 38 张业务表和 11 个业务迁移 `0000`–`0010`。首次强制改密、成员 pending/active/inactive/offboarded 生命周期、最后 owner 保护、归档角色即时失权、同组织 typed refs、decision/opportunity 跨字段一致性与八类高风险人工批准已经实现。
+- 当前 schema 有 41 张业务表和 12 个业务迁移 `0000`–`0011`。首次强制改密、TOTP MFA/一次性恢复码、成员 pending/active/inactive/offboarded 生命周期、最后 owner 保护、归档角色即时失权、同组织 typed refs、decision/opportunity 跨字段一致性与八类高风险人工批准已经实现。
 - seed 已拆为显式 `bootstrap`、`metadata-only`、`system-role-maintenance` 三种模式；常规 metadata seed 不会修改身份、membership、role assignment 或权限。离线 owner 恢复要求 exact org/email、active owner、生产确认、原因、批准引用和 requestId，密码只从 stdin 读取，成功后撤销全部会话、强制下次改密并审计。
 - 通知创建为 queued-only；GitHub 刷新保存 `expectedVersion` 并以 CAS 防止陈旧写回；workflow 保存不可变定义版本/步骤快照和 partial checkpoint；advisor/workflow/backup 使用原子 claim、CAS 与 `lease_expired` 人工复核边界。运行异常页已按组织派生这三类事件，要求 owner/admin 提交证据化调查/补偿且不重放原失败运行。
 - 银行付款取消或审批驳回会原子解除草稿支出关联；顾问运行默认 requester-only，管理员的 `advisor-runs:read-all` 仍受顾问入口和上下文读权限限制；角色分配审批保存 membership 版本快照并在批准时重验。
@@ -94,7 +94,7 @@
 
 - [ ] 验收矩阵所有阻断项关闭。
 - [ ] 耀光目标办公内网的生产式 Compose 连续运行 14 天，无 P0/P1 未关闭事件。
-- [ ] 最终 SHA 的 formatVersion 2 归档在独立环境达到批准的 RPO/RTO，38 张业务表和对象抽查一致。
+- [ ] 最终 SHA 的 formatVersion 2 归档在独立环境达到批准的 RPO/RTO，41 张业务表和对象抽查一致。
 - [ ] 两人审批和单人补偿流程均有 E2E 证据。
 - [ ] 最终 Git SHA 已推送到私有目标仓库，主分支和安全工作流全部绿色。
 - [ ] fresh/legacy seed、首次改密、归档角色即时失权和离线 owner 恢复演练全部通过；没有身份或权限被 seed 静默恢复。
@@ -154,7 +154,7 @@
 
 ### 交付
 
-- OIDC 或企业身份接入、MFA、管理员恢复和设备会话管理。
+- OIDC 或企业身份接入、WebAuthn/passkey、MFA 加密密钥在线重加密、管理员双人恢复和设备会话管理。
 - 自定义角色模板、临时访问、到期回收和季度权限证明。
 - 合同模板、版本比较、义务提取建议和续期工作流；签署仍保持人工边界。
 - 财务导入对账、发票查重和现金情景分析；不越过合法接口边界。
