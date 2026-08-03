@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
 FROM postgres:17.5-bookworm AS postgres-client
 
-FROM node:24.12.0-bookworm-slim AS build
+FROM node:26.5.1-bookworm-slim AS build
 
 ENV PNPM_HOME=/pnpm \
     PATH=/pnpm:$PATH
@@ -28,7 +28,7 @@ RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
     rm -rf node_modules apps/*/node_modules packages/*/node_modules && \
     CI=true pnpm install --prod --offline --frozen-lockfile
 
-FROM node:24.12.0-bookworm-slim AS runtime
+FROM node:26.5.1-bookworm-slim AS runtime
 
 ENV NODE_ENV=production
 WORKDIR /app
