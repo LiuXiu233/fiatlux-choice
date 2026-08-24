@@ -23,7 +23,7 @@
     "@aws-sdk/lib-storage": "^3.750.0",
     "@aws-sdk/s3-request-presigner": "^3.750.0",
     "@fiatlux/contracts": "workspace:*",
-    "pg-boss": "^10.3.2"
+    "pg-boss": "^12.27.0"
   },
   "devDependencies": {
     "typescript": "^5.7.3",
