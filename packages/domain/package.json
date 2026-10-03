@@ -21,7 +21,7 @@
     "@fiatlux/contracts": "workspace:*"
   },
   "devDependencies": {
-    "typescript": "^5.7.3",
+    "typescript": "^7.0.2",
     "vitest": "^3.0.7"
   }
 }
